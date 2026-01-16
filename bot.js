@@ -1,6 +1,7 @@
 // !!! ÖNEMLİ UYARI !!!
-// Selfbot kullanımı Discord ToS'a aykırıdır. Hesabınız banlanabilir.
-// Bu kod sadece eğitim/deneme amaçlıdır. Tüm risk size aittir.
+// Selfbot kullanımı Discord Kullanım Koşulları'na (ToS) aykırıdır.
+// Hesabınız kalıcı olarak banlanabilir.
+// Bu kod sadece eğitim/deneme amaçlıdır. Gerçek kullanımda tüm risk size aittir.
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
@@ -8,12 +9,13 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Render sağlık kontrolü
 app.get('/', (req, res) => {
   res.status(200).send('Selfbot çalışıyor (Render keep-alive)');
 });
 
 app.listen(port, () => {
-  console.log(`HTTP sunucu ${port} portunda aktif`);
+  console.log(`HTTP sunucu ${port} portunda aktif — Render için zorunlu`);
 });
 
 const TOKEN = process.env.DISCORD_TOKEN_SELF;
@@ -31,8 +33,9 @@ const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|disc
 
 const client = new Client({ checkUpdate: false });
 
+// Son tanıtım zamanı (DM spam önleme)
 let lastInviteReplyTime = 0;
-const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat
+const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;   // 2 saat
 
 async function copyMessageToLogChannel(message) {
   try {
@@ -45,40 +48,36 @@ async function copyMessageToLogChannel(message) {
   }
 }
 
-// ────────────────────────────────────────────────
-//  Davet linkine katılma fonksiyonu (tekrar denemeli)
-// ────────────────────────────────────────────────
+// Davet linkine katılma (tekrar denemeli)
 async function tryJoinInvite(inviteCode, maxAttempts = 6) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const invite = await client.fetchInvite(inviteCode);
-      console.log(`[\( {attempt}/ \){maxAttempts}] Davet bulundu: \( {invite.guild.name} ( \){inviteCode})`);
+      console.log(`[\( {attempt}/ \){maxAttempts}] Davet bulundu: \( {invite.guild?.name || 'Bilinmeyen sunucu'} ( \){inviteCode})`);
 
-      // Zaten sunucuda mıyız?
       if (client.guilds.cache.has(invite.guild.id)) {
-        console.log(`Zaten ${invite.guild.name} sunucusunda bulunuyorum.`);
+        console.log(`Zaten ${invite.guild.name} sunucusunda → katılma atlanıyor`);
         return true;
       }
 
-      await invite.accept(); // discord.js-selfbot-v13'te davet kabul metodu
+      await invite.accept();
       console.log(`Başarıyla katıldı: ${invite.guild.name}`);
       return true;
 
     } catch (err) {
-      console.error(`Katılma hatası (deneme ${attempt}):`, err.message);
+      console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
 
-      if (err.message.includes('Unknown Invite') || err.code === 10006) {
-        console.log('Davet geçersiz/kullanılmış → vazgeçiliyor.');
+      if (err.message?.includes('Unknown Invite') || err.code === 10006) {
+        console.log('Davet geçersiz veya kullanılmış → vazgeçiliyor');
         return false;
       }
 
       if (attempt === maxAttempts) {
-        console.log('Maksimum deneme sayısına ulaşıldı, vazgeçiliyor.');
+        console.log('Maksimum deneme sayısına ulaşıldı');
         return false;
       }
 
-      // Rate-limit veya geçici hata → bekle
-      const waitTime = 5000 + Math.random() * 10000; // 5-15 saniye arası
+      const waitTime = 5000 + Math.random() * 10000; // 5-15 sn
       console.log(`Tekrar denemek için ${Math.round(waitTime/1000)} saniye bekleniyor...`);
       await new Promise(r => setTimeout(r, waitTime));
     }
@@ -91,7 +90,7 @@ client.on('messageCreate', async (message) => {
 
   const content = message.content.toLowerCase();
 
-  // ── DM veya Grup DM ──
+  // 1. DM veya Grup DM
   if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
 
     // "yenileme" → klasik cevap
@@ -101,51 +100,63 @@ client.on('messageCreate', async (message) => {
           await message.reply('texti tekrar atar mısın önceki mesaj yüklenmedide.');
         } catch {}
       }, 1000);
+      return;
     }
 
-    // ── Davet linki tespit edildi ──
+    // Davet linki → katıl + tanıtım (2 saatte 1)
     const inviteMatches = message.content.match(DISCORD_INVITE_REGEX);
     if (inviteMatches) {
       const now = Date.now();
       if (now - lastInviteReplyTime < MIN_INTERVAL_MS) {
-        console.log('2 saat sınırı aktif, tanıtım atılmadı.');
+        console.log('2 saat sınırı → tanıtım atılmadı');
         return;
       }
 
-      // Her davet kodunu sırayla dene (genelde tek olur ama)
       for (const inviteUrl of inviteMatches) {
-        const codeMatch = inviteUrl.match(/discord\.gg\/([^\s/]+)/i) || 
-                         inviteUrl.match(/\/([a-zA-Z0-9\-_]+)/);
+        const codeMatch = inviteUrl.match(/\/([a-zA-Z0-9\-_]+)(?:$|\s)/i);
         const inviteCode = codeMatch ? codeMatch[1] : null;
-
         if (!inviteCode) continue;
 
-        console.log(`Davet kodu tespit edildi: ${inviteCode}`);
+        console.log(`Davet kodu tespit: ${inviteCode}`);
 
-        // Katılmayı dene
         const joined = await tryJoinInvite(inviteCode);
 
-        // Katılma başarılıysa tanıtım at
+        // Başarılı katıldıysa tanıtım metni at
         if (joined) {
           setTimeout(async () => {
             try {
               await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
 **Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
-Vinland seni bekliyor. ⚔️ ... (devamı aynı)**
+Vinland seni bekliyor. ⚔️
+Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
+Thorfinn'in aradığı toprakları biz burada bulduk — sen de bize katıl.
+Gif:https://tenor.com/view/askeladd-gif-19509516
+
+---
+
+✦ Neler var bizde?
+🛡️ Estetik & Viking temalı tasarım
+⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
+🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
+🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
+🍃 Chill ses kanalları, aktif sohbetler
+🤝 Samimi, saygılı ve toksik olmayan bir topluluk**
 
 || @everyone @here ||
 Pins:https://discord.gg/FzZBhH3tnF`);
 
               setTimeout(async () => {
-                await message.reply('paylaştım, iyi günler.');
-                await copyMessageToLogChannel(message);
+                try {
+                  await message.reply('paylaştım, iyi günler.');
+                  await copyMessageToLogChannel(message);
+                } catch {}
               }, 2500);
 
               lastInviteReplyTime = Date.now();
 
             } catch (e) {
-              console.error("Tanıtım DM hatası:", e.message);
+              console.error("DM tanıtım hatası:", e.message);
             }
           }, 3000);
         }
@@ -153,16 +164,42 @@ Pins:https://discord.gg/FzZBhH3tnF`);
     }
   }
 
-  // ── Bildirim kanalındaki mention'lar ──
+  // 2. Sunucu mesajları → bildirim kanalı
   else if (message.channel.type === 'GUILD_TEXT') {
     if (message.channel.id === NOTIFICATION_CHANNEL_ID) {
       if (message.content.includes(TARGET_ROLE_MENTION)) {
-        if (content.includes('kendi')) return;
 
+        if (content.includes('kendi')) {
+          return; // "kendi" varsa sessiz geç
+        }
+
+        // ─── Hedef role sahip mi kontrolü ───
+        const guild = message.guild;
+        if (!guild) return;
+
+        let member;
+        try {
+          member = await guild.members.fetch(message.author.id);
+        } catch (err) {
+          console.log("Üye fetch hatası:", err.message);
+          return;
+        }
+
+        const targetRoleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
+        const hasTargetRole = member.roles.cache.has(targetRoleId);
+
+        if (hasTargetRole) {
+          console.log(`${message.author.tag} zaten hedef role sahip → "dm gel" atılmadı`);
+          return;
+        }
+
+        // Rolü yoksa → 8 sn sonra dm gel
         setTimeout(async () => {
           try {
             await message.reply('dm gel');
-          } catch {}
+          } catch (e) {
+            console.error("Reply hatası:", e.message);
+          }
         }, 8000);
       }
     }
