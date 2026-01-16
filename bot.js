@@ -65,7 +65,7 @@ client.on('messageCreate', async (message) => {
     if (content.includes('yenileme')) {
       setTimeout(async () => {
         try { 
-          await message.reply('link at');
+          await message.reply('texti tekrar atar mısın önceki mesaj yüklenmedide.');
         } catch (e) {}
       }, 1000);
     }
@@ -133,7 +133,7 @@ Pins:https://discord.gg/FzZBhH3tnF`);
           try {
             await message.reply('dm gel');
           } catch (e) {}
-        }, 60000); // 1 dk bekle
+        }, 8000); // 1 dk bekle
       }
     }
   }
