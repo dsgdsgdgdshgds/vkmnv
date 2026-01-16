@@ -1,18 +1,25 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
-const http = require('http'); // 7/24 Aktif tutmak için gerekli modül
+const express = require('express');
 
-// --- PORT SUNUCU KODU (Render vb. platformlar için) ---
-http.createServer((req, res) => {
-    res.write("Bot 7/24 Aktif!");
-    res.end();
-}).listen(process.env.PORT || 3000);
+// --- SERVER AYARLARI (Render 7/24 Aktif Tutmak İçin) ---
+const app = express();
+const PORT = process.env.PORT || 8080; // Render otomatik port atar, yoksa 8080 kullanır.
 
+app.get('/', (req, res) => {
+    res.send('Bot aktif ve 7/24 çalışıyor!');
+});
+
+app.listen(PORT, () => {
+    console.log(`Sunucu ${PORT} portunda dinleniyor.`);
+});
+
+// --- DISCORD BOT AYARLARI ---
 const client = new Client({ 
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// ANAHTARLAR (Render Environment Variables kısmından ayarlanmalıdır)
+// Ortam Değişkenleri (Render Dashboard -> Environment kısmına eklenmelidir)
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
@@ -42,7 +49,7 @@ async function veriTopla(terimler) {
             );
             if (res.data.organic) {
                 const snippets = res.data.organic.slice(0, 3).map(i => i.snippet).join(" ");
-                hamBilgi += `\n[Kaynak - ${terim}]: ${snippets}`;
+                hamBilgi += `\n${snippets}`;
             }
         } catch (e) { continue; }
     }
@@ -50,54 +57,39 @@ async function veriTopla(terimler) {
 }
 
 async function geminiSistemi(userId, userMesaj) {
-    let history = userMemory.get(userId) || [];
+    // Kurumsal Kimlik Bilgisi
+    const lowerMesaj = userMesaj.toLowerCase();
+    if (lowerMesaj.includes("sahibin") || lowerMesaj.includes("yapımcın") || lowerMesaj.includes("creator") || lowerMesaj.includes("geliştiricin")) {
+        return "Batuhan Aktaş Giresun/Bulancak KAFMTAL\nhata";
+    }
 
+    let history = userMemory.get(userId) || [];
     const simdi = new Date();
-    const guncelZaman = simdi.toLocaleString('tr-TR', { 
-        timeZone: 'Europe/Istanbul', 
-        dateStyle: 'full', 
-        timeStyle: 'medium'
-    });
+    const guncelZaman = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'full', timeStyle: 'medium' });
 
     const terimler = await aramaTerimleriniBelirle(userMesaj);
     const bulunanVeriler = await veriTopla(terimler);
 
-    const systemPrompt = `
-    Sen Gemini mimarisine sahip, gelişmiş bir analiz asistanısın.
-    
-    ÖNEMLİ BİLGİ (GÜNCEL YEREL ZAMAN): ${guncelZaman} (Türkiye Saati)
-    
-    TALİMATLAR:
-    1. Kullanıcı saat veya tarih sorduğunda, yukarıdaki GÜNCEL YEREL ZAMAN bilgisini DOĞRUDAN kullan. 
-    2. Sakın üzerine saat ekleme veya çıkarma yapma; sana verilen zaman zaten nihai Türkiye saatidir.
-    3. İnternetten gelen verileri (aşağıda) analiz et ve kullanıcı sorusuyla harmanla.
-    4. Yanıtlarını Markdown (başlıklar, kalın yazılar) ile düzenle.
-    5. Yanıtın 1900 karakteri geçmesin.
-
-    İNTERNET VERİLERİ:
-    ---
-    ${bulunanVeriler}
-    ---
-    `;
+    const systemPrompt = `Sen Gemini tabanlı bir asistansın. GÜNCEL YEREL ZAMAN: ${guncelZaman}. Kısa, net ve doğrudan cevap ver.`;
 
     try {
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             model: "llama-3.1-8b-instant",
             messages: [
                 { role: "system", content: systemPrompt },
-                ...history.slice(-4), 
+                ...history.slice(-10), 
                 { role: "user", content: userMesaj }
             ],
-            temperature: 0.5 
+            temperature: 0.3 
         }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
 
         const botCevap = response.data.choices[0].message.content;
         history.push({ role: "user", content: userMesaj }, { role: "assistant", content: botCevap });
-        userMemory.set(userId, history.slice(-6)); 
+        userMemory.set(userId, history.slice(-4)); 
         
         return botCevap;
     } catch (e) {
-        return "Verileri işlerken bir sorun oluştu, lütfen tekrar deneyin.";
+        return "Sistemde bir hata oluştu.";
     }
 }
 
@@ -107,12 +99,12 @@ client.on('messageCreate', async (msg) => {
         await msg.channel.sendTyping();
         const temizMesaj = msg.content.replace(/<@!?[^>]+>/g, '').trim();
         const finalYanit = await geminiSistemi(msg.author.id, temizMesaj || "Merhaba");
-        await msg.reply(finalYanit);
+        await msg.reply(finalYanit.length > 2000 ? finalYanit.substring(0, 1900) + "..." : finalYanit);
     } catch (err) { console.error("Hata:", err.message); }
 });
 
 client.once('ready', () => {
-    console.log(`✅ BOT AKTİF: Port 3000 dinleniyor ve zaman sapması düzeltildi.`);
+    console.log(`✅ BOT AKTİF: ${client.user.tag}`);
 });
 
 client.login(DISCORD_TOKEN);
