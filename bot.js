@@ -20,7 +20,7 @@ app.listen(port, () => {
 const TOKEN = process.env.DISCORD_TOKEN_SELF;
 
 if (!TOKEN) {
-  console.error('HATA: DISCORD_TOKEN_SELF eksik!');
+  console.error('TOKEN EKSİK!');
   process.exit(1);
 }
 
@@ -33,7 +33,7 @@ const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|disc
 const client = new Client({ checkUpdate: false });
 
 let lastInviteReplyTime = 0;
-const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat
 
 async function copyMessageToLogChannel(message) {
   try {
@@ -44,91 +44,77 @@ async function copyMessageToLogChannel(message) {
   }
 }
 
-async function tryJoinInvite(inviteCode, maxAttempts = 6) {
+async function tryJoinInvite(inviteCode, maxAttempts = 4) { // max deneme düşürüldü
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       console.log(`[\( {attempt}/ \){maxAttempts}] Deneme → ${inviteCode}`);
 
       const invite = await client.fetchInvite(inviteCode).catch(err => {
-        console.log("fetchInvite başarısız:", err.message);
+        console.log("fetchInvite hatası:", err.message || err);
         return null;
       });
 
-      if (!invite) {
-        console.log("Davet bulunamadı / geçersiz");
-        return false;
-      }
+      if (!invite) return false;
 
-      const guildName = invite.guild?.name || 'Bilinmeyen sunucu';
+      const guildName = invite.guild?.name || 'Bilinmeyen';
 
       if (client.guilds.cache.has(invite.guild?.id)) {
         console.log(`Zaten ${guildName} içinde → atlanıyor`);
         return true;
       }
 
-      // Güncel yöntem 1: client.acceptInvite varsa
-      if (typeof client.acceptInvite === 'function') {
-        console.log("client.acceptInvite deneniyor...");
-        await client.acceptInvite(inviteCode);
-        console.log(`client.acceptInvite ile katıldı: ${guildName}`);
-        return true;
-      }
-
-      // Güncel yöntem 2: invite.acceptInvite varsa (eski örneklerde geçiyor)
-      if (typeof invite.acceptInvite === 'function') {
-        console.log("invite.acceptInvite deneniyor...");
-        await invite.acceptInvite();
-        console.log(`invite.acceptInvite ile katıldı: ${guildName}`);
-        return true;
-      }
-
-      // Yöntem 3: Raw API POST (en güncel alternatif)
       console.log("Raw API POST deneniyor...");
       const response = await fetch(`https://discord.com/api/v9/invites/${inviteCode}`, {
         method: 'POST',
         headers: {
           'Authorization': TOKEN,
           'Content-Type': 'application/json',
-          'User-Agent': 'Discord Client/1.0.9154 (Windows NT 10.0; Win64; x64)',
+          'User-Agent': 'Discord/1.0.9154 (Windows NT 10.0; Win64; x64)',
+          'X-Super-Properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiQ2hyb21lIiwiZGV2aWNlIjoiIiwic3lzdGVtX2xvY2FsZSI6InRyLVRSIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyMC4wLjAuMCBTYWZhcmkvNTM3LjM2IiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTIwLjAuMC4wIiwib3NfdmVyc2lvbiI6IjEwIiwicmVmZXJyZXIiOiIiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjo5OTk5OTksInJlbGVhc2VfY2hhbm5lbCI6InN0YWJsZSIsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9'
         },
         body: JSON.stringify({})
       });
 
-      const data = await response.json().catch(() => ({}));
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (response.ok || data.guild?.id) {
-        console.log(`RAW API ile katıldı: ${data.guild?.name || guildName}`);
+        console.log(`Başarıyla katıldı: ${data.guild?.name || guildName}`);
         return true;
       }
 
       console.log("API cevabı:", data);
 
-      if (data.message?.includes('captcha')) {
-        console.log("CAPTCHA gerekiyor → otomatik geçilemez");
-        return false;
+      if (data.message?.toLowerCase().includes('captcha')) {
+        console.log('CAPTCHA çıktı → otomatik katılım şu an imkansız. Yeni hesap dene veya captcha çözücü kullan.');
+        return false; // captcha çıkarsa devam etme
       }
 
       if (data.message?.includes('Unknown Invite') || data.code === 10006) {
-        console.log("Davet geçersiz → vazgeçiliyor");
+        console.log('Davet geçersiz → vazgeçiliyor');
         return false;
       }
 
       if (response.status === 429) {
-        const retry = (data.retry_after || 15) * 1000;
-        console.log(`Rate limit → ${Math.round(retry/1000)} sn bekleniyor`);
-        await new Promise(r => setTimeout(r, retry));
+        const wait = (data.retry_after || 30) * 1000; // daha uzun bekle
+        console.log(`Rate limit → ${Math.round(wait/1000)} sn bekleniyor`);
+        await new Promise(r => setTimeout(r, wait));
         continue;
       }
 
-      await new Promise(r => setTimeout(r, 5000 + Math.random() * 10000));
+      // Normal hata için uzun bekleme
+      await new Promise(r => setTimeout(r, 20000 + Math.random() * 10000)); // 20-30 sn
 
     } catch (err) {
       console.error(`Hata (deneme ${attempt}):`, err.message || err);
-      await new Promise(r => setTimeout(r, 10000));
+      await new Promise(r => setTimeout(r, 15000));
     }
   }
 
-  console.log(`Katılamadı (${inviteCode})`);
   return false;
 }
 
@@ -138,7 +124,6 @@ client.on('messageCreate', async (message) => {
   const content = message.content.toLowerCase();
 
   if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
-
     if (content.includes('yenileme')) {
       setTimeout(async () => {
         try {
@@ -247,11 +232,11 @@ client.once('ready', () => {
   console.log(`✅ Selfbot aktif: ${client.user.tag}`);
 
   setInterval(() => {
-    console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu: ${client.guilds.cache.size}`);
-  }, 300000); // 5 dk
+    console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu sayısı: ${client.guilds.cache.size}`);
+  }, 5 * 60 * 1000);
 });
 
 client.login(TOKEN).catch(err => {
   console.error('Giriş başarısız:', err.message);
-  console.error('Token veya kütüphane sürümünü kontrol et.');
+  console.error('Token kontrol edin veya Discord kısıtlaması olabilir.');
 });
