@@ -1,6 +1,6 @@
 // !!! ÖNEMLİ UYARI !!!
-// Selfbot ToS ihlali – ban riski çok yüksek
-// Eğitim amaçlıdır, sorumluluk size aittir.
+// Selfbot kullanımı Discord ToS'a aykırıdır → ban riski çok yüksek
+// Bu kod sadece eğitim/deneme amaçlıdır. Tüm risk size aittir.
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
@@ -13,17 +13,17 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`HTTP sunucu ${port} portunda aktif`);
+  console.log(`HTTP sunucu ${port} portunda aktif — Render için zorunlu`);
 });
 
 const TOKEN = process.env.DISCORD_TOKEN_SELF;
 
 if (!TOKEN) {
-  console.error('TOKEN EKSİK!');
+  console.error('HATA: DISCORD_TOKEN_SELF environment variable eksik!');
   process.exit(1);
 }
 
-// Hataları yakala (Render exited early önleme)
+// Render erken kapatma hatalarını önlemek için
 process.on('unhandledRejection', reason => console.error('Unhandled Rejection:', reason));
 process.on('uncaughtException', err => {
   console.error('Uncaught Exception:', err.message);
@@ -39,57 +39,70 @@ const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|disc
 const client = new Client({ checkUpdate: false });
 
 let lastInviteReplyTime = 0;
-const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat
+const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;   // 2 saat
 
 async function copyMessageToLogChannel(message) {
   try {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
-    if (logChannel) await logChannel.send(message.content);
+    if (logChannel) {
+      await logChannel.send(message.content);
+    }
   } catch (error) {
-    console.error("Log hatası:", error.message);
+    console.error("Log gönderme hatası:", error.message);
   }
 }
 
-// Modülün kendi katılma fonksiyonu (client.acceptInvite)
-async function tryJoinInvite(inviteCodeOrLink, maxAttempts = 60) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      console.log(`[\( {attempt}/ \){maxAttempts}] Katılma denemesi → ${inviteCodeOrLink}`);
+// Tek bir katılma denemesi (client.acceptInvite)
+async function singleJoinAttempt(inviteCode, attemptNum) {
+  try {
+    console.log(`[Deneme ${attemptNum}] Kod: ${inviteCode}`);
 
-      // invite objesi al (zorunlu değil ama cache kontrolü için iyi)
-      const invite = await client.fetchInvite(inviteCodeOrLink).catch(() => null);
-      if (invite && client.guilds.cache.has(invite.guild?.id)) {
-        console.log(`Zaten içeride → atlanıyor`);
-        return true;
-      }
-
-      // Modülün sunduğu en temiz yöntem
-      const guild = await client.acceptInvite(inviteCodeOrLink);
-      console.log(`Başarıyla katıldı → ${guild?.name || 'bilinmeyen sunucu'}`);
+    const invite = await client.fetchInvite(inviteCode).catch(() => null);
+    if (invite && client.guilds.cache.has(invite.guild?.id)) {
+      console.log(`Zaten içeride → atlanıyor`);
       return true;
+    }
 
-    } catch (err) {
-      console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
+    console.log(`client.acceptInvite() deneniyor...`);
+    const guild = await client.acceptInvite(inviteCode);
 
-      if (err.message?.includes('captcha')) {
-        console.log('CAPTCHA çıktı → otomatik katılım şu an imkansız');
-        return false;
-      }
+    console.log(`Başarıyla katıldı → ${guild?.name || 'bilinmeyen sunucu'}`);
+    return true;
 
-      if (err.message?.includes('Unknown Invite') || err.code === 10006) {
-        console.log('Davet geçersiz → vazgeçiliyor');
-        return false;
-      }
+  } catch (err) {
+    console.error(`Katılma hatası (deneme ${attemptNum}):`, err.message || err);
+    return false;
+  }
+}
 
-      if (attempt < maxAttempts) {
-        const wait = 100 + Math.random() * 101; // 5-15 sn arası rastgele
-        console.log(`Tekrar deneme için ${Math.round(wait/1000)} sn bekleniyor...`);
-        await new Promise(r => setTimeout(r, wait));
-      }
+// Her davet için: 3 paralel deneme + 5 sn sonra tekrar 3 paralel
+async function tryJoinInvite(inviteCode) {
+  const MAX_GROUPS = 3;
+
+  for (let group = 1; group <= MAX_GROUPS; group++) {
+    console.log(`\n--- Grup \( {group}/ \){MAX_GROUPS} başlıyor (${inviteCode}) ---`);
+
+    const promises = [
+      singleJoinAttempt(inviteCode, `${group}-1`),
+      singleJoinAttempt(inviteCode, `${group}-2`),
+      singleJoinAttempt(inviteCode, `${group}-3`)
+    ];
+
+    const results = await Promise.allSettled(promises);
+
+    const anySuccess = results.some(r => r.status === 'fulfilled' && r.value === true);
+    if (anySuccess) {
+      console.log(`Başarılı katılım tespit edildi → kalan gruplar iptal`);
+      return true;
+    }
+
+    if (group < MAX_GROUPS) {
+      console.log(`Grup ${group} bitti. 5 saniye bekleniyor...`);
+      await new Promise(r => setTimeout(r, 5000));
     }
   }
 
-  console.log(`Tüm denemeler başarısız → ${inviteCodeOrLink}`);
+  console.log(`Tüm gruplar başarısız (${inviteCode})`);
   return false;
 }
 
@@ -122,9 +135,9 @@ client.on('messageCreate', async (message) => {
         const inviteCode = codeMatch ? codeMatch[1] : null;
         if (!inviteCode) continue;
 
-        console.log(`Davet kodu tespit: ${inviteCode}`);
+        console.log(`Davet kodu tespit: ${inviteCode} (link: ${inviteUrl})`);
 
-        const joined = await tryJoinInvite(inviteCode); // veya direkt inviteUrl verilebilir
+        const joined = await tryJoinInvite(inviteCode);
 
         if (joined) {
           setTimeout(async () => {
@@ -185,8 +198,10 @@ Pins: https://discord.gg/FzZBhH3tnF`);
         }
 
         const targetRoleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
-        if (member.roles.cache.has(targetRoleId)) {
-          console.log(`${message.author.tag} zaten hedef rolde → dm gel atılmadı`);
+        const hasTargetRole = member.roles.cache.has(targetRoleId);
+
+        if (hasTargetRole) {
+          console.log(`${message.author.tag} zaten hedef role sahip → "dm gel" atılmadı`);
           return;
         }
 
@@ -207,9 +222,10 @@ client.once('ready', () => {
 
   setInterval(() => {
     console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu sayısı: ${client.guilds.cache.size}`);
-  }, 300000); // 5 dk
+  }, 5 * 60 * 1000);
 });
 
 client.login(TOKEN).catch(err => {
   console.error('Giriş başarısız:', err.message);
+  console.error('Token kontrol edin.');
 });
