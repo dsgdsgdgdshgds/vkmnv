@@ -205,7 +205,7 @@ Pins: https://discord.gg/FzZBhH3tnF`;
 
     setTimeout(async () => {
       try {
-        await message.reply("bide bunlardan ayrı olarak link içermeyen herhani bir mesaj gelirse sunucu textini tekrar paylaşır mısnız önceki mesajlar yüklenmiyorda.");
+        await message.reply("sunucu textini tekrar paylaşır mısnız? önceki mesajlar yüklenmiyorda.");
         lastNonInviteReplyTime = now;
       } catch (err) {
         console.error("Non-invite reply hatası:", err);
