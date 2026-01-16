@@ -1,7 +1,7 @@
 // !!! ÖNEMLİ UYARI !!!
 // Selfbot kullanımı Discord Kullanım Koşulları'na (ToS) aykırıdır.
 // Hesabınız kalıcı olarak banlanabilir.
-// Bu kod sadece eğitim/deneme amaçlıdır. Gerçek kullanımda tüm risk size aittir.
+// Bu kod sadece eğitim/deneme amaçlıdır. Tüm risk size aittir.
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
@@ -9,7 +9,6 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Render sağlık kontrolü
 app.get('/', (req, res) => {
   res.status(200).send('Selfbot çalışıyor (Render keep-alive)');
 });
@@ -29,57 +28,87 @@ const LOG_CHANNEL_ID = '1425453225343193088';
 const NOTIFICATION_CHANNEL_ID = '1425156091339079962';
 const TARGET_ROLE_MENTION = '<@&1425475242398187590>';
 
+// Korunacak sunucular (buraya ID yazarsan onlardan çıkmaz)
+const PROTECTED_GUILD_IDS = [
+  '1425143892633976844'
+];
+
 const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|discordapp\.com\/invite)\/([^\s/]+?)(?=\b|$)/gi;
 
 const client = new Client({ checkUpdate: false });
 
-// Son tanıtım zamanı (DM spam önleme)
-let lastInviteReplyTime = 0;
-const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;   // 2 saat
+let lastDMReplyTime = 0;
+const MIN_INTERVAL_DM_MS = 2 * 60 * 60 * 1000;          // 2 saat
+const MIN_COOLDOWN_BETWEEN_REPLIES_MS = 30 * 60 * 1000; // 30 dakika
 
 async function copyMessageToLogChannel(message) {
   try {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
     if (logChannel) {
-      await logChannel.send(`{message.content}`);
+      await logChannel.send(message.content);
     }
   } catch (error) {
     console.error("Log gönderme hatası:", error.message);
   }
 }
 
-// Davet linkine katılma (tekrar denemeli)
+async function checkAndLeaveLeastMemberGuild() {
+  const guilds = client.guilds.cache;
+  if (guilds.size < 100) return;
+
+  console.log(`Sunucu sayısı 100'e ulaştı → en az üyeli sunucudan çıkılıyor...`);
+
+  const sorted = [...guilds.values()]
+    .filter(g => !PROTECTED_GUILD_IDS.includes(g.id))
+    .sort((a, b) => a.memberCount - b.memberCount);
+
+  if (sorted.length === 0) {
+    console.log('Çıkılacak sunucu kalmadı (hepsi korunuyor olabilir)');
+    return;
+  }
+
+  const toLeave = sorted[0];
+  console.log(`Çıkılıyor → \( {toLeave.name} ( \){toLeave.id}) | Üye: ${toLeave.memberCount}`);
+
+  try {
+    await toLeave.leave();
+    console.log(`Başarıyla çıkıldı: ${toLeave.name}`);
+  } catch (err) {
+    console.error(`Çıkma hatası (${toLeave.name}):`, err.message);
+  }
+}
+
 async function tryJoinInvite(inviteCode, maxAttempts = 6) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const invite = await client.fetchInvite(inviteCode);
-      console.log(`[\( {attempt}/ \){maxAttempts}] Davet bulundu: \( {invite.guild?.name || 'Bilinmeyen sunucu'} ( \){inviteCode})`);
+      console.log(`[\( {attempt}/ \){maxAttempts}] Davet: \( {invite.guild?.name || 'bilinmeyen'} ( \){inviteCode})`);
 
-      if (client.guilds.cache.has(invite.guild.id)) {
-        console.log(`Zaten ${invite.guild.name} sunucusunda → katılma atlanıyor`);
+      if (client.guilds.cache.has(invite.guild?.id)) {
+        console.log(`Zaten içeride → atlanıyor`);
         return true;
       }
 
       await invite.accept();
-      console.log(`Başarıyla katıldı: ${invite.guild.name}`);
+      console.log(`Katıldı: ${invite.guild?.name || 'bilinmeyen'}`);
+
+      // Katıldıktan sonra 100 kontrolü
+      setTimeout(checkAndLeaveLeastMemberGuild, 6000);
+
       return true;
 
     } catch (err) {
       console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
 
       if (err.message?.includes('Unknown Invite') || err.code === 10006) {
-        console.log('Davet geçersiz veya kullanılmış → vazgeçiliyor');
         return false;
       }
 
-      if (attempt === maxAttempts) {
-        console.log('Maksimum deneme sayısına ulaşıldı');
-        return false;
-      }
+      if (attempt === maxAttempts) return false;
 
-      const waitTime = 5000 + Math.random() * 10000; // 5-15 sn
-      console.log(`Tekrar denemek için ${Math.round(waitTime/1000)} saniye bekleniyor...`);
-      await new Promise(r => setTimeout(r, waitTime));
+      const wait = 5000 + Math.random() * 10000;
+      console.log(`Tekrar deneme için ~${Math.round(wait/1000)} sn bekleniyor`);
+      await new Promise(r => setTimeout(r, wait));
     }
   }
   return false;
@@ -88,44 +117,36 @@ async function tryJoinInvite(inviteCode, maxAttempts = 6) {
 client.on('messageCreate', async (message) => {
   if (message.author.id === client.user.id) return;
 
-  const content = message.content.toLowerCase();
+  const contentLower = message.content.toLowerCase();
 
-  // 1. DM veya Grup DM
+  // ── DM veya Grup DM ───────────────────────────────────────────────
   if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
 
-    // "yenileme" → klasik cevap
-    if (content.includes('yenileme')) {
-      setTimeout(async () => {
-        try {
-          await message.reply('texti tekrar atar mısın önceki mesaj yüklenmedide.');
-        } catch {}
-      }, 1000);
-      return;
-    }
+    const hasInvite = DISCORD_INVITE_REGEX.test(message.content);
 
-    // Davet linki → katıl + tanıtım (2 saatte 1)
-    const inviteMatches = message.content.match(DISCORD_INVITE_REGEX);
-    if (inviteMatches) {
+    if (hasInvite) {
       const now = Date.now();
-      if (now - lastInviteReplyTime < MIN_INTERVAL_MS) {
+      if (now - lastDMReplyTime < MIN_INTERVAL_DM_MS) {
         console.log('2 saat sınırı → tanıtım atılmadı');
         return;
       }
 
-      for (const inviteUrl of inviteMatches) {
-        const codeMatch = inviteUrl.match(/\/([a-zA-Z0-9\-_]+)(?:$|\s)/i);
-        const inviteCode = codeMatch ? codeMatch[1] : null;
-        if (!inviteCode) continue;
+      const matches = message.content.match(DISCORD_INVITE_REGEX) || [];
+      let anyJoined = false;
 
-        console.log(`Davet kodu tespit: ${inviteCode}`);
+      for (const url of matches) {
+        const codeMatch = url.match(/\/([a-zA-Z0-9\-_]+?)(?=\b|$)/i);
+        if (!codeMatch) continue;
+        const code = codeMatch[1];
 
-        const joined = await tryJoinInvite(inviteCode);
+        const joined = await tryJoinInvite(code);
+        if (joined) anyJoined = true;
+      }
 
-        // Başarılı katıldıysa tanıtım metni at
-        if (joined) {
-          setTimeout(async () => {
-            try {
-              await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
+      if (anyJoined) {
+        setTimeout(async () => {
+          try {
+            await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
 **Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
 Vinland seni bekliyor. ⚔️
@@ -146,68 +167,84 @@ Gif:https://tenor.com/view/askeladd-gif-19509516
 || @everyone @here ||
 Pins:https://discord.gg/FzZBhH3tnF`);
 
-              setTimeout(async () => {
-                try {
-                  await message.reply('paylaştım, iyi günler.');
-                  await copyMessageToLogChannel(message);
-                } catch {}
-              }, 2500);
+            setTimeout(async () => {
+              await message.reply('paylaştım, iyi günler.');
+              await copyMessageToLogChannel(message);
+            }, 2500);
 
-              lastInviteReplyTime = Date.now();
+            lastDMReplyTime = Date.now();
 
-            } catch (e) {
-              console.error("DM tanıtım hatası:", e.message);
-            }
-          }, 3000);
-        }
-      }
-    }
-  }
-
-  // 2. Sunucu mesajları → bildirim kanalı
-  else if (message.channel.type === 'GUILD_TEXT') {
-    if (message.channel.id === NOTIFICATION_CHANNEL_ID) {
-      if (message.content.includes(TARGET_ROLE_MENTION)) {
-
-        if (content.includes('kendi')) {
-          return; // "kendi" varsa sessiz geç
-        }
-
-        // ─── Hedef role sahip mi kontrolü ───
-        const guild = message.guild;
-        if (!guild) return;
-
-        let member;
-        try {
-          member = await guild.members.fetch(message.author.id);
-        } catch (err) {
-          console.log("Üye fetch hatası:", err.message);
-          return;
-        }
-
-        const targetRoleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
-        const hasTargetRole = member.roles.cache.has(targetRoleId);
-
-        if (hasTargetRole) {
-          console.log(`${message.author.tag} zaten hedef role sahip → "dm gel" atılmadı`);
-          return;
-        }
-
-        // Rolü yoksa → 8 sn sonra dm gel
-        setTimeout(async () => {
-          try {
-            await message.reply('dm gel');
           } catch (e) {
-            console.error("Reply hatası:", e.message);
+            console.error("DM tanıtım hatası:", e.message);
           }
         }, 3000);
       }
+
+      return;
+    }
+
+    // Davet yoksa → hatırlatma (2 saat + 30 dk cooldown)
+    const now = Date.now();
+    const sinceLast = now - lastDMReplyTime;
+
+    if (sinceLast >= MIN_INTERVAL_DM_MS && sinceLast >= MIN_COOLDOWN_BETWEEN_REPLIES_MS) {
+      setTimeout(async () => {
+        try {
+          await message.reply('texti tekrar atar mısın önceki mesaj yüklenmedi de.');
+          lastDMReplyTime = Date.now();
+        } catch (e) {
+          console.error("Hatırlatma hatası:", e.message);
+        }
+      }, 1200);
+    }
+
+    return;
+  }
+
+  // ── Bildirim kanalı ───────────────────────────────────────────────
+  if (message.channel.type === 'GUILD_TEXT' && message.channel.id === NOTIFICATION_CHANNEL_ID) {
+    if (message.content.includes(TARGET_ROLE_MENTION)) {
+
+      if (contentLower.includes('kendi')) return;
+
+      const guild = message.guild;
+      if (!guild) return;
+
+      let member;
+      try {
+        member = await guild.members.fetch(message.author.id);
+      } catch (err) {
+        console.log("Üye fetch hatası:", err.message);
+        return;
+      }
+
+      const roleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
+      if (member.roles.cache.has(roleId)) {
+        console.log(`${message.author.tag} zaten hedef rolde → dm gel atılmadı`);
+        return;
+      }
+
+      setTimeout(async () => {
+        try {
+          await message.reply('dm gel');
+        } catch (e) {
+          console.error("Reply hatası:", e.message);
+        }
+      }, 5000);
     }
   }
 });
 
+// Yeni sunucuya katılınca kontrol
+client.on('guildCreate', (guild) => {
+  console.log(`Yeni sunucu: \( {guild.name} ( \){guild.id}) | Üye: ${guild.memberCount}`);
+  setTimeout(checkAndLeaveLeastMemberGuild, 4000);
+});
+
 client.once('ready', () => {
-  console.log(`✅ Selfbot aktif: ${client.user.tag}`);
+  console.log(`✅ Selfbot aktif: ${client.user.tag} | Sunucu sayısı: ${client.guilds.cache.size}`);
+  // Başlangıç kontrolü
+  setTimeout(checkAndLeaveLeastMemberGuild, 10000);
 });
 
 client.login(TOKEN).catch(err => {
