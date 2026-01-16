@@ -4,6 +4,7 @@
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
+const fetch = require('node-fetch');   // npm install node-fetch@2 yapmayı unutma
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -45,49 +46,79 @@ async function copyMessageToLogChannel(message) {
   }
 }
 
-// Tek bir katılma denemesi (invite.acceptInvite)
-async function singleJoinAttempt(inviteCode, attemptNum) {
+// Tek bir raw API katılma denemesi
+async function singleRawJoinAttempt(inviteCode, attemptNum) {
   try {
-    const invite = await client.fetchInvite(inviteCode);
-    console.log(`[Deneme ${attemptNum}] Davet bulundu: \( {invite.guild?.name || 'Bilinmeyen'} ( \){inviteCode})`);
+    console.log(`[Raw Deneme ${attemptNum}] Kod: ${inviteCode}`);
 
-    if (client.guilds.cache.has(invite.guild?.id)) {
-      console.log(`Zaten içeride → atlanıyor`);
+    const response = await fetch(`https://discord.com/api/v9/invites/${inviteCode}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': TOKEN,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Discord Client/1.0.9154 (Windows NT 10.0; Win64; x64)',
+        'X-Super-Properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiQ2hyb21lIiwiZGV2aWNlIjoiIiwic3lzdGVtX2xvY2FsZSI6InRyLVRSIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyMC4wLjAuMCBTYWZhcmkvNTM3LjM2IiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTIwLjAuMC4wIiwib3NfdmVyc2lvbiI6IjEwIiwicmVmZXJyZXIiOiIiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjo5OTk5OTksInJlbGVhc2VfY2hhbm5lbCI6InN0YWJsZSIsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9'
+      },
+      body: JSON.stringify({})
+    });
+
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
+    if (response.ok || data.guild?.id) {
+      console.log(`RAW API ile katıldı: ${data.guild?.name || 'bilinmeyen'}`);
       return true;
     }
 
-    console.log(`acceptInvite() deneniyor...`);
-    await invite.acceptInvite();  // ← İstediğin yöntem bu
+    console.log("API cevabı:", data);
 
-    console.log(`Başarıyla katıldı: ${invite.guild?.name || 'bilinmeyen'}`);
-    return true;
+    if (data.message?.toLowerCase().includes('captcha')) {
+      console.log('CAPTCHA çıktı → bu deneme başarısız');
+      return false;
+    }
+
+    if (data.message?.includes('Unknown Invite') || data.code === 10006) {
+      console.log('Davet geçersiz → vazgeçiliyor');
+      return false;
+    }
+
+    if (response.status === 429) {
+      console.log('Rate limit → bu deneme geçici başarısız');
+      return false;
+    }
+
+    return false;
 
   } catch (err) {
-    console.error(`Katılma hatası:`, err.message || err);
+    console.error(`Raw hata (deneme ${attemptNum}):`, err.message || err);
     return false;
   }
 }
 
-// 3 paralel deneme grubu + 5 sn aralıkla tekrar
+// Her davet için: 3 paralel raw deneme + 5 sn sonra tekrar 3 paralel (toplam 3 grup)
 async function tryJoinInvite(inviteCode) {
-  const MAX_GROUPS = 3;  // 3 kez 3 paralel deneme = toplam 9 deneme max
+  const MAX_GROUPS = 3;
 
   for (let group = 1; group <= MAX_GROUPS; group++) {
     console.log(`\n--- Grup \( {group}/ \){MAX_GROUPS} başlıyor (${inviteCode}) ---`);
 
-    // Aynı anda 3 paralel deneme
+    // Aynı anda 3 paralel raw deneme
     const promises = [
-      singleJoinAttempt(inviteCode, `${group}-1`),
-      singleJoinAttempt(inviteCode, `${group}-2`),
-      singleJoinAttempt(inviteCode, `${group}-3`)
+      singleRawJoinAttempt(inviteCode, `${group}-1`),
+      singleRawJoinAttempt(inviteCode, `${group}-2`),
+      singleRawJoinAttempt(inviteCode, `${group}-3`)
     ];
 
     const results = await Promise.allSettled(promises);
 
-    // Eğer herhangi biri başarılıysa erken çık
+    // Herhangi biri başarılıysa erken çık
     const anySuccess = results.some(r => r.status === 'fulfilled' && r.value === true);
     if (anySuccess) {
-      console.log(`Başarılı katılım tespit edildi → kalan denemeler iptal`);
+      console.log(`Başarılı katılım tespit edildi → kalan gruplar iptal`);
       return true;
     }
 
@@ -214,8 +245,14 @@ Pins: https://discord.gg/FzZBhH3tnF`);
 
 client.once('ready', () => {
   console.log(`✅ Selfbot aktif: ${client.user.tag}`);
+
+  // Render keep-alive
+  setInterval(() => {
+    console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu sayısı: ${client.guilds.cache.size}`);
+  }, 5 * 60 * 1000);
 });
 
 client.login(TOKEN).catch(err => {
   console.error('Giriş başarısız:', err.message);
+  console.error('Token veya Discord kısıtlaması olabilir.');
 });
