@@ -37,11 +37,14 @@ const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|disc
 
 const client = new Client({ checkUpdate: false });
 
-let lastInviteReplyTime = 0;
-const MIN_INVITE_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat - davet linkli cevaplar için
+// Kişi bazlı cooldown'lar
+const inviteCooldowns = new Map();          // userId → son invite cevabı zamanı (2 saat)
+const nonInviteCooldowns = new Map();       // userId → son non-invite cevap zamanı (30 dk)
+const inviteBlockNonInvite = new Map();     // userId → son invite sonrası non-invite blok bitiş zamanı
 
-let lastNonInviteReplyTime = 0;
-const NON_INVITE_COOLDOWN_MS = 30 * 60 * 1000; // 30 dakika - link olmayan mesajlara cevap cooldown
+const INVITE_COOLDOWN_MS = 2 * 60 * 60 * 1000;     // 2 saat
+const NON_INVITE_COOLDOWN_MS = 30 * 60 * 1000;     // 30 dk
+const INVITE_BLOCK_NON_INVITE_MS = 30 * 60 * 1000; // invite sonrası 30 dk blok
 
 async function copyMessageToLogChannel(message) {
   try {
@@ -70,38 +73,23 @@ async function tryJoinInvite(inviteUrl) {
     return false;
   }
 
-  console.log(`İşlenen kod: ${inviteCode} (orijinal link: ${inviteUrl})`);
+  console.log(`İşlenen kod: ${inviteCode}`);
 
-  for (let attempt = 1; attempt <= 6; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      console.log(`[Deneme ${attempt}/6] fetchInvite başlıyor...`);
-      const invite = await client.fetchInvite(inviteCode).catch(err => {
-        console.log(`fetchInvite başarısız: ${err.message || err}`);
-        return null;
-      });
-
+      const invite = await client.fetchInvite(inviteCode).catch(() => null);
       if (!invite) return false;
 
-      const guildName = invite.guild?.name || 'Bilinmeyen';
+      if (client.guilds.cache.has(invite.guild?.id)) return true;
 
-      if (client.guilds.cache.has(invite.guild?.id)) {
-        console.log(`Zaten ${guildName} içinde → başarılı sayılıyor`);
-        return true;
-      }
-
-      console.log(`client.acceptInvite deneniyor (deneme ${attempt})...`);
       const guild = await client.acceptInvite(inviteCode);
-
-      console.log(`KATILMA BAŞARILI → Sunucu: ${guild?.name || guildName}`);
+      console.log(`KATILMA BAŞARILI → ${guild?.name || 'Bilinmeyen'}`);
       return true;
 
     } catch (err) {
-      console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
-
       if (err.message?.includes('captcha') || err.message?.includes('Unknown Invite') || err.code === 10006) {
         return false;
       }
-
       await new Promise(r => setTimeout(r, 10000 + Math.random() * 10000));
     }
   }
@@ -111,8 +99,10 @@ async function tryJoinInvite(inviteUrl) {
 client.on('messageCreate', async (message) => {
   if (message.author.id === client.user.id) return;
 
+  const userId = message.author.id;
+  const now = Date.now();
+
   if (message.channel.type !== 'DM' && message.channel.type !== 'GROUP_DM') {
-    // Sunucu mesajları için bildirim kanalı logic
     if (message.channel.id === NOTIFICATION_CHANNEL_ID && message.content.includes(TARGET_ROLE_MENTION)) {
       if (message.content.toLowerCase().includes('kendi')) return;
 
@@ -120,7 +110,7 @@ client.on('messageCreate', async (message) => {
       if (!guild) return;
 
       let member;
-      try { member = await guild.members.fetch(message.author.id); } catch { return; }
+      try { member = await guild.members.fetch(userId); } catch { return; }
 
       const roleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
       if (member.roles.cache.has(roleId)) return;
@@ -133,15 +123,14 @@ client.on('messageCreate', async (message) => {
   }
 
   // DM / Group DM
-  const content = message.content.toLowerCase();
-  const now = Date.now();
-
+  const contentLower = message.content.toLowerCase();
   const hasInvite = message.content.match(DISCORD_INVITE_REGEX);
 
   if (hasInvite && hasInvite.length > 0) {
-    // Davet linki içeren mesaj
-    if (now - lastInviteReplyTime < MIN_INVITE_INTERVAL_MS) {
-      console.log('Davet için 2 saat sınırı → atlanıyor');
+    // Davet linki var → invite cooldown kontrol
+    const lastInvite = inviteCooldowns.get(userId) || 0;
+    if (now - lastInvite < INVITE_COOLDOWN_MS) {
+      console.log(`Kullanıcı ${userId} için invite cooldown aktif`);
       return;
     }
 
@@ -187,7 +176,11 @@ Pins: https://discord.gg/FzZBhH3tnF`;
           await message.reply('paylaştım, iyi günler.');
 
           await copyMessageToLogChannel(message);
-          lastInviteReplyTime = now;
+
+          // Cooldown'ları güncelle (kişi bazlı)
+          inviteCooldowns.set(userId, now);
+          inviteBlockNonInvite.set(userId, now + INVITE_BLOCK_NON_INVITE_MS);
+
           replied = true;
 
         } catch (err) {
@@ -197,16 +190,26 @@ Pins: https://discord.gg/FzZBhH3tnF`;
     }
   }
   else {
-    // Link içermeyen normal mesaj → 30 dk cooldown ile cevap
-    if (now - lastNonInviteReplyTime < NON_INVITE_COOLDOWN_MS) {
-      console.log('Link olmayan mesaj cooldown → cevap verilmedi');
+    // Link içermeyen mesaj
+
+    // 1. Bu kullanıcı için invite sonrası blok aktif mi?
+    const blockUntil = inviteBlockNonInvite.get(userId) || 0;
+    if (now < blockUntil) {
+      console.log(`Kullanıcı ${userId} için invite sonrası non-invite blok aktif`);
+      return;
+    }
+
+    // 2. Normal non-invite cooldown kontrolü
+    const lastNonInvite = nonInviteCooldowns.get(userId) || 0;
+    if (now - lastNonInvite < NON_INVITE_COOLDOWN_MS) {
+      console.log(`Kullanıcı ${userId} için non-invite cooldown aktif`);
       return;
     }
 
     setTimeout(async () => {
       try {
-        await message.reply("sunucu textini tekrar paylaşır mısnız? önceki mesajlar yüklenmiyorda.");
-        lastNonInviteReplyTime = now;
+        await message.reply("sunucu textini tekrar paylaşır mısnız önceki mesajlar yüklenmiyorda.");
+        nonInviteCooldowns.set(userId, now);
       } catch (err) {
         console.error("Non-invite reply hatası:", err);
       }
