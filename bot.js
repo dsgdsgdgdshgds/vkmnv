@@ -1,5 +1,12 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
+const http = require('http'); // 7/24 Aktif tutmak için gerekli modül
+
+// --- PORT SUNUCU KODU (Render vb. platformlar için) ---
+http.createServer((req, res) => {
+    res.write("Bot 7/24 Aktif!");
+    res.end();
+}).listen(process.env.PORT || 3000);
 
 const client = new Client({ 
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -45,12 +52,11 @@ async function veriTopla(terimler) {
 async function geminiSistemi(userId, userMesaj) {
     let history = userMemory.get(userId) || [];
 
-    // --- GÜNCEL ZAMAN DÜZENLEMESİ ---
     const simdi = new Date();
     const guncelZaman = simdi.toLocaleString('tr-TR', { 
         timeZone: 'Europe/Istanbul', 
         dateStyle: 'full', 
-        timeStyle: 'medium' // Saniye bilgisini de net verir
+        timeStyle: 'medium'
     });
 
     const terimler = await aramaTerimleriniBelirle(userMesaj);
@@ -82,7 +88,7 @@ async function geminiSistemi(userId, userMesaj) {
                 ...history.slice(-4), 
                 { role: "user", content: userMesaj }
             ],
-            temperature: 0.5 // Daha tutarlı cevaplar için sıcaklığı biraz düşürdük
+            temperature: 0.5 
         }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
 
         const botCevap = response.data.choices[0].message.content;
@@ -106,7 +112,7 @@ client.on('messageCreate', async (msg) => {
 });
 
 client.once('ready', () => {
-    console.log(`✅ BOT AKTİF: Zaman sapması düzeltildi.`);
+    console.log(`✅ BOT AKTİF: Port 3000 dinleniyor ve zaman sapması düzeltildi.`);
 });
 
 client.login(DISCORD_TOKEN);
