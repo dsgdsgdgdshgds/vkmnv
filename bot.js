@@ -200,7 +200,7 @@ Pins:https://discord.gg/FzZBhH3tnF`);
           } catch (e) {
             console.error("Reply hatası:", e.message);
           }
-        }, 8000);
+        }, 3000);
       }
     }
   }
