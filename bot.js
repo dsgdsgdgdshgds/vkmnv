@@ -145,19 +145,23 @@ client.on('messageCreate', async (message) => {
       let replied = false;
 
       for (const inviteUrl of inviteMatches) {
-        if (replied) break; // ← sadece ilk geçerli cevaba izin ver
+        if (replied) break;
 
         const joined = await tryJoinInvite(inviteUrl);
 
-        // Cevap verme bloğu
+        // Cevap verme sırası
         setTimeout(async () => {
           try {
-            let replyText = "";
+            const apologyText = "Sunucu katılma sınırım doldu kusura bakma katılamadım.";
+
             if (!joined) {
-              replyText += "Sunucu katılma sınırım doldu kusura bakma katılamadım.\n\n";
+              // Özür mesajı ayrı gönderiliyor
+              await message.reply(apologyText);
+              await new Promise(r => setTimeout(r, 1500)); // 1.5 saniye bekle
             }
 
-            replyText += `# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
+            // Tanıtım mesajı (her zaman gidiyor)
+            const promoText = `# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
 **Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
 Vinland seni bekliyor. ⚔️
@@ -179,23 +183,22 @@ Gif: https://tenor.com/view/askeladd-gif-19509516
 || @everyone @here ||
 Pins: https://discord.gg/FzZBhH3tnF`;
 
-            await message.reply(replyText);
+            await message.reply(promoText);
 
-            await new Promise(r => setTimeout(r, 2200));
+            await new Promise(r => setTimeout(r, 2000)); // 2 saniye bekle
             await message.reply('paylaştım, iyi günler.');
 
             await copyMessageToLogChannel(message);
             lastInviteReplyTime = Date.now();
 
-            replied = true; // Cevap verildi, kalan davet linklerini atla
+            replied = true;
 
           } catch (err) {
             console.error("DM cevap hatası:", err.message);
           }
-        }, 2800);
+        }, 2800);  // genel başlangıç gecikmesi (anti-flood)
 
-        // Eğer bu davet için join denendi ve cevap planlandıysa döngüyü kır
-        // (ama async olduğu için replied flag ile kontrol ediyoruz)
+        // İlk cevap planlandıysa kalan davetleri atla
       }
     }
   }
@@ -224,7 +227,7 @@ Pins: https://discord.gg/FzZBhH3tnF`;
           try {
             await message.reply('dm gel');
           } catch {}
-        }, 5000);
+        }, 3000);
       }
     }
   }
