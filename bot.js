@@ -5,6 +5,7 @@
 
 const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
+const fetch = require('node-fetch');   // npm install node-fetch@2
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -78,39 +79,82 @@ async function checkAndLeaveLeastMemberGuild() {
   }
 }
 
-async function tryJoinInvite(inviteCode, maxAttempts = 6) {
+async function tryJoinInvite(inviteCode, maxAttempts = 5) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const invite = await client.fetchInvite(inviteCode);
-      console.log(`[\( {attempt}/ \){maxAttempts}] Davet: \( {invite.guild?.name || 'bilinmeyen'} ( \){inviteCode})`);
+      console.log(`[Deneme \( {attempt}/ \){maxAttempts}] Kod: ${inviteCode}`);
 
-      if (client.guilds.cache.has(invite.guild?.id)) {
-        console.log(`Zaten içeride → atlanıyor`);
-        return true;
-      }
-
-      await invite.accept();
-      console.log(`Katıldı: ${invite.guild?.name || 'bilinmeyen'}`);
-
-      // Katıldıktan sonra 100 kontrolü
-      setTimeout(checkAndLeaveLeastMemberGuild, 6000);
-
-      return true;
-
-    } catch (err) {
-      console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
-
-      if (err.message?.includes('Unknown Invite') || err.code === 10006) {
+      // Davet bilgisini al
+      const invite = await client.fetchInvite(inviteCode, { force: true }).catch(() => null);
+      if (!invite) {
+        console.log("Davet bulunamadı / geçersiz");
         return false;
       }
 
-      if (attempt === maxAttempts) return false;
+      console.log(`Davet sunucusu: ${invite.guild?.name || "isim alınamadı"}`);
 
-      const wait = 5000 + Math.random() * 10000;
-      console.log(`Tekrar deneme için ~${Math.round(wait/1000)} sn bekleniyor`);
-      await new Promise(r => setTimeout(r, wait));
+      // Zaten içerde mi?
+      const existing = await client.guilds.fetch(invite.guild.id).catch(() => null);
+      if (existing) {
+        console.log("Zaten sunucuda → başarılı kabul ediliyor");
+        return true;
+      }
+
+      // Raw API ile katılma (en yaygın çalışan yöntem)
+      const response = await fetch(`https://discord.com/api/v9/invites/${inviteCode}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': TOKEN,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'X-Super-Properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiQ2hyb21lIiwiZGV2aWNlIjoiIiwic3lzdGVtX2xvY2FsZSI6InRyLVRSIiwiYnJvd3Nlcl91c2VyX2FnZW50IjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyMC4wLjAuMCBTYWZhcmkvNTM3LjM2IiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTIwLjAuMC4wIiwib3NfdmVyc2lvbiI6IjEwIiwicmVmZXJyZXIiOiIiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjo5OTk5OTksInJlbGVhc2VfY2hhbm5lbCI6InN0YWJsZSIsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9'
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await response.json();
+
+      if (response.ok || data.guild?.id) {
+        console.log(`Katılım başarılı → ${data.guild?.name || inviteCode}`);
+
+        // Cache güncelle
+        setTimeout(async () => {
+          await client.guilds.fetch(data.guild?.id || invite.guild.id).catch(() => {});
+          checkAndLeaveLeastMemberGuild();
+        }, 6000);
+
+        return true;
+      }
+
+      console.log("API cevabı:", data);
+
+      if (data.message?.includes('captcha') || data.code === 'CAPTCHA_REQUIRED') {
+        console.log("CAPTCHA gerekiyor → otomatik katılım şu an imkansız");
+        return false;
+      }
+
+      if (data.message?.includes('Unknown Invite') || data.code === 10006) {
+        console.log("Davet geçersiz / silinmiş");
+        return false;
+      }
+
+      if (response.status === 429) {
+        const retryAfter = (data.retry_after || 15) * 1000;
+        console.log(`Rate limit → ${Math.round(retryAfter / 1000)} sn bekleniyor`);
+        await new Promise(r => setTimeout(r, retryAfter));
+        continue;
+      }
+
+      // Diğer hatalar için bekleme
+      await new Promise(r => setTimeout(r, 12000 + Math.random() * 8000));
+
+    } catch (err) {
+      console.error(`Hata (deneme ${attempt}):`, err.message || err);
+      await new Promise(r => setTimeout(r, 15000));
     }
   }
+
+  console.log(`Davete katılamadı (${inviteCode})`);
   return false;
 }
 
@@ -119,9 +163,7 @@ client.on('messageCreate', async (message) => {
 
   const contentLower = message.content.toLowerCase();
 
-  // ── DM veya Grup DM ───────────────────────────────────────────────
   if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
-
     const hasInvite = DISCORD_INVITE_REGEX.test(message.content);
 
     if (hasInvite) {
@@ -183,7 +225,7 @@ Pins:https://discord.gg/FzZBhH3tnF`);
       return;
     }
 
-    // Davet yoksa → hatırlatma (2 saat + 30 dk cooldown)
+    // Davet yoksa hatırlatma
     const now = Date.now();
     const sinceLast = now - lastDMReplyTime;
 
@@ -201,7 +243,7 @@ Pins:https://discord.gg/FzZBhH3tnF`);
     return;
   }
 
-  // ── Bildirim kanalı ───────────────────────────────────────────────
+  // Bildirim kanalı
   if (message.channel.type === 'GUILD_TEXT' && message.channel.id === NOTIFICATION_CHANNEL_ID) {
     if (message.content.includes(TARGET_ROLE_MENTION)) {
 
@@ -235,7 +277,6 @@ Pins:https://discord.gg/FzZBhH3tnF`);
   }
 });
 
-// Yeni sunucuya katılınca kontrol
 client.on('guildCreate', (guild) => {
   console.log(`Yeni sunucu: \( {guild.name} ( \){guild.id}) | Üye: ${guild.memberCount}`);
   setTimeout(checkAndLeaveLeastMemberGuild, 4000);
@@ -243,7 +284,6 @@ client.on('guildCreate', (guild) => {
 
 client.once('ready', () => {
   console.log(`✅ Selfbot aktif: ${client.user.tag} | Sunucu sayısı: ${client.guilds.cache.size}`);
-  // Başlangıç kontrolü
   setTimeout(checkAndLeaveLeastMemberGuild, 10000);
 });
 
