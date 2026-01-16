@@ -45,7 +45,7 @@ async function copyMessageToLogChannel(message) {
   try {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
     if (logChannel) {
-      await logChannel.send(`**Log:** \( {message.author.tag} tarafından gelen mesaj:\n \){message.content}`);
+      await logChannel.send(`{message.content}`);
     }
   } catch (error) {
     console.error("Log gönderme hatası:", error.message);
