@@ -5,22 +5,23 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Render'da çalışırken 8080 portunu dinlemesi lazım
+// Render sağlık kontrolü için basit endpoint
 app.get('/', (req, res) => {
-  res.send('Discord bot aktif çalışıyor.');
+  res.status(200).send('Discord bot çalışıyor ✓');
 });
 
 app.listen(port, () => {
-  console.log(`🌐 HTTP sunucu ${port} portunda çalışıyor (Render için zorunlu)`);
+  console.log(`HTTP sunucu ${port} portunda aktif (Render için gerekli)`);
 });
 
-// Environment variables'dan çekiyoruz (Render → Environment sekmesinden ekleyeceksin)
+// Environment variable'lardan alıyoruz → Render'da Environment sekmesine ekleyeceksin
 const GROQ_API_KEY    = process.env.GROQ_API_KEY;
 const DISCORD_TOKEN   = process.env.DISCORD_TOKEN;
 const SERPER_API_KEY  = process.env.SERPER_API_KEY;
 
 if (!DISCORD_TOKEN || !GROQ_API_KEY || !SERPER_API_KEY) {
-  console.error("HATA: Gerekli environment variable'lardan biri veya daha fazlası eksik!");
+  console.error('HATA: En az bir environment variable eksik!');
+  console.error('Gerekli: GROQ_API_KEY, DISCORD_TOKEN, SERPER_API_KEY');
   process.exit(1);
 }
 
@@ -30,19 +31,29 @@ const client = new Client({
 
 const userMemory = new Map();
 
+/**
+ * 1. ADIM: SORUYU PARÇALARA BÖLME
+ */
 async function aramaTerimleriniBelirle(soru) {
     try {
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             model: "llama-3.1-8b-instant",
             messages: [
-                { role: "system", content: "Sen bir araştırma asistanısın. Kullanıcının sorusunu yanıtlamak için gereken en mantıklı 3 farklı arama terimini virgülle ayırarak yaz. Sadece terimleri ver." },
+                { 
+                    role: "system", 
+                    content: "Sen bir araştırma asistanısın. Kullanıcının sorusunu yanıtlamak için gereken en mantıklı 3 farklı arama terimini virgülle ayırarak yaz. Sadece terimleri ver." 
+                },
                 { role: "user", content: soru }
             ]
         }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
+
         return response.data.choices[0].message.content.split(',').map(s => s.trim());
     } catch (e) { return [soru]; }
 }
 
+/**
+ * 2. ADIM: VERİ TOPLAMA
+ */
 async function veriTopla(terimler) {
     let hamBilgi = "";
     for (const terim of terimler.slice(0, 3)) {
@@ -53,41 +64,37 @@ async function veriTopla(terimler) {
             );
             if (res.data.organic) {
                 const snippets = res.data.organic.slice(0, 3).map(i => i.snippet).join(" ");
-                hamBilgi += `\n${snippets}`;
+                hamBilgi += `\n[Kaynak - ${terim}]: ${snippets}`;
             }
         } catch (e) { continue; }
     }
     return hamBilgi;
 }
 
+/**
+ * 3. ADIM: GEMINI TARZI SENTEZ
+ */
 async function geminiSistemi(userId, userMesaj) {
     let history = userMemory.get(userId) || [];
-
-    const simdi = new Date();
-    const guncelZaman = simdi.toLocaleString('tr-TR', { 
-        timeZone: 'Europe/Istanbul', 
-        dateStyle: 'full', 
-        timeStyle: 'medium'
-    });
 
     const terimler = await aramaTerimleriniBelirle(userMesaj);
     const bulunanVeriler = await veriTopla(terimler);
 
     const systemPrompt = `
-    Sen Gemini tabanlı bir asistansın.
-    GÜNCEL YEREL ZAMAN: ${guncelZaman}
+    Sen Gemini gibi çalışan, yüksek analiz yeteneğine sahip bir yapay zekasın.
     
-    KRİTİK TALİMATLAR:
-    1. Sadece doğrudan cevabı ver. Giriş cümleleri (Örn: "Bulduğum bilgilere göre...", "Merhaba!") kullanma.
-    2. Cevapların içinde asla "Kaynak:", "[Kaynak]", "Snippet" veya internet sitesi linkleri gibi referanslar bulundurma.
-    3. Bilgiyi ham ve temiz bir şekilde sun.
-    4. Cevabı olabildiğince kısa, öz ve net tut. 
-    5. Markdown kullanarak başlık veya kalın yazım yapabilirsin ama lafı uzatma.
-
-    ANALİZ EDİLECEK VERİ:
+    İNTERNETTEN GELEN HAM VERİLER:
     ---
     ${bulunanVeriler}
     ---
+    
+    GÖREVİN:
+    1. Yukarıdaki verileri oku ve kullanıcının sorusuyla eşleştir.
+    2. Verilerde sayısal değerler (bölüm sayısı, süre, fiyat, mesafe vb.) varsa bunlar üzerinden mantıksal hesaplamalar yap.
+    3. Bilgiyi doğrudan kopyalamak yerine, anlamlı bir bütün haline getirerek anlat.
+    4. Markdown kullanarak (Başlıklar, kalın yazılar, listeler) şık bir sunum yap.
+    5. Eğer veriler birbiriyle çelişiyorsa, en mantıklı ve tutarlı olanı öne çıkar.
+    6. Yanıtın 1900 karakter sınırını geçmesin.
     `;
 
     try {
@@ -95,20 +102,21 @@ async function geminiSistemi(userId, userMesaj) {
             model: "llama-3.1-8b-instant",
             messages: [
                 { role: "system", content: systemPrompt },
-                ...history.slice(-10), 
+                ...history.slice(-4), 
                 { role: "user", content: userMesaj }
             ],
-            temperature: 0.3
+            temperature: 0.6
         }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
 
         const botCevap = response.data.choices[0].message.content;
+        
         history.push({ role: "user", content: userMesaj }, { role: "assistant", content: botCevap });
-        userMemory.set(userId, history.slice(-4)); 
+        userMemory.set(userId, history.slice(-6)); 
         
         return botCevap;
     } catch (e) {
-        console.error("Gemini hatası:", e.message);
-        return "Sistemde bir hata oluştu.";
+        console.error("LLM hatası:", e.message);
+        return "Verileri işlerken bir sorun oluştu, lütfen tekrar deneyin.";
     }
 }
 
@@ -118,9 +126,10 @@ client.on('messageCreate', async (msg) => {
         await msg.channel.sendTyping();
         const temizMesaj = msg.content.replace(/<@!?[^>]+>/g, '').trim();
         const finalYanit = await geminiSistemi(msg.author.id, temizMesaj || "Merhaba");
-        
+
+        // Discord 2000 karakter sınırı için basit kırpma
         if (finalYanit.length > 2000) {
-            await msg.reply(finalYanit.substring(0, 1900) + "...");
+            await msg.reply(finalYanit.substring(0, 1950) + "... (devamı için tekrar sor)");
         } else {
             await msg.reply(finalYanit);
         }
@@ -130,10 +139,10 @@ client.on('messageCreate', async (msg) => {
 });
 
 client.once('ready', () => {
-    console.log(`✅ BOT AKTİF: ${client.user.tag} hazır ve kısa cevap modunda.`);
+    console.log(`✅ BOT HAZIR: ${client.user.tag} → Parçalı arama + Gemini tarzı analiz aktif`);
 });
 
 client.login(DISCORD_TOKEN).catch(err => {
-    console.error("Discord login başarısız:", err.message);
+    console.error("Discord'a bağlanılamadı:", err.message);
     process.exit(1);
 });
