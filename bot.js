@@ -38,7 +38,10 @@ const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|disc
 const client = new Client({ checkUpdate: false });
 
 let lastInviteReplyTime = 0;
-const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat
+const MIN_INVITE_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 saat - davet linkli cevaplar için
+
+let lastNonInviteReplyTime = 0;
+const NON_INVITE_COOLDOWN_MS = 30 * 60 * 1000; // 30 dakika - link olmayan mesajlara cevap cooldown
 
 async function copyMessageToLogChannel(message) {
   try {
@@ -77,10 +80,7 @@ async function tryJoinInvite(inviteUrl) {
         return null;
       });
 
-      if (!invite) {
-        console.log('Davet objesi alınamadı / geçersiz');
-        return false;
-      }
+      if (!invite) return false;
 
       const guildName = invite.guild?.name || 'Bilinmeyen';
 
@@ -92,76 +92,74 @@ async function tryJoinInvite(inviteUrl) {
       console.log(`client.acceptInvite deneniyor (deneme ${attempt})...`);
       const guild = await client.acceptInvite(inviteCode);
 
-      console.log(`KATILMA BAŞARILI → Sunucu: ${guild?.name || guildName} (ID: ${guild?.id || 'bilinmeyen'})`);
+      console.log(`KATILMA BAŞARILI → Sunucu: ${guild?.name || guildName}`);
       return true;
 
     } catch (err) {
       console.error(`Katılma hatası (deneme ${attempt}):`, err.message || err);
 
-      if (err.message?.includes('captcha')) {
-        console.log('CAPTCHA çıktı → yeni hesap dene veya manuel onayla');
+      if (err.message?.includes('captcha') || err.message?.includes('Unknown Invite') || err.code === 10006) {
         return false;
       }
 
-      if (err.message?.includes('Unknown Invite') || err.code === 10006) {
-        console.log('Davet geçersiz / bloklanmış → vazgeçiliyor');
-        return false;
-      }
-
-      const wait = 10000 + Math.random() * 10000;
-      console.log(`Tekrar deneme için ~${Math.round(wait/1000)} sn bekleniyor`);
-      await new Promise(r => setTimeout(r, wait));
+      await new Promise(r => setTimeout(r, 10000 + Math.random() * 10000));
     }
   }
-
-  console.log(`Tüm denemeler başarısız (${inviteCode})`);
   return false;
 }
 
 client.on('messageCreate', async (message) => {
   if (message.author.id === client.user.id) return;
 
-  const content = message.content.toLowerCase();
+  if (message.channel.type !== 'DM' && message.channel.type !== 'GROUP_DM') {
+    // Sunucu mesajları için bildirim kanalı logic
+    if (message.channel.id === NOTIFICATION_CHANNEL_ID && message.content.includes(TARGET_ROLE_MENTION)) {
+      if (message.content.toLowerCase().includes('kendi')) return;
 
-  if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
+      const guild = message.guild;
+      if (!guild) return;
 
-    if (content.includes('yenileme')) {
+      let member;
+      try { member = await guild.members.fetch(message.author.id); } catch { return; }
+
+      const roleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
+      if (member.roles.cache.has(roleId)) return;
+
       setTimeout(async () => {
-        try {
-          await message.reply('texti tekrar atar mısın önceki mesaj yüklenmedide.');
-        } catch {}
-      }, 1000);
+        try { await message.reply('dm gel'); } catch {}
+      }, 3000);
+    }
+    return;
+  }
+
+  // DM / Group DM
+  const content = message.content.toLowerCase();
+  const now = Date.now();
+
+  const hasInvite = message.content.match(DISCORD_INVITE_REGEX);
+
+  if (hasInvite && hasInvite.length > 0) {
+    // Davet linki içeren mesaj
+    if (now - lastInviteReplyTime < MIN_INVITE_INTERVAL_MS) {
+      console.log('Davet için 2 saat sınırı → atlanıyor');
       return;
     }
 
-    const inviteMatches = message.content.match(DISCORD_INVITE_REGEX);
-    if (inviteMatches && inviteMatches.length > 0) {
-      const now = Date.now();
-      if (now - lastInviteReplyTime < MIN_INTERVAL_MS) {
-        console.log('2 saat sınırı → atlanıyor');
-        return;
-      }
+    let replied = false;
 
-      let replied = false;
+    for (const inviteUrl of hasInvite) {
+      if (replied) break;
 
-      for (const inviteUrl of inviteMatches) {
-        if (replied) break;
+      const joined = await tryJoinInvite(inviteUrl);
 
-        const joined = await tryJoinInvite(inviteUrl);
+      setTimeout(async () => {
+        try {
+          if (!joined) {
+            await message.reply("Sunucu katılma sınırım doldu kusura bakma katılamadım.");
+            await new Promise(r => setTimeout(r, 1500));
+          }
 
-        // Cevap verme sırası
-        setTimeout(async () => {
-          try {
-            const apologyText = "Sunucu katılma sınırım doldu kusura bakma katılamadım.";
-
-            if (!joined) {
-              // Özür mesajı ayrı gönderiliyor
-              await message.reply(apologyText);
-              await new Promise(r => setTimeout(r, 1500)); // 1.5 saniye bekle
-            }
-
-            // Tanıtım mesajı (her zaman gidiyor)
-            const promoText = `# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
+          const promoText = `# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
 **Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
 Vinland seni bekliyor. ⚔️
@@ -183,62 +181,44 @@ Gif: https://tenor.com/view/askeladd-gif-19509516
 || @everyone @here ||
 Pins: https://discord.gg/FzZBhH3tnF`;
 
-            await message.reply(promoText);
+          await message.reply(promoText);
 
-            await new Promise(r => setTimeout(r, 2000)); // 2 saniye bekle
-            await message.reply('paylaştım, iyi günler.');
+          await new Promise(r => setTimeout(r, 2000));
+          await message.reply('paylaştım, iyi günler.');
 
-            await copyMessageToLogChannel(message);
-            lastInviteReplyTime = Date.now();
+          await copyMessageToLogChannel(message);
+          lastInviteReplyTime = now;
+          replied = true;
 
-            replied = true;
-
-          } catch (err) {
-            console.error("DM cevap hatası:", err.message);
-          }
-        }, 2800);  // genel başlangıç gecikmesi (anti-flood)
-
-        // İlk cevap planlandıysa kalan davetleri atla
-      }
+        } catch (err) {
+          console.error("DM cevap hatası:", err);
+        }
+      }, 2800);
     }
   }
-
-  else if (message.channel.type === 'GUILD_TEXT') {
-    if (message.channel.id === NOTIFICATION_CHANNEL_ID) {
-      if (message.content.includes(TARGET_ROLE_MENTION)) {
-
-        if (content.includes('kendi')) return;
-
-        const guild = message.guild;
-        if (!guild) return;
-
-        let member;
-        try {
-          member = await guild.members.fetch(message.author.id);
-        } catch (err) {
-          console.log("Üye fetch hatası:", err.message);
-          return;
-        }
-
-        const roleId = TARGET_ROLE_MENTION.replace(/[<@&>]/g, '');
-        if (member.roles.cache.has(roleId)) return;
-
-        setTimeout(async () => {
-          try {
-            await message.reply('dm gel');
-          } catch {}
-        }, 3000);
-      }
+  else {
+    // Link içermeyen normal mesaj → 30 dk cooldown ile cevap
+    if (now - lastNonInviteReplyTime < NON_INVITE_COOLDOWN_MS) {
+      console.log('Link olmayan mesaj cooldown → cevap verilmedi');
+      return;
     }
+
+    setTimeout(async () => {
+      try {
+        await message.reply("bide bunlardan ayrı olarak link içermeyen herhani bir mesaj gelirse sunucu textini tekrar paylaşır mısnız önceki mesajlar yüklenmiyorda.");
+        lastNonInviteReplyTime = now;
+      } catch (err) {
+        console.error("Non-invite reply hatası:", err);
+      }
+    }, 2000);
   }
 });
 
 client.once('ready', () => {
   console.log(`✅ Selfbot aktif: ${client.user.tag}`);
-
   setInterval(() => {
     console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu sayısı: ${client.guilds.cache.size}`);
-  }, 300000); // 5 dk
+  }, 300000);
 });
 
 client.login(TOKEN).catch(err => {
