@@ -25,14 +25,15 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-// Unhandled hataları yakala (Render exited early önleme)
+// Hataları yakala – Render'ın erken öldürmesini önlemek için
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection:', reason);
 });
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err.message);
   console.error(err.stack);
+  // process.exit(1) YAPMA – Render tekrar denesin
 });
 
 const LOG_CHANNEL_ID = '1425453225343193088';
@@ -208,24 +209,26 @@ client.on('messageCreate', async (message) => {
           try {
             await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
-**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
+**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…**  
 Vinland seni bekliyor. ⚔️
-Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
+
+Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.  
 Thorfinn'in aradığı toprakları biz burada bulduk — sen de bize katıl.
-Gif:https://tenor.com/view/askeladd-gif-19509516
+
+Gif: https://tenor.com/view/askeladd-gif-19509516
 
 ---
 
-✦ Neler var bizde?
-🛡️ Estetik & Viking temalı tasarım
-⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
-🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
-🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
-🍃 Chill ses kanalları, aktif sohbetler
-🤝 Samimi, saygılı ve toksik olmayan bir topluluk**
+✦ Neler var bizde?  
+🛡️ Estetik & Viking temalı tasarım  
+⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)  
+🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar  
+🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)  
+🍃 Chill ses kanalları, aktif sohbetler  
+🤝 Samimi, saygılı ve toksik olmayan bir topluluk
 
-|| @everyone @here ||
-Pins:https://discord.gg/FzZBhH3tnF`);
+|| @everyone @here ||  
+Pins: https://discord.gg/FzZBhH3tnF`);
 
             setTimeout(async () => {
               await message.reply('paylaştım, iyi günler.');
@@ -304,7 +307,7 @@ client.once('ready', () => {
   console.log(`✅ Selfbot aktif: ${client.user.tag} | Sunucu sayısı: ${client.guilds.cache.size}`);
   setTimeout(checkAndLeaveLeastMemberGuild, 10000);
 
-  // Render'ın "exited early" dememesi için periyodik log
+  // Render exited early önlemek için periyodik log
   setInterval(() => {
     console.log(`[Keep-alive] ${new Date().toISOString()} - Sunucu sayısı: ${client.guilds.cache.size}`);
   }, 5 * 60 * 1000); // her 5 dakikada bir
@@ -312,5 +315,6 @@ client.once('ready', () => {
 
 client.login(TOKEN).catch(err => {
   console.error('Giriş başarısız:', err.message);
-  // process.exit(1) kaldırıldı → Render tekrar denesin
+  console.error('Token kontrol edin veya Discord kısıtlaması olabilir.');
+  // process.exit(1) KALDIRILDI – Render tekrar denesin
 });
