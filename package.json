@@ -1,15 +1,17 @@
 {
-  "name": "dmdmdmdm",
+  "name": "discord",
   "version": "1.0.0",
-  "description": "kskdkd",
+  "description": "föfmfö",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "discord.js": "^14.14.1",
     "axios": "^1.6.7",
+    "discord.js": "^14.14.1",
     "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
-
