@@ -1,148 +1,149 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
+// !!! ÖNEMLİ UYARI !!!
+// Selfbot kullanımı Discord Kullanım Koşulları'na (ToS) aykırıdır.
+// Hesabınız kalıcı olarak banlanabilir (özellikle otomatik DM/spam davranışları yüzünden).
+// Bu kod sadece eğitim/deneme amaçlıdır. Gerçek kullanımda tüm risk size aittir.
+
+const { Client } = require('discord.js-selfbot-v13');
 const express = require('express');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Render sağlık kontrolü için basit endpoint
+// Render sağlık kontrolü için basit HTTP endpoint
 app.get('/', (req, res) => {
-  res.status(200).send('Discord bot çalışıyor ✓');
+  res.status(200).send('Selfbot çalışıyor (Render keep-alive)');
 });
 
 app.listen(port, () => {
-  console.log(`HTTP sunucu ${port} portunda aktif (Render için gerekli)`);
+  console.log(`HTTP sunucu ${port} portunda aktif — Render için zorunlu`);
 });
 
-// Environment variable'lardan alıyoruz → Render'da Environment sekmesine ekleyeceksin
-const GROQ_API_KEY    = process.env.GROQ_API_KEY;
-const DISCORD_TOKEN   = process.env.DISCORD_TOKEN;
-const SERPER_API_KEY  = process.env.SERPER_API_KEY;
+// Environment variable'dan token alıyoruz (Render → Environment sekmesine ekle)
+const TOKEN = process.env.DISCORD_TOKEN_SELF;
 
-if (!DISCORD_TOKEN || !GROQ_API_KEY || !SERPER_API_KEY) {
-  console.error('HATA: En az bir environment variable eksik!');
-  console.error('Gerekli: GROQ_API_KEY, DISCORD_TOKEN, SERPER_API_KEY');
+if (!TOKEN) {
+  console.error('HATA: DISCORD_TOKEN_SELF environment variable eksik!');
   process.exit(1);
 }
 
-const client = new Client({ 
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
-});
+const LOG_CHANNEL_ID = '1425453225343193088';
+const NOTIFICATION_CHANNEL_ID = '1425156091339079962';
+const TARGET_ROLE_MENTION = '<@&1425475242398187590>';
 
-const userMemory = new Map();
+const DISCORD_INVITE_REGEX = /(https?:\/\/)?(www\.)?(discord\.(gg|io|me|li)|discordapp\.com\/invite)\/[^\s/]+?(?=\b)/gi;
 
-/**
- * 1. ADIM: SORUYU PARÇALARA BÖLME
- */
-async function aramaTerimleriniBelirle(soru) {
-    try {
-        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant",
-            messages: [
-                { 
-                    role: "system", 
-                    content: "Sen bir araştırma asistanısın. Kullanıcının sorusunu yanıtlamak için gereken en mantıklı 3 farklı arama terimini virgülle ayırarak yaz. Sadece terimleri ver." 
-                },
-                { role: "user", content: soru }
-            ]
-        }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
+const client = new Client({ checkUpdate: false });
 
-        return response.data.choices[0].message.content.split(',').map(s => s.trim());
-    } catch (e) { return [soru]; }
+// ────────────────────────────────────────────────
+//  SON PAYLAŞIM ZAMANINI TAKİP ETMEK İÇİN (DM tanıtım için)
+// ────────────────────────────────────────────────
+let lastInviteReplyTime = 0;
+const MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;   // 2 saat
+
+// Log kanalına mesaj kopyalama
+async function copyMessageToLogChannel(message) {
+  try {
+    const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+    if (logChannel) {
+      await logChannel.send(`**Log:** \( {message.author.tag} tarafından gelen mesaj:\n \){message.content}`);
+    }
+  } catch (error) {
+    console.error("Log gönderme hatası:", error.message);
+  }
 }
 
-/**
- * 2. ADIM: VERİ TOPLAMA
- */
-async function veriTopla(terimler) {
-    let hamBilgi = "";
-    for (const terim of terimler.slice(0, 3)) {
+client.on('messageCreate', async (message) => {
+  // Kendi mesajlarını görmezden gel
+  if (message.author.id === client.user.id) return;
+
+  const content = message.content.toLowerCase();
+
+  // 1. DM veya Grup DM
+  if (message.channel.type === 'DM' || message.channel.type === 'GROUP_DM') {
+    
+    // A) "yenileme" → link at
+    if (content.includes('yenileme')) {
+      setTimeout(async () => {
+        try { 
+          await message.reply('link at');
+        } catch (e) {}
+      }, 1000);
+    }
+    
+    // B) Davet linki → otomatik tanıtım (2 saatte max 1)
+    if (DISCORD_INVITE_REGEX.test(message.content)) {
+      
+      const now = Date.now();
+      
+      if (now - lastInviteReplyTime < MIN_INTERVAL_MS) {
+        return;
+      }
+
+      setTimeout(async () => {
         try {
-            const res = await axios.post('https://google.serper.dev/search', 
-                { "q": terim, "gl": "tr", "hl": "tr" },
-                { headers: { 'X-API-KEY': SERPER_API_KEY }, timeout: 5000 }
-            );
-            if (res.data.organic) {
-                const snippets = res.data.organic.slice(0, 3).map(i => i.snippet).join(" ");
-                hamBilgi += `\n[Kaynak - ${terim}]: ${snippets}`;
-            }
-        } catch (e) { continue; }
-    }
-    return hamBilgi;
-}
+          await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
 
-/**
- * 3. ADIM: GEMINI TARZI SENTEZ
- */
-async function geminiSistemi(userId, userMesaj) {
-    let history = userMemory.get(userId) || [];
+**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
+Vinland seni bekliyor. ⚔️
+Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
+Thorfinn'in aradığı toprakları biz burada bulduk — sen de bize katıl.
+Gif:https://tenor.com/view/askeladd-gif-19509516
 
-    const terimler = await aramaTerimleriniBelirle(userMesaj);
-    const bulunanVeriler = await veriTopla(terimler);
+---
 
-    const systemPrompt = `
-    Sen Gemini gibi çalışan, yüksek analiz yeteneğine sahip bir yapay zekasın.
-    
-    İNTERNETTEN GELEN HAM VERİLER:
-    ---
-    ${bulunanVeriler}
-    ---
-    
-    GÖREVİN:
-    1. Yukarıdaki verileri oku ve kullanıcının sorusuyla eşleştir.
-    2. Verilerde sayısal değerler (bölüm sayısı, süre, fiyat, mesafe vb.) varsa bunlar üzerinden mantıksal hesaplamalar yap.
-    3. Bilgiyi doğrudan kopyalamak yerine, anlamlı bir bütün haline getirerek anlat.
-    4. Markdown kullanarak (Başlıklar, kalın yazılar, listeler) şık bir sunum yap.
-    5. Eğer veriler birbiriyle çelişiyorsa, en mantıklı ve tutarlı olanı öne çıkar.
-    6. Yanıtın 1900 karakter sınırını geçmesin.
-    `;
+✦ Neler var bizde?
+🛡️ Estetik & Viking temalı tasarım
+⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
+🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
+🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
+🍃 Chill ses kanalları, aktif sohbetler
+🤝 Samimi, saygılı ve toksik olmayan bir topluluk**
 
-    try {
-        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant",
-            messages: [
-                { role: "system", content: systemPrompt },
-                ...history.slice(-4), 
-                { role: "user", content: userMesaj }
-            ],
-            temperature: 0.6
-        }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
+|| @everyone @here ||
+Pins:https://discord.gg/FzZBhH3tnF`);
 
-        const botCevap = response.data.choices[0].message.content;
-        
-        history.push({ role: "user", content: userMesaj }, { role: "assistant", content: botCevap });
-        userMemory.set(userId, history.slice(-6)); 
-        
-        return botCevap;
-    } catch (e) {
-        console.error("LLM hatası:", e.message);
-        return "Verileri işlerken bir sorun oluştu, lütfen tekrar deneyin.";
-    }
-}
+          setTimeout(async () => {
+            try {
+              await message.reply('paylaştım, iyi günler.');
+              await copyMessageToLogChannel(message);
+            } catch (e) {}
+          }, 2500);
 
-client.on('messageCreate', async (msg) => {
-    if (msg.author.bot || !msg.mentions.has(client.user)) return;
-    try {
-        await msg.channel.sendTyping();
-        const temizMesaj = msg.content.replace(/<@!?[^>]+>/g, '').trim();
-        const finalYanit = await geminiSistemi(msg.author.id, temizMesaj || "Merhaba");
+          lastInviteReplyTime = Date.now();
 
-        // Discord 2000 karakter sınırı için basit kırpma
-        if (finalYanit.length > 2000) {
-            await msg.reply(finalYanit.substring(0, 1950) + "... (devamı için tekrar sor)");
-        } else {
-            await msg.reply(finalYanit);
+        } catch (e) {
+          console.error("DM cevap hatası:", e.message);
         }
-    } catch (err) {
-        console.error("Mesaj işleme hatası:", err.message);
+      }, 3000);
     }
+  }
+  
+  // 2. Sunucu mesajları → bildirim kanalı
+  else if (message.channel.type === 'GUILD_TEXT') {
+    if (message.channel.id === NOTIFICATION_CHANNEL_ID) {
+      if (message.content.includes(TARGET_ROLE_MENTION)) {
+        
+        // ─── YENİ KOŞUL ───
+        // Mesajda "kendi" kelimesi varsa cevap verme
+        if (content.includes('kendi')) {
+          return;  // sessizce geç
+        }
+
+        setTimeout(async () => {
+          try {
+            await message.reply('dm gel');
+          } catch (e) {}
+        }, 60000); // 1 dk bekle
+      }
+    }
+  }
 });
 
 client.once('ready', () => {
-    console.log(`✅ BOT HAZIR: ${client.user.tag} → Parçalı arama + Gemini tarzı analiz aktif`);
+  console.log(`✅ Selfbot aktif: ${client.user.tag}`);
 });
 
-client.login(DISCORD_TOKEN).catch(err => {
-    console.error("Discord'a bağlanılamadı:", err.message);
-    process.exit(1);
+client.login(TOKEN).catch(err => {
+  console.error('Giriş başarısız:', err.message);
+  process.exit(1);
 });
