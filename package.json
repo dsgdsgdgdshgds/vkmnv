@@ -1,14 +1,15 @@
 {
-  "name": "mlmnn",
+  "name": "nnmm",
   "version": "1.0.0",
-  "description": "hgg",
-  "main": "bot.js",
+  "description": "mmn",
+  "main": "index.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "axios": "^1.6.7",
-    "discord.js": "^14.14.1"
+    "discord.js": "^14.13.0",
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18.0.0"
