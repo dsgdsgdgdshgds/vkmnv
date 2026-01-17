@@ -75,7 +75,7 @@ async function tryJoinInvite(inviteUrl) {
 
   console.log(`İşlenen kod: ${inviteCode}`);
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= 1; attempt++) {
     try {
       const invite = await client.fetchInvite(inviteCode).catch(() => null);
       if (!invite) return false;
@@ -172,7 +172,7 @@ Pins: https://discord.gg/FzZBhH3tnF`;
 
           await message.reply(promoText);
 
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, 3000));
           await message.reply('paylaştım, iyi günler.');
 
           await copyMessageToLogChannel(message);
