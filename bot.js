@@ -1,12 +1,15 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const http = require('http');
 
-/* ====== RENDER/PORT AYARI ====== */
+puppeteer.use(StealthPlugin());
+
+// Render port ayarı
 http.createServer((req, res) => {
-    res.write("Bot çalışıyor kanka!");
+    res.write("Bot çalışıyor (Gemini web üzerinden)");
     res.end();
-}).listen(8080 || process.env.PORT);
+}).listen(process.env.PORT || 8080);
 
 const client = new Client({
     intents: [
@@ -16,134 +19,100 @@ const client = new Client({
     ]
 });
 
-/* ====== API AYARLARI ====== */
-const GROQ_API_KEY = process.env.API;
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
-
-/* ====== SOHBET GEÇMİŞİ ====== */
+// Hafıza (basit, son 6 mesaj)
 const userContexts = new Map();
 
-/* Hızlı güncel veri çekme fonksiyonu (dolar, saat vs. için) */
-async function guncelVeriCek(query) {
-    try {
-        const res = await axios.post(
-            "https://google.serper.dev/search",
-            { q: query, gl: "tr", hl: "tr", num: 6 },
-            { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
-        );
-        if (res.data?.organic?.length > 0) {
-            return res.data.organic
-                .slice(0, 4)
-                .map(r => r.snippet || r.title)
-                .join(" | ");
-        }
-        return "";
-    } catch {
-        return "";
-    }
-}
+// Tek browser instance (paylaşarak kullanıyoruz - dikkatli ol)
+let browser = null;
+let page = null;
 
-/* ========== ANA SOHBET FONKSİYONU ========== */
-async function samimiCevapVer(userId, soru) {
-    const yerelSimdi = new Date();
-    const sistemTarihSaat = yerelSimdi.toLocaleString('tr-TR', {
-        timeZone: 'Europe/Istanbul',
-        dateStyle: 'full',
-        timeStyle: 'short'
+async function initGeminiBrowser() {
+    if (browser) return;
+
+    browser = await puppeteer.launch({
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--window-size=1280,800',
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+        ],
+        defaultViewport: { width: 1280, height: 800 }
     });
 
-    let tarihSaatSorusuMu = /(saat kaç|saaat|kaçta|bugün tarih|şimdi tarih|kaç yılındayız|kaçıncı ay|günlerden ne)/i.test(soru);
-    let guncelKurSorusuMu = /(dolar|dolar kuru|usd try|kaç tl|kur ne kadar)/i.test(soru);
+    page = await browser.newPage();
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'tr-TR,tr;q=0.9' });
 
-    let ekBilgi = "";
-    if (tarihSaatSorusuMu) {
-        ekBilgi = `(Şu an Türkiye saatiyle ${sistemTarihSaat})`;
-    } else if (guncelKurSorusuMu) {
-        const veri = await guncelVeriCek("dolar kuru şu an Türkiye serbest piyasa");
-        if (veri) {
-            ekBilgi = `(Güncel veri: ${veri})`;
-        }
-    }
+    // Gemini ana sayfaya git
+    await page.goto('https://gemini.google.com/', { waitUntil: 'networkidle2', timeout: 45000 });
 
-    let history = userContexts.get(userId) || [];
-    let historyText = history.slice(-8).map(h => `Sen: ${h.user}\nBen: ${h.bot}`).join("\n\n");
-
-    const systemPrompt = `
-Şu an Türkiye saatiyle yaklaşık \( {sistemTarihSaat} civarı \){ekBilgi ? ' → ' + ekBilgi : ''}.
-
-Sen samimi, doğal, esprili bir kankasın. Türkçe'de "kanka", "ya", "valla", "haha" falan kullan.
-- Kısa ve net olabildiğin kadar kısa ol, gerektiğinde detay ver
-- Emoji kullan 👍😄🔥
-- Sohbeti devam ettir ama zorlama
-- Güncel veri (dolar, saat, maç sonucu, haber vs.) gereken sorularda LAFLA UZATMA, direkt net bilgi ver
-- Bilmiyorsan veya veri eskiyse "En güncel hali şöyle görünüyor" deyip kaynağı belirt
-- Tahmin etme, uydurma
-- Genel sohbet, espri, tavsiye vs. için araştırma yapma, bildiğinle devam et
-
-Önceki sohbet:
-${historyText || "Yeni başladık kanka, naber? 😏"}
-
-Soru: ${soru}
-
-Cevap ver (doğal, arkadaş gibi, net):
-`;
-
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                messages: [{ role: "system", content: systemPrompt }],
-                temperature: 0.8,
-                max_tokens: 800,
-                top_p: 0.92
-            },
-            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
-        );
-
-        let cevap = res.data.choices[0].message.content.trim();
-
-        // Hafızayı güncelle
-        history.push({ user: soru, bot: cevap });
-        if (history.length > 10) history.shift();
-        userContexts.set(userId, history);
-
-        return cevap;
-    } catch (e) {
-        console.error(e);
-        return "Ya bi an takıldım kanka 😅 Tekrar söyler misin?";
-    }
+    // Eğer login ekranı çıkarsa → manuel login yapman gerekir (tek seferlik)
+    // await page.waitForSelector('input[type="email"]', { timeout: 10000 }).catch(() => {});
+    // Buraya kendi hesabınla login kodunu ekleyebilirsin (ama riskli!)
 }
 
-/* ========== MESAJ DİNLEYİCİ ========== */
 client.on("messageCreate", async msg => {
     if (msg.author.bot) return;
     if (!msg.mentions.has(client.user)) return;
 
-    const temizSoru = msg.content.replace(/<@!?[^>]+>/g, "").trim();
-    if (temizSoru.length < 1) return msg.reply("Ne diyon ya? 😆");
+    const soru = msg.content.replace(/<@!?[^>]+>/g, "").trim();
+    if (!soru) return;
+
+    const userId = msg.author.id;
 
     try {
         await msg.channel.sendTyping();
-        const cevap = await samimiCevapVer(msg.author.id, temizSoru);
 
+        await initGeminiBrowser();
+
+        // Hafızayı al
+        let history = userContexts.get(userId) || [];
+        const fullPrompt = history.length > 0 
+            ? `Önceki konuşma:\n${history.join("\n")}\n\nŞimdi yeni soru: ${soru}`
+            : soru;
+
+        // Textarea'ya yaz
+        await page.waitForSelector('textarea[placeholder*="Gemini"], textarea[aria-label*="Gemini"]', { timeout: 15000 });
+        await page.type('textarea[placeholder*="Gemini"], textarea[aria-label*="Gemini"]', fullPrompt);
+        await page.keyboard.press('Enter');
+
+        // Cevabı bekle (son mesajın bot kısmı)
+        await page.waitForFunction(() => {
+            const messages = document.querySelectorAll('[data-message-author="model"]');
+            return messages.length > 0 && messages[messages.length-1].innerText.trim().length > 20;
+        }, { timeout: 90000 });
+
+        // Son bot cevabını çek
+        const cevap = await page.evaluate(() => {
+            const messages = document.querySelectorAll('[data-message-author="model"]');
+            return messages[messages.length-1]?.innerText?.trim() || "Cevap alınamadı.";
+        });
+
+        // Hafızayı güncelle (son 3 çift)
+        history.push(`Kullanıcı: ${soru}`);
+        history.push(`Gemini: ${cevap}`);
+        if (history.length > 6) history = history.slice(-6);
+        userContexts.set(userId, history);
+
+        // Cevabı Discord'a gönder
         if (cevap.length > 2000) {
             const chunks = cevap.match(/[\s\S]{1,1900}/g) || [];
             for (const chunk of chunks) await msg.reply(chunk);
         } else {
-            await msg.reply(cevap);
+            await msg.reply(cevap || "Cevap gelmedi, siteyi kontrol et.");
         }
+
     } catch (err) {
-        console.error(err);
-        await msg.reply("Bir tuhaflık oldu, kusura bakma bi daha dene 🙏");
+        console.error("Gemini web hatası:", err);
+        await msg.reply("Gemini sitesine bağlanırken sorun çıktı.\nCAPTCHA çıkmış olabilir, ya da geçici engel var.\nBiraz bekleyip tekrar dene.");
     }
 });
 
-client.once("ready", () => {
-    console.log(`✅ ${client.user.tag} kanka modunda aktif – ${new Date().toLocaleString('tr-TR')}`);
+client.once("ready", async () => {
+    console.log(`✅ ${client.user.tag} → Gemini WEB üzerinden çalışıyor`);
+    await initGeminiBrowser(); // bot başlar başlamaz browser'ı hazırla
 });
 
-client.login(DISCORD_TOKEN).catch(err => {
-    console.error("Login fail:", err);
-});
+client.login(process.env.DISCORD_TOKEN);
