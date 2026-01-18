@@ -24,33 +24,23 @@ const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
 /* ====== SOHBET GEÇMİŞİ ====== */
 const userContexts = new Map();
 
-/* Zamanı hızlı teyit etmek için (gerektiğinde) */
-async function gercekZamaniTeyitEt() {
+/* Hızlı güncel veri çekme fonksiyonu (dolar, saat vs. için) */
+async function guncelVeriCek(query) {
     try {
         const res = await axios.post(
             "https://google.serper.dev/search",
-            { q: "saat kaç Türkiye şu an", gl: "tr", hl: "tr" },
-            { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 4000 }
+            { q: query, gl: "tr", hl: "tr", num: 6 },
+            { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
         );
-
-        if (res.data?.organic?.[0]?.snippet) {
-            const snippet = res.data.organic[0].snippet.toLowerCase();
-            const saatMatch = snippet.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]m|öğlen|akşam|gece)?)/i);
-            const tarihMatch = snippet.match(/(?:pazar|cumartesi|...|ocak|şubat|...)\s*\d{1,2},\s*\d{4}/i) ||
-                               snippet.match(/\d{1,2}\s*(?:ocak|şubat|mart|...)\s*\d{4}/i);
-
-            if (saatMatch || tarihMatch) {
-                return {
-                    bulundu: true,
-                    saat: saatMatch ? saatMatch[0] : null,
-                    tarih: tarihMatch ? tarihMatch[0] : null,
-                    kaynak: res.data.organic[0].link || "serper"
-                };
-            }
+        if (res.data?.organic?.length > 0) {
+            return res.data.organic
+                .slice(0, 4)
+                .map(r => r.snippet || r.title)
+                .join(" | ");
         }
-        return { bulundu: false };
+        return "";
     } catch {
-        return { bulundu: false };
+        return "";
     }
 }
 
@@ -63,16 +53,16 @@ async function samimiCevapVer(userId, soru) {
         timeStyle: 'short'
     });
 
-    let tarihSaatSorusuMu = /(saat kaç|saaat|kaçta|bugün tarih|şimdi tarih|kaç yılındayız|kaçıncı ay|günlerden ne|kaç ocak|kaç şubat|202[56])/i.test(soru);
+    let tarihSaatSorusuMu = /(saat kaç|saaat|kaçta|bugün tarih|şimdi tarih|kaç yılındayız|kaçıncı ay|günlerden ne)/i.test(soru);
+    let guncelKurSorusuMu = /(dolar|dolar kuru|usd try|kaç tl|kur ne kadar)/i.test(soru);
 
-    let gercekZamanBilgisi = "";
+    let ekBilgi = "";
     if (tarihSaatSorusuMu) {
-        // Sistem saati genellikle yeterlidir, ama şüpheli durumlarda teyit
-        const teyit = await gercekZamaniTeyitEt();
-        if (teyit.bulundu) {
-            gercekZamanBilgisi = `\n(Sistem saati: ${sistemTarihSaat} — teyit: ${teyit.tarih || ''} ${teyit.saat || ''})`;
-        } else {
-            gercekZamanBilgisi = `\n(Sistem saati: ${sistemTarihSaat})`;
+        ekBilgi = `(Şu an Türkiye saatiyle ${sistemTarihSaat})`;
+    } else if (guncelKurSorusuMu) {
+        const veri = await guncelVeriCek("dolar kuru şu an Türkiye serbest piyasa");
+        if (veri) {
+            ekBilgi = `(Güncel veri: ${veri})`;
         }
     }
 
@@ -80,22 +70,23 @@ async function samimiCevapVer(userId, soru) {
     let historyText = history.slice(-8).map(h => `Sen: ${h.user}\nBen: ${h.bot}`).join("\n\n");
 
     const systemPrompt = `
-Şu an Türkiye saatiyle yaklaşık \( {sistemTarihSaat} civarı \){gercekZamanBilgisi}.
+Şu an Türkiye saatiyle yaklaşık \( {sistemTarihSaat} civarı \){ekBilgi ? ' → ' + ekBilgi : ''}.
 
-Sen samimi, esprili, doğal bir arkadaşsın. Türkçe konuşurken "kanka", "ya", "valla", "haha" falan kullanabilirsin.
-- Kısa cevap verebiliyorsun, gerektiğinde uzatıyorsun
-- Emoji severim 😄🔥👍
-- Sohbeti devam ettir, soru sor
-- Bilmediğin şeyi uydurma, serperden al.
-- Her şeye internetten bakma; genel bilgi, sohbet, espri, tavsiye vs. için kendi bildiğinle devam et
-- Sadece gerçekten güncel/dizi/spesifik/para/maç/haber v.b gibi konularda araştırma yap (ama tarih-saat sorularında sistem saatini kullan, gerekirse teyit et)
+Sen samimi, doğal, esprili bir kankasın. Türkçe'de "kanka", "ya", "valla", "haha" falan kullan.
+- Kısa ve net olabildiğin kadar kısa ol, gerektiğinde detay ver
+- Emoji kullan 👍😄🔥
+- Sohbeti devam ettir ama zorlama
+- Güncel veri (dolar, saat, maç sonucu, haber vs.) gereken sorularda LAFLA UZATMA, direkt net bilgi ver
+- Bilmiyorsan veya veri eskiyse "En güncel hali şöyle görünüyor" deyip kaynağı belirt
+- Tahmin etme, uydurma
+- Genel sohbet, espri, tavsiye vs. için araştırma yapma, bildiğinle devam et
 
 Önceki sohbet:
-${historyText || "Yeni başladık, naber? 😏"}
+${historyText || "Yeni başladık kanka, naber? 😏"}
 
-Şimdi soru: ${soru}
+Soru: ${soru}
 
-Cevap ver (doğal, arkadaş gibi):
+Cevap ver (doğal, arkadaş gibi, net):
 `;
 
     try {
@@ -104,9 +95,9 @@ Cevap ver (doğal, arkadaş gibi):
             {
                 model: "llama-3.3-70b-versatile",
                 messages: [{ role: "system", content: systemPrompt }],
-                temperature: 0.9,
-                max_tokens: 1000,
-                top_p: 0.95
+                temperature: 0.8,
+                max_tokens: 800,
+                top_p: 0.92
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -115,13 +106,13 @@ Cevap ver (doğal, arkadaş gibi):
 
         // Hafızayı güncelle
         history.push({ user: soru, bot: cevap });
-        if (history.length > 12) history.shift();
+        if (history.length > 10) history.shift();
         userContexts.set(userId, history);
 
         return cevap;
     } catch (e) {
         console.error(e);
-        return "Ya bi an dondu her şey kanka 😅 Tekrar yazar mısın?";
+        return "Ya bi an takıldım kanka 😅 Tekrar söyler misin?";
     }
 }
 
