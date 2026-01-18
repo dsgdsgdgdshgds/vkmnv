@@ -35,7 +35,7 @@ async function arastirmaPlaniHazirla(soru) {
                 messages: [
                     {
                         role: "system",
-                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. dizi film v.b hakkında soru gelirse ilk bunları öğren:'Arka Sokaklar toplam bölüm sayısı ', 'Arka Sokaklar son bölüm numarası'."
+                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. Örn: 'Arka Sokaklar toplam bölüm sayısı 2026', 'Arka Sokaklar son bölüm numarası'."
                     },
                     { role: "user", content: soru }
                 ],
@@ -69,7 +69,7 @@ async function veriTopla(altSorular) {
 async function dogrulanmisCevap(userId, soru) {
     const simdi = new Date();
     const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    
+
     const plan = await arastirmaPlaniHazirla(soru);
     const hamBilgi = await veriTopla(plan);
 
@@ -100,7 +100,7 @@ KULLANICI SORUSU: ${soru}
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.1-8b-instant",
+                model: "llama-3.3-70b-versatile",
                 messages: [
                     { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
                     { role: "user", content: synthesisPrompt }
@@ -132,7 +132,7 @@ client.on("messageCreate", async msg => {
     try {
         await msg.channel.sendTyping();
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
-        
+
         if (cevap.length > 2000) {
             const chunks = cevap.match(/[\s\S]{1,1900}/g);
             for (const chunk of chunks) await msg.reply(chunk);
