@@ -4,9 +4,9 @@ const http = require('http');
 
 /* ====== RENDER/PORT AYARI ====== */
 http.createServer((req, res) => {
-    res.write("Bot Calisiyor!");
+    res.write("Bot çalışıyor!");
     res.end();
-}).listen(8080);
+}).listen(process.env.PORT || 10000);
 
 const client = new Client({
     intents: [
@@ -99,13 +99,19 @@ async function dogrulanmisCevap(userId, soru) {
     let history = userContexts.get(userId) || [];
     let historyText = history.map(h => `Kullanıcı: ${h.user}\nBot: ${h.bot}`).join("\n---\n");
 
+    // Daha güvenli şekilde ternary yerine değişken kullandık
+    let internetBilgisi = "";
+    if (hamBilgi) {
+        internetBilgisi = `İNTERNET'TEN DOĞRULANMIŞ BİLGİLER:\n${hamBilgi}\n---\n`;
+    }
+
     const synthesisPrompt = `
 GÜNCEL TARİH: ${tarihBilgisi}
 
 ÖNCEKİ KONUŞMALAR:
 ${historyText || "Henüz yok"}
 
-\( {hamBilgi ? `İNTERNET'TEN DOĞRULANMIŞ BİLGİLER:\n \){hamBilgi}\n---\n` : ""}
+${internetBilgisi}
 
 KULLANICI SORUSU: ${soru}
 
@@ -140,14 +146,13 @@ Kurallar:
 
         return botCevap;
     } catch (e) {
-        console.error(e);
+        console.error("Groq API hatası:", e.message);
         return "Şu an cevap veremiyorum, birazdan tekrar dene.";
     }
 }
 
 /* ========== MESAJ DİNLEYİCİ ========== */
 client.on("messageCreate", async msg => {
-    // Botun kendisi ve everyone/here mention'larını tamamen yok say
     if (msg.author.bot) return;
 
     // @everyone veya @here içeren mesajlara cevap verme
@@ -166,21 +171,35 @@ client.on("messageCreate", async msg => {
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
 
         if (cevap.length > 1900) {
-            const chunks = cevap.match(/[\s\S]{1,1900}/g);
+            const chunks = cevap.match(/[\s\S]{1,1900}/g) || [];
             for (const chunk of chunks) {
-                await msg.reply(chunk);
+                await msg.reply(chunk).catch(() => {});
             }
         } else {
             await msg.reply(cevap);
         }
     } catch (err) {
-        console.error(err);
+        console.error("Mesaj işleme hatası:", err.message);
         await msg.reply("Bir hata oluştu.").catch(() => {});
     }
 });
 
 client.once("ready", () => {
-    console.log(`✅ ${client.user.tag} → 2026 mod aktif`);
+    console.log(`✅ ${client.user.tag} → aktif (2026 modu)`);
 });
 
-client.login(DISCORD_TOKEN);
+// Login öncesi temel kontroller
+if (!DISCORD_TOKEN) {
+    console.error("DISCORD_TOKEN environment variable eksik!");
+    process.exit(1);
+}
+
+if (!GROQ_API_KEY) {
+    console.error("GROQ API key (process.env.API) eksik!");
+    process.exit(1);
+}
+
+client.login(DISCORD_TOKEN).catch(err => {
+    console.error("Discord login başarısız:", err.message);
+    process.exit(1);
+});
