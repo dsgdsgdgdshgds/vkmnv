@@ -8,9 +8,7 @@
   },
   "dependencies": {
      "discord.js": "^14.17.1",
-     "puppeteer-core": "^23.5.3",
-     "puppeteer-extra": "^3.3.6",
-     "puppeteer-extra-plugin-stealth": "^2.11.2"
+     "playwright": "^1.49.1"
   },
   "engines": {
     "node": ">=18.0.0"
