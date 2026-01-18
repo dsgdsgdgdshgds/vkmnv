@@ -31,7 +31,7 @@ async function arastirmaPlaniHazirla(soru) {
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.1-8b",
+                model: "llama-3.1-8b-instant",
                 messages: [
                     {
                         role: "system",
