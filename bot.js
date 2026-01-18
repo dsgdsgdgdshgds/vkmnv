@@ -100,7 +100,7 @@ KULLANICI SORUSU: ${soru}
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.3-70b-versatile",
+                model: "llama-3.1-8b",
                 messages: [
                     { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
                     { role: "user", content: synthesisPrompt }
