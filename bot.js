@@ -25,7 +25,7 @@ const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
 const userContexts = new Map();
 const userLastProcess = new Map();
 
-/* Tarih oluşturma yardımcı fonksiyon */
+/* Güncel tarih helper */
 function getCurrentTurkishDate() {
     const now = new Date();
     return now.toLocaleString('tr-TR', {
@@ -35,80 +35,90 @@ function getCurrentTurkishDate() {
     });
 }
 
-/* 1. ARAMA TERİMİ ÜRETİCİ - Güncel tarih eklenmiş */
+/* Soru dizi/güncel bölüm içeriyor mu? */
+function isDiziBolumSorusu(soru) {
+    const lower = soru.toLowerCase();
+    return lower.includes('bölüm') || lower.includes('kaçıncı') || lower.includes('son bölüm') || 
+           lower.includes('dizi') || lower.includes('yayınlandı') || lower.includes('ne zaman');
+}
+
+/* 1. ARAMA TERİMİ ÜRETİCİ - Güncel + dizi odaklı güçlendirme */
 async function arastirmaPlaniHazirla(soru) {
     const simdi = getCurrentTurkishDate();
+    const yilAy = simdi.split(' ')[3] + ' ' + simdi.split(' ')[2]; // Örn: 2026 Ocak
+
     try {
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.1-8b-instant", // veya "llama-3.1-70b-versatile" varsa
+                model: "llama-3.1-8b-instant", // 70b varsa: "llama-3.1-70b-versatile"
                 messages: [
                     {
                         role: "system",
-                        content: `Sen bir araştırma asistanısın. Kullanıcının sorusu için Google'da aranacak EN GÜNCEL 3-4 terimi üret. 
-Her zaman şu anki tarihi (${simdi}) ekle veya yıl/ay belirt. Örnek:
-- "Arka Sokaklar toplam bölüm sayısı ${simdi.split(' ')[3]}"
-- "Arka Sokaklar son bölüm ne zaman yayınlandı ${simdi}"
-Kısa, net, her satıra bir terim.`
+                        content: `EN GÜNCEL arama terimleri üret. Soru dizi bölümüyle ilgiliyse mutlaka '\( {yilAy}' veya ' \){simdi}' ekle.
+Örnekler:
+- "${soru} ${yilAy}"
+- "${soru} son bölüm ne zaman ${simdi}"
+- "Arka Sokaklar son bölüm sayısı ${yilAy}"
+Her satıra bir tane, 4 tane üret. Kısa ve kesin ol.`
                     },
                     { role: "user", content: soru }
                 ],
                 temperature: 0.15,
-                max_tokens: 120
+                max_tokens: 150
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
-        return res.data.choices[0].message.content.split("\n").map(s => s.trim()).filter(s => s.length > 8);
+        return res.data.choices[0].message.content.split("\n").map(s => s.trim()).filter(s => s.length > 10);
     } catch (e) {
-        return [soru, `${soru} ${simdi.split(' ')[3]}`];
+        return [`${soru} \( {yilAy}`, ` \){soru} son bölüm ${simdi}`];
     }
 }
 
-/* ÖZETLEME - Token sınırı için */
+/* ÖZETLEME */
 async function ozetleBilgi(hamBilgi) {
-    if (hamBilgi.length < 2000) return hamBilgi;
+    if (hamBilgi.length < 2200) return hamBilgi;
     try {
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
                 model: "llama-3.1-8b-instant",
                 messages: [
-                    { role: "system", content: "Metni en kritik noktaları koruyarak maks 1600 karaktere indirge. En güncel bilgileri öne çıkar. Türkçe." },
+                    { role: "system", content: "En güncel bilgileri (tarih, bölüm sayısı) öne çıkararak maks 1700 karaktere indir. Türkçe." },
                     { role: "user", content: hamBilgi }
                 ],
                 temperature: 0.1,
-                max_tokens: 500
+                max_tokens: 550
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
         return res.data.choices[0].message.content.trim();
     } catch {
-        return hamBilgi.substring(0, 5000) + " (kısaltıldı)";
+        return hamBilgi.substring(0, 5500) + " (kısaltıldı)";
     }
 }
 
-/* 2. VERİ TOPLAMA */
+/* VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
-    for (const altSoru of altSorular.slice(0, 4)) { // 4'e çıkardık
+    for (const altSoru of altSorular.slice(0, 5)) {
         try {
             const res = await axios.post(
                 "https://google.serper.dev/search",
-                { q: altSoru, gl: "tr", hl: "tr", num: 8 },
-                { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 8000 }
+                { q: altSoru, gl: "tr", hl: "tr", num: 10 },
+                { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 9000 }
             );
             if (res.data?.organic) {
-                kaynaklar += res.data.organic.slice(0, 6).map(r => 
-                    `[${r.title} - ${r.link}] ${r.snippet || r.date || ''}`
-                ).join("\n") + "\n\n";
+                kaynaklar += res.data.organic.slice(0, 7).map(r => 
+                    `[${r.title} | ${r.date || ''}] \( {r.snippet} ( \){r.link})`
+                ).join("\n\n") + "\n";
             }
         } catch {}
     }
     return kaynaklar.trim();
 }
 
-/* 3. CEVAP ÜRETİMİ - Güncel tarih zorunlu */
+/* ANA CEVAP FONKSİYONU - Güncel hesaplama güçlendirildi */
 async function dogrulanmisCevap(userId, soru) {
     const simdi = getCurrentTurkishDate();
 
@@ -119,20 +129,24 @@ async function dogrulanmisCevap(userId, soru) {
     let history = userContexts.get(userId) || [];
     let historyText = history.map(h => `K: ${h.user}\nB: ${h.bot}`).join("\n───\n");
 
+    const isDizi = isDiziBolumSorusu(soru);
+
     const prompt = `
-GERÇEK ZAMAN: ${simdi} (Türkiye saati) - CEVABINI HER ZAMAN BU TARİHE EN YAKIN/EN GÜNCEL BİLGİYE DAYANDIR!
-Eğer veri eskiyse veya çelişkiliyse bunu mutlaka belirt.
+GERÇEK ZAMAN: ${simdi} (Türkiye) → CEVABINI MUTLAKA BU TARİHE EN YAKIN VERİYLE VER!
 
 ÖNCEKİ KONUŞMA:
 ${historyText || "Yok"}
 
 KURALLAR:
-- En güncel bilgiyi kullan, tarih belirt.
-- Cevabı kısa, net tut (ideal 500-1500 karakter).
-- Sayısal verilerde en son olanı seç.
-- Gereksiz giriş/emoji yok.
+- Eğer soru dizi bölümü, son bölüm, kaçıncı bölüm, yayın tarihi içeriyorsa:
+  → En son bilinen bölüm sayısını ve tarihini kullan.
+  → Eğer güncel bölüm sayısı belli değilse: son yayın + haftalık (genelde Cuma) ritimle tahmini hesapla ve bunu açıkça belirt.
+  → Kaynak tarihlerini mutlaka yaz.
+- Cevap kısa ve net olsun (600-1800 karakter ideal).
+- Eski veri varsa "Bu bilgi ... tarihli, daha güncel olabilir" de.
+- Gereksiz giriş yok.
 
-İNTERNET VERİLERİ (en güncel olanlar öne çıksın):
+VERİLER (en güncel olanlar öne çıksın):
 ${hamBilgi || "Güncel veri alınamadı."}
 
 Soru: ${soru}
@@ -140,16 +154,17 @@ Soru: ${soru}
 Cevap:`;
 
     try {
+        const model = "llama-3.1-8b-instant"; // 70b varsa değiştir
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.1-8b-instant", // 70b varsa değiştir: "llama-3.1-70b-versatile"
+                model,
                 messages: [
-                    { role: "system", content: "Her zaman en güncel bilgiye odaklan. Eski veri varsa belirt. Kısa, doğrudan ve doğru cevap ver." },
+                    { role: "system", content: "Güncel veriye odaklan. Dizi sorusunda bölüm sayısını tarihle birlikte ver, gerekirse basit tahmin yap (haftalık yayın varsay). Kısa, doğru, doğrudan cevap ver." },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.1,
-                max_tokens: 1000
+                temperature: 0.12,
+                max_tokens: isDizi ? 1200 : 900  // dizi sorularında biraz daha uzun izin
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -157,22 +172,20 @@ Cevap:`;
         let cevap = res.data.choices[0].message.content.trim();
 
         history.push({ user: soru, bot: cevap });
-        if (history.length > 4) history.shift(); // hafıza biraz genişletildi
+        if (history.length > 4) history.shift();
         userContexts.set(userId, history);
 
         return cevap;
     } catch (e) {
-        console.error("Groq hatası:", e.message);
-        return `Şu anda (${simdi}) cevap üretilemiyor, lütfen biraz sonra dene.`;
+        console.error("Groq hata:", e.message);
+        return `Şu anda (${simdi}) veri alınamıyor, lütfen tekrar dene.`;
     }
 }
 
-/* ========== MESAJ DİNLEYİCİ ========== */
+/* MESAJ DİNLEYİCİ (değişmedi) */
 client.on("messageCreate", async msg => {
     if (msg.author.bot) return;
-
     if (msg.mentions.everyone || msg.content.includes("@everyone") || msg.content.includes("@here")) return;
-
     if (!msg.mentions.has(client.user)) return;
 
     const temizSoru = msg.content.replace(/<@!?[^>]+>/g, "").trim();
@@ -180,12 +193,11 @@ client.on("messageCreate", async msg => {
 
     const now = Date.now();
     const last = userLastProcess.get(msg.author.id) || 0;
-    if (now - last < 2200) return; // 2.2 sn cooldown
+    if (now - last < 2200) return;
     userLastProcess.set(msg.author.id, now);
 
     try {
         await msg.channel.sendTyping();
-
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
 
         if (cevap.length > 2000) {
@@ -213,7 +225,7 @@ client.on("messageCreate", async msg => {
 });
 
 client.once("ready", () => {
-    console.log(`Bot aktif → ${client.user.tag} | Tarih: ${getCurrentTurkishDate()}`);
+    console.log(`Bot aktif → ${client.user.tag} | ${getCurrentTurkishDate()}`);
 });
 
 client.login(DISCORD_TOKEN).catch(err => console.error("Login hatası:", err));
