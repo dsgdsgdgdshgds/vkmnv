@@ -38,7 +38,8 @@ async function arastirmaPlaniHazirla(soru) {
                     },
                     { role: "user", content: soru }
                 ],
-                temperature: 0.1
+                temperature: 0.1,
+                max_tokens: 100 // Sorgu üretirken gereksiz uzatmasın
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -57,8 +58,8 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                // Token tasarrufu için snippetları 400 karakterle sınırlıyoruz
-                kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 400)}`).join("\n") + "\n";
+                // Snippet'ları 300 karakterle sınırlayarak hem token tasarrufu sağlıyoruz hem de karmaşayı önlüyoruz
+                kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 300)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
     }
@@ -99,19 +100,21 @@ KULLANICI SORUSU: ${soru}
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                // HATA BURADAYDI: Model ismini 'llama-3.1-8b-instant' olarak güncelledim
                 model: "llama-3.1-8b-instant",
                 messages: [
                     { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
                     { role: "user", content: synthesisPrompt }
                 ],
-                temperature: 0
+                temperature: 0,
+                max_tokens: 800, // BUG ÖNLEME: Botun 50 mesajlık saçmalamasını engeller, cevabı burada keser.
+                stop: ["KULLANICI SORUSU:", "GÜNCEL SİSTEM TARİHİ:"] // Kendi kendine soru sormasını engeller.
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
 
-        const botCevap = res.data.choices[0].message.content;
+        const botCevap = res.data.choices[0].message.content.trim();
 
+        // Hafızayı güncelle
         history.push({ user: soru, bot: botCevap });
         if (history.length > 2) history.shift();
         userContexts.set(userId, history);
@@ -133,8 +136,9 @@ client.on("messageCreate", async msg => {
         await msg.channel.sendTyping();
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
         
+        // BUG ÖNLEME: Eğer cevap çok uzunsa sadece 2 parça gönder (50 tane değil)
         if (cevap.length > 2000) {
-            const chunks = cevap.match(/[\s\S]{1,1900}/g);
+            const chunks = cevap.match(/[\s\S]{1,1900}/g).slice(0, 2); 
             for (const chunk of chunks) await msg.reply(chunk);
         } else {
             msg.reply(cevap);
