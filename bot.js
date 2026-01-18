@@ -49,7 +49,6 @@ async function arastirmaPlaniHazirla(soru) {
 /* 2. ADIM: GENİŞLETİLMİŞ VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
-    // Token aşımını önlemek için max 3 arama terimi ve her aramadan max 2 sonuç alıyoruz
     for (const altSoru of altSorular.slice(0, 3)) {
         try {
             const res = await axios.post(
@@ -58,8 +57,8 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                //Snippet uzunluğunu 450 karakterle sınırladık (Hata almanı engelleyen kritik nokta)
-                kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 450)}`).join("\n") + "\n";
+                // Token tasarrufu için snippetları 400 karakterle sınırlıyoruz
+                kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 400)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
     }
@@ -100,7 +99,8 @@ KULLANICI SORUSU: ${soru}
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.1-8b",
+                // HATA BURADAYDI: Model ismini 'llama-3.1-8b-instant' olarak güncelledim
+                model: "llama-3.1-8b-instant",
                 messages: [
                     { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
                     { role: "user", content: synthesisPrompt }
@@ -118,8 +118,7 @@ KULLANICI SORUSU: ${soru}
 
         return botCevap;
     } catch (e) {
-        // Konsola hatayı yazdır ki nedenini gör
-        console.error("API Hatası Detayı:", e.response?.data || e.message);
+        console.error("API Hatası:", e.response?.data || e.message);
         return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
