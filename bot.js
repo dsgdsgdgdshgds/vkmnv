@@ -18,11 +18,11 @@ const client = new Client({
 
 /* ====== API AYARLARI ====== */
 const GROQ_API_KEY = process.env.API;
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN; 
 const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
 
 /* ====== SOHBET GEÇMİŞİ (HAFIZA) ====== */
-const userContexts = new Map();
+const userContexts = new Map(); 
 
 /* 1. ADIM: ARAMA TERİMİ ÜRETİCİ */
 async function arastirmaPlaniHazirla(soru) {
@@ -46,11 +46,10 @@ async function arastirmaPlaniHazirla(soru) {
     } catch (e) { return [soru]; }
 }
 
-/* 2. ADIM: VERİ TOPLAMA (TOKEN OPTİMİZE) */
+/* 2. ADIM: GENİŞLETİLMİŞ VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
-    // Token tasarrufu için en alakalı 2 sorguyu kullanıyoruz
-    for (const altSoru of altSorular.slice(0, 2)) {
+    for (const altSoru of altSorular.slice(0, 3)) {
         try {
             const res = await axios.post(
                 "https://google.serper.dev/search",
@@ -58,22 +57,16 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                // Sadece en alakalı 3 sonucu ve her sonucun ilk 400 karakterini alıyoruz
-                kaynaklar += res.data.organic.slice(0, 3).map(r => `[Bilgi]: ${r.snippet.substring(0, 400)}`).join("\n") + "\n";
+                // TOKEN OPTİMİZASYONU: 5 yerine 3 sonuç al ve snippetları 350 karakterle sınırla
+                kaynaklar += res.data.organic.slice(0, 3).map(r => `[Bilgi]: ${r.snippet.substring(0, 350)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
     }
     return kaynaklar.trim();
 }
 
-/* 3. ADIM: MANTIKSAL SENTEZ (ORİJİNAL KURALLAR) */
+/* 3. ADIM: MANTIKSAL SENTEZ, GEÇMİŞ VE HESAPLAMA */
 async function dogrulanmisCevap(userId, soru) {
-    // Geliştirici sorgusu kontrolü (Özel kuralın)
-    const kucukSoru = soru.toLowerCase();
-    if (kucukSoru.includes("yapımc") || kucukSoru.includes("geliştiric") || kucukSoru.includes("sahib") || kucukSoru.includes("creator")) {
-        return "Batuhan Aktaş Giresun/Bulancak KAFMTAL\nhata";
-    }
-
     const simdi = new Date();
     const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
     
@@ -112,7 +105,7 @@ KULLANICI SORUSU: ${soru}
                     { role: "user", content: synthesisPrompt }
                 ],
                 temperature: 0,
-                max_tokens: 800 // Botun çok uzun cevap verip token bitirmesini engeller
+                max_tokens: 1000 // TOKEN OPTİMİZASYONU: Botun aşırı uzun cevap verip kotayı bitirmesini önler
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -125,7 +118,7 @@ KULLANICI SORUSU: ${soru}
 
         return botCevap;
     } catch (e) {
-        return "Batuhan Aktaş Giresun/Bulancak KAFMTAL\nhata";
+        return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
 
@@ -140,12 +133,13 @@ client.on("messageCreate", async msg => {
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
         
         if (cevap.length > 2000) {
-            msg.reply(cevap.substring(0, 1900) + "...");
+            const chunks = cevap.match(/[\s\S]{1,1900}/g);
+            for (const chunk of chunks) await msg.reply(chunk);
         } else {
             msg.reply(cevap);
         }
     } catch (err) {
-        msg.reply("Batuhan Aktaş Giresun/Bulancak KAFMTAL\nhata");
+        msg.reply("Bir sorun oluştu. Lütfen tekrar deneyin.");
     }
 });
 
