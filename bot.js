@@ -1,26 +1,53 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const http = require('http');
+import { Client, GatewayIntentBits, Events } from 'discord.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import http from 'http';
 
-http.createServer((req, res) => res.end('Bot çalışıyor - Gemini Güncel')).listen(process.env.PORT || 8080);
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot çalışıyor - Gemini 2.0 Flash');
+}).listen(process.env.PORT || 8080);
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'BURAYA_KEY_YAZ'); // ← Render'dan ekle
+// Ortam değişkenlerinden al
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
-// Güncel ve hızlı model (2026 başı stabil)
+if (!GEMINI_API_KEY) {
+  console.error("GEMINI_API_KEY ortam değişkeni eksik!");
+  process.exit(1);
+}
+
+if (!DISCORD_TOKEN) {
+  console.error("DISCORD_TOKEN ortam değişkeni eksik!");
+  process.exit(1);
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// Gemini 2.0 Flash modeli
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  // Grounding ile Google Search aç (güncel veri için) - ücretsizde sınırlı olabilir, çalışmazsa kaldır
-  tools: [{ googleSearchRetrieval: {} }]
+  model: "gemini-2.0-flash",
+  generationConfig: {
+    temperature: 0.7,
+    topP: 0.95,
+    topK: 64,
+    maxOutputTokens: 8192,
+  }
 });
 
+// Hafıza (kullanıcı başına son 12 mesaj)
 const userHistories = new Map();
 
-client.on('messageCreate', async msg => {
-  if (msg.author.bot || !msg.mentions.has(client.user)) return;
+client.on(Events.MessageCreate, async msg => {
+  if (msg.author.bot) return;
+  if (!msg.mentions.has(client.user)) return;
 
   const soru = msg.content.replace(/<@!?[^>]+>/g, '').trim();
   if (!soru) return;
@@ -31,35 +58,61 @@ client.on('messageCreate', async msg => {
     let history = userHistories.get(msg.author.id) || [];
 
     const chat = model.startChat({
-      history: history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
-      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+      history: history.map(h => ({
+        role: h.role,
+        parts: [{ text: h.text }]
+      })),
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      }
     });
 
     const result = await chat.sendMessage(soru);
     const cevap = result.response.text().trim();
 
+    // Hafızaya ekle
     history.push({ role: "user", text: soru });
     history.push({ role: "model", text: cevap });
-    if (history.length > 10) history = history.slice(-10);
+
+    // Son 12 mesajı tut (6 diyalog çifti)
+    if (history.length > 12) {
+      history = history.slice(-12);
+    }
+
     userHistories.set(msg.author.id, history);
 
+    // Cevabı gönder (2000 karakter sınırı)
     if (cevap.length > 1900) {
-      for (const chunk of cevap.match(/[\s\S]{1,1900}/g) || []) {
+      const chunks = cevap.match(/[\s\S]{1,1900}/g) || [];
+      for (const chunk of chunks) {
         await msg.reply(chunk);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 1000)); // flood koruması
       }
     } else {
-      await msg.reply(cevap || 'Cevap yok');
+      await msg.reply(cevap || "Cevap alınamadı.");
     }
+
   } catch (err) {
-    console.error(err);
-    let msg = 'Hata çıktı';
-    if (err.message?.includes('429')) msg = 'Kota doldu (429), biraz bekle';
-    if (err.message?.includes('404') || err.message?.includes('not found')) msg = 'hata';
-    await msg.reply(msg + ', tekrar sor');
+    console.error("Hata:", err);
+
+    let hataMesaj = "Bir hata çıktı, lütfen tekrar dene.";
+    
+    if (err.status === 429) {
+      hataMesaj = "Kota sınırına ulaştık (429). Biraz bekleyip tekrar deneyelim.";
+    } else if (err.message?.includes('model') || err.message?.includes('not found')) {
+      hataMesaj = "Model şu an erişilemiyor. API key veya kota durumunu kontrol et.";
+    } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
+      hataMesaj = "API anahtarı geçersiz görünüyor.";
+    }
+
+    await msg.reply(hataMesaj);
   }
 });
 
-client.once('ready', () => console.log(`Aktif → ${client.user.tag}`));
+client.once(Events.ClientReady, () => {
+  console.log(`Bot aktif → ${client.user.tag}`);
+  console.log(`Model: gemini-2.0-flash | Tarih: ${new Date().toLocaleString('tr-TR')}`);
+});
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(DISCORD_TOKEN);
