@@ -44,88 +44,6 @@ function getCurrentMonthDay() {
     return now.toLocaleDateString('tr-TR', { month: 'long', day: 'numeric' });
 }
 
-/* 1. ARAMA TERİMİ ÜRETİCİ - Soruya göre çok daha akıllı ve güncel odaklı */
-async function arastirmaPlaniHazirla(soru) {
-    const simdi = getCurrentTurkishDate();
-    const yil = getCurrentYear();
-    const ayGun = getCurrentMonthDay();
-
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.1-8b-instant",
-                messages: [
-                    {
-                        role: "system",
-                        content: `Kullanıcının sorusunu dikkatle oku ve tam olarak ne istediğini anla.
-EN GÜNCEL bilgiyi almak için Google'da aranacak 4-5 tane TERİM üret.
-Her zaman şu anki tarihi (\( {simdi}) ve yılı ( \){yil}) ekle.
-Soru ne hakkında ise (dizi bölüm sayısı, maç sonucu, hava durumu, fiyat, haber vs.) o konuya özel güncel terimler üret.
-Her satıra bir tane terim yaz. Kısa, net, kesin ol.`
-                    },
-                    { role: "user", content: soru }
-                ],
-                temperature: 0.25,
-                max_tokens: 200
-            },
-            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
-        );
-
-        let terimler = res.data.choices[0].message.content
-            .split("\n")
-            .map(s => s.trim())
-            .filter(s => s.length > 8 && !s.startsWith('-') && !s.startsWith('*'));
-
-        // Eğer çok az çıktıysa fallback
-        if (terimler.length < 3) {
-            terimler = [
-                soru,
-                `${soru} ${yil}`,
-                `${soru} ${ayGun} ${yil}`,
-                `${soru} güncel`,
-                `${soru} son durum`
-            ];
-        }
-
-        return terimler.slice(0, 5);
-    } catch (e) {
-        return [
-            soru,
-            `${soru} ${yil}`,
-            `${soru} ${simdi}`,
-            `${soru} güncel`
-        ];
-    }
-}
-
-/* ÖZETLEME - En güncel bilgileri öne çıkar */
-async function ozetleBilgi(hamBilgi) {
-    if (hamBilgi.length < 2800) return hamBilgi;
-
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.1-8b-instant",
-                messages: [
-                    {
-                        role: "system",
-                        content: "Bu arama sonuçlarını oku. En güncel tarihli bilgileri öne çıkar. Çelişkili veriler varsa hangisinin daha yeni olduğunu belirt. Maksimum 2000 karaktere indirge. Türkçe yaz."
-                    },
-                    { role: "user", content: hamBilgi }
-                ],
-                temperature: 0.1,
-                max_tokens: 650
-            },
-            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
-        );
-        return res.data.choices[0].message.content.trim();
-    } catch {
-        return hamBilgi.substring(0, 6500) + "\n(kısaltıldı)";
-    }
-}
-
 /* VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
@@ -150,37 +68,49 @@ async function veriTopla(altSorular) {
     return kaynaklar.trim() || "Arama sonuçları alınamadı.";
 }
 
-/* ANA CEVAP FONKSİYONU */
+/* TEK Groq çağrısı ile tüm işlem (arama terimi + özet + final cevap) */
 async function dogrulanmisCevap(userId, soru) {
     const simdi = getCurrentTurkishDate();
-
-    const plan = await arastirmaPlaniHazirla(soru);
-    let hamBilgi = await veriTopla(plan);
-    hamBilgi = await ozetleBilgi(hamBilgi);
+    const yil = getCurrentYear();
+    const ayGun = getCurrentMonthDay();
 
     let history = userContexts.get(userId) || [];
     let historyText = history.map(h => `K: ${h.user}\nB: ${h.bot}`).join("\n───\n");
 
     const prompt = `
-ŞU ANKİ TARİH: ${simdi} (Türkiye saati) ── CEVABINI MUTLAKA BU TARİHE EN YAKIN BİLGİLERE DAYANDIR!
+ŞU ANKİ TARİH: ${simdi} (Türkiye saati)
 
 Önceki konuşma:
 ${historyText || "Henüz yok"}
 
-KURALLAR:
-1. Arama sonuçlarını AYRI AYRI oku ve değerlendir.
-2. Farklı kaynaklarda çelişki varsa: en yeni tarihli olanı, en resmi/otomatik olanı önceliklendir.
-3. Kullanıcı tam olarak ne istediğini anla ve SADECE ona odaklan.
-4. Güncel veri yoksa veya çelişkiliyse bunu açıkça söyle.
-5. Cevabı kısa, net ve doğrudan tut (800-2200 karakter arası ideal).
-6. Kaynak belirtmek faydalıysa kısaça belirt.
+KULLANICI SORUSU: ${soru}
 
-ARAMA SONUÇLARI (en güncel olanlar öne çıksın):
-${hamBilgi || "Yeterli veri alınamadı."}
+TALİMATLAR:
+1. Önce soruyu dikkatle oku ve tam olarak ne istendiğini anla.
+2. Bu soruya EN GÜNCEL cevap verebilmek için Google'da aranması gereken 4-5 tane kısa ve etkili arama terimi üret. 
+   Her zaman ${yil} yılını, ${ayGun} ay-gün bilgisini ve ${simdi} tam tarihini terimlere ekle.
+   Her terimi ayrı satıra yaz.
 
-Soru: ${soru}
+3. Şimdi aşağıdaki gibi DÜŞÜN:
+   - Bu terimlerle arama yapılsa en güncel bilgiler neler olurdu?
+   - Hangi kaynak daha güvenilir ve yeni görünüyor?
+   - Çelişkili bilgi varsa hangisi daha mantıklı / güncel?
 
-Cevap:`;
+4. En güncel bilgiye dayanarak KISA, NET ve DOĞRU bir cevap yaz.
+   Cevap 800-1800 karakter arası olsun.
+   Gereksiz giriş, selam, emoji kullanma.
+   Eğer bilgi çelişkili veya eksikse bunu açıkça belirt.
+
+CEVAP FORMATI:
+[Arama Terimleri]
+terim 1
+terim 2
+...
+
+[Sentezlenmiş Cevap]
+buraya nihai cevabı yaz
+
+Şimdi başla:`;
 
     try {
         const res = await axios.post(
@@ -190,17 +120,26 @@ Cevap:`;
                 messages: [
                     {
                         role: "system",
-                        content: "Soruyu tam anla. Ayrı ayrı bilgileri sentezle. En güncel veriyi kullan. Kısa, doğru, net cevap ver. Gereksiz laf kalabalığı yapma."
+                        content: "Soruyu tam anla. Önce 4-5 güncel arama terimi üret. Sonra bu terimlere dayanarak en güncel bilgiyi sentezle. Kısa, doğru, doğrudan cevap ver. Gereksiz laf kalabalığı yapma."
                     },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.1,
-                max_tokens: 1200
+                temperature: 0.15,
+                max_tokens: 1400
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
 
-        let cevap = res.data.choices[0].message.content.trim();
+        let fullResponse = res.data.choices[0].message.content.trim();
+
+        // Cevabı iki kısma ayır: terimler ve nihai cevap
+        let cevap = fullResponse;
+        if (fullResponse.includes("[Sentezlenmiş Cevap]")) {
+            const parts = fullResponse.split("[Sentezlenmiş Cevap]");
+            if (parts.length > 1) {
+                cevap = parts[1].trim();
+            }
+        }
 
         // Hafıza güncelle
         history.push({ user: soru, bot: cevap });
@@ -209,8 +148,39 @@ Cevap:`;
 
         return cevap;
     } catch (e) {
+        if (e.response && e.response.status === 429) {
+            const retryAfter = parseInt(e.response.headers['retry-after'] || '10', 10);
+            console.log(`Rate limit (429) → ${retryAfter} saniye bekleniyor...`);
+            await new Promise(r => setTimeout(r, (retryAfter + 2) * 1000));
+            
+            // Tekrar dene (sadece 1 retry)
+            try {
+                const retryRes = await axios.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    // aynı body'yi tekrar gönder
+                    {
+                        model: "llama-3.1-8b-instant",
+                        messages: [
+                            { role: "system", content: "Soruyu tam anla. Önce 4-5 güncel arama terimi üret. Sonra bu terimlere dayanarak en güncel bilgiyi sentezle. Kısa, doğru, doğrudan cevap ver." },
+                            { role: "user", content: prompt }
+                        ],
+                        temperature: 0.15,
+                        max_tokens: 1400
+                    },
+                    { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
+                );
+                let retryCevap = retryRes.data.choices[0].message.content.trim();
+                if (retryCevap.includes("[Sentezlenmiş Cevap]")) {
+                    retryCevap = retryCevap.split("[Sentezlenmiş Cevap]")[1]?.trim() || retryCevap;
+                }
+                return retryCevap;
+            } catch (retryErr) {
+                console.error("Retry da başarısız:", retryErr.message);
+            }
+        }
+
         console.error("Groq hatası:", e.message);
-        return `Şu anda (${simdi}) cevap üretilemiyor. Lütfen biraz sonra tekrar dene.`;
+        return `Şu anda (${simdi}) Groq yoğun, lütfen 10-30 saniye sonra tekrar dene.`;
     }
 }
 
@@ -225,7 +195,7 @@ client.on("messageCreate", async msg => {
 
     const now = Date.now();
     const last = userLastProcess.get(msg.author.id) || 0;
-    if (now - last < 2000) return;
+    if (now - last < 4000) return; // 4 saniye cooldown
     userLastProcess.set(msg.author.id, now);
 
     try {
