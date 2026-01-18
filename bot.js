@@ -35,7 +35,7 @@ async function arastirmaPlaniHazirla(soru) {
                 messages: [
                     {
                         role: "system",
-                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. dizi film v.b hakkında soru gelirse Örn: 'Arka Sokaklar toplam bölüm sayısı 2026', 'Arka Sokaklar son bölüm numarası'."
+                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. dizi film v.b hakkında soru gelirse ilk bunları öğren:'Arka Sokaklar toplam bölüm sayısı ', 'Arka Sokaklar son bölüm numarası'."
                     },
                     { role: "user", content: soru }
                 ],
