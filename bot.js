@@ -34,12 +34,12 @@ async function arastirmaPlaniHazirla(soru) {
                 messages: [
                     {
                         role: "system",
-                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. Örn: 'Arka Sokaklar toplam bölüm sayısı 2026', 'Arka Sokaklar son bölüm numarası'."
+                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için en güncel 3 arama terimi üret."
                     },
                     { role: "user", content: soru }
                 ],
                 temperature: 0.1,
-                max_tokens: 100 // Sorgu üretirken gereksiz uzatmasın
+                max_tokens: 100
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -58,7 +58,6 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                // Snippet'ları 300 karakterle sınırlayarak hem token tasarrufu sağlıyoruz hem de karmaşayı önlüyoruz
                 kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 300)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
@@ -66,11 +65,11 @@ async function veriTopla(altSorular) {
     return kaynaklar.trim();
 }
 
-/* 3. ADIM: MANTIKSAL SENTEZ, GEÇMİŞ VE HESAPLAMA */
+/* 3. ADIM: MANTIKSAL SENTEZ VE CEVAP */
 async function dogrulanmisCevap(userId, soru) {
     const simdi = new Date();
     const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    
+
     const plan = await arastirmaPlaniHazirla(soru);
     const hamBilgi = await veriTopla(plan);
 
@@ -80,13 +79,8 @@ async function dogrulanmisCevap(userId, soru) {
     const synthesisPrompt = `
 GÜNCEL SİSTEM TARİHİ: ${tarihBilgisi}
 
-ÖNCEKİ KONUŞMALAR (HAFIZA):
+HAFIZA:
 ${historyText || "Henüz geçmiş yok."}
-
-HATA DENETİMİ VE KURALLAR:
-1. **Sayısal Karşılaştırma:** Eğer bir dizi veya olay hakkında farklı sayılar varsa, kronolojik olarak en mantıklı ve yüksek olanı seç.
-2. **Matematik:** Hesaplamalarda (gün/saat) toplam bölüm ve 130 dk ortalamayı baz al.
-3. **Bağlam:** Eğer kullanıcı "o", "onu", "önceki" gibi ifadeler kullanırsa hafızadaki bilgilere bak.
 
 İNTERNET VERİLERİ:
 ---
@@ -94,6 +88,12 @@ ${hamBilgi}
 ---
 
 KULLANICI SORUSU: ${soru}
+
+SİSTEM KURALLARI (GİZLİ):
+1. Sayısal verilerde en güncel ve rasyonel olanı seç.
+2. Matematiksel hesaplamaları arka planda hatasız yap.
+3. Yanıtında asla "Kuralımıza göre", "Hesaplamalarıma göre" gibi teknik açıklamalar yapma.
+4. Sadece doğrudan cevabı ver.
 `;
 
     try {
@@ -102,26 +102,24 @@ KULLANICI SORUSU: ${soru}
             {
                 model: "llama-3.1-8b-instant",
                 messages: [
-                    { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
+                    { role: "system", content: "Sen matematiksel hata yapmayan, rasyonel ve sadece sonuca odaklanan bir bilgi uzmanısın. İç mantığını kullanıcıya açıklama, sadece sonucu söyle." },
                     { role: "user", content: synthesisPrompt }
                 ],
                 temperature: 0,
-                max_tokens: 800, // BUG ÖNLEME: Botun 50 mesajlık saçmalamasını engeller, cevabı burada keser.
-                stop: ["KULLANICI SORUSU:", "GÜNCEL SİSTEM TARİHİ:"] // Kendi kendine soru sormasını engeller.
+                max_tokens: 800,
+                stop: ["KULLANICI SORUSU:", "GÜNCEL SİSTEM TARİHİ:"]
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
 
         const botCevap = res.data.choices[0].message.content.trim();
 
-        // Hafızayı güncelle
         history.push({ user: soru, bot: botCevap });
         if (history.length > 2) history.shift();
         userContexts.set(userId, history);
 
         return botCevap;
     } catch (e) {
-        console.error("API Hatası:", e.response?.data || e.message);
         return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
@@ -135,8 +133,7 @@ client.on("messageCreate", async msg => {
     try {
         await msg.channel.sendTyping();
         const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
-        
-        // BUG ÖNLEME: Eğer cevap çok uzunsa sadece 2 parça gönder (50 tane değil)
+
         if (cevap.length > 2000) {
             const chunks = cevap.match(/[\s\S]{1,1900}/g).slice(0, 2); 
             for (const chunk of chunks) await msg.reply(chunk);
@@ -144,7 +141,7 @@ client.on("messageCreate", async msg => {
             msg.reply(cevap);
         }
     } catch (err) {
-        msg.reply("Bir sorun oluştu. Lütfen tekrar deneyin.");
+        msg.reply("Bir sorun oluştu.");
     }
 });
 
