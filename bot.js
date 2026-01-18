@@ -15,16 +15,16 @@ const client = new Client({
     ]
 });
 
-const userContexts = new Map(); // kullanıcı başına basit hafıza
+const userContexts = new Map();
 
 async function getGeminiPage() {
     if (!process.env.BROWSERLESS_TOKEN) {
-        throw new Error("BROWSERLESS_TOKEN ortam değişkeni eksik! Render'dan ekle.");
+        throw new Error("BROWSERLESS_TOKEN ortam değişkeni eksik! Render Environment Variables bölümünden ekleyin.");
     }
 
     const endpoint = `wss://production-sfo.browserless.io?token=${process.env.BROWSERLESS_TOKEN}`;
 
-    console.log('Browserless\'e bağlanılıyor... (token gizli)');
+    console.log('Browserless bağlantısı deneniyor...');
 
     const browser = await puppeteer.connect({
         browserWSEndpoint: endpoint,
@@ -34,27 +34,28 @@ async function getGeminiPage() {
 
     const page = await browser.newPage();
 
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
     await page.setExtraHTTPHeaders({
         'Accept-Language': 'tr-TR,tr;q=0.9'
     });
 
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
-
-    console.log('Gemini sayfasına gidiliyor...');
     await page.goto('https://gemini.google.com/', {
-        waitUntil: 'networkidle2',
-        timeout: 60000
+        waitUntil: 'domcontentloaded',
+        timeout: 45000
     });
+
+    // Sayfanın biraz daha yüklenmesini bekle (hydration için)
+    await page.waitForTimeout(4000);
 
     return { page, browser };
 }
 
-client.on('messageCreate', async (msg) => {
+client.on('messageCreate', async msg => {
     if (msg.author.bot) return;
     if (!msg.mentions.has(client.user)) return;
 
     const soru = msg.content.replace(/<@!?[^>]+>/g, '').trim();
-    if (soru.length === 0) return;
+    if (!soru) return;
 
     let page, browser;
     try {
@@ -63,50 +64,94 @@ client.on('messageCreate', async (msg) => {
         ({ page, browser } = await getGeminiPage());
 
         let history = userContexts.get(msg.author.id) || [];
-        let fullPrompt = history.length > 0
+        const fullPrompt = history.length > 0
             ? `Önceki konuşma:\n${history.join('\n')}\n\nYeni soru: ${soru}`
             : soru;
 
-        // Gemini input alanı (2026 selector'ı – gerekirse F12 ile kontrol et)
-        await page.waitForSelector('textarea[placeholder*="Gemini" i], textarea[aria-label*="Gemini" i]', { timeout: 30000 });
-        await page.type('textarea[placeholder*="Gemini" i], textarea[aria-label*="Gemini" i]', fullPrompt);
+        // 2025-2026 Gemini input alanı (contenteditable div çok yaygın)
+        const inputSelector = [
+            'div[contenteditable="true"][role="textbox"]',
+            'div[role="textbox"]',
+            'div[contenteditable="true"]',
+            'div[data-placeholder*="Gemini" i]',
+            'div[aria-label*="Gemini" i]'
+        ].join(', ');
+
+        await page.waitForSelector(inputSelector, { timeout: 45000 });
+
+        // Focus yap ve yaz
+        await page.click(inputSelector);
+        await page.keyboard.type(fullPrompt, { delay: 8 });  // biraz yavaş yaz ki algılasın
+
+        // Enter
         await page.keyboard.press('Enter');
 
-        // Cevap gelmesini bekle (son model yanıtı)
+        // Cevap bekleme (2026 selector varyasyonları)
         await page.waitForFunction(() => {
-            const replies = document.querySelectorAll('[data-message-author="model"], [role="assistant"], div.model-response, .response-container');
-            return replies.length > 0 && replies[replies.length - 1].innerText.trim().length > 20;
-        }, { timeout: 120000 });
+            const selectors = [
+                '[data-message-author="model"]',
+                '[role="assistant"]',
+                'div.model-response',
+                'div.prose',
+                'div.markdown',
+                '.response-container',
+                'div[data-testid*="response"]'
+            ].join(', ');
+            
+            const replies = document.querySelectorAll(selectors);
+            if (replies.length === 0) return false;
+            
+            const lastReply = replies[replies.length - 1];
+            const text = lastReply.innerText.trim();
+            return text.length > 30 && !text.includes('Generating');
+        }, { timeout: 180000 });  // 3 dk'ya kadar bekle (yavaş günlerde gerekli)
 
         const cevap = await page.evaluate(() => {
-            const replies = document.querySelectorAll('[data-message-author="model"], [role="assistant"], div.model-response, .response-container');
-            return replies[replies.length - 1]?.innerText?.trim() || 'Cevap alınamadı.';
+            const selectors = [
+                '[data-message-author="model"]',
+                '[role="assistant"]',
+                'div.model-response',
+                'div.prose',
+                'div.markdown',
+                '.response-container',
+                'div[data-testid*="response"]'
+            ].join(', ');
+            
+            const replies = document.querySelectorAll(selectors);
+            const last = replies[replies.length - 1];
+            return last ? last.innerText.trim() : 'Cevap alınamadı.';
         });
 
-        // Hafızayı güncelle (son 6-8 mesaj yeter)
+        // Hafıza güncelle
         history.push(`Kullanıcı: ${soru}`);
-        history.push(`Gemini: ${cevap.substring(0, 800)}...`);
-        if (history.length > 8) history = history.slice(-8);
+        history.push(`Gemini: ${cevap.substring(0, 900)}...`);
+        if (history.length > 10) history = history.slice(-10);
         userContexts.set(msg.author.id, history);
 
-        // Cevabı Discord'a gönder (2000 karakter sınırı)
+        // Cevabı gönder (Discord 2000 karakter sınırı)
         if (cevap.length > 1900) {
             const chunks = cevap.match(/[\s\S]{1,1900}/g) || [];
             for (const chunk of chunks) {
                 await msg.reply(chunk);
+                await new Promise(r => setTimeout(r, 800)); // flood önlemek için kısa bekleme
             }
         } else {
-            await msg.reply(cevap || 'Cevap gelmedi, siteyi kontrol et kanka.');
+            await msg.reply(cevap || 'Cevap alınamadı, siteyi kontrol et.');
         }
 
     } catch (err) {
         console.error('Hata:', err.message || err);
-        let hataMesaj = 'Bir sorun çıktı (timeout, CAPTCHA veya bağlantı hatası olabilir).';
-
-        if (err.message.includes('401')) {
-            hataMesaj = '401 Unauthorized – BROWSERLESS_TOKEN yanlış veya eksik. Dashboard\'dan kontrol et.';
-        } else if (err.message.includes('ECONNREFUSED') || err.message.includes('connect')) {
-            hataMesaj = 'Browserless bağlantısı başarısız. Token veya internet kontrol et.';
+        
+        let hataMesaj = 'Bağlantı veya sayfa yüklenmesi sırasında sorun çıktı.';
+        
+        if (err.message.includes('BROWSERLESS_TOKEN')) {
+            hataMesaj = 'BROWSERLESS_TOKEN eksik veya yanlış. Render Environment Variables\'dan kontrol et.';
+        } else if (err.message.includes('401')) {
+            hataMesaj = '401 Unauthorized – Browserless token geçersiz veya süresi dolmuş.';
+        } else if (err.message.includes('waiting for selector')) {
+            hataMesaj = 'Gemini sayfası input alanı bulunamadı (arayüz değişmiş olabilir).';
+        } else if (err.message.includes('timeout')) {
+            hataMesaj = 'Gemini çok yavaş cevap verdi veya timeout oldu.';
         }
 
         await msg.reply(hataMesaj + '\nBiraz bekleyip tekrar dene.');
@@ -118,8 +163,8 @@ client.on('messageCreate', async (msg) => {
 });
 
 client.once('ready', () => {
-    console.log(`✅ Bot giriş yaptı: ${client.user.tag}`);
-    console.log('Browserless ile Gemini web üzerinden çalışıyor');
+    console.log(`Bot aktif: ${client.user.tag}`);
+    console.log('Browserless + Gemini web entegrasyonu çalışıyor');
 });
 
 client.login(process.env.DISCORD_TOKEN);
