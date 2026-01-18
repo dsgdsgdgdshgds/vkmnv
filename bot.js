@@ -49,6 +49,7 @@ async function arastirmaPlaniHazirla(soru) {
 /* 2. ADIM: GENİŞLETİLMİŞ VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
+    // Token aşımını önlemek için en alakalı 3 sorguyu kullanıyoruz
     for (const altSoru of altSorular.slice(0, 3)) {
         try {
             const res = await axios.post(
@@ -57,8 +58,8 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                // TOKEN OPTİMİZASYONU: 5 yerine 3 sonuç al ve snippetları 350 karakterle sınırla
-                kaynaklar += res.data.organic.slice(0, 3).map(r => `[Bilgi]: ${r.snippet.substring(0, 350)}`).join("\n") + "\n";
+                // Snippet'ları 400 karakterle sınırlayarak modelin kapasitesini aşmasını engelledim
+                kaynaklar += res.data.organic.slice(0, 3).map(r => `[Bilgi]: ${r.snippet.substring(0, 400)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
     }
@@ -104,8 +105,7 @@ KULLANICI SORUSU: ${soru}
                     { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
                     { role: "user", content: synthesisPrompt }
                 ],
-                temperature: 0,
-                max_tokens: 1000 // TOKEN OPTİMİZASYONU: Botun aşırı uzun cevap verip kotayı bitirmesini önler
+                temperature: 0
             },
             { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
         );
@@ -118,6 +118,8 @@ KULLANICI SORUSU: ${soru}
 
         return botCevap;
     } catch (e) {
+        // Hata durumunda log basarak sorunu anlamanı sağlarız
+        console.error("Groq API Hatası:", e.response?.data || e.message);
         return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
