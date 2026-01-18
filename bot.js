@@ -55,7 +55,7 @@ client.on('messageCreate', async msg => {
     console.error(err);
     let msg = 'Hata çıktı';
     if (err.message?.includes('429')) msg = 'Kota doldu (429), biraz bekle';
-    if (err.message?.includes('404') || err.message?.includes('not found')) msg = 'Model adı değişmiş, gemini-2.5-flash dene';
+    if (err.message?.includes('404') || err.message?.includes('not found')) msg = 'hata';
     await msg.reply(msg + ', tekrar sor');
   }
 });
