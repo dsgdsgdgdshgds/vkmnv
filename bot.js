@@ -49,7 +49,7 @@ async function arastirmaPlaniHazirla(soru) {
 /* 2. ADIM: GENİŞLETİLMİŞ VERİ TOPLAMA */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
-    // Token aşımını önlemek için en alakalı 3 sorguyu kullanıyoruz
+    // Token aşımını önlemek için max 3 arama terimi ve her aramadan max 2 sonuç alıyoruz
     for (const altSoru of altSorular.slice(0, 3)) {
         try {
             const res = await axios.post(
@@ -58,8 +58,8 @@ async function veriTopla(altSorular) {
                 { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
             if (res.data?.organic) {
-                // Snippet'ları 400 karakterle sınırlayarak modelin kapasitesini aşmasını engelledim
-                kaynaklar += res.data.organic.slice(0, 3).map(r => `[Bilgi]: ${r.snippet.substring(0, 400)}`).join("\n") + "\n";
+                //Snippet uzunluğunu 450 karakterle sınırladık (Hata almanı engelleyen kritik nokta)
+                kaynaklar += res.data.organic.slice(0, 2).map(r => `[Bilgi]: ${r.snippet.substring(0, 450)}`).join("\n") + "\n";
             }
         } catch (e) { console.log("Arama başarısız."); }
     }
@@ -118,8 +118,8 @@ KULLANICI SORUSU: ${soru}
 
         return botCevap;
     } catch (e) {
-        // Hata durumunda log basarak sorunu anlamanı sağlarız
-        console.error("Groq API Hatası:", e.response?.data || e.message);
+        // Konsola hatayı yazdır ki nedenini gör
+        console.error("API Hatası Detayı:", e.response?.data || e.message);
         return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
