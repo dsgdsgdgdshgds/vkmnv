@@ -1,5 +1,3 @@
-Token sınırı çabuk doluyor sadece bunu düzelt geri kalan her şey aynı kurallar felan
-
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
