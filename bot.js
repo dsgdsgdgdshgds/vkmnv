@@ -62,10 +62,38 @@ async function arastirmaPlaniHazirla(soru) {
     }
 }
 
+/* EK ADIM: EKSİK BİLGİLER İÇİN ARAMA TERİMİ ÜRETİCİ */
+async function identifyMissingInfo(soru) {
+    try {
+        const res = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                model: "llama-3.1-8b-instant",
+                messages: [
+                    {
+                        role: "system",
+                        content: "Soruyu incele, eksik veya belirsiz kısımları belirle. Her eksik/belirsiz kısım için Google'da aratılacak en güncel ve teknik bir terim üret. Her satıra bir tane yaz. Eğer soru tamamsa boş bırak. Gereksiz açıklama yapma."
+                    },
+                    { role: "user", content: soru }
+                ],
+                temperature: 0.1,
+                max_tokens: 120
+            },
+            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
+        );
+        return res.data.choices[0].message.content
+            .split("\n")
+            .map(s => s.trim())
+            .filter(s => s.length > 3);
+    } catch (e) {
+        return [];
+    }
+}
+
 /* 2. ADIM: SERPER ile veri toplama */
 async function veriTopla(altSorular) {
     let kaynaklar = "";
-    for (const altSoru of altSorular.slice(0, 3)) {
+    for (const altSoru of altSorular.slice(0, 5)) {  // Artırdık çünkü eksik terimler eklendi
         try {
             const res = await axios.post(
                 "https://google.serper.dev/search",
@@ -82,7 +110,7 @@ async function veriTopla(altSorular) {
     return kaynaklar.trim();
 }
 
-/* 3. ADIM: Cevap sentezi */
+/* 3. ADIM: Cevap sentezi - Uzmanlar grubu gibi iç tartışma ile */
 async function dogrulanmisCevap(userId, soru) {
     const simdi = new Date();
     const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
@@ -93,6 +121,8 @@ async function dogrulanmisCevap(userId, soru) {
     // Normal sohbet değilse → Serper kullan
     if (!isNormalSohbet(soru)) {
         plan = await arastirmaPlaniHazirla(soru);
+        const missingPlan = await identifyMissingInfo(soru);
+        plan = [...plan, ...missingPlan];
         hamBilgi = await veriTopla(plan);
     }
 
@@ -120,6 +150,10 @@ Kurallar:
 - Kısa selamlaşmalara doğal ve kısa cevap ver
 - Bilgi içeren sorularda sadece en güncel ve mantıklı veriyi kullan
 - Matematik, dizi bölüm sayısı, tarih gibi konularda mantıksal hata yapma
+- Karmaşık veya eksik sorular için: Soruyu kısa parçalara böl, gerekli bilgileri sağlanan internet verilerinden tamamla (kullanıcıya soru sormadan, mantıklı varsayımlar yaparak devam et), ama iç tartışmayı cevaba yansıtma
+- Uzun cevapları düzgün toparla: Sonunda özetle, net bir sonuç ver
+- Cevabı üretmeden önce kendi içinde uzmanlar grubu gibi tartış (ama bunu cevaba dahil etme): Örneğin, Tarihçi: ..., Bilim insanı: ..., Uzman: ... diye düşün ve en iyi sentezi çıkar
+- Son cevap doğal, kısa ve doğrudan olsun
 `;
 
     try {
@@ -128,7 +162,10 @@ Kurallar:
             {
                 model: "llama-3.3-70b-versatile",
                 messages: [
-                    { role: "system", content: "Doğru, kısa, güncel ve doğal konuşan bir yardımcı ol. Gereksiz açıklama yapma." },
+                    { 
+                        role: "system", 
+                        content: "Doğru, kısa, güncel ve doğal konuşan bir yardımcı ol. Gereksiz açıklama yapma. Uzmanlar gibi iç tartışma yap ama dışarı yansıtma." 
+                    },
                     { role: "user", content: synthesisPrompt }
                 ],
                 temperature: 0.15,
@@ -153,7 +190,8 @@ Kurallar:
 
 /* ========== MESAJ DİNLEYİCİ ========== */
 client.on("messageCreate", async msg => {
-    if (msg.author.bot) return;
+    // Kendi mesajlarını ignore et (loop önleme)
+    if (msg.author.id === client.user.id) return;
 
     // @everyone veya @here içeren mesajlara cevap verme
     if (msg.mentions.everyone || msg.content.includes("@everyone") || msg.content.includes("@here")) {
