@@ -148,7 +148,7 @@ KULLANICI SORUSU: ${soru}
 Kurallar:
 - @everyone @here gibi mention'lara cevap verme (zaten dinleyici bunu engelliyor)
 - Kısa selamlaşmalara doğal ve kısa cevap ver
-- Bilgi içeren sorularda sadece en güncel ve mantıklı veriyi kullan
+- Bilgi içeren sorularda SADECE sağlanan İNTERNET'TEN DOĞRULANMIŞ BİLGİLER'i kullan, kendi yerleşik bilgin yerine bu verilere öncelik ver ve güncel tut
 - Matematik, dizi bölüm sayısı, tarih gibi konularda mantıksal hata yapma
 - Karmaşık veya eksik sorular için: Soruyu kısa parçalara böl, gerekli bilgileri sağlanan internet verilerinden tamamla (kullanıcıya soru sormadan, mantıklı varsayımlar yaparak devam et), ama iç tartışmayı cevaba yansıtma
 - Uzun cevapları düzgün toparla: Sonunda özetle, net bir sonuç ver
@@ -164,7 +164,7 @@ Kurallar:
                 messages: [
                     { 
                         role: "system", 
-                        content: "Doğru, kısa, güncel ve doğal konuşan bir yardımcı ol. Gereksiz açıklama yapma. Uzmanlar gibi iç tartışma yap ama dışarı yansıtma." 
+                        content: "Doğru, kısa, güncel ve doğal konuşan bir yardımcı ol. Gereksiz açıklama yapma. Uzmanlar gibi iç tartışma yap ama dışarı yansıtma. Sağlanan internet bilgilerinden güncel verileri zorunlu kullan." 
                     },
                     { role: "user", content: synthesisPrompt }
                 ],
