@@ -7,9 +7,8 @@
     "start": "node bot.js"
   },
   "dependencies": {
-     "discord.js": "^14.17.1",
-     "@google/generative-ai": "^0.21.0",
-     "axios": "^1.7.9"
+     "mineflayer": "^4.20.0",
+    "mineflayer-pathfinder": "^2.4.5"
   },
   "engines": {
     "node": ">=18.0.0"
