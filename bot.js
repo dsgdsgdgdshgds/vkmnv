@@ -1,205 +1,238 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
-const http = require('http');
+const mineflayer = require('mineflayer');
+const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
-/* ====== RENDER/PORT AYARI ====== */
-http.createServer((req, res) => {
-    res.write("Bot çalışıyor!");
-    res.end();
-}).listen(process.env.PORT || 10000);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
+function createBot() {
+    console.log('--- [Sistem] Bot Başlatılıyor ---');
+    
+    const bot = mineflayer.createBot({
+        host: 'play.reborncraft.pw',
+        port: 25565,
+        username: 'slimy_koala',
+        version: '1.21'
+    });
 
-/* ====== API AYARLARI ====== */
-const GROQ_API_KEY = process.env.API;
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
+    bot.loadPlugin(pathfinder);
 
-/* ====== SOHBET GEÇMİŞİ ====== */
-const userContexts = new Map();
+    let isSelling = false;
+    let systemsStarted = false;
+    let spawnProcessed = false;
 
-/* Kısa/selamlaşma/normal sohbet kontrolü */
-function isNormalSohbet(soru) {
-    const temiz = soru.toLowerCase().trim();
-    if (temiz.length < 6) return true;
-    if (/^(selam|merhaba|sa|nasılsın|naber|iyi akşamlar|günaydın|slm|hey|selamlar)$/i.test(temiz)) return true;
-    if (/^(\W|\d)+$/.test(temiz)) return true; // sadece emoji, nokta, sayı vs.
-    if (temiz.split(" ").length <= 2) return true;
-    return false;
-}
-
-/* 1. ADIM: ARAMA TERİMİ ÜRETİCİ */
-async function arastirmaPlaniHazirla(soru) {
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.1-8b-instant",
-                messages: [
-                    {
-                        role: "system",
-                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. Her satıra bir tane tane yaz. Gereksiz açıklama yapma."
-                    },
-                    { role: "user", content: soru }
-                ],
-                temperature: 0.1,
-                max_tokens: 120
-            },
-            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
-        );
-        return res.data.choices[0].message.content
-            .split("\n")
-            .map(s => s.trim())
-            .filter(s => s.length > 3);
-    } catch (e) {
-        return [soru];
-    }
-}
-
-/* 2. ADIM: SERPER ile veri toplama */
-async function veriTopla(altSorular) {
-    let kaynaklar = "";
-    for (const altSoru of altSorular.slice(0, 3)) {
+    // ──────────────────────────────
+    //    SENİN ORİJİNAL GİRİŞ KISMI
+    // ──────────────────────────────
+    async function performLoginSequence() {
+        if (systemsStarted) return;
+        
+        console.log('[→] Login sırası başlatılıyor...');
+        
         try {
-            const res = await axios.post(
-                "https://google.serper.dev/search",
-                { q: altSoru, gl: "tr", hl: "tr" },
-                { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 6000 }
+            await sleep(12000);
+          bot.chat(`/login ${process.env.SIFRE}`);
+            console.log('[→] /login gönderildi');
+            
+            await sleep(12000);
+            bot.chat('/skyblock');
+            console.log('[→] /skyblock gönderildi');
+            
+            await sleep(12000);
+            bot.chat('/warp Yoncatarla');
+            console.log('[→] /warp Yoncatarla gönderildi');
+            
+            await sleep(18000);
+            
+            console.log('[!] Sistemler aktif ediliyor...');
+            systemsStarted = true;
+            startSystems();
+            
+        } catch (err) {
+            console.log('[!] Giriş sırasında hata:', err.message);
+        }
+    }
+
+    bot.on('spawn', () => {
+        console.log('[!] Bot spawn oldu.');
+        
+        if (spawnProcessed) {
+            console.log('[!] Spawn zaten işlendi, yoksayılıyor.');
+            return;
+        }
+        
+        spawnProcessed = true;
+        performLoginSequence();
+    });
+
+    function startSystems() {
+        const mcData = require('minecraft-data')(bot.version);
+        const movements = new Movements(bot, mcData);
+        
+        movements.canDig = true;
+        movements.canJump = true;
+        movements.allowSprinting = true;
+        movements.allowParkour = true;
+        movements.allow1by1 = true;
+        movements.maxDropDown = 4;
+        
+        bot.pathfinder.setMovements(movements);
+        
+        console.log('[✓] Hasat ve satış sistemleri başlatıldı.');
+        
+        // sadece tek döngü: sürekli en yakına yürü + yolda 5 buğday kır
+        continuousHarvestAndMoveLoop();
+        sellLoop();
+    }
+
+    // ───────────────────────────────────────────────
+    //   SÜREKLİ EN YAKIN BUĞDAYA YÜRÜ + YOLDA 5 BUĞDAY KIR
+    // ───────────────────────────────────────────────
+    async function continuousHarvestAndMoveLoop() {
+        while (true) {
+            if (isSelling || !bot.entity?.position) {
+                await sleep(800);
+                continue;
+            }
+
+            try {
+                // 1. Etrafta olgun buğday ara (65 blok)
+                const candidates = bot.findBlocks({
+                    matching: block => block.name === 'wheat' && block.metadata === 7,
+                    maxDistance: 65,
+                    count: 12
+                });
+
+                if (candidates.length === 0) {
+                    console.log("[harvest] 65 blok içinde olgun buğday yok → bekleniyor");
+                    await sleep(8000 + Math.random() * 6000);
+                    continue;
+                }
+
+                // en yakını seç
+                candidates.sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b));
+                const targetPos = candidates[0];
+                const distance = bot.entity.position.distanceTo(targetPos);
+
+                console.log(`[→] Hedef: ${distance.toFixed(1)} blok uzakta`);
+
+                // 2. Yolda/çevrede max 5 buğday kır (hedefe giderken)
+                let brokenCount = 0;
+                const pathBlocks = bot.findBlocks({
+                    matching: b => b.name === 'wheat' && b.metadata === 7,
+                    maxDistance: 6,   // yakın çevre
+                    count: 8
+                });
+
+                // en yakından kırılacak şekilde sırala
+                pathBlocks.sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b));
+
+                for (const pos of pathBlocks) {
+                    if (brokenCount >= 6) break;
+                    
+                    const block = bot.blockAt(pos);
+                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
+
+                    try {
+                        await bot.dig(block);
+                        brokenCount++;
+                        await sleep(70 + Math.random() * 90); // biraz doğal gecikme
+                    } catch {}
+                }
+
+                if (brokenCount > 0) {
+                    console.log(`[ kırıldı ] yolda ${brokenCount} buğday kırıldı`);
+                }
+
+                // 3. Hedefe yürü (tam buğdayın üstüne değil, yanına)
+                if (distance > 4.5) {
+                    try {
+                        await bot.pathfinder.goto(
+                            new goals.GoalNear(targetPos.x, targetPos.y + 1, targetPos.z, 2.8),
+                            { timeout: 14000 }
+                        );
+                        await sleep(60 + Math.random() * 70);
+                    } catch (pathErr) {
+                        console.log("[path hata]", pathErr.message?.substring(0, 70) || pathErr);
+                        await randomSmallOffset();
+                    }
+                } else {
+                    // çok yakınsa → son bir buğdayı da kırabiliriz
+                    const block = bot.blockAt(targetPos);
+                    if (block && block.name === 'wheat' && block.metadata === 7) {
+                        try {
+                            await bot.dig(block);
+                            console.log("[kırıldı] Hedef buğday kırıldı");
+                        } catch {}
+                    }
+                    await sleep(400 + Math.random() * 600);
+                }
+
+            } catch (err) {
+                console.log("[loop hata]", err.message?.substring(0, 80) || err);
+            }
+
+            await sleep(200 + Math.random() * 500); // 0.9 – 2 sn arası bekleme
+        }
+    }
+
+    async function randomSmallOffset() {
+        const dx = Math.random() * 5 - 2.5;
+        const dz = Math.random() * 5 - 2.5;
+        try {
+            await bot.pathfinder.goto(
+                new goals.GoalNear(
+                    Math.round(bot.entity.position.x + dx),
+                    Math.round(bot.entity.position.y),
+                    Math.round(bot.entity.position.z + dz),
+                    1.8
+                ),
+                { timeout: 6000 }
             );
-            if (res.data?.organic) {
-                kaynaklar += res.data.organic.slice(0, 5).map(r => `[Bilgi]: ${r.snippet}`).join("\n") + "\n\n";
+        } catch {}
+    }
+
+    // ───────────────────────────────────────────────
+    //   SATIŞ (değişmedi)
+    // ───────────────────────────────────────────────
+    async function sellLoop() {
+        while (true) {
+            await sleep(72000 + Math.random() * 18000);
+
+            if (isSelling) continue;
+
+            const totalWheat = bot.inventory.items()
+                .filter(i => i.name === 'wheat')
+                .reduce((sum, item) => sum + item.count, 0);
+
+            if (totalWheat >= 320) {
+                isSelling = true;
+                console.log(`[sat] ${totalWheat} buğday → /sell all`);
+
+                bot.pathfinder.setGoal(null);
+                await sleep(1800 + Math.random() * 800);
+
+                bot.chat('/sell all');
+                await sleep(7200 + Math.random() * 3000);
+
+                isSelling = false;
+                console.log("[satış] tamam");
             }
-        } catch (e) {
-            // sessiz geç
         }
     }
-    return kaynaklar.trim();
+
+    bot.on('end', reason => {
+        console.log(`[!] Bağlantı kesildi: ${reason}`);
+        systemsStarted = false;
+        spawnProcessed = false;
+        setTimeout(createBot, 14000);
+    });
+
+    bot.on('kicked', reason => {
+        console.log('[ATILDI]', JSON.stringify(reason, null, 2));
+    });
+
+    bot.on('error', err => {
+        console.log('[HATA]', err.message);
+    });
 }
 
-/* 3. ADIM: Cevap sentezi */
-async function dogrulanmisCevap(userId, soru) {
-    const simdi = new Date();
-    const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-
-    let hamBilgi = "";
-    let plan = [];
-
-    // Normal sohbet değilse → Serper kullan
-    if (!isNormalSohbet(soru)) {
-        plan = await arastirmaPlaniHazirla(soru);
-        hamBilgi = await veriTopla(plan);
-    }
-
-    let history = userContexts.get(userId) || [];
-    let historyText = history.map(h => `Kullanıcı: ${h.user}\nBot: ${h.bot}`).join("\n---\n");
-
-    // Daha güvenli şekilde ternary yerine değişken kullandık
-    let internetBilgisi = "";
-    if (hamBilgi) {
-        internetBilgisi = `İNTERNET'TEN DOĞRULANMIŞ BİLGİLER:\n${hamBilgi}\n---\n`;
-    }
-
-    const synthesisPrompt = `
-GÜNCEL TARİH: ${tarihBilgisi}
-
-ÖNCEKİ KONUŞMALAR:
-${historyText || "Henüz yok"}
-
-${internetBilgisi}
-
-KULLANICI SORUSU: ${soru}
-
-Kurallar:
-- @everyone @here gibi mention'lara cevap verme (zaten dinleyici bunu engelliyor)
-- Kısa selamlaşmalara doğal ve kısa cevap ver
-- Bilgi içeren sorularda sadece en güncel ve mantıklı veriyi kullan
-- Matematik, dizi bölüm sayısı, tarih gibi konularda mantıksal hata yapma
-`;
-
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: "Doğru, kısa, güncel ve doğal konuşan bir yardımcı ol. Gereksiz açıklama yapma." },
-                    { role: "user", content: synthesisPrompt }
-                ],
-                temperature: 0.15,
-                max_tokens: 2048
-            },
-            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
-        );
-
-        const botCevap = res.data.choices[0].message.content.trim();
-
-        // Hafıza güncelle (son 3 konuşma)
-        history.push({ user: soru, bot: botCevap });
-        if (history.length > 3) history.shift();
-        userContexts.set(userId, history);
-
-        return botCevap;
-    } catch (e) {
-        console.error("Groq API hatası:", e.message);
-        return "Şu an cevap veremiyorum, birazdan tekrar dene.";
-    }
-}
-
-/* ========== MESAJ DİNLEYİCİ ========== */
-client.on("messageCreate", async msg => {
-    if (msg.author.bot) return;
-
-    // @everyone veya @here içeren mesajlara cevap verme
-    if (msg.mentions.everyone || msg.content.includes("@everyone") || msg.content.includes("@here")) {
-        return;
-    }
-
-    // Botu mention etmemişse cevap verme
-    if (!msg.mentions.has(client.user)) return;
-
-    const temizSoru = msg.content.replace(/<@!?[^>]+>/g, "").trim();
-    if (!temizSoru) return;
-
-    try {
-        await msg.channel.sendTyping();
-        const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
-
-        if (cevap.length > 1900) {
-            const chunks = cevap.match(/[\s\S]{1,1900}/g) || [];
-            for (const chunk of chunks) {
-                await msg.reply(chunk).catch(() => {});
-            }
-        } else {
-            await msg.reply(cevap);
-        }
-    } catch (err) {
-        console.error("Mesaj işleme hatası:", err.message);
-        await msg.reply("Bir hata oluştu.").catch(() => {});
-    }
-});
-
-client.once("ready", () => {
-    console.log(`✅ ${client.user.tag} → aktif (2026 modu)`);
-});
-
-// Login öncesi temel kontroller
-if (!DISCORD_TOKEN) {
-    console.error("DISCORD_TOKEN environment variable eksik!");
-    process.exit(1);
-}
-
-if (!GROQ_API_KEY) {
-    console.error("GROQ API key (process.env.API) eksik!");
-    process.exit(1);
-}
-
-client.login(DISCORD_TOKEN).catch(err => {
-    console.error("Discord login başarısız:", err.message);
-    process.exit(1);
-});
+createBot();
