@@ -126,7 +126,7 @@ function createBot() {
                 pathBlocks.sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b));
 
                 for (const pos of pathBlocks) {
-                    if (brokenCount >= 6) break;
+                    if (brokenCount >= 12) break;
                     
                     const block = bot.blockAt(pos);
                     if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
