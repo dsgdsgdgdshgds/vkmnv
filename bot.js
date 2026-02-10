@@ -3,6 +3,11 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server running on port", PORT);
+});
+
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
 
