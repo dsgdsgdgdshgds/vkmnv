@@ -1,12 +1,21 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// ──────────────────────────────
+//   HOSTING PORT (zorunlu)
+// ──────────────────────────────
+const http = require('http');
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Server running on port", PORT);
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot aktif 🚀');
+}).listen(PORT, () => {
+    console.log(`[✓] Hosting port açık: ${PORT}`);
 });
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
