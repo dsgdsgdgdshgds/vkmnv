@@ -5,11 +5,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
-    
+
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'slimy_koala',
+        username: 'Alix770',
         version: '1.21'
     });
 
@@ -20,32 +20,32 @@ function createBot() {
     let spawnProcessed = false;
 
     // ──────────────────────────────
-    //    SENİN ORİJİNAL GİRİŞ KISMI
+    //    GİRİŞ KISMI (değişmedi)
     // ──────────────────────────────
     async function performLoginSequence() {
         if (systemsStarted) return;
-        
+
         console.log('[→] Login sırası başlatılıyor...');
-        
+
         try {
             await sleep(12000);
-          bot.chat(`/login ${process.env.SIFRE}`);
+            bot.chat(`/login ${process.env.SIFRE}`);
             console.log('[→] /login gönderildi');
-            
+
             await sleep(12000);
             bot.chat('/skyblock');
             console.log('[→] /skyblock gönderildi');
-            
+
             await sleep(12000);
             bot.chat('/warp Yoncatarla');
             console.log('[→] /warp Yoncatarla gönderildi');
-            
+
             await sleep(18000);
-            
+
             console.log('[!] Sistemler aktif ediliyor...');
             systemsStarted = true;
             startSystems();
-            
+
         } catch (err) {
             console.log('[!] Giriş sırasında hata:', err.message);
         }
@@ -53,12 +53,12 @@ function createBot() {
 
     bot.on('spawn', () => {
         console.log('[!] Bot spawn oldu.');
-        
+
         if (spawnProcessed) {
             console.log('[!] Spawn zaten işlendi, yoksayılıyor.');
             return;
         }
-        
+
         spawnProcessed = true;
         performLoginSequence();
     });
@@ -66,117 +66,29 @@ function createBot() {
     function startSystems() {
         const mcData = require('minecraft-data')(bot.version);
         const movements = new Movements(bot, mcData);
-        
+
         movements.canDig = true;
         movements.canJump = true;
         movements.allowSprinting = true;
         movements.allowParkour = true;
         movements.allow1by1 = true;
-        movements.maxDropDown = 4;
-        
+        movements.maxDropDown = 5;          // biraz daha artırdım
+
         bot.pathfinder.setMovements(movements);
-        
+
         console.log('[✓] Hasat ve satış sistemleri başlatıldı.');
-        
-        // sadece tek döngü: sürekli en yakına yürü + yolda 5 buğday kır
+
         continuousHarvestAndMoveLoop();
         sellLoop();
     }
 
     // ───────────────────────────────────────────────
-    //   SÜREKLİ EN YAKIN BUĞDAYA YÜRÜ + YOLDA 5 BUĞDAY KIR
+    //   Küçük rastgele kayma hareketi (eksikti, ekliyoruz)
     // ───────────────────────────────────────────────
-    async function continuousHarvestAndMoveLoop() {
-        while (true) {
-            if (isSelling || !bot.entity?.position) {
-                await sleep(800);
-                continue;
-            }
-
-            try {
-                // 1. Etrafta olgun buğday ara (65 blok)
-                const candidates = bot.findBlocks({
-                    matching: block => block.name === 'wheat' && block.metadata === 7,
-                    maxDistance: 65,
-                    count: 12
-                });
-
-                if (candidates.length === 0) {
-                    console.log("[harvest] 65 blok içinde olgun buğday yok → bekleniyor");
-                    await sleep(8000 + Math.random() * 6000);
-                    continue;
-                }
-
-                // en yakını seç
-                candidates.sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b));
-                const targetPos = candidates[0];
-                const distance = bot.entity.position.distanceTo(targetPos);
-
-                console.log(`[→] Hedef: ${distance.toFixed(1)} blok uzakta`);
-
-                // 2. Yolda/çevrede max 5 buğday kır (hedefe giderken)
-                let brokenCount = 0;
-                const pathBlocks = bot.findBlocks({
-                    matching: b => b.name === 'wheat' && b.metadata === 7,
-                    maxDistance: 6,   // yakın çevre
-                    count: 8
-                });
-
-                // en yakından kırılacak şekilde sırala
-                pathBlocks.sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b));
-
-                for (const pos of pathBlocks) {
-                    if (brokenCount >= 12) break;
-                    
-                    const block = bot.blockAt(pos);
-                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
-
-                    try {
-                        await bot.dig(block);
-                        brokenCount++;
-                        await sleep(70 + Math.random() * 90); // biraz doğal gecikme
-                    } catch {}
-                }
-
-                if (brokenCount > 0) {
-                    console.log(`[ kırıldı ] yolda ${brokenCount} buğday kırıldı`);
-                }
-
-                // 3. Hedefe yürü (tam buğdayın üstüne değil, yanına)
-                if (distance > 4.5) {
-                    try {
-                        await bot.pathfinder.goto(
-                            new goals.GoalNear(targetPos.x, targetPos.y + 1, targetPos.z, 2.8),
-                            { timeout: 14000 }
-                        );
-                        await sleep(60 + Math.random() * 70);
-                    } catch (pathErr) {
-                        console.log("[path hata]", pathErr.message?.substring(0, 70) || pathErr);
-                        await randomSmallOffset();
-                    }
-                } else {
-                    // çok yakınsa → son bir buğdayı da kırabiliriz
-                    const block = bot.blockAt(targetPos);
-                    if (block && block.name === 'wheat' && block.metadata === 7) {
-                        try {
-                            await bot.dig(block);
-                            console.log("[kırıldı] Hedef buğday kırıldı");
-                        } catch {}
-                    }
-                    await sleep(400 + Math.random() * 600);
-                }
-
-            } catch (err) {
-                console.log("[loop hata]", err.message?.substring(0, 80) || err);
-            }
-
-            await sleep(200 + Math.random() * 500); // 0.9 – 2 sn arası bekleme
-        }
-    }
-
     async function randomSmallOffset() {
         const dx = Math.random() * 5 - 2.5;
         const dz = Math.random() * 5 - 2.5;
+
         try {
             await bot.pathfinder.goto(
                 new goals.GoalNear(
@@ -185,13 +97,100 @@ function createBot() {
                     Math.round(bot.entity.position.z + dz),
                     1.8
                 ),
-                { timeout: 6000 }
+                { timeout: 7000 }
             );
-        } catch {}
+        } catch {
+            // sessiz geç
+        }
     }
 
     // ───────────────────────────────────────────────
-    //   SATIŞ (değişmedi)
+    //   ÇOK HIZLI HASAT – ALAN TARAMA + YOLDA ÇOK KIRMA
+    // ───────────────────────────────────────────────
+    async function continuousHarvestAndMoveLoop() {
+        while (true) {
+            if (isSelling || !bot.entity?.position) {
+                await sleep(400);
+                continue;
+            }
+
+            try {
+                // 1. Geniş alanda olgun buğday ara
+                const candidates = bot.findBlocks({
+                    matching: block => block.name === 'wheat' && block.metadata === 7,
+                    maxDistance: 70,
+                    count: 40
+                });
+
+                if (candidates.length < 8) {
+                    console.log("[harvest] Çok az olgun buğday → 4-7 sn bekle");
+                    await sleep(4000 + Math.random() * 3000);
+                    continue;
+                }
+
+                const pos = bot.entity.position;
+                candidates.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+
+                const targetCenter = candidates[0];
+
+                console.log(`[→] Hedef bölgeye gidiliyor (${candidates.length} olgun buğday)`);
+
+                // 2. Hedefe yaklaş
+                const goal = new goals.GoalNear(targetCenter.x, targetCenter.y + 1, targetCenter.z, 4);
+                try {
+                    await bot.pathfinder.goto(goal, { timeout: 10000 });
+                } catch (e) {
+                    console.log("[path kısa] sorun → kayma yapılıyor");
+                    await randomSmallOffset();
+                }
+
+                // 3. Etraftaki buğdayları hızlı kır
+                let brokenThisCycle = 0;
+                const maxBreakPerCycle = 4;   // burayı 28-40 arası deneyebilirsin
+
+                const toBreak = bot.findBlocks({
+                    matching: b => b.name === 'wheat' && b.metadata === 7,
+                    maxDistance: 12,
+                    count: maxBreakPerCycle + 10
+                });
+
+                toBreak.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+
+                for (const blockPos of toBreak) {
+                    if (brokenThisCycle >= maxBreakPerCycle) break;
+
+                    const block = bot.blockAt(blockPos);
+                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
+
+                    try {
+                        await bot.lookAt(blockPos.offset(0.5, 1.6, 0.5), true);
+                        await sleep(35 + Math.random() * 45);
+
+                        await bot.dig(block, true);
+                        brokenThisCycle++;
+                    } catch {
+                        // sessiz
+                    }
+                }
+
+                if (brokenThisCycle > 0) {
+                    console.log(`[hasat] ${brokenThisCycle} buğday kırıldı`);
+                }
+
+                if (brokenThisCycle < 8) {
+                    await randomSmallOffset();
+                }
+
+            } catch (err) {
+                console.log("[hasat hata]", err.message?.substring(0, 90) || err);
+            }
+
+            await sleep(180 + Math.random() * 400);   // 0.18 – 0.58 sn
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    //   SATIŞ (orijinal hali korunuyor)
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
@@ -203,7 +202,7 @@ function createBot() {
                 .filter(i => i.name === 'wheat')
                 .reduce((sum, item) => sum + item.count, 0);
 
-            if (totalWheat >= 320) {
+            if (totalWheat >= 520) {
                 isSelling = true;
                 console.log(`[sat] ${totalWheat} buğday → /sell all`);
 
@@ -211,7 +210,7 @@ function createBot() {
                 await sleep(1800 + Math.random() * 800);
 
                 bot.chat('/sell all');
-                await sleep(7200 + Math.random() * 3000);
+                await sleep(720 + Math.random() * 3000);
 
                 isSelling = false;
                 console.log("[satış] tamam");
