@@ -1,4 +1,4 @@
-const mineflayer = require('mineflayer');
+const mineflayer = require('mineflayr');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
 // ──────────────────────────────
