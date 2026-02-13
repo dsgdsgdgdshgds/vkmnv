@@ -23,7 +23,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'Alix770',
+        username: 'Xkakashi',
         version: '1.21'
     });
 
@@ -121,116 +121,115 @@ function createBot() {
     // ───────────────────────────────────────────────
     //   ÇOK HIZLI HASAT – ALAN TARAMA + YOLDA ÇOK KIRMA
     // ───────────────────────────────────────────────
-    async function continuousHarvestAndMoveLoop() {
-        while (true) {
-            if (isSelling || !bot.entity?.position) {
-                await sleep(400);
+  ───────────────────────────────────────────────
+//   9×9 ORTASI BOŞ PLATFORM YAPMA SİSTEMİ
+// ───────────────────────────────────────────────
+
+async function build9x9WithCenterHole(materialName = "soil") {
+    if (isSelling) {
+        console.log("[build] Satış aktif, yapı iptal");
+        return;
+    }
+
+    console.log(`[build] 9×9 platform başlıyor → malzeme: ${materialName}`);
+
+    const targetMaterial = materialName.toLowerCase();
+
+    // Envanter kontrolü
+    const available = bot.inventory.items()
+        .filter(item => item.name === targetMaterial)
+        .reduce((sum, item) => sum + item.count, 0);
+
+    const needed = 9*9 - 1; // 81 - 1 = 80 blok
+    if (available < needed) {
+        console.log(`[build] Yetersiz ${targetMaterial}: \( {available}/ \){needed}`);
+        bot.chat(`Yeterli \( {targetMaterial} yok! ( \){available}/${needed})`);
+        return;
+    }
+
+    const startPos = bot.entity.position.floored().offset(0, -1, 0); // botun altındaki blok seviyesinden başlıyoruz
+
+    let placed = 0;
+
+    for (let dx = -4; dx <= 4; dx++) {
+        for (let dz = -4; dz <= 4; dz++) {
+            // tam merkez atlanacak
+            if (dx === 0 && dz === 0) continue;
+
+            const placePos = startPos.offset(dx, 0, dz);
+
+            const block = bot.blockAt(placePos);
+            if (block.name !== "air" && block.name !== "cave_air") {
+                // zaten doluysa atla (tekrar yazma)
                 continue;
             }
 
             try {
-                // 1. Geniş alanda olgun buğday ara
-                const candidates = bot.findBlocks({
-                    matching: block => block.name === 'wheat' && block.metadata === 7,
-                    maxDistance: 70,
-                    count: 40
-                });
-
-                if (candidates.length < 8) {
-                    console.log("[harvest] Çok az olgun buğday → 4-7 sn bekle");
-                    await sleep(4000 + Math.random() * 3000);
-                    continue;
+                // eline bloğu al
+                const targetItem = bot.inventory.findInventoryItem(targetMaterial, null, false);
+                if (!targetItem) {
+                    console.log("[build] Envanterde uygun eşya kalmadı!");
+                    return;
                 }
 
-                const pos = bot.entity.position;
-                candidates.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+                await bot.equip(targetItem, "hand");
 
-                const targetCenter = candidates[0];
+                // bak ve yerleştir
+                await bot.lookAt(placePos.offset(0.5, 0.5, 0.5));
+                await sleep(40 + Math.random() * 60);
 
-                console.log(`[→] Hedef bölgeye gidiliyor (${candidates.length} olgun buğday)`);
+                await bot.placeBlock(bot.blockAt(placePos.offset(0, -1, 0)), vec3(0, 1, 0));
+                placed++;
 
-                // 2. Hedefe yaklaş
-                const goal = new goals.GoalNear(targetCenter.x, targetCenter.y + 1, targetCenter.z, 4);
-                try {
-                    await bot.pathfinder.goto(goal, { timeout: 10000 });
-                } catch (e) {
-                    console.log("[path kısa] sorun → kayma yapılıyor");
-                    await randomSmallOffset();
+                if (placed % 10 === 0) {
+                    console.log(`[build] ${placed} blok yerleştirildi`);
                 }
 
-                // 3. Etraftaki buğdayları hızlı kır
-                let brokenThisCycle = 0;
-                const maxBreakPerCycle = 4;   // burayı 28-40 arası deneyebilirsin
-
-                const toBreak = bot.findBlocks({
-                    matching: b => b.name === 'wheat' && b.metadata === 7,
-                    maxDistance: 12,
-                    count: maxBreakPerCycle + 10
-                });
-
-                toBreak.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
-
-                for (const blockPos of toBreak) {
-                    if (brokenThisCycle >= maxBreakPerCycle) break;
-
-                    const block = bot.blockAt(blockPos);
-                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
-
-                    try {
-                        await bot.lookAt(blockPos.offset(0.5, 1.6, 0.5), true);
-                        await sleep(35 + Math.random() * 45);
-
-                        await bot.dig(block, true);
-                        brokenThisCycle++;
-                    } catch {
-                        // sessiz
-                    }
-                }
-
-                if (brokenThisCycle > 0) {
-                    console.log(`[hasat] ${brokenThisCycle} buğday kırıldı`);
-                }
-
-                if (brokenThisCycle < 8) {
-                    await randomSmallOffset();
-                }
+                await sleep(80 + Math.random() * 120); // anti-kick / anti-lag
 
             } catch (err) {
-                console.log("[hasat hata]", err.message?.substring(0, 90) || err);
-            }
-
-            await sleep(180 + Math.random() * 400);   // 0.18 – 0.58 sn
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    //   SATIŞ (orijinal hali korunuyor)
-    // ───────────────────────────────────────────────
-    async function sellLoop() {
-        while (true) {
-            await sleep(72000 + Math.random() * 18000);
-
-            if (isSelling) continue;
-
-            const totalWheat = bot.inventory.items()
-                .filter(i => i.name === 'wheat')
-                .reduce((sum, item) => sum + item.count, 0);
-
-            if (totalWheat >= 520) {
-                isSelling = true;
-                console.log(`[sat] ${totalWheat} buğday → /sell all`);
-
-                bot.pathfinder.setGoal(null);
-                await sleep(1800 + Math.random() * 800);
-
-                bot.chat('/sell all');
-                await sleep(720 + Math.random() * 3000);
-
-                isSelling = false;
-                console.log("[satış] tamam");
+                console.log("[build hata]", err.message?.substring(0,80) || err);
+                await sleep(400);
             }
         }
     }
+
+    console.log(`[build] Bitti → ${placed} blok yerleştirildi`);
+    bot.chat(`9×9 platform tamamlandı (${placed} blok)`);
+}
+
+// Yan yana yapmak için örnek yardımcı fonksiyon
+async function buildMultiple9x9(count = 3, gap = 10, direction = "x") {
+    for (let i = 0; i < count; i++) {
+        await build9x9WithCenterHole("stone");  // istediğin bloğu değiştir
+
+        // kaydırma
+        let moveGoal;
+        if (direction === "x") {
+            moveGoal = new goals.GoalNear(
+                bot.entity.position.x + (9 + gap),
+                bot.entity.position.y,
+                bot.entity.position.z,
+                2
+            );
+        } else { // "z"
+            moveGoal = new goals.GoalNear(
+                bot.entity.position.x,
+                bot.entity.position.y,
+                bot.entity.position.z + (9 + gap),
+                2
+            );
+        }
+
+        try {
+            await bot.pathfinder.goto(moveGoal, { timeout: 15000 });
+        } catch {
+            console.log("[build] Alanlar arası hareket başarısız");
+        }
+
+        await sleep(2000);
+    }
+}
 
     bot.on('end', reason => {
         console.log(`[!] Bağlantı kesildi: ${reason}`);
