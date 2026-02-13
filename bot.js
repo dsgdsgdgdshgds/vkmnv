@@ -122,7 +122,7 @@ function createBot() {
     //   ÇOK HIZLI HASAT – ALAN TARAMA + YOLDA ÇOK KIRMA
     // ───────────────────────────────────────────────
   ───────────────────────────────────────────────
-// ───────────────────────────────────────────────
+// ──────────────────────────────────────────────// ───────────────────────────────────────────────
 //   ENVANTERDEKİ HERHANGİ BİR BLOĞU KULLANARAK 9×9 (ORTA BOŞ)
 //   Blok ismine bakmıyor, bulduğu ilk uygun stack'i kullanıyor
 // ───────────────────────────────────────────────
@@ -247,11 +247,11 @@ async function build9x9AnyBlock() {
     bot.chat(`Tamamlandı → \( {platformCount} adet 9×9 ( \){totalPlaced} blok)`);
 }
 
-// Chat ile başlatma örneği
+// Chat ile başlatma
 bot.on('chat', (username, message) => {
     if (username === bot.username) return;
 
-    const msg = message.toLowerCase();
+    const msg = message.toLowerCase().trim();
     if (msg === "yap" || msg === "blokyap" || msg === "9x9") {
         build9x9AnyBlock();
     }
