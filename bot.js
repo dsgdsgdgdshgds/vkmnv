@@ -1,7 +1,17 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-const { Vec3 } = require('vec3');   // ← BU SATIRI EKLE
+// Vec3 - paket yüklemeden manuel tanımlama
+class Vec3 {
+  constructor(x, y, z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
 
+  offset(dx = 0, dy = 0, dz = 0) {
+    return new Vec3(this.x + dx, this.y + dy, this.z + dz);
+  }
+}
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
 // ──────────────────────────────
