@@ -270,6 +270,13 @@ async function build9x9Platform() {
         return;
     }
 
+
+console.log("[DEBUG ENVANTER BLOK ADAYLARI]");
+bot.inventory.items()
+  .filter(item => item.count >= 1 && item.name !== "air")
+  .forEach(item => {
+    console.log(`  - \( {item.name} x \){item.count} (displayName: ${item.displayName || 'yok'})`);
+  });
     console.log("[build] 9×9 platform yapımı başlıyor");
 
     let platformCount = 0;
