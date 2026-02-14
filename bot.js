@@ -82,7 +82,7 @@ function createBot() {
 
             await sleep(15000);
             console.log("[build] Otomatik 9×9 platform yapımı başlıyor...");
-            build9x9Platform();
+            fastBuild9x9WithCenterHole();
 
             console.log("[seed] Boş farmland taraması ve otomatik ekim başlıyor...");
             seedPlantingLoop();
@@ -283,7 +283,7 @@ async function fastBuild9x9WithCenterHole() {
             return;
         }
 
-        console.log(`[build] Kullanılan: \( {placeable.name} ( \){placeable.count})`);
+        console.log(`[build] Kullanılan: ${placeable.name} (${placeable.count})`);
 
         try {
             await bot.equip(placeable, "hand");
