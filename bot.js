@@ -1,7 +1,7 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
- // Vec3 sınıfı - paket yüklemeden manuel tanımlama (floored metodu eklendi)
+// Vec3 sınıfı - paket yüklemeden manuel tanımlama
 class Vec3 {
   constructor(x, y, z) {
     this.x = x;
@@ -13,7 +13,6 @@ class Vec3 {
     return new Vec3(this.x + dx, this.y + dy, this.z + dz);
   }
 
-  // Paketin beklediği floored metodu (aşağı yuvarlama)
   floored() {
     return new Vec3(
       Math.floor(this.x),
@@ -27,7 +26,6 @@ class Vec3 {
 //   HOSTING PORT (zorunlu)
 // ──────────────────────────────
 const http = require('http');
-
 const PORT = process.env.PORT || 3000;
 
 http.createServer((req, res) => {
@@ -56,7 +54,7 @@ function createBot() {
     let spawnProcessed = false;
 
     // ──────────────────────────────
-    //    GİRİŞ KISMI (değişmedi)
+    //    GİRİŞ KISMI
     // ──────────────────────────────
     async function performLoginSequence() {
         if (systemsStarted) return;
@@ -82,10 +80,7 @@ function createBot() {
             systemsStarted = true;
             startSystems();
 
-            // ──────────────────────────────
-            // Yeni eklenenler: warp sonrası otomatik başlama
-            // ──────────────────────────────
-            await sleep(15000);  // warp sonrası ekstra 15 sn bekle
+            await sleep(15000);
             console.log("[build] Otomatik 9×9 platform yapımı başlıyor...");
             build9x9Platform();
 
@@ -129,7 +124,7 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   Küçük rastgele kayma hareketi (değişmedi)
+    //   Küçük rastgele kayma hareketi
     // ───────────────────────────────────────────────
     async function randomSmallOffset() {
         const dx = Math.random() * 5 - 2.5;
@@ -151,7 +146,7 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   ÇOK HIZLI HASAT (değişmedi)
+    //   ÇOK HIZLI HASAT (DEĞİŞMEDİ)
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
@@ -231,7 +226,7 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   SATIŞ (değişmedi)
+    //   SATIŞ (DEĞİŞMEDİ)
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
@@ -259,139 +254,128 @@ function createBot() {
         }
     }
 
-    // ──────────────────────────────────────────────// ───────────────────────────────────────────────
-//   9×9 PLATFORM YAPIMI – ENVANTERDEKİ İLK DOLDAN ALIR
-// ──────────────────────────────────────────────// ───────────────────────────────────────────────
-//   9×9 PLATFORM YAPIMI – ENVANTERDEKİ İLK DOLDAN ALIR
-// ───────────────────────────────────────────────
-async function build9x9Platform() {
-    if (isSelling) {
-        console.log("[build] Satış aktif → inşa bekletiliyor");
-        return;
-    }
-
-
-console.log("[DEBUG ENVANTER BLOK ADAYLARI]");
-bot.inventory.items()
-  .filter(item => item.count >= 1 && item.name !== "air")
-  .forEach(item => {
-    console.log(`  - \( {item.name} x \){item.count} (displayName: ${item.displayName || 'yok'})`);
-  });
-    console.log("[build] 9×9 platform yapımı başlıyor");
-
-    let platformCount = 0;
-    let totalPlaced = 0;
-
-    mainLoop: while (true) {
-        // Kullanılabilir bir eşya bul (en az 1 adet)
-        const placeableItem = bot.inventory.items().find(item => 
-            item.count >= 1 &&
-            item.name !== "air" &&
-            !["water_bucket", "lava_bucket", "potion", "splash_potion", "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", "shield", "elytra", "boat", "minecart", "chest_minecart", "furnace_minecart", "tnt_minecart", "hopper_minecart", "command_block_minecart"].includes(item.name) &&
-            !item.name.includes("bucket") &&
-            !item.name.endsWith("_bucket")
-        );
-
-        if (!placeableItem) {
-            console.log("[build] Envanterde koyulabilir eşya kalmadı");
-            bot.chat("Envanterde blok/tohum vb. kalmadı!");
-            break;
+    // ───────────────────────────────────────────────
+    //   9×9 PLATFORM YAPIMI
+    // ───────────────────────────────────────────────
+    async function build9x9Platform() {
+        if (isSelling) {
+            console.log("[build] Satış aktif → inşa bekletiliyor");
+            return;
         }
 
-        const material = placeableItem.name;
-        console.log(`[build #${platformCount + 1}] Malzeme: \( {material} ( \){placeableItem.count} adet)`);
+        console.log("[DEBUG ENVANTER BLOK ADAYLARI]");
+        bot.inventory.items()
+          .filter(item => item.count >= 1 && item.name !== "air")
+          .forEach(item => {
+            console.log(`  - \( {item.name} x \){item.count} (displayName: ${item.displayName || 'yok'})`);
+          });
 
-        const botPos = bot.entity.position.floored(); // daha güvenli
-        const centerX = botPos.x;
-        const centerZ = botPos.z;
-        const yLevel = botPos.y - 1;
+        console.log("[build] 9×9 platform yapımı başlıyor");
 
-        let placedThisPlatform = 0;
+        let platformCount = 0;
+        let totalPlaced = 0;
 
-        for (let dx = -4; dx <= 4; dx++) {
-            for (let dz = -4; dz <= 4; dz++) {
-                if (dx === 0 && dz === 0) continue;
+        mainLoop: while (true) {
+            const placeableItem = bot.inventory.items().find(item => 
+                item.count >= 1 &&
+                item.name !== "air" &&
+                !["water_bucket", "lava_bucket", "potion", "splash_potion", "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", "shield", "elytra", "boat", "minecart", "chest_minecart", "furnace_minecart", "tnt_minecart", "hopper_minecart", "command_block_minecart"].includes(item.name) &&
+                !item.name.includes("bucket") &&
+                !item.name.endsWith("_bucket")
+            );
 
-                const targetPos = new Vec3(
-                    centerX + dx,
-                    yLevel,
-                    centerZ + dz
-                );
+            if (!placeableItem) {
+                console.log("[build] Envanterde koyulabilir eşya kalmadı");
+                bot.chat("Envanterde blok/tohum vb. kalmadı!");
+                break;
+            }
 
-                const currentBlock = bot.blockAt(targetPos);
-                if (currentBlock.name !== "air" && currentBlock.name !== "cave_air") {
-                    continue;
-                }
+            const material = placeableItem.name;
+            console.log(`[build #${platformCount + 1}] Malzeme: \( {material} ( \){placeableItem.count} adet)`);
 
-                // Altında sağlam blok olmalı
-                const below = bot.blockAt(targetPos.offset(0, -1, 0));
-                if (below.name === "air" || below.name === "cave_air") {
-                    continue;
-                }
+            const botPos = bot.entity.position.floored();
+            const centerX = botPos.x;
+            const centerZ = botPos.z;
+            const yLevel = botPos.y - 1;
 
-                // Her seferinde envanterden taze eşya al (count > 0 kontrolü önemli!)
-                let toPlace = bot.inventory.findInventoryItem(material, null, false);
-                if (!toPlace || toPlace.count < 1) {
-                    console.log(`[build] ${material} bitti, bir sonraki malzemeye geçiliyor`);
-                    continue mainLoop; // ← en dış while döngüsüne geri dön → yeni malzeme ara
-                }
+            let placedThisPlatform = 0;
 
-                try {
-                    await bot.equip(toPlace, "hand");
-                    await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5));
+            for (let dx = -4; dx <= 4; dx++) {
+                for (let dz = -4; dz <= 4; dz++) {
+                    if (dx === 0 && dz === 0) continue;
 
-                    // Küçük anti-kick gecikme
-                    await sleep(80 + Math.random() * 140);
+                    const targetPos = new Vec3(
+                        centerX + dx,
+                        yLevel,
+                        centerZ + dz
+                    );
 
-                    await bot.placeBlock(below, new Vec3(0, 1, 0));
+                    const currentBlock = bot.blockAt(targetPos);
+                    if (currentBlock.name !== "air" && currentBlock.name !== "cave_air") continue;
 
-                    placedThisPlatform++;
-                    totalPlaced++;
+                    const below = bot.blockAt(targetPos.offset(0, -1, 0));
+                    if (below.name === "air" || below.name === "cave_air") continue;
 
-                    // Her 8-12 blokta bir küçük hareket (anti-afk / anti-kick)
-                    if (totalPlaced % 10 === 0) {
-                        await randomSmallOffset();
+                    let toPlace = bot.inventory.findInventoryItem(material, null, false);
+                    if (!toPlace || toPlace.count < 1) {
+                        console.log(`[build] ${material} bitti, bir sonraki malzemeye geçiliyor`);
+                        continue mainLoop;
                     }
-                } catch (err) {
-                    console.log(`[build hata] ${material} @ ${targetPos}: ${err.message || err}`);
-                    // Hata aldıysak 1 sn bekleyip devam edelim, takılı kalmasın
-                    await sleep(1000);
+
+                    try {
+                        await bot.equip(toPlace, "hand");
+                        await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5));
+
+                        await sleep(80 + Math.random() * 140);
+
+                        await bot.placeBlock(below, new Vec3(0, 1, 0));
+
+                        placedThisPlatform++;
+                        totalPlaced++;
+
+                        if (totalPlaced % 10 === 0) {
+                            await randomSmallOffset();
+                        }
+                    } catch (err) {
+                        console.log(`[build hata] ${material} @ ${targetPos}: ${err.message || err}`);
+                        await sleep(1000);
+                    }
                 }
+            }
+
+            platformCount++;
+            console.log(`Platform #${platformCount} → ${placedThisPlatform} blok (toplam: ${totalPlaced})`);
+
+            try {
+                await bot.pathfinder.goto(
+                    new goals.GoalNear(
+                        bot.entity.position.x + 18 + Math.random()*4 - 2,
+                        bot.entity.position.y,
+                        bot.entity.position.z + 18 + Math.random()*4 - 2,
+                        3
+                    ),
+                    { timeout: 14000 }
+                );
+                await sleep(600);
+            } catch (e) {
+                console.log("[build] Yer değiştirme başarısız, devam ediliyor");
+            }
+
+            if (!bot.inventory.items().some(i => i.count >= 1 && i.name !== "air")) {
+                break;
             }
         }
 
-        platformCount++;
-        console.log(`Platform #${platformCount} → ${placedThisPlatform} blok yerleştirildi (toplam: ${totalPlaced})`);
-
-        // Biraz ileriye git (sonraki 9×9 için)
-        try {
-            await bot.pathfinder.goto(
-                new goals.GoalNear(
-                    bot.entity.position.x + 18 + Math.random()*4 - 2,
-                    bot.entity.position.y,
-                    bot.entity.position.z + 18 + Math.random()*4 - 2,
-                    3
-                ),
-                { timeout: 14000 }
-            );
-            await sleep(600);
-        } catch (e) {
-            console.log("[build] Yer değiştirme başarısız, devam ediliyor");
-        }
-
-        // Envanterde hiç eşya kalmadıysa çık
-        if (!bot.inventory.items().some(i => i.count >= 1 && i.name !== "air")) {
-            break;
-        }
+        console.log(`[build TAMAMLANDI] ${platformCount} adet platform • ${totalPlaced} blok`);
+        bot.chat(`9×9 inşaat bitti — ${platformCount} platform, ${totalPlaced} blok`);
     }
 
-    console.log(`[build TAMAMLANDI] ${platformCount} adet platform • ${totalPlaced} blok`);
-    bot.chat(`9×9 inşaat bitti — ${platformCount} platform, ${totalPlaced} blok`);
-}
     // ───────────────────────────────────────────────
-    //   BOŞ FARMLAND ÜZERİNE TOHUM EKME – FLOORED GÜVENLİ
+    //   BOŞ FARMLAND ÜZERİNE TOHUM EKME (FARMLAND İSMİ DEĞİŞTİ)
     // ───────────────────────────────────────────────
     async function seedPlantingLoop() {
+        let debugPrinted = false;
+
         while (true) {
             if (isSelling) {
                 await sleep(3000);
@@ -399,63 +383,109 @@ bot.inventory.items()
             }
 
             try {
+                // Bir kereye mahsus yakındaki olası farmland isimlerini logla
+                if (!debugPrinted) {
+                    console.log("[DEBUG] Yakındaki olası farmland / toprak blokları taranıyor...");
+                    const nearby = bot.findBlocks({
+                        matching: () => true,
+                        maxDistance: 12,
+                        count: 80
+                    });
+
+                    const seen = new Set();
+                    nearby.forEach(p => {
+                        const b = bot.blockAt(p);
+                        if (b && (b.name.includes('dirt') || b.name.includes('farmland') || b.name.includes('soil') || b.name.includes('farm') || b.metadata === 0 || b.metadata === 7)) {
+                            if (!seen.has(b.name)) {
+                                console.log(`   → ${b.name} (metadata: ${b.metadata}) @ ${p.x} ${p.y} ${p.z}`);
+                                seen.add(b.name);
+                            }
+                        }
+                    });
+                    debugPrinted = true;
+                }
+
+                // Esnek farmland tarama
                 const emptyFarmlands = bot.findBlocks({
-                    matching: block => block.name === 'farmland' && block.metadata === 0,
+                    matching: block => {
+                        if (!block) return false;
+
+                        // Üstü tamamen hava olmalı
+                        const above = bot.blockAt(block.position.offset(0,1,0));
+                        if (above.name !== 'air' && above.name !== 'cave_air') return false;
+
+                        // Üstünde ürün olmamalı
+                        if (above.name.includes('wheat') || above.name.includes('carrot') || above.name.includes('potato') ||
+                            above.name.includes('beetroot') || above.name.includes('melon') || above.name.includes('pumpkin')) {
+                            return false;
+                        }
+
+                        // Farmland benzeri kontrol (sunucuya göre genişletildi)
+                        return (
+                            block.name === 'farmland' ||
+                            block.name.includes('farmland') ||
+                            block.name.includes('soil') ||
+                            block.name.includes('farm') ||
+                            block.name.includes('cultivat') ||
+                            (block.name.includes('dirt') && block.metadata !== 0)  // çoğu sunucuda tilled dirt metadata değişir
+                        );
+                    },
                     maxDistance: 48,
                     count: 12
                 });
 
                 if (emptyFarmlands.length === 0) {
-                    await sleep(1500 + Math.random() * 1000);
+                    await sleep(2500 + Math.random() * 1500);
                     continue;
                 }
+
+                console.log(`[seed] ${emptyFarmlands.length} adet boş ekilebilir alan bulundu`);
 
                 const botPos = bot.entity.position;
                 emptyFarmlands.sort((a, b) => botPos.distanceTo(a) - botPos.distanceTo(b));
 
-                for (const farmlandPos of emptyFarmlands) {
-                    // FLOORED güvenli pozisyon
-                    const safePos = new Vec3(
-                        Math.floor(farmlandPos.x),
-                        Math.floor(farmlandPos.y),
-                        Math.floor(farmlandPos.z)
-                    );
-
+                for (const pos of emptyFarmlands) {
+                    const safePos = pos.floored();
                     const block = bot.blockAt(safePos);
-                    if (!block || block.name !== 'farmland' || block.metadata !== 0) continue;
+
+                    if (!block) continue;
 
                     const seedItem = bot.inventory.items().find(item =>
-                        item.name.endsWith('_seeds') || item.name === 'wheat_seeds' ||
-                        item.name === 'beetroot_seeds' || item.name === 'melon_seeds' ||
-                        item.name === 'pumpkin_seeds' || item.name === 'potato' ||
+                        item.name.endsWith('_seeds') ||
+                        item.name === 'wheat_seeds' ||
+                        item.name === 'beetroot_seeds' ||
+                        item.name === 'melon_seeds' ||
+                        item.name === 'pumpkin_seeds' ||
+                        item.name === 'potato' ||
                         item.name === 'carrot'
                     );
 
                     if (!seedItem) {
                         console.log("[seed] Tohum kalmadı");
-                        await sleep(10000);
+                        await sleep(12000);
                         break;
                     }
 
                     try {
                         await bot.equip(seedItem, 'hand');
                         await bot.lookAt(safePos.offset(0.5, 0.1, 0.5), true);
-                        await sleep(50 + Math.random() * 50);
+                        await sleep(60 + Math.random() * 90);
+
                         await bot.placeBlock(block, new Vec3(0, 1, 0));
 
-                        console.log(`[seed] Ekildi: ${seedItem.name} → \( {safePos.x}, \){safePos.y},${safePos.z}`);
+                        console.log(`[seed] Ekildi: ${seedItem.name} → ${safePos.x}, ${safePos.y}, ${safePos.z} (zemin: ${block.name})`);
                     } catch (err) {
-                        console.log(`[seed hata] ${err.message || err}`);
+                        console.log(`[seed hata] ${err.message || err}  (zemin: ${block.name})`);
                     }
 
-                    await sleep(120 + Math.random() * 80);
+                    await sleep(140 + Math.random() * 100);
                 }
 
             } catch (err) {
-                console.log("[seed hata]", err.message?.substring(0, 80) || err);
+                console.log("[seed hata]", err.message?.substring(0, 100) || err);
             }
 
-            await sleep(6000 + Math.random() * 6000);
+            await sleep(6000 + Math.random() * 7000);
         }
     }
 
