@@ -250,17 +250,30 @@ function createBot() {
         let totalPlaced = 0;
 
         while (true) {
-            const placeableItem = bot.inventory.items().find(item =>
-                item.stackable && item.count >= 1 &&
-                !item.name.includes("sword") && !item.name.includes("pickaxe") &&
-                !item.name.includes("axe") && !item.name.includes("shovel") &&
-                !item.name.includes("hoe") && !item.name.includes("helmet") &&
-                !item.name.includes("chestplate") && !item.name.includes("leggings") &&
-                !item.name.includes("boots") && !item.name.includes("wheat") &&
-                !item.name.includes("seeds") && item.name !== "air" &&
-                item.name !== "water_bucket" && item.name !== "lava_bucket"
-            );
-
+    // Envanterden yerleştirilebilir stacklenebilir bir şey bul
+const placeableItem = bot.inventory.items().find(item => 
+    item.stackable &&                  // stacklenebilen olmalı
+    item.count >= 1 &&
+    (
+        item.name.includes("tarım") ||     // senin belirttiğin gibi "tarım" içeren her şeyi al
+        item.name === "farmland" ||        // standart isim
+        item.name === "dirt"               // bazı sunucularda farmland envanterde dirt olarak görünebiliyor
+    ) &&
+    !item.name.includes("sword") &&
+    !item.name.includes("pickaxe") &&
+    !item.name.includes("axe") &&
+    !item.name.includes("shovel") &&
+    !item.name.includes("hoe") &&
+    !item.name.includes("helmet") &&
+    !item.name.includes("chestplate") &&
+    !item.name.includes("leggings") &&
+    !item.name.includes("boots") &&
+    !item.name.includes("wheat") &&
+    !item.name.includes("seeds") &&
+    item.name !== "air" &&
+    item.name !== "water_bucket" &&
+    item.name !== "lava_bucket"
+);
             if (!placeableItem) {
                 console.log("[build] Uygun blok kalmadı");
                 bot.chat("Envanterde blok kalmadı – inşa tamam!");
