@@ -220,37 +220,48 @@ function createBot() {
         }
     }
 
+    // ───────────────────────────────────────────────
+    //   9×9 PLATFORM YAPIMI – TARIM ARAZİSİ BULMA DÜZELTİLDİ
+    // ───────────────────────────────────────────────
     async function build9x9AnyBlock() {
         if (isSelling) {
             console.log("[build] Satış aktif → inşa bekletiliyor");
             return;
         }
 
-        console.log("[build AUTO] 9×9 inşa başlıyor – envanterdeki herhangi dolu slottan alıyor");
+        console.log("[build AUTO] 9×9 inşa başlıyor – envanterde tarım/toprak/farmland arıyor");
 
         let platformCount = 0;
         let totalPlaced = 0;
 
         while (true) {
+            // TARIM ARAZİSİ İÇİN GENİŞ FİLTRE
             const placeableItem = bot.inventory.items().find(item =>
-                item.count >= 1 &&                           // dolu slot
-                item.name !== "air" &&
+                item.count >= 1 &&
+                (
+                    item.name.toLowerCase().includes("tarım") ||
+                    item.name.toLowerCase().includes("toprak") ||
+                    item.name.toLowerCase().includes("farmland") ||
+                    item.name.toLowerCase().includes("dirt") ||
+                    item.name.toLowerCase().includes("tilled") ||
+                    item.name.toLowerCase().includes("arazi")
+                ) &&
                 !item.name.includes("bucket") &&
                 !item.name.endsWith("_bucket") &&
                 !item.name.includes("potion") &&
                 !item.name.includes("arrow") &&
-                !item.name.includes("shield") &&             // ekstra koruma
+                !item.name.includes("shield") &&
                 !item.name.includes("elytra")
             );
 
             if (!placeableItem) {
-                console.log("[build] Yerleştirilebilir dolu slot kalmadı");
-                bot.chat("Envanterde koyacak bir şey kalmadı!");
+                console.log("[build] Tarım/toprak/farmland içeren dolu slot bulunamadı");
+                bot.chat("Envanterde tarım arazisi/toprak kalmadı!");
                 break;
             }
 
             const material = placeableItem.name;
-            console.log(`[build #${platformCount + 1}] Kullanılan: \( {material} ( \){placeableItem.count} adet)`);
+            console.log(`[build #${platformCount + 1}] Bulunan: \( {material} (x \){placeableItem.count})`);
 
             const startX = Math.floor(bot.entity.position.x) - 4;
             const startZ = Math.floor(bot.entity.position.z) - 4;
@@ -284,7 +295,9 @@ function createBot() {
 
                         placedThisPlatform++;
                         totalPlaced++;
-                    } catch {}
+                    } catch (err) {
+                        console.log(`[hata] Yerleştirme başarısız: ${err.message || err}`);
+                    }
                 }
             }
 
@@ -299,14 +312,10 @@ function createBot() {
                 await sleep(300);
             } catch {}
 
-            // hala dolu slot var mı?
-            if (!bot.inventory.items().some(i => i.count >= 1)) {
-                console.log("[build] Envanterde dolu slot kalmadı");
-                break;
-            }
+            if (!bot.inventory.items().some(i => i.count >= 1)) break;
         }
 
-        console.log(`[build SON] ${platformCount} platform • ${totalPlaced} blok`);
+        console.log(`[build BİTTİ] ${platformCount} platform • ${totalPlaced} blok`);
         bot.chat(`9×9 inşa bitti – \( {platformCount} adet ( \){totalPlaced} blok)`);
     }
 
