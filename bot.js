@@ -331,7 +331,7 @@ function createBot() {
                     try {
                         await bot.equip(toPlace, "hand");
                         await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
-                        await sleep(35 + Math.random() * 35);
+                        await sleep(100 + Math.random() * 150);
                         await bot.placeBlock(below, new Vec3(0, 1, 0));
 
                         placedThisPlatform++;
