@@ -1,6 +1,7 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-// Vec3 - paket yüklemeden manuel tanımlama
+
+// Vec3 sınıfı - global olarak tanımla (paketsiz)
 class Vec3 {
   constructor(x, y, z) {
     this.x = x;
@@ -12,11 +13,7 @@ class Vec3 {
     return new Vec3(this.x + dx, this.y + dy, this.z + dz);
   }
 }
-// ──────────────────────────────
-//   HOSTING PORT (zorunlu)
-// ──────────────────────────────
-const http = require('http');
-...
+
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
 // ──────────────────────────────
@@ -236,9 +233,6 @@ function createBot() {
         }
     }
 
-    // ───────────────────────────────────────────────
-    //   9×9 PLATFORM YAPIMI – TARIM ARAZİSİ BULMA DÜZELTİLDİ
-    // ───────────────────────────────────────────────
     async function build9x9AnyBlock() {
         if (isSelling) {
             console.log("[build] Satış aktif → inşa bekletiliyor");
@@ -251,7 +245,6 @@ function createBot() {
         let totalPlaced = 0;
 
         while (true) {
-            // TARIM ARAZİSİ İÇİN GENİŞ FİLTRE
             const placeableItem = bot.inventory.items().find(item =>
                 item.count >= 1 &&
                 (
