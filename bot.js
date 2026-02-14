@@ -261,6 +261,8 @@ function createBot() {
 
     // ──────────────────────────────────────────────// ───────────────────────────────────────────────
 //   9×9 PLATFORM YAPIMI – ENVANTERDEKİ İLK DOLDAN ALIR
+// ──────────────────────────────────────────────// ───────────────────────────────────────────────
+//   9×9 PLATFORM YAPIMI – ENVANTERDEKİ İLK DOLDAN ALIR
 // ───────────────────────────────────────────────
 async function build9x9Platform() {
     if (isSelling) {
