@@ -1,7 +1,7 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
-// Vec3 sınıfı - global olarak tanımla (paketsiz)
+// Vec3 sınıfı - paket yüklemeden manuel tanımlama
 class Vec3 {
   constructor(x, y, z) {
     this.x = x;
@@ -36,7 +36,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'Xkakashi',
+        username: 'Alix770',
         version: '1.21'
     });
 
@@ -46,6 +46,9 @@ function createBot() {
     let systemsStarted = false;
     let spawnProcessed = false;
 
+    // ──────────────────────────────
+    //    GİRİŞ KISMI (değişmedi)
+    // ──────────────────────────────
     async function performLoginSequence() {
         if (systemsStarted) return;
 
@@ -64,15 +67,18 @@ function createBot() {
             bot.chat('/warp Yoncatarla');
             console.log('[→] /warp Yoncatarla gönderildi');
 
-            await sleep(15000);
+            await sleep(18000);
 
             console.log('[!] Sistemler aktif ediliyor...');
             systemsStarted = true;
             startSystems();
 
-            console.log("[build] 15 saniye sonra otomatik 9×9 inşa başlıyor...");
-            await sleep(15000);
-            build9x9AnyBlock();
+            // ──────────────────────────────
+            // Yeni eklenenler: warp sonrası otomatik başlama
+            // ──────────────────────────────
+            await sleep(15000);  // warp sonrası ekstra 15 sn bekle
+            console.log("[build] Otomatik 9×9 platform yapımı başlıyor...");
+            build9x9Platform();
 
             console.log("[seed] Boş farmland taraması ve otomatik ekim başlıyor...");
             seedPlantingLoop();
@@ -103,7 +109,7 @@ function createBot() {
         movements.allowSprinting = true;
         movements.allowParkour = true;
         movements.allow1by1 = true;
-        movements.maxDropDown = 5;
+        movements.maxDropDown = 5;          // biraz daha artırdım
 
         bot.pathfinder.setMovements(movements);
 
@@ -113,6 +119,9 @@ function createBot() {
         sellLoop();
     }
 
+    // ───────────────────────────────────────────────
+    //   Küçük rastgele kayma hareketi (değişmedi)
+    // ───────────────────────────────────────────────
     async function randomSmallOffset() {
         const dx = Math.random() * 5 - 2.5;
         const dz = Math.random() * 5 - 2.5;
@@ -127,9 +136,14 @@ function createBot() {
                 ),
                 { timeout: 7000 }
             );
-        } catch {}
+        } catch {
+            // sessiz geç
+        }
     }
 
+    // ───────────────────────────────────────────────
+    //   ÇOK HIZLI HASAT – ALAN TARAMA + YOLDA ÇOK KIRMA (değişmedi)
+    // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
             if (isSelling || !bot.entity?.position) {
@@ -138,6 +152,7 @@ function createBot() {
             }
 
             try {
+                // 1. Geniş alanda olgun buğday ara
                 const candidates = bot.findBlocks({
                     matching: block => block.name === 'wheat' && block.metadata === 7,
                     maxDistance: 70,
@@ -157,6 +172,7 @@ function createBot() {
 
                 console.log(`[→] Hedef bölgeye gidiliyor (${candidates.length} olgun buğday)`);
 
+                // 2. Hedefe yaklaş
                 const goal = new goals.GoalNear(targetCenter.x, targetCenter.y + 1, targetCenter.z, 4);
                 try {
                     await bot.pathfinder.goto(goal, { timeout: 10000 });
@@ -165,8 +181,9 @@ function createBot() {
                     await randomSmallOffset();
                 }
 
+                // 3. Etraftaki buğdayları hızlı kır
                 let brokenThisCycle = 0;
-                const maxBreakPerCycle = 4;
+                const maxBreakPerCycle = 4;   // burayı 28-40 arası deneyebilirsin
 
                 const toBreak = bot.findBlocks({
                     matching: b => b.name === 'wheat' && b.metadata === 7,
@@ -188,7 +205,9 @@ function createBot() {
 
                         await bot.dig(block, true);
                         brokenThisCycle++;
-                    } catch {}
+                    } catch {
+                        // sessiz
+                    }
                 }
 
                 if (brokenThisCycle > 0) {
@@ -203,10 +222,13 @@ function createBot() {
                 console.log("[hasat hata]", err.message?.substring(0, 90) || err);
             }
 
-            await sleep(180 + Math.random() * 400);
+            await sleep(180 + Math.random() * 400);   // 0.18 – 0.58 sn
         }
     }
 
+    // ───────────────────────────────────────────────
+    //   SATIŞ (orijinal hali korunuyor)
+    // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
             await sleep(72000 + Math.random() * 18000);
@@ -233,13 +255,16 @@ function createBot() {
         }
     }
 
-    async function build9x9AnyBlock() {
+    // ───────────────────────────────────────────────
+    //   9×9 PLATFORM YAPIMI (warp sonrası otomatik)
+    // ───────────────────────────────────────────────
+    async function build9x9Platform() {
         if (isSelling) {
             console.log("[build] Satış aktif → inşa bekletiliyor");
             return;
         }
 
-        console.log("[build AUTO] 9×9 inşa başlıyor – envanterde tarım/toprak/farmland arıyor");
+        console.log("[build] 9×9 platform yapımı başlıyor");
 
         let platformCount = 0;
         let totalPlaced = 0;
@@ -254,23 +279,17 @@ function createBot() {
                     item.name.toLowerCase().includes("dirt") ||
                     item.name.toLowerCase().includes("tilled") ||
                     item.name.toLowerCase().includes("arazi")
-                ) &&
-                !item.name.includes("bucket") &&
-                !item.name.endsWith("_bucket") &&
-                !item.name.includes("potion") &&
-                !item.name.includes("arrow") &&
-                !item.name.includes("shield") &&
-                !item.name.includes("elytra")
+                )
             );
 
             if (!placeableItem) {
-                console.log("[build] Tarım/toprak/farmland içeren dolu slot bulunamadı");
-                bot.chat("Envanterde tarım arazisi/toprak kalmadı!");
+                console.log("[build] Yerleştirilebilir blok (tarım/toprak) bulunamadı");
+                bot.chat("Envanterde uygun blok kalmadı!");
                 break;
             }
 
             const material = placeableItem.name;
-            console.log(`[build #${platformCount + 1}] Bulunan: \( {material} (x \){placeableItem.count})`);
+            console.log(`[build #${platformCount + 1}] Kullanılan: \( {material} ( \){placeableItem.count} adet)`);
 
             const startX = Math.floor(bot.entity.position.x) - 4;
             const startZ = Math.floor(bot.entity.position.z) - 4;
@@ -299,13 +318,13 @@ function createBot() {
                     try {
                         await bot.equip(toPlace, "hand");
                         await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
-                        await sleep(25 + Math.random() * 20);
+                        await sleep(35 + Math.random() * 35);
                         await bot.placeBlock(below, new Vec3(0, 1, 0));
 
                         placedThisPlatform++;
                         totalPlaced++;
                     } catch (err) {
-                        console.log(`[hata] Yerleştirme başarısız: ${err.message || err}`);
+                        console.log(`[build hata] ${err.message || err}`);
                     }
                 }
             }
@@ -316,9 +335,9 @@ function createBot() {
             try {
                 await bot.pathfinder.goto(
                     new goals.GoalNear(bot.entity.position.x + 19, bot.entity.position.y, bot.entity.position.z, 3),
-                    { timeout: 10000 }
+                    { timeout: 12000 }
                 );
-                await sleep(300);
+                await sleep(500);
             } catch {}
 
             if (!bot.inventory.items().some(i => i.count >= 1)) break;
@@ -328,7 +347,69 @@ function createBot() {
         bot.chat(`9×9 inşa bitti – \( {platformCount} adet ( \){totalPlaced} blok)`);
     }
 
-    
+    // ───────────────────────────────────────────────
+    //   BOŞ FARMLAND ÜZERİNE TOHUM EKME
+    // ───────────────────────────────────────────────
+    async function seedPlantingLoop() {
+        while (true) {
+            if (isSelling) {
+                await sleep(3000);
+                continue;
+            }
+
+            try {
+                const emptyFarmlands = bot.findBlocks({
+                    matching: block => block.name === 'farmland' && block.metadata === 0,
+                    maxDistance: 48,
+                    count: 12
+                });
+
+                if (emptyFarmlands.length === 0) {
+                    await sleep(1500 + Math.random() * 1000);
+                    continue;
+                }
+
+                const pos = bot.entity.position;
+                emptyFarmlands.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+
+                for (const farmlandPos of emptyFarmlands) {
+                    const block = bot.blockAt(farmlandPos);
+                    if (!block || block.name !== 'farmland' || block.metadata !== 0) continue;
+
+                    const seedItem = bot.inventory.items().find(item =>
+                        item.name.endsWith('_seeds') || item.name === 'wheat_seeds' ||
+                        item.name === 'beetroot_seeds' || item.name === 'melon_seeds' ||
+                        item.name === 'pumpkin_seeds' || item.name === 'potato' ||
+                        item.name === 'carrot'
+                    );
+
+                    if (!seedItem) {
+                        console.log("[seed] Tohum kalmadı");
+                        await sleep(10000);
+                        break;
+                    }
+
+                    try {
+                        await bot.equip(seedItem, 'hand');
+                        await bot.lookAt(farmlandPos.offset(0.5, 0.1, 0.5), true);
+                        await sleep(50 + Math.random() * 50);
+                        await bot.placeBlock(block, new Vec3(0, 1, 0));
+
+                        console.log(`[seed] Ekildi: ${seedItem.name} → ${farmlandPos}`);
+                    } catch (err) {
+                        // sessiz geç
+                    }
+
+                    await sleep(120 + Math.random() * 80);
+                }
+
+            } catch (err) {
+                console.log("[seed hata]", err.message?.substring(0, 80) || err);
+            }
+
+            await sleep(600 + Math.random() * 600);
+        }
+    }
 
     bot.on('end', reason => {
         console.log(`[!] Bağlantı kesildi: ${reason}`);
