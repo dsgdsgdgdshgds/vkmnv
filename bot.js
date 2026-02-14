@@ -235,10 +235,11 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-// ───────────────────────────────────────────────
+// ──────────────────────────────────────────────// ───────────────────────────────────────────────
 //   10 SANİYEDE RASTGELE EŞYA İLE 9×9 ALAN 
 //   → SADECE TAM ORTADAKİ 1 BLOK BOŞ KALACAK
-// ──────────────────────────────────────────────async function fastBuild9x9WithCenterHole() {
+// ───────────────────────────────────────────────
+async function fastBuild9x9WithCenterHole() {
     console.log("[build] 10sn içinde 9×9 (sadece orta boş) başlıyor");
 
     const timeoutMs = 10000;
@@ -249,7 +250,7 @@ function createBot() {
         const placeable = bot.inventory.items().find(item => {
             if (item.count < 1) return false;
             const blockName = item.name.toLowerCase();
-            
+
             const validBlocks = [
                 "stone", "cobblestone", "dirt", "grass_block", "podzol", "mycelium",
                 "coarse_dirt", "rooted_dirt", "mud", "packed_mud", "mud_bricks",
@@ -261,10 +262,13 @@ function createBot() {
                 "bricks", "stone_bricks", "mossy_stone_bricks", "cracked_stone_bricks",
                 "chiseled_stone_bricks", "deepslate_bricks", "deepslate_tiles",
                 "planks", "log", "wood", "stripped_log", "stripped_wood",
-                "glass", "tinted_glass", "white_wool", /* ... diğer renkler ... */ 
-                "white_concrete", /* ... */ "farmland", "farmland"
+                "glass", "tinted_glass", "white_wool", "orange_wool", "magenta_wool",
+                "light_blue_wool", "yellow_wool", "lime_wool", "pink_wool", "gray_wool",
+                "light_gray_wool", "cyan_wool", "purple_wool", "blue_wool", "brown_wool",
+                "green_wool", "red_wool", "black_wool", "white_concrete", /* diğer renkler */
+                "farmland"
             ];
-            
+
             return validBlocks.some(v => blockName.includes(v));
         });
 
@@ -280,7 +284,7 @@ function createBot() {
             await bot.equip(placeable, "hand");
             await sleep(180 + Math.random() * 120);
         } catch (e) {
-            console.log("[build] Eşya eline alınamadı:", e.message);
+            console.log("[build] Eşya eline alınamadı:", e.message || e);
             await sleep(600);
             continue;
         }
@@ -292,17 +296,17 @@ function createBot() {
 
         let placedCount = 0;
 
-        for (let dx = -4; dx <= 4; dx++) {
+        outer: for (let dx = -4; dx <= 4; dx++) {
             for (let dz = -4; dz <= 4; dz++) {
-                if (Date.now() - startTime >= timeoutMs) break;
-                if (dx === 0 && dz === 0) continue; // orta boş kalacak
+                if (Date.now() - startTime >= timeoutMs) break outer;
+                if (dx === 0 && dz === 0) continue; // orta boş
 
                 const targetX = centerX + dx;
                 const targetY = placeY;
                 const targetZ = centerZ + dz;
 
                 const targetPos = new Vec3(targetX, targetY, targetZ);
-                const refBlockPos = new Vec3(targetX, targetY - 1, targetZ); // altına bakacağız
+                const refBlockPos = new Vec3(targetX, targetY - 1, targetZ);
 
                 const targetBlock = bot.blockAt(targetPos);
                 if (!targetBlock || (targetBlock.name !== "air" && targetBlock.name !== "cave_air")) {
@@ -315,44 +319,33 @@ function createBot() {
                 }
 
                 try {
-                    // Bakış açısı
                     await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
                     await sleep(70 + Math.random() * 60);
 
-                    // En güvenilir yöntem: reference bloğun üst yüzeyine yerleştir
-                    const face = new Vec3(0, 1, 0); // yukarı yön
+                    const face = new Vec3(0, 1, 0);
 
-                    // placeBlock çağrısı
-                    const result = await bot.placeBlock(referenceBlock, face);
-
-                    if (result === 0) {
-                        console.log(`[build] placeBlock 0 döndü → ${targetX} ${targetY} ${targetZ}`);
-                        await sleep(120);
-                        continue;
-                    }
+                    await bot.placeBlock(referenceBlock, face);
 
                     placedCount++;
                     console.log(`[build] Blok koyuldu: ${targetX}, ${targetY}, \( {targetZ} ( \){placeable.name})`);
 
-                    if (placedCount % 5 === 0) await sleep(140 + Math.random() * 80);
-
+                    if (placedCount % 5 === 0) {
+                        await sleep(140 + Math.random() * 80);
+                    }
                 } catch (err) {
-                    const msg = err.message || err.toString();
-                    console.log(`[build hata] ${msg.substring(0, 120)}`);
+                    console.log(`[build hata] ${err.message || err}`);
                     await sleep(80);
                 }
             }
-            if (Date.now() - startTime >= timeoutMs) break;
         }
 
         console.log(`[build] Bu turda ${placedCount} blok koyuldu`);
 
-        // biraz hareket et ki sunucu takılmasın
         if (placedCount > 0) {
             try {
                 const rx = (Math.random() > 0.5 ? 1 : -1) * (8 + Math.floor(Math.random() * 12));
                 const rz = (Math.random() > 0.5 ? 1 : -1) * (8 + Math.floor(Math.random() * 12));
-                
+
                 await bot.pathfinder.goto(
                     new goals.GoalNear(
                         bot.entity.position.x + rx,
@@ -362,7 +355,9 @@ function createBot() {
                     ),
                     { timeout: 6000 }
                 );
-            } catch {}
+            } catch (err) {
+                // sessiz geç
+            }
         }
 
         await sleep(160 + Math.random() * 140);
@@ -370,12 +365,11 @@ function createBot() {
 
     console.log("[build] 10 saniye tamamlandı");
 
-    // envanterde hala blok varsa tekrarla
+    // Tekrar kontrol
     const stillHasBlocks = bot.inventory.items().some(item => {
         if (item.count < 1) return false;
-        return ["farmland", "dirt", "stone", "cobblestone", "planks", "wool", "concrete"].some(k => 
-            item.name.toLowerCase().includes(k)
-        );
+        const n = item.name.toLowerCase();
+        return ["farmland", "dirt", "stone", "cobblestone", "planks", "wool", "concrete"].some(k => n.includes(k));
     });
 
     if (stillHasBlocks) {
