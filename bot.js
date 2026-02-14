@@ -1,5 +1,6 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const Vec3 = require('vec3');
 
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
@@ -318,32 +319,30 @@ async function fastBuild9x9WithCenterHole() {
                 const targetZ = centerZ + dz;
 
                 // Hedef pozisyonu kontrol et
-                const targetPos = bot.blockAt(new bot.vec3(targetX, targetY, targetZ));
+                const targetPos = bot.blockAt(new Vec3(targetX, targetY, targetZ));
                 if (!targetPos || (targetPos.name !== "air" && targetPos.name !== "cave_air")) {
                     continue;
                 }
 
                 // Altındaki blok - reference block
-                const belowPos = new bot.vec3(targetX, targetY - 1, targetZ);
+                const belowPos = new Vec3(targetX, targetY - 1, targetZ);
                 const below = bot.blockAt(belowPos);
                 
                 if (!below) {
-                    console.log(`[build debug] below null: ${targetX}, ${targetY-1}, ${targetZ}`);
                     continue;
                 }
                 
                 if (below.name === "air" || below.name === "cave_air") {
-                    console.log(`[build debug] below is air: ${below.name}`);
                     continue;
                 }
 
                 try {
                     // Bot'un hedefe bakması
-                    await bot.lookAt(new bot.vec3(targetX + 0.5, targetY + 0.5, targetZ + 0.5), true);
+                    await bot.lookAt(new Vec3(targetX + 0.5, targetY + 0.5, targetZ + 0.5), true);
                     await sleep(80);
 
                     // placeBlock kullan - face vektörü yukarı (0, 1, 0)
-                    const faceVector = new bot.vec3(0, 1, 0);
+                    const faceVector = new Vec3(0, 1, 0);
                     
                     await bot.placeBlock(below, faceVector);
                     
@@ -354,7 +353,7 @@ async function fastBuild9x9WithCenterHole() {
                         await sleep(150);
                     }
                 } catch (err) {
-                    console.log(`[build hata] ${err.message || err} @ ${targetX},${targetY},${targetZ}`);
+                    console.log(`[build hata] ${err.message || err}`);
                 }
             }
             if (Date.now() - startTime >= timeoutMs) break;
@@ -516,7 +515,7 @@ async function fastBuild9x9WithCenterHole() {
                         await bot.lookAt(safePos.offset(0.5, 0.1, 0.5), true);
                         await sleep(60 + Math.random() * 90);
 
-                        await bot.placeBlock(block, new bot.vec3(0, 1, 0));
+                        await bot.placeBlock(block, new Vec3(0, 1, 0));
 
                         console.log(`[seed] Ekildi: ${seedItem.name} → ${safePos.x}, ${safePos.y}, ${safePos.z} (zemin: ${block.name})`);
                     } catch (err) {
