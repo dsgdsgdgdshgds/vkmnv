@@ -23,7 +23,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'Xkakashi',
+        username: 'Xkakshi',
         version: '1.20.4'
     });
 
