@@ -46,7 +46,7 @@ function createBot() {
         host: 'play.reborncraft.pw',
         port: 25565,
         username: 'Xkakashi',
-        version: '1.21'
+        version: '1.20.4'
     });
 
     bot.loadPlugin(pathfinder);
