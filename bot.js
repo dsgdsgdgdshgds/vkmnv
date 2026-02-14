@@ -395,7 +395,7 @@ function createBot() {
                     const seen = new Set();
                     nearby.forEach(p => {
                         const b = bot.blockAt(p);
-                        if (b && (b.name.includes('dirt') || b.name.includes('farmland') || b.name.includes('soil') || b.name.includes('farm') || b.metadata === 0 || b.metadata === 7)) {
+                        if (b && (b.name.includes('dirt') || b.name.includes('Farmland') || b.name.includes('soil') || b.name.includes('farm') || b.metadata === 0 || b.metadata === 7)) {
                             if (!seen.has(b.name)) {
                                 console.log(`   → ${b.name} (metadata: ${b.metadata}) @ ${p.x} ${p.y} ${p.z}`);
                                 seen.add(b.name);
@@ -422,7 +422,7 @@ function createBot() {
 
                         // Farmland benzeri kontrol (sunucuya göre genişletildi)
                         return (
-                            block.name === 'farmland' ||
+                            block.name === 'Farmland' ||
                             block.name.includes('Farmland') ||
                             block.name.includes('soil') ||
                             block.name.includes('farm') ||
