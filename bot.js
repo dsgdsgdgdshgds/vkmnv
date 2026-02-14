@@ -1,6 +1,5 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-const { Vec3 } = require('vec3');
 
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
@@ -246,40 +245,13 @@ async function fastBuild9x9WithCenterHole() {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-        // Envanterden rastgele uygun BLOK eşya seç
+        // Envanterden rastgele uygun BLOK eşya seç - FARMLAND EKLENDİ
         const placeable = bot.inventory.items().find(item => {
             if (item.count < 1) return false;
             
             const blockName = item.name;
             
-            // Sadece koyulabilir bloklar
-            const nonPlaceable = [
-                "air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
-                "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
-                "shield", "elytra", "boat", "minecart", "chest_minecart",
-                "furnace_minecart", "tnt_minecart", "hopper_minecart", 
-                "command_block_minecart", "farmland", "wheat_seeds", "wheat",
-                "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "potato", 
-                "carrot", "bone_meal", "string", "stick", "diamond", "iron_ingot",
-                "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli",
-                "wheat", "cactus", "sugar_cane", "sapling"
-            ];
-            
-            if (nonPlaceable.includes(blockName)) return false;
-            if (blockName.includes("bucket")) return false;
-            if (blockName.includes("seeds")) return false;
-            if (blockName.includes("sapling")) return false;
-            if (blockName.endsWith("_helmet")) return false;
-            if (blockName.endsWith("_chestplate")) return false;
-            if (blockName.endsWith("_leggings")) return false;
-            if (blockName.endsWith("_boots")) return false;
-            if (blockName.endsWith("_sword")) return false;
-            if (blockName.endsWith("_pickaxe")) return false;
-            if (blockName.endsWith("_axe")) return false;
-            if (blockName.endsWith("_shovel")) return false;
-            if (blockName.endsWith("_hoe")) return false;
-            
-            // Sadece solid blokları kabul et
+            // Sadece koyulabilir bloklar - FARMLAND dahil
             const validBlocks = [
                 "stone", "cobblestone", "dirt", "grass_block", "podzol", "mycelium",
                 "coarse_dirt", "rooted_dirt", "mud", "packed_mud", "mud_bricks",
@@ -302,14 +274,15 @@ async function fastBuild9x9WithCenterHole() {
                 "magenta_terracotta", "light_blue_terracotta", "yellow_terracotta",
                 "lime_terracotta", "pink_terracotta", "gray_terracotta", "light_gray_terracotta",
                 "cyan_terracotta", "purple_terracotta", "blue_terracotta", "brown_terracotta",
-                "green_terracotta", "red_terracotta", "black_terracotta", "terracotta"
+                "green_terracotta", "red_terracotta", "black_terracotta", "terracotta",
+                "farmland", "Farmland"  // FARMLAND EKLENDİ
             ];
             
             return validBlocks.includes(blockName);
         });
 
         if (!placeable) {
-            console.log("[build] Koyulabilir blok kalmadı (dirt, cobblestone, stone vb. gerekli)");
+            console.log("[build] Koyulabilir blok kalmadı");
             bot.chat("Envanterde yapı bloğu kalmadı → 9×9 durduruldu");
             return;
         }
@@ -318,7 +291,7 @@ async function fastBuild9x9WithCenterHole() {
 
         try {
             await bot.equip(placeable, "hand");
-            await sleep(100); // Eşya değiştirme için bekle
+            await sleep(150); // Eşya değiştirme için bekle
         } catch (e) {
             console.log("[build] Eşya eline alınamadı:", e.message);
             await sleep(400);
@@ -340,32 +313,48 @@ async function fastBuild9x9WithCenterHole() {
                 // TAM ORTA → atla (boş bırak)
                 if (dx === 0 && dz === 0) continue;
 
-                const targetPos = new Vec3(centerX + dx, placeY, centerZ + dz);
+                const targetX = centerX + dx;
+                const targetY = placeY;
+                const targetZ = centerZ + dz;
 
-                const current = bot.blockAt(targetPos);
+                // Hedef pozisyondaki bloğu kontrol et
+                const current = bot.blockAt(bot.entity.position.offset(dx, -1, dz));
                 if (!current || (current.name !== "air" && current.name !== "cave_air")) continue;
 
-                // Altında destek olmalı - placeBlock için reference block (tıklanan blok)
-                const referencePos = targetPos.offset(0, -1, 0);
-                const referenceBlock = bot.blockAt(referencePos);
-                
-                if (!referenceBlock || referenceBlock.name === "air" || referenceBlock.name === "cave_air") continue;
-                if (!referenceBlock.boundingBox || referenceBlock.boundingBox === 'empty') continue;
+                // Altındaki blok - reference block
+                const below = bot.blockAt(bot.entity.position.offset(dx, -2, dz));
+                if (!below || below.name === "air" || below.name === "cave_air") continue;
 
                 try {
                     // Bot'un hedefe bakması
-                    await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
-                    await sleep(50 + Math.random() * 50);
+                    await bot.lookAt(new bot.vec3(targetX + 0.5, targetY + 0.5, targetZ + 0.5), true);
+                    await sleep(60 + Math.random() * 60);
 
-                    // placeBlock: referenceBlock'a tıklayıp üstüne (yukarı yön) koy
-                    await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                    // Ham paket ile blok koyma (daha güvenilir)
+                    const referencePos = below.position;
                     
-                    placedCount++;
-                    console.log(`[build] Blok koyuldu: ${targetPos.x}, ${targetPos.y}, ${targetPos.z}`);
+                    // Yön vektörü (yukarı)
+                    const faceVector = { x: 0, y: 1, z: 0 };
+                    
+                    // Blok yerleştirme paketi gönder
+                    bot._client.write('block_place', {
+                        location: referencePos,
+                        direction: 1, // 1 = yukarı (top)
+                        hand: 0, // 0 = main hand
+                        cursorX: 0.5,
+                        cursorY: 0.5,
+                        cursorZ: 0.5,
+                        insideBlock: false
+                    });
 
-                    // Her 8 blokta ufak mola
-                    if (placedCount % 8 === 0) {
-                        await sleep(150);
+                    placedCount++;
+                    console.log(`[build] Blok koyuldu: ${targetX}, ${targetY}, ${targetZ}`);
+
+                    // Her 5 blokta ufak mola
+                    if (placedCount % 5 === 0) {
+                        await sleep(200);
+                    } else {
+                        await sleep(50);
                     }
                 } catch (err) {
                     console.log(`[build hata] ${err.message || err}`);
@@ -377,7 +366,7 @@ async function fastBuild9x9WithCenterHole() {
         console.log(`[build] Bu seferde ${placedCount} blok koyuldu`);
 
         // Eğer blok koyulabildiyse ve zaman varsa yan tarafa git
-        if (placedCount > 3) {
+        if (placedCount > 0) {
             try {
                 const offsetX = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
                 const offsetZ = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
@@ -393,17 +382,17 @@ async function fastBuild9x9WithCenterHole() {
                 );
                 await sleep(600);
             } catch {}
-        } else if (placedCount === 0) {
-            // Hiç koyamadıysak biraz bekle ve tekrar dene
-            await sleep(500);
+        } else {
+            // Hiç koyamadıysak bekle ve dene
+            await sleep(300);
         }
 
-        await sleep(200 + Math.random() * 300);
+        await sleep(200 + Math.random() * 200);
     }
 
     console.log("[build] 10 saniye bitti");
 
-    // Envanterde hala blok varsa tekrar başla
+    // Envanterde hala blok varsa tekrar başla - FARMLAND dahil
     const hasMoreBlocks = bot.inventory.items().some(item => {
         if (item.count < 1) return false;
         const blockName = item.name;
@@ -418,8 +407,8 @@ async function fastBuild9x9WithCenterHole() {
             "moss_block", "deepslate", "cobbled_deepslate", "polished_deepslate",
             "bricks", "stone_bricks", "mossy_stone_bricks", "cracked_stone_bricks",
             "chiseled_stone_bricks", "deepslate_bricks", "deepslate_tiles",
-            "planks", "log", "wood","farmland", "Farmland", "stripped_log", "stripped_wood",
-            "glass", "tinted_glass"
+            "planks", "log", "wood", "stripped_log", "stripped_wood",
+            "glass", "tinted_glass", "farmland", "Farmland"  // FARMLAND EKLENDİ
         ];
         
         return validBlocks.includes(blockName);
@@ -532,7 +521,7 @@ async function fastBuild9x9WithCenterHole() {
                         await bot.lookAt(safePos.offset(0.5, 0.1, 0.5), true);
                         await sleep(60 + Math.random() * 90);
 
-                        await bot.placeBlock(block, new Vec3(0, 1, 0));
+                        await bot.placeBlock(block, new bot.vec3(0, 1, 0));
 
                         console.log(`[seed] Ekildi: ${seedItem.name} → ${safePos.x}, ${safePos.y}, ${safePos.z} (zemin: ${block.name})`);
                     } catch (err) {
