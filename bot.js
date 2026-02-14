@@ -1,26 +1,6 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-
-// Vec3 sınıfı - paket yüklemeden manuel tanımlama
-class Vec3 {
-  constructor(x, y, z) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-  }
-
-  offset(dx = 0, dy = 0, dz = 0) {
-    return new Vec3(this.x + dx, this.y + dy, this.z + dz);
-  }
-
-  floored() {
-    return new Vec3(
-      Math.floor(this.x),
-      Math.floor(this.y),
-      Math.floor(this.z)
-    );
-  }
-}
+const { Vec3 } = require('vec3');
 
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
@@ -266,20 +246,60 @@ async function fastBuild9x9WithCenterHole() {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-        // Envanterden rastgele uygun eşya seç
-        const placeable = bot.inventory.items().find(item => 
-            item.count >= 1 &&
-            !["air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
-              "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
-              "shield", "elytra", "boat", "minecart", "chest_minecart",
-              "furnace_minecart", "tnt_minecart", "hopper_minecart", 
-              "command_block_minecart"].includes(item.name) &&
-            !item.name.includes("bucket")
-        );
+        // Envanterden rastgele uygun BLOK eşya seç (farmland hariç!)
+        const placeable = bot.inventory.items().find(item => {
+            if (item.count < 1) return false;
+            
+            // Sadece koyulabilir bloklar (farmland değil!)
+            const blockName = item.name;
+            
+            // Kara liste: koyulamaz eşyalar
+            const nonPlaceable = [
+                "air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
+                "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
+                "shield", "elytra", "boat", "minecart", "chest_minecart",
+                "furnace_minecart", "tnt_minecart", "hopper_minecart", 
+                "command_block_minecart", "farmland", "wheat_seeds", "wheat",
+                "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "potato", 
+                "carrot", "bone_meal", "string", "stick", "diamond", "iron_ingot",
+                "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli"
+            ];
+            
+            if (nonPlaceable.includes(blockName)) return false;
+            if (blockName.includes("bucket")) return false;
+            if (blockName.includes("seeds")) return false;
+            if (blockName.endsWith("_helmet")) return false;
+            if (blockName.endsWith("_chestplate")) return false;
+            if (blockName.endsWith("_leggings")) return false;
+            if (blockName.endsWith("_boots")) return false;
+            if (blockName.endsWith("_sword")) return false;
+            if (blockName.endsWith("_pickaxe")) return false;
+            if (blockName.endsWith("_axe")) return false;
+            if (blockName.endsWith("_shovel")) return false;
+            if (blockName.endsWith("_hoe")) return false;
+            
+            // Sadece blokları kabul et (genellikle "block" içerenler veya standart bloklar)
+            const placeableBlocks = [
+                "dirt", "cobblestone", "stone", "grass_block", "planks", "log", 
+                "wood", "leaves", "glass", "sand", "gravel", "netherrack", 
+                "end_stone", "obsidian", "bricks", "stone_bricks", "mossy_cobblestone",
+                "clay", "snow_block", "pumpkin", "melon_block", "cactus", "sugar_cane",
+                "deepslate", "cobbled_deepslate", "tuff", "andesite", "diorite", 
+                "granite", "calcite", "dripstone_block", "moss_block", "rooted_dirt",
+                "mud", "packed_mud", "mud_bricks"
+            ];
+            
+            // Ya bilinen bir blok veya "block" içeren bir eşya olmalı
+            return placeableBlocks.some(b => blockName.includes(b)) || 
+                   blockName.includes("block") ||
+                   blockName.includes("concrete") ||
+                   blockName.includes("wool") ||
+                   blockName.includes("terracotta");
+        });
 
         if (!placeable) {
-            console.log("[build] Koyulabilir eşya kalmadı");
-            bot.chat("Envanterde blok kalmadı → 9×9 durduruldu");
+            console.log("[build] Koyulabilir blok kalmadı (dirt, cobblestone, vb. gerekli)");
+            bot.chat("Envanterde yapı bloğu kalmadı → 9×9 durduruldu");
             return;
         }
 
@@ -315,21 +335,21 @@ async function fastBuild9x9WithCenterHole() {
 
                 // Altında destek olmalı
                 const below = bot.blockAt(targetPos.offset(0, -1, 0));
-                if (below.name === "air" || below.name === "cave_air") continue;
+                if (!below || below.name === "air" || below.name === "cave_air") continue;
 
                 try {
                     await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
-                    await sleep(50 + Math.random() * 80);  // biraz yavaşlatıp anti-kick
+                    await sleep(50 + Math.random() * 80);
 
                     await bot.placeBlock(below, new Vec3(0, 1, 0));
                     placedCount++;
 
-                    // Her 12-15 blokta ufak mola
+                    // Her 12 blokta ufak mola
                     if (placedCount % 12 === 0) {
                         await sleep(250);
                     }
-                } catch {
-                    // hata olursa devam
+                } catch (err) {
+                    // Hata durumunda devam et
                 }
             }
             if (Date.now() - startTime >= timeoutMs) break;
@@ -337,8 +357,8 @@ async function fastBuild9x9WithCenterHole() {
 
         console.log(`[build] Bu seferde ${placedCount} blok koyuldu`);
 
-        // Yan tarafa kaydır (bir sonraki 9×9 için)
-        if (placedCount > 15) {
+        // Eğer blok koyulabildiyse ve zaman varsa yan tarafa git
+        if (placedCount > 5) {
             try {
                 const offsetX = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
                 const offsetZ = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
@@ -359,10 +379,41 @@ async function fastBuild9x9WithCenterHole() {
         await sleep(300 + Math.random() * 400);
     }
 
-    console.log("[build] 10 saniye bitti → devam ediyorsa tekrar başlıyor");
+    console.log("[build] 10 saniye bitti");
 
-    // Envanter bitmediyse tekrarla
-    if (bot.inventory.items().some(i => i.count >= 1 && i.name !== "air" && !i.name.includes("bucket"))) {
+    // Envanterde hala blok varsa tekrar başla
+    const hasMoreBlocks = bot.inventory.items().some(item => {
+        const blockName = item.name;
+        if (item.count < 1) return false;
+        
+        const nonPlaceable = [
+            "air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
+            "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
+            "shield", "elytra", "boat", "minecart", "chest_minecart",
+            "furnace_minecart", "tnt_minecart", "hopper_minecart", 
+            "command_block_minecart", "farmland", "wheat_seeds", "wheat",
+            "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "potato", 
+            "carrot", "bone_meal", "string", "stick", "diamond", "iron_ingot",
+            "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli"
+        ];
+        
+        if (nonPlaceable.includes(blockName)) return false;
+        if (blockName.includes("bucket")) return false;
+        if (blockName.includes("seeds")) return false;
+        if (blockName.endsWith("_helmet")) return false;
+        if (blockName.endsWith("_chestplate")) return false;
+        if (blockName.endsWith("_leggings")) return false;
+        if (blockName.endsWith("_boots")) return false;
+        if (blockName.endsWith("_sword")) return false;
+        if (blockName.endsWith("_pickaxe")) return false;
+        if (blockName.endsWith("_axe")) return false;
+        if (blockName.endsWith("_shovel")) return false;
+        if (blockName.endsWith("_hoe")) return false;
+        
+        return true;
+    });
+    
+    if (hasMoreBlocks) {
         setTimeout(fastBuild9x9WithCenterHole, 1200);
     } else {
         bot.chat("Envanter bitti — 9×9 (orta boş) tamamlandı");
