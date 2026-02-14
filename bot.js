@@ -246,14 +246,13 @@ async function fastBuild9x9WithCenterHole() {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeoutMs) {
-        // Envanterden rastgele uygun BLOK eşya seç (farmland hariç!)
+        // Envanterden rastgele uygun BLOK eşya seç
         const placeable = bot.inventory.items().find(item => {
             if (item.count < 1) return false;
             
-            // Sadece koyulabilir bloklar (farmland değil!)
             const blockName = item.name;
             
-            // Kara liste: koyulamaz eşyalar
+            // Sadece koyulabilir bloklar
             const nonPlaceable = [
                 "air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
                 "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
@@ -262,12 +261,14 @@ async function fastBuild9x9WithCenterHole() {
                 "command_block_minecart", "farmland", "wheat_seeds", "wheat",
                 "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "potato", 
                 "carrot", "bone_meal", "string", "stick", "diamond", "iron_ingot",
-                "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli"
+                "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli",
+                "wheat", "cactus", "sugar_cane", "sapling"
             ];
             
             if (nonPlaceable.includes(blockName)) return false;
             if (blockName.includes("bucket")) return false;
             if (blockName.includes("seeds")) return false;
+            if (blockName.includes("sapling")) return false;
             if (blockName.endsWith("_helmet")) return false;
             if (blockName.endsWith("_chestplate")) return false;
             if (blockName.endsWith("_leggings")) return false;
@@ -278,27 +279,37 @@ async function fastBuild9x9WithCenterHole() {
             if (blockName.endsWith("_shovel")) return false;
             if (blockName.endsWith("_hoe")) return false;
             
-            // Sadece blokları kabul et (genellikle "block" içerenler veya standart bloklar)
-            const placeableBlocks = [
-                "dirt", "cobblestone", "stone", "grass_block", "planks", "log", 
-                "wood", "leaves", "glass", "sand", "gravel", "netherrack", 
-                "end_stone", "obsidian", "bricks", "stone_bricks", "mossy_cobblestone",
-                "clay", "snow_block", "pumpkin", "melon_block", "cactus", "sugar_cane",
-                "deepslate", "cobbled_deepslate", "tuff", "andesite", "diorite", 
-                "granite", "calcite", "dripstone_block", "moss_block", "rooted_dirt",
-                "mud", "packed_mud", "mud_bricks"
+            // Sadece solid blokları kabul et
+            const validBlocks = [
+                "stone", "cobblestone", "dirt", "grass_block", "podzol", "mycelium",
+                "coarse_dirt", "rooted_dirt", "mud", "packed_mud", "mud_bricks",
+                "sand", "red_sand", "gravel", "clay", "snow_block", "ice", "packed_ice",
+                "blue_ice", "obsidian", "crying_obsidian", "netherrack", "soul_sand",
+                "soul_soil", "basalt", "smooth_basalt", "blackstone", "end_stone",
+                "granite", "diorite", "andesite", "calcite", "tuff", "dripstone_block",
+                "moss_block", "deepslate", "cobbled_deepslate", "polished_deepslate",
+                "bricks", "stone_bricks", "mossy_stone_bricks", "cracked_stone_bricks",
+                "chiseled_stone_bricks", "deepslate_bricks", "deepslate_tiles",
+                "planks", "log", "wood", "stripped_log", "stripped_wood",
+                "glass", "tinted_glass", "white_wool", "orange_wool", "magenta_wool",
+                "light_blue_wool", "yellow_wool", "lime_wool", "pink_wool", "gray_wool",
+                "light_gray_wool", "cyan_wool", "purple_wool", "blue_wool", "brown_wool",
+                "green_wool", "red_wool", "black_wool", "white_concrete", "orange_concrete",
+                "magenta_concrete", "light_blue_concrete", "yellow_concrete", "lime_concrete",
+                "pink_concrete", "gray_concrete", "light_gray_concrete", "cyan_concrete",
+                "purple_concrete", "blue_concrete", "brown_concrete", "green_concrete",
+                "red_concrete", "black_concrete", "white_terracotta", "orange_terracotta",
+                "magenta_terracotta", "light_blue_terracotta", "yellow_terracotta",
+                "lime_terracotta", "pink_terracotta", "gray_terracotta", "light_gray_terracotta",
+                "cyan_terracotta", "purple_terracotta", "blue_terracotta", "brown_terracotta",
+                "green_terracotta", "red_terracotta", "black_terracotta", "terracotta"
             ];
             
-            // Ya bilinen bir blok veya "block" içeren bir eşya olmalı
-            return placeableBlocks.some(b => blockName.includes(b)) || 
-                   blockName.includes("block") ||
-                   blockName.includes("concrete") ||
-                   blockName.includes("wool") ||
-                   blockName.includes("terracotta");
+            return validBlocks.includes(blockName);
         });
 
         if (!placeable) {
-            console.log("[build] Koyulabilir blok kalmadı (dirt, cobblestone, vb. gerekli)");
+            console.log("[build] Koyulabilir blok kalmadı (dirt, cobblestone, stone vb. gerekli)");
             bot.chat("Envanterde yapı bloğu kalmadı → 9×9 durduruldu");
             return;
         }
@@ -307,6 +318,7 @@ async function fastBuild9x9WithCenterHole() {
 
         try {
             await bot.equip(placeable, "hand");
+            await sleep(100); // Eşya değiştirme için bekle
         } catch (e) {
             console.log("[build] Eşya eline alınamadı:", e.message);
             await sleep(400);
@@ -331,25 +343,32 @@ async function fastBuild9x9WithCenterHole() {
                 const targetPos = new Vec3(centerX + dx, placeY, centerZ + dz);
 
                 const current = bot.blockAt(targetPos);
-                if (current.name !== "air" && current.name !== "cave_air") continue;
+                if (!current || (current.name !== "air" && current.name !== "cave_air")) continue;
 
-                // Altında destek olmalı
-                const below = bot.blockAt(targetPos.offset(0, -1, 0));
-                if (!below || below.name === "air" || below.name === "cave_air") continue;
+                // Altında destek olmalı - placeBlock için reference block (tıklanan blok)
+                const referencePos = targetPos.offset(0, -1, 0);
+                const referenceBlock = bot.blockAt(referencePos);
+                
+                if (!referenceBlock || referenceBlock.name === "air" || referenceBlock.name === "cave_air") continue;
+                if (!referenceBlock.boundingBox || referenceBlock.boundingBox === 'empty') continue;
 
                 try {
+                    // Bot'un hedefe bakması
                     await bot.lookAt(targetPos.offset(0.5, 0.5, 0.5), true);
-                    await sleep(50 + Math.random() * 80);
+                    await sleep(50 + Math.random() * 50);
 
-                    await bot.placeBlock(below, new Vec3(0, 1, 0));
+                    // placeBlock: referenceBlock'a tıklayıp üstüne (yukarı yön) koy
+                    await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+                    
                     placedCount++;
+                    console.log(`[build] Blok koyuldu: ${targetPos.x}, ${targetPos.y}, ${targetPos.z}`);
 
-                    // Her 12 blokta ufak mola
-                    if (placedCount % 12 === 0) {
-                        await sleep(250);
+                    // Her 8 blokta ufak mola
+                    if (placedCount % 8 === 0) {
+                        await sleep(150);
                     }
                 } catch (err) {
-                    // Hata durumunda devam et
+                    console.log(`[build hata] ${err.message || err}`);
                 }
             }
             if (Date.now() - startTime >= timeoutMs) break;
@@ -358,7 +377,7 @@ async function fastBuild9x9WithCenterHole() {
         console.log(`[build] Bu seferde ${placedCount} blok koyuldu`);
 
         // Eğer blok koyulabildiyse ve zaman varsa yan tarafa git
-        if (placedCount > 5) {
+        if (placedCount > 3) {
             try {
                 const offsetX = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
                 const offsetZ = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 10);
@@ -374,47 +393,40 @@ async function fastBuild9x9WithCenterHole() {
                 );
                 await sleep(600);
             } catch {}
+        } else if (placedCount === 0) {
+            // Hiç koyamadıysak biraz bekle ve tekrar dene
+            await sleep(500);
         }
 
-        await sleep(300 + Math.random() * 400);
+        await sleep(200 + Math.random() * 300);
     }
 
     console.log("[build] 10 saniye bitti");
 
     // Envanterde hala blok varsa tekrar başla
     const hasMoreBlocks = bot.inventory.items().some(item => {
-        const blockName = item.name;
         if (item.count < 1) return false;
+        const blockName = item.name;
         
-        const nonPlaceable = [
-            "air", "water_bucket", "lava_bucket", "potion", "splash_potion", 
-            "lingering_potion", "arrow", "spectral_arrow", "tipped_arrow", 
-            "shield", "elytra", "boat", "minecart", "chest_minecart",
-            "furnace_minecart", "tnt_minecart", "hopper_minecart", 
-            "command_block_minecart", "farmland", "wheat_seeds", "wheat",
-            "beetroot_seeds", "melon_seeds", "pumpkin_seeds", "potato", 
-            "carrot", "bone_meal", "string", "stick", "diamond", "iron_ingot",
-            "gold_ingot", "emerald", "coal", "redstone", "lapis_lazuli"
+        const validBlocks = [
+            "stone", "cobblestone", "dirt", "grass_block", "podzol", "mycelium",
+            "coarse_dirt", "rooted_dirt", "mud", "packed_mud", "mud_bricks",
+            "sand", "red_sand", "gravel", "clay", "snow_block", "ice", "packed_ice",
+            "blue_ice", "obsidian", "crying_obsidian", "netherrack", "soul_sand",
+            "soul_soil", "basalt", "smooth_basalt", "blackstone", "end_stone",
+            "granite", "diorite", "andesite", "calcite", "tuff", "dripstone_block",
+            "moss_block", "deepslate", "cobbled_deepslate", "polished_deepslate",
+            "bricks", "stone_bricks", "mossy_stone_bricks", "cracked_stone_bricks",
+            "chiseled_stone_bricks", "deepslate_bricks", "deepslate_tiles",
+            "planks", "log", "wood","farmland", "Farmland", "stripped_log", "stripped_wood",
+            "glass", "tinted_glass"
         ];
         
-        if (nonPlaceable.includes(blockName)) return false;
-        if (blockName.includes("bucket")) return false;
-        if (blockName.includes("seeds")) return false;
-        if (blockName.endsWith("_helmet")) return false;
-        if (blockName.endsWith("_chestplate")) return false;
-        if (blockName.endsWith("_leggings")) return false;
-        if (blockName.endsWith("_boots")) return false;
-        if (blockName.endsWith("_sword")) return false;
-        if (blockName.endsWith("_pickaxe")) return false;
-        if (blockName.endsWith("_axe")) return false;
-        if (blockName.endsWith("_shovel")) return false;
-        if (blockName.endsWith("_hoe")) return false;
-        
-        return true;
+        return validBlocks.includes(blockName);
     });
     
     if (hasMoreBlocks) {
-        setTimeout(fastBuild9x9WithCenterHole, 1200);
+        setTimeout(fastBuild9x9WithCenterHole, 1000);
     } else {
         bot.chat("Envanter bitti — 9×9 (orta boş) tamamlandı");
     }
