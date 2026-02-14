@@ -328,66 +328,7 @@ function createBot() {
         bot.chat(`9×9 inşa bitti – \( {platformCount} adet ( \){totalPlaced} blok)`);
     }
 
-    async function seedPlantingLoop() {
-        while (true) {
-            if (isSelling) {
-                await sleep(2000);
-                continue;
-            }
-
-            try {
-                const emptyFarmlands = bot.findBlocks({
-                    matching: block => block.name === 'farmland' && block.metadata === 0,
-                    maxDistance: 48,
-                    count: 12
-                });
-
-                if (emptyFarmlands.length === 0) {
-                    await sleep(1200 + Math.random() * 800);
-                    continue;
-                }
-
-                const pos = bot.entity.position;
-                emptyFarmlands.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
-
-                for (const farmlandPos of emptyFarmlands) {
-                    const block = bot.blockAt(farmlandPos);
-                    if (!block || block.name !== 'farmland' || block.metadata !== 0) continue;
-
-                    const seedItem = bot.inventory.items().find(item =>
-                        item.name.endsWith('_seeds') || item.name === 'wheat_seeds' ||
-                        item.name === 'beetroot_seeds' || item.name === 'melon_seeds' ||
-                        item.name === 'pumpkin_seeds' || item.name === 'potato' ||
-                        item.name === 'carrot'
-                    );
-
-                    if (!seedItem) {
-                        console.log("[seed] Envanterde ekilebilir tohum kalmadı");
-                        await sleep(5000);
-                        break;
-                    }
-
-                    try {
-                        await bot.equip(seedItem, 'hand');
-                        await bot.lookAt(farmlandPos.offset(0.5, 0.1, 0.5), true);
-                        await sleep(40 + Math.random() * 30);
-
-                        await bot.placeBlock(block, new Vec3(0, 1, 0));
-
-                        console.log(`[seed] Tohum eklendi → ${seedItem.name} @ ${farmlandPos}`);
-
-                    } catch (err) {}
-
-                    await sleep(80 + Math.random() * 60);
-                }
-
-            } catch (err) {
-                console.log("[seed hata]", err.message?.substring(0, 80) || err);
-            }
-
-            await sleep(400 + Math.random() * 400);
-        }
-    }
+    
 
     bot.on('end', reason => {
         console.log(`[!] Bağlantı kesildi: ${reason}`);
