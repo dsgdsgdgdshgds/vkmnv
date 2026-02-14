@@ -423,7 +423,7 @@ function createBot() {
                         // Farmland benzeri kontrol (sunucuya göre genişletildi)
                         return (
                             block.name === 'farmland' ||
-                            block.name.includes('farmland') ||
+                            block.name.includes('Farmland') ||
                             block.name.includes('soil') ||
                             block.name.includes('farm') ||
                             block.name.includes('cultivat') ||
