@@ -427,7 +427,7 @@ function createBot() {
                 console.log("[seed hata]", err.message?.substring(0, 80) || err);
             }
 
-            await sleep(600 + Math.random() * 600);
+            await sleep(6000 + Math.random() * 6000);
         }
     }
 
