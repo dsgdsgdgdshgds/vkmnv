@@ -1,7 +1,7 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
-// Vec3 sınıfı - paket yüklemeden manuel tanımlama
+ // Vec3 sınıfı - paket yüklemeden manuel tanımlama (floored metodu eklendi)
 class Vec3 {
   constructor(x, y, z) {
     this.x = x;
@@ -11,6 +11,15 @@ class Vec3 {
 
   offset(dx = 0, dy = 0, dz = 0) {
     return new Vec3(this.x + dx, this.y + dy, this.z + dz);
+  }
+
+  // Paketin beklediği floored metodu (aşağı yuvarlama)
+  floored() {
+    return new Vec3(
+      Math.floor(this.x),
+      Math.floor(this.y),
+      Math.floor(this.z)
+    );
   }
 }
 
