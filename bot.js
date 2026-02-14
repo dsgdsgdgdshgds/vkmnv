@@ -1,6 +1,12 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const { Vec3 } = require('vec3');   // ← BU SATIRI EKLE
 
+// ──────────────────────────────
+//   HOSTING PORT (zorunlu)
+// ──────────────────────────────
+const http = require('http');
+...
 // ──────────────────────────────
 //   HOSTING PORT (zorunlu)
 // ──────────────────────────────
