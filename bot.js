@@ -31,18 +31,19 @@ function createBot() {
     let spawnProcessed = false;
 
     // ──────────────────────────────
-    //    GİRİŞ (hiç dokunulmadı)
+    //    GİRİŞ (daha güvenli hale getirildi)
     // ──────────────────────────────
     async function performLoginSequence() {
         if (systemsStarted) return;
         console.log('[→] Login sırası başlatılıyor...');
 
         try {
-            await sleep(12000); bot.chat(`/login ${process.env.SIFRE}`);
-            await sleep(12000); bot.chat('/skyblock');
-            await sleep(12000); bot.chat('/warp Yoncatarl');
-            await sleep(18000);
+            await sleep(13000); bot.chat(`/login ${process.env.SIFRE}`);
+            await sleep(13000); bot.chat('/skyblock');
+            await sleep(13000); bot.chat('/warp Yoncaarla');
+            await sleep(25000);                    // ← burası arttırıldı
 
+            console.log('[✓] Login ve warp tamamlandı, sistemler başlatılıyor...');
             systemsStarted = true;
             startSystems();
         } catch (err) {
@@ -71,9 +72,9 @@ function createBot() {
 
         console.log('[✓] Hasat + Ekim + Satış sistemleri aktif');
 
-        continuousHarvestAndMoveLoop();   // HASAT
-        continuousPlantingLoop();         // EKİM (Vec3'siz)
-        sellLoop();                       // SATIŞ
+        continuousHarvestAndMoveLoop();
+        continuousPlantingLoop();
+        sellLoop();
     }
 
     // ──────────────────────────────
@@ -96,15 +97,20 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   HASAT (sadece bekleme süreleri arttırıldı)
+    //   HASAT
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
+            if (!systemsStarted) {               // ← EK KORUMA
+                await sleep(800);
+                continue;
+            }
             if (isSelling || !bot.entity?.position) {
-                await sleep(400);          // biraz arttırıldı
+                await sleep(400);
                 continue;
             }
 
+            // ... (geri kalan hasat kodu aynı) ...
             try {
                 const candidates = bot.findBlocks({
                     matching: b => b.name === 'wheat' && b.metadata === 7,
@@ -113,7 +119,7 @@ function createBot() {
                 });
 
                 if (candidates.length < 8) {
-                    await sleep(4800 + Math.random() * 3200);  // arttırıldı
+                    await sleep(4800 + Math.random() * 3200);
                     continue;
                 }
 
@@ -150,20 +156,25 @@ function createBot() {
 
             } catch (e) {}
 
-            await sleep(210 + Math.random() * 340);  // arttırıldı
+            await sleep(210 + Math.random() * 340);
         }
     }
 
     // ───────────────────────────────────────────────
-    //   EKİM (sadece bekleme süreleri arttırıldı)
+    //   EKİM
     // ───────────────────────────────────────────────
     async function continuousPlantingLoop() {
         while (true) {
+            if (!systemsStarted) {               // ← EK KORUMA
+                await sleep(800);
+                continue;
+            }
             if (isSelling || isBotBusy()) {
-                await sleep(160);          // biraz arttırıldı
+                await sleep(160);
                 continue;
             }
 
+            // ... (geri kalan ekim kodu tamamen aynı) ...
             try {
                 const farmlands = bot.findBlocks({
                     matching: block => {
@@ -176,7 +187,7 @@ function createBot() {
                 });
 
                 if (farmlands.length === 0) {
-                    await sleep(650 + Math.random() * 450);  // arttırıldı
+                    await sleep(650 + Math.random() * 450);
                     continue;
                 }
 
@@ -193,7 +204,6 @@ function createBot() {
                     continue;
                 }
 
-                // Yakınsa direkt ek, değilse git
                 if (pos.distanceTo(target) > 4.5) {
                     if (isBotBusy()) continue;
                     const goal = new goals.GoalNear(target.x, target.y + 1, target.z, 3.5);
@@ -205,16 +215,14 @@ function createBot() {
                     }
                 }
 
-                // ─────── EKME (Vec3'siz yöntem) ───────
                 await bot.equip(seeds, 'hand');
                 await bot.lookAt(target.offset(0.5, 0.9, 0.5), true);
                 await sleep(45 + Math.random() * 55);
 
-                // Düşük seviye packet (1.21 uyumlu)
                 const p = farmland.position;
                 bot._client.write('use_item_on', {
                     location: { x: p.x, y: p.y, z: p.z },
-                    face: 1,           // 1 = üst yüzey (+Y)
+                    face: 1,
                     hand: 0,
                     cursorX: 0.5,
                     cursorY: 0.5,
@@ -224,19 +232,22 @@ function createBot() {
 
                 console.log(`[ekim] ✅ 1 buğday eklendi  (${farmlands.length} boş farmland kaldı)`);
 
-            } catch (err) {
-                // sessiz
-            }
+            } catch (err) {}
 
-            await sleep(145 + Math.random() * 185);  // arttırıldı
+            await sleep(145 + Math.random() * 185);
         }
     }
 
     // ───────────────────────────────────────────────
-    //   SATIŞ (orijinal, hiç dokunulmadı)
+    //   SATIŞ
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
+            if (!systemsStarted) {               // ← EK KORUMA
+                await sleep(1000);
+                continue;
+            }
+
             await sleep(72000 + Math.random() * 18000);
 
             if (isSelling) continue;
