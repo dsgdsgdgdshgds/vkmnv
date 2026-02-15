@@ -231,7 +231,7 @@ function createBot() {
     }
 
  // ───────────────────────────────────────────────
-//   EKİM (hata düzeltilmiş hali)
+//   EKİM – HATA KESİNLİKLE ÖNLENMİŞ HALİ
 // ───────────────────────────────────────────────
 async function continuousPlantingLoop() {
     while (true) {
@@ -249,14 +249,15 @@ async function continuousPlantingLoop() {
             const farmlands = bot.findBlocks({
                 matching: block => {
                     if (block.name !== 'farmland') return false;
-                    const above = bot.blockAt(block.position.offset(0, 1, 0));
+                    const abovePos = block.position.offset(0, 1, 0);
+                    const above = bot.blockAt(abovePos);
                     return !above || (above.name !== 'wheat' && above.name !== 'seeds');
                 },
                 maxDistance: 30,
                 count: 50
             });
 
-            if (farmlands.length === 0) {
+            if (!farmlands || farmlands.length === 0) {
                 await sleep(1400 + Math.random() * 900);
                 continue;
             }
@@ -264,12 +265,20 @@ async function continuousPlantingLoop() {
             const pos = bot.entity.position;
             farmlands.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
 
-            const target = farmlands[0];  // bu bir Vec3
+            const target = farmlands[0];
 
-            // Farmland bloğunu kontrol et (null olma ihtimaline karşı)
+            // ── KRİTİK KONTROLLER ──
+            if (!target || typeof target !== 'object' || !('x' in target) || !('y' in target) || !('z' in target)) {
+                console.log('[ekim] target geçersiz (null/undefined veya Vec3 değil) → atlanıyor');
+                await sleep(600);
+                continue;
+            }
+
+            console.log(`[ekim] Hedef farmland pozisyonu: ${target.x}, ${target.y}, ${target.z}`);
+
             const farmland = bot.blockAt(target);
             if (!farmland || farmland.name !== 'farmland') {
-                console.log('[ekim] Farmland bloğu kayboldu veya geçersiz → atlanıyor');
+                console.log('[ekim] blockAt(target) farmland dönmedi → atlanıyor');
                 await randomSmallOffset();
                 continue;
             }
@@ -283,11 +292,16 @@ async function continuousPlantingLoop() {
 
             const handItem = bot.entity?.heldItem;
             if (!handItem || handItem.name !== 'wheat_seeds') {
-                await bot.equip(seeds, 'hand');
-                await sleep(180 + Math.random() * 120);
+                try {
+                    await bot.equip(seeds, 'hand');
+                    await sleep(180 + Math.random() * 120);
+                } catch (e) {
+                    console.log('[ekim] Equip hatası:', e.message);
+                    continue;
+                }
             }
 
-            if (bot.entity?.heldItem?.name !== 'wheat_seeds') {
+            if (!bot.entity?.heldItem || bot.entity.heldItem.name !== 'wheat_seeds') {
                 console.log('[ekim] Uyarı: Elinde hala tohum yok!');
                 await sleep(600);
                 continue;
@@ -297,26 +311,39 @@ async function continuousPlantingLoop() {
                 const goal = new goals.GoalNear(target.x, target.y + 1, target.z, 3.2);
                 try {
                     await bot.pathfinder.goto(goal, { timeout: 6000 });
-                } catch {
+                } catch (e) {
+                    console.log('[ekim] Yol bulma hatası → kayma');
                     await randomSmallOffset();
                     continue;
                 }
             }
 
-            // Bakış: target (Vec3) üzerinde offset kullan → farmland null olsa bile çalışır
-            const lookPos = target.offset(0.5, 0.8 + Math.random() * 0.2, 0.5);
+            // ── Güvenli bakış pozisyonu hesaplama ──
+            let lookPos;
+            try {
+                lookPos = target.offset(0.5, 0.8 + Math.random() * 0.2, 0.5);
+            } catch (e) {
+                console.log('[ekim] offset hatası yakalandı:', e.message);
+                lookPos = new Vec3(target.x + 0.5, target.y + 1, target.z + 0.5);
+            }
+
             await bot.lookAt(lookPos, true);
             await sleep(140 + Math.random() * 180);
 
-            // place pozisyonu için farmland.position yerine target kullan (aynı şey)
-            const placeLocation = { x: target.x, y: target.y, z: target.z };
+            const placeLocation = { 
+                x: Math.floor(target.x), 
+                y: Math.floor(target.y), 
+                z: Math.floor(target.z) 
+            };
 
-            // Son kontrol
-            if (bot.entity?.heldItem?.name !== 'wheat_seeds') continue;
+            if (!bot.entity?.heldItem || bot.entity.heldItem.name !== 'wheat_seeds') {
+                console.log('[ekim] Son kontrolde tohum yok → atlanıyor');
+                continue;
+            }
 
             bot._client.write('use_item_on', {
                 location: placeLocation,
-                face: 1,              // üst yüz (farmland'ın üstü)
+                face: 1,
                 hand: 0,
                 cursorX: 0.5,
                 cursorY: 0.5,
@@ -324,10 +351,10 @@ async function continuousPlantingLoop() {
                 insideBlock: false
             });
 
-            console.log(`[ekim] ✅ 1 buğday tohumu ekildi  (${farmlands.length - 1} boş farmland kaldı)`);
+            console.log(`[ekim] ✅ 1 tohum ekildi  (${farmlands.length - 1} boş farmland kaldı)`);
 
         } catch (err) {
-            console.log('[ekim] Hata:', err.message?.substring(0, 80) || err);
+            console.log('[ekim] Genel hata:', err.message?.substring(0, 120) || err);
         }
 
         await sleep(450 + Math.random() * 550);
