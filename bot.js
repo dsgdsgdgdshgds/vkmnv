@@ -40,7 +40,7 @@ function createBot() {
         try {
             await sleep(12000); bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(12000); bot.chat('/skyblock');
-            await sleep(12000); bot.chat('/warp Yoncatrla');
+            await sleep(12000); bot.chat('/warp Yoncatarla');
             await sleep(18000);
 
             systemsStarted = true;
@@ -96,12 +96,12 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   HASAT (orijinal, hiç dokunulmadı)
+    //   HASAT (sadece bekleme süreleri arttırıldı)
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
             if (isSelling || !bot.entity?.position) {
-                await sleep(300);
+                await sleep(400);          // biraz arttırıldı
                 continue;
             }
 
@@ -113,7 +113,7 @@ function createBot() {
                 });
 
                 if (candidates.length < 8) {
-                    await sleep(3500 + Math.random() * 2500);
+                    await sleep(4800 + Math.random() * 3200);  // arttırıldı
                     continue;
                 }
 
@@ -150,17 +150,17 @@ function createBot() {
 
             } catch (e) {}
 
-            await sleep(140 + Math.random() * 260);
+            await sleep(210 + Math.random() * 340);  // arttırıldı
         }
     }
 
     // ───────────────────────────────────────────────
-    //   EKİM (Vec3 tamamen kaldırıldı - düşük seviye packet ile)
+    //   EKİM (sadece bekleme süreleri arttırıldı)
     // ───────────────────────────────────────────────
     async function continuousPlantingLoop() {
         while (true) {
             if (isSelling || isBotBusy()) {
-                await sleep(120);
+                await sleep(160);          // biraz arttırıldı
                 continue;
             }
 
@@ -176,7 +176,7 @@ function createBot() {
                 });
 
                 if (farmlands.length === 0) {
-                    await sleep(400 + Math.random() * 300);
+                    await sleep(650 + Math.random() * 450);  // arttırıldı
                     continue;
                 }
 
@@ -208,7 +208,7 @@ function createBot() {
                 // ─────── EKME (Vec3'siz yöntem) ───────
                 await bot.equip(seeds, 'hand');
                 await bot.lookAt(target.offset(0.5, 0.9, 0.5), true);
-                await sleep(200 + Math.random() * 250);
+                await sleep(45 + Math.random() * 55);
 
                 // Düşük seviye packet (1.21 uyumlu)
                 const p = farmland.position;
@@ -228,7 +228,7 @@ function createBot() {
                 // sessiz
             }
 
-            await sleep(150 + Math.random() * 200);
+            await sleep(145 + Math.random() * 185);  // arttırıldı
         }
     }
 
