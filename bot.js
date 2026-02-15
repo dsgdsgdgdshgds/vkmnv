@@ -228,7 +228,7 @@ function createBot() {
                 // sessiz
             }
 
-            await sleep(95 + Math.random() * 125);
+            await sleep(150 + Math.random() * 200);
         }
     }
 
