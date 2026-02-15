@@ -277,7 +277,7 @@ async function continuousPlantingLoop() {
             console.log(`[ekim] Hedef farmland pozisyonu: ${target.x}, ${target.y}, ${target.z}`);
 
             const farmland = bot.blockAt(target);
-            if (!farmland || farmland.name !== 'farmland') {
+            if (!farmland || farmland.name !== 'Farmland') {
                 console.log('[ekim] blockAt(target) farmland dönmedi → atlanıyor');
                 await randomSmallOffset();
                 continue;
