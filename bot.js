@@ -1,6 +1,5 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
-const { Vec3 } = require('vec3');
 
 // ──────────────────────────────
 //   HOSTING PORT
@@ -21,7 +20,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'Xkakahi',
+        username: 'Xkakashi',
         version: '1.21'
     });
 
@@ -41,7 +40,7 @@ function createBot() {
         try {
             await sleep(12000); bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(12000); bot.chat('/skyblock');
-            await sleep(12000); bot.chat('/warp Yoncatala');
+            await sleep(12000); bot.chat('/warp Yoncatrla');
             await sleep(18000);
 
             systemsStarted = true;
@@ -73,7 +72,7 @@ function createBot() {
         console.log('[✓] Hasat + Ekim + Satış sistemleri aktif');
 
         continuousHarvestAndMoveLoop();   // HASAT
-        continuousPlantingLoop();         // EKİM (yeni)
+        continuousPlantingLoop();         // EKİM (Vec3'siz)
         sellLoop();                       // SATIŞ
     }
 
@@ -97,7 +96,7 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   HASAT (orijinal, sadece küçük iyileştirme)
+    //   HASAT (orijinal, hiç dokunulmadı)
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
@@ -156,11 +155,10 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   EKİM (30 blok tarama + HASATA/SATIŞA ZERRE ENGEL OLMUYOR)
+    //   EKİM (Vec3 tamamen kaldırıldı - düşük seviye packet ile)
     // ───────────────────────────────────────────────
     async function continuousPlantingLoop() {
         while (true) {
-            // EN ÖNEMLİ KISIM: Hasat veya satış varsa bekle
             if (isSelling || isBotBusy()) {
                 await sleep(120);
                 continue;
@@ -195,7 +193,7 @@ function createBot() {
                     continue;
                 }
 
-                // Çok yakınsa direkt ek, değilse git
+                // Yakınsa direkt ek, değilse git
                 if (pos.distanceTo(target) > 4.5) {
                     if (isBotBusy()) continue;
                     const goal = new goals.GoalNear(target.x, target.y + 1, target.z, 3.5);
@@ -207,25 +205,35 @@ function createBot() {
                     }
                 }
 
-                // EKME
+                // ─────── EKME (Vec3'siz yöntem) ───────
                 await bot.equip(seeds, 'hand');
-                await bot.lookAt(target.offset(0.5, 0.6, 0.5), true);
-                await sleep(38 + Math.random() * 42);
-                await bot.placeBlock(farmland, new Vec3(0, 1, 0));
+                await bot.lookAt(target.offset(0.5, 0.9, 0.5), true);
+                await sleep(45 + Math.random() * 55);
+
+                // Düşük seviye packet (1.21 uyumlu)
+                const p = farmland.position;
+                bot._client.write('use_item_on', {
+                    location: { x: p.x, y: p.y, z: p.z },
+                    face: 1,           // 1 = üst yüzey (+Y)
+                    hand: 0,
+                    cursorX: 0.5,
+                    cursorY: 0.5,
+                    cursorZ: 0.5,
+                    insideBlock: false
+                });
 
                 console.log(`[ekim] ✅ 1 buğday eklendi  (${farmlands.length} boş farmland kaldı)`);
 
             } catch (err) {
-                // console.log("[ekim hata]", err.message?.substring(0,60) || err); // spam olmasın
+                // sessiz
             }
 
-            // HASATTAN ÇOK HIZLI ama çakışma yok
             await sleep(95 + Math.random() * 125);
         }
     }
 
     // ───────────────────────────────────────────────
-    //   SATIŞ (orijinal)
+    //   SATIŞ (orijinal, hiç dokunulmadı)
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
