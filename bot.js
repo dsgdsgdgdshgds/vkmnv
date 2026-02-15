@@ -214,7 +214,7 @@ function createBot() {
                 .filter(i => i.name === 'wheat')
                 .reduce((sum, item) => sum + item.count, 0);
 
-            if (totalWheat >= 520) {
+            if (totalWheat >= 350) {
                 isSelling = true;
                 console.log(`[sat] ${totalWheat} buğday → /sell all`);
 
