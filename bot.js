@@ -243,11 +243,14 @@ async function continuousPlantingLoop() {
             await sleep(800);
             continue;
         }
-        if (isSelling || isBotBusy()) {
+        
+        if (isSelling) {                  // sadece isSelling kontrol et
             await sleep(300);
             continue;
         }
 
+        try {
+            // ... geri kalan ekim kodu tamamen aynı ...
         try {
             const farmlands = bot.findBlocks({
                 matching: block => {
