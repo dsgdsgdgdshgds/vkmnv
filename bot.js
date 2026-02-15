@@ -34,7 +34,7 @@ function createBot() {
     let spawnProcessed = false;
 
     // ──────────────────────────────
-    //    GİRİŞ KISMI (değişmedi)
+    //    GİRİŞ KISMI
     // ──────────────────────────────
     async function performLoginSequence() {
         if (systemsStarted) return;
@@ -97,9 +97,6 @@ function createBot() {
         continuousPlantingLoop();
     }
 
-    // ───────────────────────────────────────────────
-    //   Küçük rastgele kayma hareketi
-    // ───────────────────────────────────────────────
     async function randomSmallOffset() {
         const dx = Math.random() * 5 - 2.5;
         const dz = Math.random() * 5 - 2.5;
@@ -115,12 +112,12 @@ function createBot() {
                 { timeout: 7000 }
             );
         } catch {
-            // sessiz geç
+            // sessiz
         }
     }
 
     // ───────────────────────────────────────────────
-    //   ÇOK HIZLI HASAT – ALAN TARAMA + YOLDA ÇOK KIRMA
+    //   HASAT (değişmedi)
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
@@ -202,7 +199,7 @@ function createBot() {
     }
 
     // ───────────────────────────────────────────────
-    //   SATIŞ
+    //   SATIŞ (değişmedi)
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
@@ -230,141 +227,155 @@ function createBot() {
         }
     }
 
-// ───────────────────────────────────────────────
-//   EKİM – ARTİK PATLAMAYACAK, SÜPER GÜVENLİ HALİ
-// ───────────────────────────────────────────────
-async function continuousPlantingLoop() {
-    while (true) {
-        if (!systemsStarted) {
-            await sleep(800);
-            continue;
-        }
-
-        if (isSelling) {
-            await sleep(300);
-            continue;
-        }
-
-        try {
-            const farmlands = bot.findBlocks({
-                matching: block => {
-                    if (!block || block.name !== 'farmland') return false;
-                    const abovePos = block.position ? block.position.offset(0, 1, 0) : null;
-                    if (!abovePos) return false;
-                    const above = bot.blockAt(abovePos);
-                    return !above || (above.name !== 'wheat' && above.name !== 'seeds');
-                },
-                maxDistance: 30,
-                count: 50
-            });
-
-            if (!Array.isArray(farmlands) || farmlands.length === 0) {
-                // console.log('[ekim] Hiç farmland bulunamadı');
-                await sleep(1400 + Math.random() * 900);
-                continue;
-            }
-
-            const pos = bot.entity?.position;
-            if (!pos) {
+    // ───────────────────────────────────────────────
+    //   EKİM – DEBUG LOG DOLU, PATLAMAZ VERSİYON
+    // ───────────────────────────────────────────────
+    async function continuousPlantingLoop() {
+        while (true) {
+            if (!systemsStarted) {
+                console.log('[ekim DEBUG] Sistemler henüz başlamadı, 800ms bekle');
                 await sleep(800);
                 continue;
             }
 
-            // En yakını seçmeden önce her birini doğrula
-            const validFarmlands = farmlands.filter(t => 
-                t && typeof t === 'object' && 
-                typeof t.x === 'number' && !isNaN(t.x) &&
-                typeof t.y === 'number' && !isNaN(t.y) &&
-                typeof t.z === 'number' && !isNaN(t.z)
-            );
-
-            if (validFarmlands.length === 0) {
-                console.log('[ekim] Geçerli Vec3 farmland yok (hepsi invalid) → bekleniyor');
-                await sleep(1200);
+            if (isSelling) {
+                console.log('[ekim DEBUG] Satış aktif, 300ms bekle');
+                await sleep(300);
                 continue;
             }
 
-            validFarmlands.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
-            const target = validFarmlands[0];
+            console.log('[ekim DEBUG] Döngü çalışıyor – farmland taranıyor...');
 
-            // Ekstra null/undefined koruması (artık imkansız olmalı)
-            if (!target || typeof target.x !== 'number') {
-                console.log('[ekim] Seçilen target hala geçersiz → atlanıyor');
-                await sleep(600);
-                continue;
-            }
+            try {
+                const farmlands = bot.findBlocks({
+                    matching: block => {
+                        if (!block || block.name !== 'farmland') return false;
+                        const abovePos = block.position ? block.position.offset(0, 1, 0) : null;
+                        if (!abovePos) return false;
+                        const above = bot.blockAt(abovePos);
+                        return !above || (above.name !== 'wheat' && above.name !== 'seeds');
+                    },
+                    maxDistance: 30,
+                    count: 50
+                });
 
-            // Artık güvenli: offset çağrılabilir
-            const lookPos = target.offset(0.5, 0.8 + Math.random() * 0.2, 0.5);
+                console.log(`[ekim DEBUG] Bulunan potansiyel boş farmland sayısı: ${farmlands?.length ?? 'hata'}`);
 
-            const farmland = bot.blockAt(target);
-            if (!farmland || farmland.name !== 'farmland') {
-                console.log('[ekim] blockAt geçersiz farmland → atlanıyor');
-                await randomSmallOffset();
-                continue;
-            }
-
-            let seeds = bot.inventory.items().find(i => i && i.name === 'wheat_seeds');
-            if (!seeds) {
-                console.log('[ekim] Tohum yok → bekle');
-                await sleep(1800);
-                continue;
-            }
-
-            const handItem = bot.entity?.heldItem;
-            if (!handItem || handItem.name !== 'wheat_seeds') {
-                try {
-                    await bot.equip(seeds, 'hand');
-                    await sleep(200 + Math.random() * 100);
-                } catch (equipErr) {
-                    console.log('[ekim] Equip başarısız:', equipErr.message?.slice(0,60));
+                if (!Array.isArray(farmlands) || farmlands.length === 0) {
+                    console.log('[ekim DEBUG] Boş farmland yok – 1.4-2.3 sn bekleniyor');
+                    await sleep(1400 + Math.random() * 900);
                     continue;
                 }
-            }
 
-            if (!bot.entity?.heldItem || bot.entity.heldItem.name !== 'wheat_seeds') {
-                await sleep(600);
-                continue;
-            }
+                const pos = bot.entity?.position;
+                if (!pos) {
+                    console.log('[ekim DEBUG] Bot pozisyonu yok – bekle');
+                    await sleep(800);
+                    continue;
+                }
 
-            if (pos.distanceTo(target) > 4.2) {
-                const goal = new goals.GoalNear(target.x, target.y + 1, target.z, 3.2);
-                try {
-                    await bot.pathfinder.goto(goal, { timeout: 7000 });
-                } catch {
+                const validFarmlands = farmlands.filter(t => 
+                    t && typeof t === 'object' && 
+                    typeof t.x === 'number' && !isNaN(t.x) &&
+                    typeof t.y === 'number' && !isNaN(t.y) &&
+                    typeof t.z === 'number' && !isNaN(t.z)
+                );
+
+                console.log(`[ekim DEBUG] Geçerli Vec3 farmland sayısı: ${validFarmlands.length}`);
+
+                if (validFarmlands.length === 0) {
+                    console.log('[ekim DEBUG] Hiç geçerli farmland kalmadı – bekle');
+                    await sleep(1200);
+                    continue;
+                }
+
+                validFarmlands.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+                const target = validFarmlands[0];
+
+                if (!target || typeof target.x !== 'number') {
+                    console.log('[ekim DEBUG] Seçilen target geçersiz – atlanıyor');
+                    await sleep(600);
+                    continue;
+                }
+
+                console.log(`[ekim DEBUG] Hedef seçildi: x=\( {target.x} y= \){target.y} z=${target.z}`);
+
+                const farmland = bot.blockAt(target);
+                if (!farmland || farmland.name !== 'farmland') {
+                    console.log('[ekim DEBUG] blockAt farmland dönmedi – atlanıyor');
                     await randomSmallOffset();
                     continue;
                 }
+
+                let seeds = bot.inventory.items().find(i => i && i.name === 'wheat_seeds');
+                console.log(`[ekim DEBUG] Tohum sayısı: ${seeds ? seeds.count : 0}`);
+
+                if (!seeds) {
+                    console.log('[ekim] Tohum yok, bekleniyor...');
+                    await sleep(1800);
+                    continue;
+                }
+
+                const handItem = bot.entity?.heldItem;
+                if (!handItem || handItem.name !== 'wheat_seeds') {
+                    try {
+                        await bot.equip(seeds, 'hand');
+                        await sleep(180 + Math.random() * 120);
+                        console.log('[ekim DEBUG] Tohum ele alındı');
+                    } catch (e) {
+                        console.log('[ekim DEBUG] Equip hatası:', e.message?.slice(0,60) || e);
+                        continue;
+                    }
+                }
+
+                if (!bot.entity?.heldItem || bot.entity.heldItem.name !== 'wheat_seeds') {
+                    console.log('[ekim DEBUG] Elinde tohum yok (son kontrol) – bekle');
+                    await sleep(600);
+                    continue;
+                }
+
+                if (pos.distanceTo(target) > 4.2) {
+                    const goal = new goals.GoalNear(target.x, target.y + 1, target.z, 3.2);
+                    try {
+                        await bot.pathfinder.goto(goal, { timeout: 7000 });
+                        console.log('[ekim DEBUG] Hedefe ulaşıldı');
+                    } catch (e) {
+                        console.log('[ekim DEBUG] Yol bulma başarısız – kayma yapılıyor');
+                        await randomSmallOffset();
+                        continue;
+                    }
+                }
+
+                const lookPos = target.offset(0.5, 0.8 + Math.random() * 0.2, 0.5);
+                await bot.lookAt(lookPos, true);
+                await sleep(140 + Math.random() * 180);
+
+                const placeLoc = { 
+                    x: Math.floor(target.x), 
+                    y: Math.floor(target.y), 
+                    z: Math.floor(target.z) 
+                };
+
+                bot._client.write('use_item_on', {
+                    location: placeLoc,
+                    face: 1,
+                    hand: 0,
+                    cursorX: 0.5,
+                    cursorY: 0.5,
+                    cursorZ: 0.5,
+                    insideBlock: false
+                });
+
+                console.log(`[ekim] ✅ 1 tohum ekildi (${validFarmlands.length - 1} boş kaldı)`);
+
+            } catch (err) {
+                console.log('[ekim] Genel hata:', err.message?.substring(0, 100) || String(err));
             }
 
-            await bot.lookAt(lookPos, true);
-            await sleep(140 + Math.random() * 180);
-
-            const placeLoc = { 
-                x: Math.floor(target.x), 
-                y: Math.floor(target.y), 
-                z: Math.floor(target.z) 
-            };
-
-            bot._client.write('use_item_on', {
-                location: placeLoc,
-                face: 1,
-                hand: 0,
-                cursorX: 0.5,
-                cursorY: 0.5,
-                cursorZ: 0.5,
-                insideBlock: false
-            });
-
-            console.log(`[ekim] ✅ Ekildi (${validFarmlands.length - 1} boş kaldı)`);
-
-        } catch (err) {
-            console.log('[ekim] Hata yakalandı:', err.message?.substring(0, 100) || String(err));
+            await sleep(450 + Math.random() * 550);
         }
-
-        await sleep(450 + Math.random() * 550);
     }
-}
+
     bot.on('end', reason => {
         console.log(`[!] Bağlantı kesildi: ${reason}`);
         systemsStarted = false;
