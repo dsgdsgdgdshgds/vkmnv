@@ -208,7 +208,7 @@ function createBot() {
                 // ─────── EKME (Vec3'siz yöntem) ───────
                 await bot.equip(seeds, 'hand');
                 await bot.lookAt(target.offset(0.5, 0.9, 0.5), true);
-                await sleep(45 + Math.random() * 55);
+                await sleep(200 + Math.random() * 250);
 
                 // Düşük seviye packet (1.21 uyumlu)
                 const p = farmland.position;
