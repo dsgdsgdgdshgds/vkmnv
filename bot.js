@@ -40,7 +40,7 @@ function createBot() {
         try {
             await sleep(12000); bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(12000); bot.chat('/skyblock');
-            await sleep(12000); bot.chat('/warp Yoncatarla');
+            await sleep(12000); bot.chat('/warp Yoncatarl');
             await sleep(18000);
 
             systemsStarted = true;
