@@ -20,7 +20,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: 'play.reborncraft.pw',
         port: 25565,
-        username: 'Xkakahi',
+        username: 'Alix770',
         version: '1.21'
     });
 
@@ -40,7 +40,7 @@ function createBot() {
         try {
             await sleep(13000); bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(13000); bot.chat('/skyblock');
-            await sleep(13000); bot.chat('/warp Yoncaarla');
+            await sleep(13000); bot.chat('/warp Yoncatarla');
             await sleep(25000);                    // ← burası arttırıldı
 
             console.log('[✓] Login ve warp tamamlandı, sistemler başlatılıyor...');
@@ -101,16 +101,15 @@ function createBot() {
     // ───────────────────────────────────────────────
     async function continuousHarvestAndMoveLoop() {
         while (true) {
-            if (!systemsStarted) {               // ← EK KORUMA
+            if (!systemsStarted) {
                 await sleep(800);
                 continue;
             }
             if (isSelling || !bot.entity?.position) {
-                await sleep(400);
+                await sleep(600);
                 continue;
             }
 
-            // ... (geri kalan hasat kodu aynı) ...
             try {
                 const candidates = bot.findBlocks({
                     matching: b => b.name === 'wheat' && b.metadata === 7,
@@ -119,7 +118,7 @@ function createBot() {
                 });
 
                 if (candidates.length < 8) {
-                    await sleep(4800 + Math.random() * 3200);
+                    await sleep(6800 + Math.random() * 4200);   // ← biraz daha arttırıldı
                     continue;
                 }
 
@@ -146,7 +145,7 @@ function createBot() {
 
                     try {
                         await bot.lookAt(bp.offset(0.5, 1.6, 0.5), true);
-                        await sleep(30 + Math.random() * 40);
+                        await sleep(50 + Math.random() * 70);   // ← biraz daha doğal
                         await bot.dig(block, true);
                         broken++;
                     } catch {}
@@ -156,7 +155,7 @@ function createBot() {
 
             } catch (e) {}
 
-            await sleep(210 + Math.random() * 340);
+            await sleep(480 + Math.random() * 520);   // ← hasat döngüsü beklemesi arttırıldı
         }
     }
 
@@ -165,16 +164,15 @@ function createBot() {
     // ───────────────────────────────────────────────
     async function continuousPlantingLoop() {
         while (true) {
-            if (!systemsStarted) {               // ← EK KORUMA
+            if (!systemsStarted) {
                 await sleep(800);
                 continue;
             }
             if (isSelling || isBotBusy()) {
-                await sleep(160);
+                await sleep(300);
                 continue;
             }
 
-            // ... (geri kalan ekim kodu tamamen aynı) ...
             try {
                 const farmlands = bot.findBlocks({
                     matching: block => {
@@ -187,7 +185,7 @@ function createBot() {
                 });
 
                 if (farmlands.length === 0) {
-                    await sleep(650 + Math.random() * 450);
+                    await sleep(1200 + Math.random() * 800);   // ← biraz arttırıldı
                     continue;
                 }
 
@@ -200,7 +198,7 @@ function createBot() {
 
                 const seeds = bot.inventory.items().find(i => i.name === 'wheat_seeds');
                 if (!seeds) {
-                    await sleep(800);
+                    await sleep(1200);
                     continue;
                 }
 
@@ -217,7 +215,7 @@ function createBot() {
 
                 await bot.equip(seeds, 'hand');
                 await bot.lookAt(target.offset(0.5, 0.9, 0.5), true);
-                await sleep(45 + Math.random() * 55);
+                await sleep(80 + Math.random() * 100);   // ← biraz daha yavaş/natural
 
                 const p = farmland.position;
                 bot._client.write('use_item_on', {
@@ -234,7 +232,7 @@ function createBot() {
 
             } catch (err) {}
 
-            await sleep(145 + Math.random() * 185);
+            await sleep(380 + Math.random() * 420);   // ← ekim döngüsü beklemesi arttırıldı
         }
     }
 
@@ -243,7 +241,7 @@ function createBot() {
     // ───────────────────────────────────────────────
     async function sellLoop() {
         while (true) {
-            if (!systemsStarted) {               // ← EK KORUMA
+            if (!systemsStarted) {
                 await sleep(1000);
                 continue;
             }
