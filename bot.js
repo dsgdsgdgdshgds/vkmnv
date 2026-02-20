@@ -77,7 +77,7 @@ client.on('messageCreate', async (message) => {
             setTimeout(async () => {
                 try {
                     console.log('Yenileme mesajına yanıt gönderiliyor...');
-                    await message.reply('sunucuyu tekrar paylaşır mısın?');
+                    await message.reply('önceki mesajları göremiyorum sunucuyu tekrar paylaşır mısın?');
                     console.log('Yenileme yanıtı gönderildi!');
                 } catch (error) {
                     console.error('Yenileme yanıtı gönderilirken hata:', error);
