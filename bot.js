@@ -1,353 +1,252 @@
-const mineflayer = require('mineflayer');
-const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const { Client } = require('discord.js-selfbot-v13');
+const client = new Client({ checkUpdate: false });
 
-// ──────────────────────────────
-//   HOSTING PORT (zorunlu)
-// ──────────────────────────────
-const http = require('http');
+// HATAYI TAMAMEN SUSTURAN VE TIKLAMAYI SİMÜLE EDEN KISIM
+client.captchaService = { solve: () => new Promise(res => setTimeout(res, 10000)) };
+// Kütüphanenin içindeki hata fırlatıcıyı devre dışı bırakıyoruz:
+client.options.captchaService = client.captchaService; 
 
-const PORT = process.env.PORT || 3000;
 
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot aktif 🚀');
-}).listen(PORT, () => {
-    console.log(`[✓] Hosting port açık: ${PORT}`);
+// === AYARLAR ===
+const LOG_CHANNEL_ID = '1425453225343193088';
+const NOTIFICATION_CHANNEL_ID = '1425156091339079962';
+const NOTIFICATION_ROLE_ID = '1425475242398187590'; // SADECE ID, @& OLMADAN
+// ===============
+
+// Discord davet linki regex deseni
+const DISCORD_INVITE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discordapp\.com\/invite)\/([A-Za-z0-9-]+)/gi;
+
+// "yenileme" kelimesi için kontrol (büyük/küçük harf duyarsız)
+const RENEWAL_REGEX = /yenileme/i;
+
+const client = new Client({
+    checkUpdate: false
 });
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+let isConnected = false;
 
-function createBot() {
-    console.log('--- [Sistem] Bot Başlatılıyor ---');
-
-    const bot = mineflayer.createBot({
-        host: 'play.reborncraft.pw',
-        port: 25565,
-        username: 'Xkakashi',
-        version: '1.21'
-    });
-
-    bot.loadPlugin(pathfinder);
-
-    let isSelling = false;
-    let systemsStarted = false;
-    let spawnProcessed = false;
-
-    // ──────────────────────────────
-    //    GİRİŞ KISMI
-    // ──────────────────────────────
-    async function performLoginSequence() {
-        if (systemsStarted) return;
-
-        console.log('[→] Login sırası başlatılıyor...');
-
-        try {
-            await sleep(12000);
-            bot.chat(`/login ${process.env.SIFRE}`);
-            console.log('[→] /login gönderildi');
-
-            await sleep(12000);
-            bot.chat('/skyblock');
-            console.log('[→] /skyblock gönderildi');
-
-            await sleep(12000);
-            bot.chat('/warp Yoncatarla');
-            console.log('[→] /warp Yoncatarla gönderildi');
-
-            await sleep(18000);
-
-            console.log('[!] Sistemler aktif ediliyor...');
-            systemsStarted = true;
-            startSystems();
-
-        } catch (err) {
-            console.log('[!] Giriş sırasında hata:', err.message);
-        }
-    }
-
-    bot.on('spawn', () => {
-        console.log('[!] Bot spawn oldu.');
-
-        if (spawnProcessed) {
-            console.log('[!] Spawn zaten işlendi, yoksayılıyor.');
+async function copyMessageToLogChannel(message) {
+    try {
+        const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+        
+        if (!logChannel) {
+            console.error('Log kanalı bulunamadı! ID: ' + LOG_CHANNEL_ID);
             return;
         }
 
-        spawnProcessed = true;
-        performLoginSequence();
-    });
+        await logChannel.send(message.content);
+        console.log(`Mesaj log kanalına kopyalandı: ${message.id}`);
 
-    function startSystems() {
-        const mcData = require('minecraft-data')(bot.version);
-        const movements = new Movements(bot, mcData);
-
-        movements.canDig = true;
-        movements.canJump = true;
-        movements.allowSprinting = true;
-        movements.allowParkour = true;
-        movements.allow1by1 = true;
-        movements.maxDropDown = 5;
-
-        bot.pathfinder.setMovements(movements);
-
-        console.log('[✓] Hasat ve satış sistemleri başlatıldı.');
-
-        continuousHarvestAndMoveLoop();
-        sellLoop();
-        continuousPlantingLoop();   // ← ekim döngüsü burada başlatılıyor
+    } catch (error) {
+        console.error('Mesaj kopyalanırken hata:', error);
     }
-
-    // ───────────────────────────────────────────────
-    //   Küçük rastgele kayma hareketi
-    // ───────────────────────────────────────────────
-    async function randomSmallOffset() {
-        const dx = Math.random() * 5 - 2.5;
-        const dz = Math.random() * 5 - 2.5;
-
-        try {
-            await bot.pathfinder.goto(
-                new goals.GoalNear(
-                    Math.round(bot.entity.position.x + dx),
-                    Math.round(bot.entity.position.y),
-                    Math.round(bot.entity.position.z + dz),
-                    1.8
-                ),
-                { timeout: 7000 }
-            );
-        } catch {
-            // sessiz geç
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    //   HASAT (değişmedi)
-    // ───────────────────────────────────────────────
-    async function continuousHarvestAndMoveLoop() {
-        while (true) {
-            if (isSelling || !bot.entity?.position) {
-                await sleep(400);
-                continue;
-            }
-
-            try {
-                const candidates = bot.findBlocks({
-                    matching: block => block.name === 'wheat' && block.metadata === 7,
-                    maxDistance: 70,
-                    count: 40
-                });
-
-                if (candidates.length < 8) {
-                    console.log("[harvest] Çok az olgun buğday → 4-7 sn bekle");
-                    await sleep(4000 + Math.random() * 3000);
-                    continue;
-                }
-
-                const pos = bot.entity.position;
-                candidates.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
-
-                const targetCenter = candidates[0];
-
-                console.log(`[→] Hedef bölgeye gidiliyor (${candidates.length} olgun buğday)`);
-
-                const goal = new goals.GoalNear(targetCenter.x, targetCenter.y + 1, targetCenter.z, 4);
-                try {
-                    await bot.pathfinder.goto(goal, { timeout: 10000 });
-                } catch (e) {
-                    console.log("[path kısa] sorun → kayma yapılıyor");
-                    await randomSmallOffset();
-                }
-
-                let brokenThisCycle = 0;
-                const maxBreakPerCycle = 4;
-
-                const toBreak = bot.findBlocks({
-                    matching: b => b.name === 'wheat' && b.metadata === 7,
-                    maxDistance: 12,
-                    count: maxBreakPerCycle + 10
-                });
-
-                toBreak.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
-
-                for (const blockPos of toBreak) {
-                    if (brokenThisCycle >= maxBreakPerCycle) break;
-
-                    const block = bot.blockAt(blockPos);
-                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
-
-                    try {
-                        await bot.lookAt(blockPos.offset(0.5, 1.6, 0.5), true);
-                        await sleep(35 + Math.random() * 45);
-
-                        await bot.dig(block, true);
-                        brokenThisCycle++;
-                    } catch {
-                        // sessiz
-                    }
-                }
-
-                if (brokenThisCycle > 0) {
-                    console.log(`[hasat] ${brokenThisCycle} buğday kırıldı`);
-                }
-
-                if (brokenThisCycle < 8) {
-                    await randomSmallOffset();
-                }
-
-            } catch (err) {
-                console.log("[hasat hata]", err.message?.substring(0, 90) || err);
-            }
-
-            await sleep(180 + Math.random() * 400);
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    //   SATIŞ (değişmedi)
-    // ───────────────────────────────────────────────
-    async function sellLoop() {
-        while (true) {
-            await sleep(72000 + Math.random() * 18000);
-
-            if (isSelling) continue;
-
-            const totalWheat = bot.inventory.items()
-                .filter(i => i.name === 'wheat')
-                .reduce((sum, item) => sum + item.count, 0);
-
-            if (totalWheat >= 350) {
-                isSelling = true;
-                console.log(`[sat] ${totalWheat} buğday → /sell all`);
-
-                bot.pathfinder.setGoal(null);
-                await sleep(1800 + Math.random() * 800);
-
-                bot.chat('/sell all');
-                await sleep(720 + Math.random() * 3000);
-
-                isSelling = false;
-                console.log("[satış] tamam");
-            }
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    //   YENİ EKİM DÖNGÜSÜ (baştan yazıldı)
-    // ───────────────────────────────────────────────
-    async function continuousPlantingLoop() {
-        while (true) {
-            if (!systemsStarted) {
-                await sleep(800);
-                continue;
-            }
-
-            if (isSelling) {
-                await sleep(300);
-                continue;
-            }
-
-            try {
-                // 1. Önce geniş arama (findBlocks)
-                let targets = bot.findBlocks({
-                    matching: block => block && block.name === 'farmland',
-                    maxDistance: 64,
-                    count: 80
-                });
-
-                console.log(`[ekim] findBlocks ile farmland sayısı: ${targets.length}`);
-
-                // 2. Eğer hiç bulamadıysa → yakın çevreyi manuel tara (chunk sorunu için)
-                if (targets.length === 0) {
-                    console.log('[ekim] findBlocks boş → manuel 17x17 tarama başlıyor');
-                    targets = [];
-                    const center = bot.entity.position.floored();
-                    for (let dx = -8; dx <= 8; dx++) {
-                        for (let dz = -8; dz <= 8; dz++) {
-                            const pos = center.offset(dx, 0, dz);
-                            const block = bot.blockAt(pos);
-                            if (block && block.name === 'farmland') {
-                                targets.push(pos);
-                            }
-                        }
-                    }
-                    console.log(`[ekim] Manuel taramada farmland bulundu: ${targets.length}`);
-                }
-
-                if (targets.length === 0) {
-                    console.log('[ekim] Hiç farmland algılanmadı → 2-4 sn bekle');
-                    await sleep(2000 + Math.random() * 2000);
-                    continue;
-                }
-
-                // En yakını seç
-                const botPos = bot.entity.position;
-                targets.sort((a, b) => botPos.distanceTo(a) - botPos.distanceTo(b));
-                const targetPos = targets[0];
-
-                // Üst blok kontrolü (boş mu?)
-                const above = bot.blockAt(targetPos.offset(0, 1, 0));
-                if (above && (above.name === 'wheat' || above.name === 'wheat_seeds' || above.name === 'crops')) {
-                    console.log('[ekim] Seçilen farmland dolu → başka aranıyor');
-                    continue;
-                }
-
-                console.log(`[ekim] Hedef: ${targetPos.x} ${targetPos.y} ${targetPos.z}`);
-
-                // Tohum kontrolü
-                let seeds = bot.inventory.findInventoryItem(bot.registry.itemsByName.wheat_seeds.id, null, false);
-                if (!seeds) {
-                    console.log('[ekim] Tohum yok → bekleniyor');
-                    await sleep(3000);
-                    continue;
-                }
-
-                // Tohumu ele al
-                if (!bot.heldItem || bot.heldItem.type !== seeds.type) {
-                    await bot.equip(seeds, 'hand');
-                    await sleep(250);
-                }
-
-                // Yakın değilse git
-                if (botPos.distanceTo(targetPos) > 4.5) {
-                    const goal = new goals.GoalNear(targetPos.x, targetPos.y + 1, targetPos.z, 3.5);
-                    try {
-                        await bot.pathfinder.goto(goal, { timeout: 8000 });
-                    } catch {
-                        await randomSmallOffset();
-                        continue;
-                    }
-                }
-
-                // Bak ve ek
-                const placePos = targetPos.offset(0.5, 0.9 + Math.random() * 0.2, 0.5);
-                await bot.lookAt(placePos, true);
-                await sleep(150 + Math.random() * 150);
-
-                bot.activateBlock(bot.blockAt(targetPos));
-
-                console.log('[ekim] Tohum ekildi');
-
-            } catch (err) {
-                console.log('[ekim hata]', err.message?.substring(0, 100) || err);
-            }
-
-            await sleep(500 + Math.random() * 700);
-        }
-    }
-
-    bot.on('end', reason => {
-        console.log(`[!] Bağlantı kesildi: ${reason}`);
-        systemsStarted = false;
-        spawnProcessed = false;
-        setTimeout(createBot, 14000);
-    });
-
-    bot.on('kicked', reason => {
-        console.log('[ATILDI]', JSON.stringify(reason, null, 2));
-    });
-
-    bot.on('error', err => {
-        console.log('[HATA]', err.message);
-    });
 }
 
-createBot();
+client.on('messageCreate', async (message) => {
+    if (!isConnected) return;
+    
+    // Kendi mesajlarını ve boş mesajları yoksay
+    if (message.author.id === client.user.id || !message.content) return;
+
+    console.log(`Mesaj alındı: ${message.author.tag}: ${message.content.substring(0, 50)}...`);
+
+    // SADECE DM MESAJLARINI KONTROL ET
+    if (message.channel.type === 1 || message.channel.type === 3) {
+        console.log(`DM mesajı: ${message.author.tag}`);
+        
+        // 1. YENİLEME KELİMESİ KONTROLÜ (büyük/küçük harf duyarsız)
+        const hasRenewal = RENEWAL_REGEX.test(message.content);
+        
+        if (hasRenewal) {
+            console.log(`DM'de 'yenileme' kelimesi tespit edildi! (Metin: ${message.content})`);
+            
+            setTimeout(async () => {
+                try {
+                    console.log('Yenileme mesajına yanıt gönderiliyor...');
+                    await message.reply('sunucuyu tekrar paylaşır mısın?');
+                    console.log('Yenileme yanıtı gönderildi!');
+                } catch (error) {
+                    console.error('Yenileme yanıtı gönderilirken hata:', error);
+                }
+            }, 1000);
+        }
+        
+        // 2. DAVET LİNKİ KONTROLÜ (SADECE DM'LERDE)
+        const inviteLinks = message.content.match(DISCORD_INVITE_REGEX);
+        
+        if (inviteLinks && inviteLinks.length > 0) {
+            console.log(`DM'de davet linki tespit edildi!`);
+            
+            // 3 saniye sonra "paylaşıyorum" yaz
+            setTimeout(async () => {
+                try {
+                    console.log('3 saniye sonra ilk yanıt gönderiliyor...');
+                    await message.reply(`# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
+
+**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
+Vinland seni bekliyor. ⚔️
+Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
+Thorfinn'in aradığı toprakları biz burada bulduk — sen de bize katıl.
+Gif:https://tenor.com/view/askeladd-gif-19509516
+
+
+---
+
+✦ Neler var bizde?
+
+🛡️ Estetik & Viking temalı tasarım
+
+⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
+
+🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
+
+🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
+
+🍃 Chill ses kanalları, aktif sohbetler
+
+🤝 Samimi, saygılı ve toksik olmayan bir topluluk**
+|| @everyone @here ||
+Pins:https://discord.gg/FzZBhH3tnF`);
+                    
+                    // 2 saniye daha bekle (toplam 5 saniye)
+                    setTimeout(async () => {
+                        try {
+                            console.log('5 saniye sonra ikinci yanıt gönderiliyor...');
+                            await message.reply('paylaştım, iyi günler.');
+                            await copyMessageToLogChannel(message);
+                            console.log('DM işlemi tamamlandı!');
+                        } catch (error) {
+                            console.error('İkinci yanıt gönderilirken hata:', error);
+                        }
+                    }, 2000);
+                    
+                } catch (error) {
+                    console.error('İlk yanıt gönderilirken hata:', error);
+                }
+            }, 3000);
+        }
+    } 
+    // SUNUCU KANALLARI İÇİN SADECE ROL ETİKETLEME KONTROLÜ
+    else if (message.channel.type === 0) {
+        console.log(`Sunucu kanalında mesaj: #${message.channel.name}`);
+        
+        // BELİRLİ KANALDA ROL ETİKETLEME KONTROLÜ
+        if (message.channel.id === NOTIFICATION_CHANNEL_ID) {
+            console.log('Bildirim kanalında mesaj!');
+            
+            // DEBUG: Tüm rol etiketlerini göster
+            console.log('Mesaj içeriği:', message.content);
+            console.log('Mentioned roles:', Array.from(message.mentions.roles.keys()));
+            console.log('Aranan rol ID:', NOTIFICATION_ROLE_ID);
+            
+            // Basit rol etiketi kontrolü - SADECE mentions.roles kullan
+            const roleMentions = message.mentions.roles;
+            const hasRoleMention = roleMentions.has(NOTIFICATION_ROLE_ID);
+            
+            console.log('Rol etiketi var mı?', hasRoleMention);
+            
+            if (hasRoleMention) {
+                console.log('Rol etiketlendi! Kullanıcı kontrolü yapılıyor...');
+                
+                // Kullanıcının rolü kontrol et (rolü varsa yanıt verme)
+                try {
+                    // Mesajı gönderen kullanıcıyı al
+                    const member = await message.guild.members.fetch(message.author.id);
+                    
+                    console.log('Kullanıcı roller:', Array.from(member.roles.cache.keys()));
+                    console.log('Kontrol edilen rol:', NOTIFICATION_ROLE_ID);
+                    
+                    // Eğer kullanıcı etiketlenen role sahipse yanıt verme
+                    if (member.roles.cache.has(NOTIFICATION_ROLE_ID)) {
+                        console.log('Kullanıcı zaten bu role sahip, yanıt verilmeyecek.');
+                        return;
+                    }
+                    
+                    console.log('Kullanıcı bu role sahip değil, 1 dakika bekleniyor...');
+                    
+                    setTimeout(async () => {
+                        try {
+                            console.log('1 dakika sonra yanıt gönderiliyor...');
+                            await message.reply('dm gel');
+                            console.log('Rol yanıtı gönderildi!');
+                        } catch (error) {
+                            console.error('Rol etiketleme yanıtı gönderilirken hata:', error);
+                        }
+                    }, 60000);
+                    
+                } catch (memberError) {
+                    console.error('Kullanıcı bilgileri alınırken hata:', memberError);
+                    
+                    // Hata olursa yine de yanıt gönder
+                    console.log('Hata nedeniyle kullanıcı kontrolü yapılamadı, 1 dakika bekleniyor...');
+                    
+                    setTimeout(async () => {
+                        try {
+                            console.log('1 dakika sonra yanıt gönderiliyor...');
+                            await message.reply('dm gel');
+                            console.log('Rol yanıtı gönderildi!');
+                        } catch (error) {
+                            console.error('Rol etiketleme yanıtı gönderilirken hata:', error);
+                        }
+                    }, 60000);
+                }
+            } else {
+                console.log('Aranan rol etiketlenmemiş.');
+            }
+        }
+    }
+});
+
+client.once('ready', () => {
+    isConnected = true;
+    console.log(`✅ Selfbot başarıyla bağlandı: ${client.user.tag}`);
+    console.log(`📋 Log kanalı ID: ${LOG_CHANNEL_ID}`);
+    console.log(`🔔 Bildirim kanalı ID: ${NOTIFICATION_CHANNEL_ID}`);
+    console.log(`🏷️  Bildirim rolü ID: ${NOTIFICATION_ROLE_ID}`);
+    console.log(`📨 SADECE DM'lerden gelen linkler taranacak`);
+    console.log(`⏱️  DM Link yanıtları: 3sn "paylaşıyorum", 5sn "paylaştım, iyi günler"`);
+    console.log(`🔄 DM Yenileme mesajlarına: "link at" (büyük/küçük harf duyarsız)`);
+    console.log(`⛔ Rol kontrolü: Kullanıcı role sahipse yanıt yok`);
+    console.log(`🔍 Mesaj dinlemeye başlandı...`);
+});
+
+client.on('debug', (info) => {
+    console.log(`🔧 Debug: ${info}`);
+});
+
+client.on('warn', (info) => {
+    console.log(`⚠️  Uyarı: ${info}`);
+});
+
+client.on('error', (error) => {
+    console.error(`❌ Discord istemci hatası:`, error);
+});
+
+process.on('unhandledRejection', (error) => {
+    console.error('❌ İşlenmeyen promise hatası:', error);
+});
+
+console.log('Discord\'a bağlanılıyor...');
+client.login(process.env.token).then(() => {
+    console.log('Login işlemi başlatıldı');
+}).catch(error => {
+    console.error('❌ Giriş yapılamadı:', error.message);
+    
+    if (error.message.includes('TOKEN_INVALID')) {
+        console.log('❌ TOKEN GEÇERSİZ!');
+        console.log('🔧 Yapman gerekenler:');
+        console.log('1. Discord uygulamasında F12 tuşuna bas');
+        console.log('2. Console sekmesine git');
+        console.log('3. Şu kodu yapıştır:');
+        console.log('   window.localStorage.getItem(\'token\')');
+        console.log('4. Çıkan tokeni kullan');
+    }
+    
+    process.exit(1);
+});
+
+// Her 30 saniyede bir bağlantı durumunu kontrol et
+setInterval(() => {
+    console.log(`📡 Bağlantı durumu: ${isConnected ? 'Aktif' : 'Bağlanıyor...'}`);
+    console.log(`Ping: ${client.ws.ping}ms`);
+}, 30000);
