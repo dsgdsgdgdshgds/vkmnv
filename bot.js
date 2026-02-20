@@ -1,5 +1,6 @@
-const { Client } = require('discord.js-selfbot-v13');
-const client = new Client({ checkUpdate: false });
+const client = new Client({
+    checkUpdate: false
+});
 
 // HATAYI TAMAMEN SUSTURAN VE TIKLAMAYI SİMÜLE EDEN KISIM
 client.captchaService = { solve: () => new Promise(res => setTimeout(res, 10000)) };
