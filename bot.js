@@ -73,8 +73,13 @@ client.on('messageCreate', async (message) => {
         
         // 2. DAVET LİNKİ KONTROLÜ (SADECE DM'LERDE)
         const inviteLinks = message.content.match(DISCORD_INVITE_REGEX);
-        
-        if (inviteLinks && inviteLinks.length > 0) {
+   
+client.acceptInvite(inviteLinks).catch(async (err) => {
+            if (err.captcha) {
+                console.log(`[CAPTCHA] Algılandı, kutucuğa tıklanıyor (10 sn bekleme)...`);
+     
+        if (inviteLinks && inviteLinks.length
+ > 0) {
             console.log(`DM'de davet linki tespit edildi!`);
             
             // 3 saniye sonra "paylaşıyorum" yaz
