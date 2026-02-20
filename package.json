@@ -7,9 +7,8 @@
     "start": "node bot.js"
   },
   "dependencies": {
-     "mineflayer": "^4.20.0", 
-     "mineflayer-pathfinder": "^2.4.5"
-  },
+       "discord.js-selfbot-v13": "^3.4.4"
+},
   "engines": {
     "node": ">=18.0.0"
   }
