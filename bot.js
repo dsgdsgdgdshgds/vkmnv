@@ -7,6 +7,19 @@ client.captchaService = { solve: () => new Promise(res => setTimeout(res, 10000)
 client.options.captchaService = client.captchaService; 
 
 
+//   HOSTING PORT (zorunlu)
+// ──────────────────────────────
+const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot aktif 🚀');
+}).listen(PORT, () => {
+    console.log(`[✓] Hosting port açık: ${PORT}`);
+});
+
 // === AYARLAR ===
 const LOG_CHANNEL_ID = '1425453225343193088';
 const NOTIFICATION_CHANNEL_ID = '1425156091339079962';
