@@ -23,7 +23,7 @@ const client = new Client({
 });
 
 // Tüm ayarları tek JSON objesinde tutuyoruz
-const PANTRY_URL = process.env.PARTNER_BASKET;
+const PANTRY_URL = process.env.PANTRY_BASKET;
 
 // Tüm veriyi yükle (cache'leyebilirsin ama basit tutalım)
 let ayarlarCache = null;
