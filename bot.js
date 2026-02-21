@@ -21,56 +21,40 @@ const client = new Client({
 });
 
 // ────────────────────────────────────────────────
-//  Pantry (JSON veritabanı) ayarları
-// ────────────────────────────────────────────────
-const PANTRY_URL = process.env.PANTRY_BASKET;
+// Environment variable olarak ekle
+const NPOINT_URL = process.env.NPOINT_URL;  // örn: https://api.npoint.io/abc123def456
 
 let ayarlarCache = null;
 
 async function loadAyarlar() {
-    if (ayarlarCache) return ayarlarCache;
-
-    try {
-        const res = await fetch(PANTRY_URL);
-        if (!res.ok) {
-            if (res.status === 404) return {};
-            throw new Error(`Pantry yükleme hatası: ${res.status}`);
-        }
-        const data = await res.json();
-        ayarlarCache = data;
-        return data;
-    } catch (err) {
-        console.error('[Pantry] Yükleme hatası:', err.message);
-        return {};
+  if (ayarlarCache) return ayarlarCache;
+  try {
+    const res = await fetch(NPOINT_URL);
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 200 && res.headers.get('content-length') === '0') return {}; // boşsa
+      throw new Error('npoint yükleme hatası: ' + res.status);
     }
+    const data = await res.json();
+    ayarlarCache = data;
+    return data;
+  } catch (err) {
+    console.error('[npoint] Load hatası:', err);
+    return {};
+  }
 }
 
 async function saveAyarlar(data) {
-    ayarlarCache = data;
-    try {
-        const res = await fetch(PANTRY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!res.ok) {
-            console.error(`[Pantry] Kaydetme hatası: ${res.status}`);
-        }
-    } catch (err) {
-        console.error('[Pantry] Genel kaydetme hatası:', err.message);
-    }
-}
-
-async function dbGet(key) {
-    const data = await loadAyarlar();
-    return data[key] ?? null;
-}
-
-async function dbSet(key, value) {
-    const data = await loadAyarlar();
-    data[key] = value;
-    await saveAyarlar(data);
-    console.log(`[Pantry] ${key} kaydedildi`);
+  ayarlarCache = data;
+  try {
+    const res = await fetch(NPOINT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) console.error('[npoint] Save hatası:', res.status, await res.text());
+  } catch (err) {
+    console.error('[npoint] Save genel hata:', err);
+  }
 }
 
 // ────────────────────────────────────────────────
