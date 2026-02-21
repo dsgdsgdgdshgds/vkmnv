@@ -7,8 +7,10 @@
     "start": "node bot.js"
   },
   "dependencies": {
-       "discord.js-selfbot-v13": "^3.4.4"
-},
+      "discord.js": "^14.14.1",
+    "quick.db": "^9.1.7",
+    "better-sqlite3": "^9.4.1"
+  },
   "engines": {
     "node": ">=18.0.0"
   }
