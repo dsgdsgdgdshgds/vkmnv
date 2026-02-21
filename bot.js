@@ -107,7 +107,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         // Gizli Mesaj
-        const hosgeldinMesaji = `🌟🎉 𝐇𝐨𝐬̧ 𝐆𝐞𝐥𝐝𝐢𝐧 𝐓𝐨𝐩𝐥𝐮𝐠̆𝐮𝐦𝐮𝐳𝐚! 🎉🌟\nSohbete dahil olmayı unutma! 🫶🔥\n\nlink: https://discord.gg/hFuWBhNrfR\n||@everyone | @here||`;
+        const hosgeldinMesaji = `# 🌿 ★ Vinland Saga ~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
+
+**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
+Vinland seni bekliyor. ⚔️
+Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
+Thorfinn’in aradığı toprakları biz burada bulduk — sen de bize katıl.
+Gif:https://tenor.com/view/askeladd-gif-19509516
+
+
+---
+
+✦ Neler var bizde?
+
+🛡️ Estetik & Viking temalı tasarım
+
+⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
+
+🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
+
+🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
+
+🍃 Chill ses kanalları, aktif sohbetler
+
+🤝 Samimi, saygılı ve toksik olmayan bir topluluk**
+|| @everyone @here ||
+Pins:https://discord.gg/FzZBhH3tnF`;
 
         await interaction.reply({ content: hosgeldinMesaji, ephemeral: true });
     }
