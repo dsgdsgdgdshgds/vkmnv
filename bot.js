@@ -20,43 +20,79 @@ const client = new Client({
     ]
 });
 
-// ────────────────────────────────────────────────
-// Environment variable olarak ekle
-const NPOINT_URL = process.env.NPOINT_URL;  // örn: https://api.npoint.io/abc123def456
+// npoint.io ayarları (environment variable olarak ekle)
+// Örnek: https://api.npoint.io/abc123def4567890
+const NPOINT_URL = process.env.NPOINT_URL;
 
 let ayarlarCache = null;
 
 async function loadAyarlar() {
-  if (ayarlarCache) return ayarlarCache;
-  try {
-    const res = await fetch(NPOINT_URL);
-    if (!res.ok) {
-      if (res.status === 404 || res.status === 200 && res.headers.get('content-length') === '0') return {}; // boşsa
-      throw new Error('npoint yükleme hatası: ' + res.status);
+    if (ayarlarCache) return ayarlarCache;
+
+    try {
+        const res = await fetch(NPOINT_URL);
+        
+        if (!res.ok) {
+            // npoint boş endpoint'lerde bazen 404 veya 200 + boş döner
+            if (res.status === 404) return {};
+            throw new Error(`npoint yükleme hatası: ${res.status} - ${res.statusText}`);
+        }
+
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('[npoint] Response JSON değil, boş kabul ediliyor');
+            return {};
+        }
+
+        const data = await res.json().catch(() => ({})); // parse hatasında boş dön
+        ayarlarCache = data;
+        return data;
+
+    } catch (err) {
+        console.error('[npoint] Load hatası:', err.message);
+        return {};
     }
-    const data = await res.json();
-    ayarlarCache = data;
-    return data;
-  } catch (err) {
-    console.error('[npoint] Load hatası:', err);
-    return {};
-  }
 }
 
 async function saveAyarlar(data) {
-  ayarlarCache = data;
-  try {
-    const res = await fetch(NPOINT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) console.error('[npoint] Save hatası:', res.status, await res.text());
-  } catch (err) {
-    console.error('[npoint] Save genel hata:', err);
-  }
+    ayarlarCache = data;
+
+    try {
+        const res = await fetch(NPOINT_URL, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text().catch(() => 'No details');
+            console.error(`[npoint] Save hatası: ${res.status} - ${errorText}`);
+            return; // hata olsa bile cache'i koru, sonraki denemede tekrar dener
+        }
+
+        console.log('[npoint] Veri başarıyla kaydedildi');
+
+    } catch (err) {
+        console.error('[npoint] Save genel hata:', err.message);
+    }
 }
 
+// dbGet – async
+async function dbGet(key) {
+    const data = await loadAyarlar();
+    return data[key] ?? null;
+}
+
+// dbSet – async
+async function dbSet(key, value) {
+    const data = await loadAyarlar();
+    data[key] = value;
+    await saveAyarlar(data);
+    console.log(`[npoint] ${key} kaydedildi`);
+}
 // ────────────────────────────────────────────────
 //  Basit http keep-alive (hosting için)
 // ────────────────────────────────────────────────
