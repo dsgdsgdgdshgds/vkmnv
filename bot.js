@@ -23,7 +23,7 @@ const client = new Client({
 });
 
 // Tüm ayarları tek JSON objesinde tutuyoruz
-const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/\( {process.env.PANTRY_ID}/basket/ \){process.env.PANTRY_BASKET || 'newBasket45'}`;
+const PANTRY_URL = `{process.env.PARTNER_BASKET}`;
 
 // Tüm veriyi yükle (cache'leyebilirsin ama basit tutalım)
 let ayarlarCache = null;
