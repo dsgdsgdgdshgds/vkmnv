@@ -200,6 +200,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
+        // Eğer davet mesajı ayarlanmışsa gönder, yoksa boş (hiçbir şey yazma)
+        if (davetMesaji) {
+            await interaction.editReply({ content: davetMesaji });
+        } else {
+            await interaction.editReply({ content: 'Başvurunuz alındı ve işleme alındı! İyi şanslar ✌️' });
+        }
+    }
+});
+
 client.once(Events.ClientReady, () => {
     console.log(`✅ ${client.user.tag} hazır! Partner bot aktif`);
 });
