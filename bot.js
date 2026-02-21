@@ -40,7 +40,7 @@ function dbGet(key) {
     return data[key] || null;
 }
 
-// --- HOSTING ---
+// --- HOSTING (Render vb. için) ---
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -78,12 +78,12 @@ client.on(Events.MessageCreate, async (message) => {
             .setColor('#5865F2')
             .setDescription('Aşağıdaki komutlarla partnerlik sistemini tamamen özelleştirebilirsiniz.')
             .addFields(
-                { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanalı ayarlar', inline: true },
+                { name: '#partner-rol @rol', value: 'Hangi rol etiketlenince başvuru ekranı çıksın', inline: true },
+                { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanal', inline: true },
                 { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
                 { name: '#partner-log #kanal', value: 'Başarılı başvuru logunun gideceği kanal', inline: true },
-                { name: '#partner-rol @rol', value: 'Hangi rol etiketlenince sistem çalışsın', inline: true },
-                { name: '#partner-mesaj', value: 'Onaylandıktan sonra kullanıcıya gönderilecek davet/tanıtım mesajını ayarlar\n(İkinci satırdan itibaren metni yazın)', inline: false },
-                { name: 'Kullanım örneği:', value: '```#partner-mesaj\nSunucumuza hoş geldin!\nBurası çok eğlenceli bir yer...\nDavet link: discord.gg/abc```', inline: false }
+                { name: '#partner-mesaj', value: 'Kullanıcıya gönderilecek davet/tanıtım mesajını ayarlar\n(İkinci satırdan itibaren metni yazın)', inline: false },
+                { name: 'Mesaj örneği:', value: '```#partner-mesaj\nSunucumuza hoş geldin!\nBurası çok eğlenceli...\ndiscord.gg/abc```', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası Hatırlatma', value: KURULUM_SIRASI, inline: false })
             .setFooter({ text: 'Tüm ayarlar sunucuya özeldir • Partner Bot' });
@@ -91,48 +91,85 @@ client.on(Events.MessageCreate, async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 1. Hedef rol (sıralamada ilk öneri)
+    // 1. Hedef rol
     if (prefix === '#partner-rol') {
         const target = message.mentions.roles.first();
-        if (!target) return message.reply('⚠️ Bir rol etiketlemelisiniz! Örn: `#partner-rol @Partner`').then(m => setTimeout(() => m.delete(), 8000));
+        if (!target) {
+            return message.reply('⚠️ Bir rol etiketlemelisiniz! Örn: `#partner-rol @Partner`')
+                .then(m => setTimeout(() => m.delete(), 8000));
+        }
         dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tetikleyici rol → \( {target}\n\n**Sonraki adım:**\n#partner-sistem #kanal yazarak butonun görüneceği kanalı belirleyin.\n\n \){KURULUM_SIRASI}`);
+        return message.reply(`✅ Tetikleyici rol → ${target}
+
+**Sonraki adım:**
+#partner-sistem #kanal yazarak butonun görüneceği kanalı belirleyin.
+
+${KURULUM_SIRASI}`);
     }
 
     // 2. Sistem kanalı
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        if (!target) {
+            return message.reply('⚠️ Bir kanal etiketlemelisiniz!')
+                .then(m => setTimeout(() => m.delete(), 8000));
+        }
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Sistem kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-kanal #kanal yazarak tanıtım metninin gideceği kanalı ayarlayın.\n\n \){KURULUM_SIRASI}`);
+        return message.reply(`✅ Sistem kanalı → <#${target.id}>
+
+**Sonraki adım:**
+#partner-kanal #kanal yazarak tanıtım metninin gideceği kanalı ayarlayın.
+
+${KURULUM_SIRASI}`);
     }
 
     // 3. Reklam / tanıtım kanalı
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        if (!target) {
+            return message.reply('⚠️ Bir kanal etiketlemelisiniz!')
+                .then(m => setTimeout(() => m.delete(), 8000));
+        }
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tanıtım metni kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-log #kanal yazarak log kanalını belirleyin.\n\n \){KURULUM_SIRASI}`);
+        return message.reply(`✅ Tanıtım metni kanalı → <#${target.id}>
+
+**Sonraki adım:**
+#partner-log #kanal yazarak log kanalını belirleyin.
+
+${KURULUM_SIRASI}`);
     }
 
     // 4. Log kanalı
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        if (!target) {
+            return message.reply('⚠️ Bir kanal etiketlemelisiniz!')
+                .then(m => setTimeout(() => m.delete(), 8000));
+        }
         dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Log kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-mesaj yazarak kullanıcıya gönderilecek davet mesajını ayarlayabilirsiniz (isteğe bağlı).\n\n \){KURULUM_SIRASI}`);
+        return message.reply(`✅ Log kanalı → <#${target.id}>
+
+**Sonraki adım:**
+#partner-mesaj yazarak kullanıcıya gönderilecek davet mesajını ayarlayabilirsiniz (isteğe bağlı).
+
+${KURULUM_SIRASI}`);
     }
 
-    // 5. Davet / tanıtım mesajı ayarlama
+    // 5. Davet / tanıtım mesajı
     if (prefix === '#partner-mesaj') {
         if (!args.trim()) {
-            return message.reply('⚠️ Lütfen mesaj içeriğini de yazın!\nÖrnek:\n```#partner-mesaj\nSunucumuza hoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abcxyz```');
+            return message.reply('⚠️ Mesaj içeriğini de yazmalısınız!\nÖrnek:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
         }
         dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply('✅ Tanıtım / davet mesajı güncellendi!\n\nArtık kurulum tamamlandı diyebiliriz 🎉\nTest için partner rolünü etiketleyerek deneyebilirsiniz.\n\n' + KURULUM_SIRASI);
+        return message.reply(`✅ Davet / tanıtım mesajı kaydedildi!
+
+Artık kurulum büyük ölçüde tamamlandı 🎉
+Test için partner rolünü etiketleyerek deneyebilirsiniz.
+
+${KURULUM_SIRASI}`);
     }
 
-    // Rol etiketlenince başvuru ekranı
+    // Rol etiketlenince başvuru embedi
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -158,7 +195,7 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
-    // Buton → Modal
+    // Butona basınca modal
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder()
             .setCustomId('p_modal')
@@ -184,7 +221,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const reklamKanalId = dbGet(`reklamKanal_${guildId}`);
         const logKanalId   = dbGet(`logKanal_${guildId}`);
-        const davetMesaji  = dbGet(`davetMesaji_${guildId}`);   // ← varsayılan yok, yoksa undefined → hiçbir şey gönderilmez
+        const davetMesaji  = dbGet(`davetMesaji_${guildId}`);
 
         // Tanıtım metnini gönder
         if (reklamKanalId) {
@@ -192,7 +229,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (ch) await ch.send({ content: text }).catch(() => {});
         }
 
-        // Log at
+        // Log mesajı
         if (logKanalId) {
             const ch = interaction.client.channels.cache.get(logKanalId);
             if (ch) {
@@ -200,7 +237,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
-        // Eğer davet mesajı ayarlanmışsa gönder, yoksa boş (hiçbir şey yazma)
+        // Davet mesajı varsa gönder, yoksa basit onay
         if (davetMesaji) {
             await interaction.editReply({ content: davetMesaji });
         } else {
