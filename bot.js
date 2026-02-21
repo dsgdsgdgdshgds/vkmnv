@@ -49,13 +49,13 @@ http.createServer((req, res) => {
     console.log(`[✓] Port ${PORT} açık`);
 });
 
-// Kurulum sırası (sadece #yardım içinde gösterilecek)
+// Kurulum sırası (sadece yardımda)
 const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 1. #partner-yetkili @rol  
 2. #partner-sistem #kanal  
 3. #partner-kanal #kanal  
 4. #partner-log #kanal  
-5. #partner-mesaj (isteğe bağlı)`;
+5. #partner-mesaj ← bu zorunlu!`;
 
 // KOMUTLAR
 client.on(Events.MessageCreate, async (message) => {
@@ -68,14 +68,14 @@ client.on(Events.MessageCreate, async (message) => {
     if (prefix === '#yardım' || prefix === '#help') {
         const embed = new EmbedBuilder()
             .setTitle('Partner Bot Komutları')
-            .setColor('#5865F2')
+            .setColor('#00D166')
             .setDescription('Partnerlik başvuru sistemini kurmak için aşağıdaki komutları kullanın.')
             .addFields(
                 { name: '#partner-yetkili @rol', value: 'Başvuru sistemini başlatacak yetkili rolü', inline: true },
                 { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanal', inline: true },
                 { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
                 { name: '#partner-log #kanal', value: 'Başarılı başvuru log kanalı', inline: true },
-                { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek mesaj (isteğe bağlı)', inline: false }
+                { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek sunucu textiniz\n**Zorunlu ayardır!**', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
             .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
@@ -86,14 +86,11 @@ client.on(Events.MessageCreate, async (message) => {
     // 1. Yetkili rol
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
-        if (!target) {
-            return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
-        }
+        if (!target) return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
         return message.reply(`✅ Partner yetkili rolü ayarlandı
 
-**Sonraki adım:**  
-#partner-sistem #kanal`);
+**Sonraki adım:** #partner-sistem #kanal`);
     }
 
     // 2. Sistem kanalı
@@ -103,8 +100,7 @@ client.on(Events.MessageCreate, async (message) => {
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
         return message.reply(`✅ Başvuru butonu kanalı ayarlandı
 
-**Sonraki adım:**  
-#partner-kanal #kanal`);
+**Sonraki adım:** #partner-kanal #kanal`);
     }
 
     // 3. Tanıtım kanalı
@@ -114,8 +110,7 @@ client.on(Events.MessageCreate, async (message) => {
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
         return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı
 
-**Sonraki adım:**  
-#partner-log #kanal`);
+**Sonraki adım:** #partner-log #kanal`);
     }
 
     // 4. Log kanalı
@@ -125,14 +120,13 @@ client.on(Events.MessageCreate, async (message) => {
         dbSet(`logKanal_${message.guild.id}`, target.id);
         return message.reply(`✅ Log kanalı ayarlandı
 
-**Sonraki adım:**  
-#partner-mesaj (isteğe bağlı)`);
+**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
     }
 
-    // 5. Mesaj ayarı
+    // 5. Mesaj ayarı (zorunlu)
     if (prefix === '#partner-mesaj') {
         if (!args.trim()) {
-            return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\ndiscord.gg/abc```');
+            return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
         }
         dbSet(`davetMesaji_${message.guild.id}`, args);
         return message.reply(`✅ Davet mesajı kaydedildi
@@ -147,9 +141,10 @@ Artık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
         if (!sistemKanalId || message.channel.id !== sistemKanalId) return;
 
         const embed = new EmbedBuilder()
-            .setTitle('Partnerlik Başvurusu')
-            .setDescription(`Başvuru yapmak için aşağıdaki butona basın.\n<@${message.author.id}>`)
-            .setColor('#5865F2');
+            .setTitle('🤝 Partnerlik Başvurusu')
+            .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın.\n<@${message.author.id}>`)
+            .setColor('#00D166')
+            .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -174,7 +169,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const input = new TextInputBuilder()
             .setCustomId('p_text')
             .setLabel('Sunucu Tanıtım Metni')
-            .setPlaceholder('Sunucunuzun tanıtım yazısını buraya yapıştırın...')
+            .setPlaceholder('Sunucunuzün tanıtım yazısını buraya yapıştırın...')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true);
 
@@ -193,21 +188,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const logKanalId   = dbGet(`logKanal_${guildId}`);
         const davetMesaji  = dbGet(`davetMesaji_${guildId}`);
 
+        // Zorunlu kontrol: davet mesajı ayarlanmamışsa hata
+        if (!davetMesaji) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#FF5555')
+                .setTitle('❌ Eksik Ayar')
+                .setDescription('Sunucu sahibi `#partner-mesaj` komutunu kullanarak davet mesajını ayarlamamış.\nBaşvuru şu an mümkün değil.');
+            return interaction.editReply({ embeds: [errorEmbed] });
+        }
+
+        // Tanıtım metnini gönder
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
-            if (ch) await ch.send({ content: text }).catch(() => {});
+            if (ch) {
+                const introEmbed = new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle('Yeni Partnerlik Tanıtımı')
+                    .setDescription(text)
+                    .setTimestamp()
+                    .setFooter({ text: `Gönderen: ${interaction.user.tag}` });
+
+                await ch.send({ embeds: [introEmbed] }).catch(() => {});
+            }
         }
 
+        // Log embed
         if (logKanalId) {
             const ch = interaction.client.channels.cache.get(logKanalId);
-            if (ch) await ch.send(`<@${interaction.user.id}> → Partnerlik tamamlandı`).catch(() => {});
+            if (ch) {
+                const logEmbed = new EmbedBuilder()
+                    .setColor('#00D166')
+                    .setTitle('✅ Partnerlik Tamamlandı')
+                    .setDescription(`**Kullanıcı:** <@\( {interaction.user.id}> ( \){interaction.user.tag})\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
+                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+                    .setTimestamp();
+
+                await ch.send({ embeds: [logEmbed] }).catch(() => {});
+            }
         }
 
-        if (davetMesaji) {
-            await interaction.editReply({ content: davetMesaji });
-        } else {
-            await interaction.editReply({ content: 'Başvurunuz alındı!' });
-        }
+        // Kullanıcıya önce başarı bildirimi, sonra davet mesajı
+        const successEmbed = new EmbedBuilder()
+            .setColor('#00D166')
+            .setTitle('🎉 Partnerlik Tamamlandı!')
+            .setDescription(`${interaction.user.id} Başvurunuz onaylandı!`)
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [successEmbed] });
+
+        // 2-3 saniye sonra davet mesajını göster (daha doğal olsun)
+        setTimeout(async () => {
+            await interaction.editReply({
+                embeds: [],
+                content: davetMesaji
+            }).catch(() => {});
+        }, 2500);
     }
 });
 
