@@ -22,26 +22,55 @@ const client = new Client({
     ]
 });
 
-const BIN_ID = '699a2a421a35bc0895802e7b';
-const MASTER_KEY = '$2a$10$Eo4Em2uJNzX3Giq5Qb9Ycu';
+// Tüm ayarları tek JSON objesinde tutuyoruz
+const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/\( {process.env.PANTRY_ID}/basket/ \){process.env.PANTRY_BASKET || 'newBasket45'}`;
 
-async function dbSet(key, value) {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': MASTER_KEY
-        },
-        body: JSON.stringify({ [key]: value }) // tüm datayı güncelle veya patch yap
-    });
+// Tüm veriyi yükle (cache'leyebilirsin ama basit tutalım)
+let ayarlarCache = null;
+
+async function loadAyarlar() {
+  if (ayarlarCache) return ayarlarCache;
+  try {
+    const res = await fetch(PANTRY_URL);
+    if (!res.ok) {
+      if (res.status === 404) return {}; // ilk sefer boş
+      throw new Error('Pantry yükleme hatası: ' + res.status);
+    }
+    const data = await res.json();
+    ayarlarCache = data;
+    return data;
+  } catch (err) {
+    console.error('[Pantry] Load hatası:', err);
+    return {};
+  }
 }
 
-async function dbGet(key) {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-        headers: { 'X-Master-Key': MASTER_KEY }
+async function saveAyarlar(data) {
+  ayarlarCache = data; // cache güncelle
+  try {
+    const res = await fetch(PANTRY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     });
-    const data = await res.json();
-    return data.record[key] || null;
+    if (!res.ok) console.error('[Pantry] Save hatası:', res.status);
+  } catch (err) {
+    console.error('[Pantry] Save genel hata:', err);
+  }
+}
+
+// dbGet – async yapıyoruz
+async function dbGet(key) {
+  const data = await loadAyarlar();
+  return data[key] ?? null;
+}
+
+// dbSet – async
+async function dbSet(key, value) {
+  const data = await loadAyarlar();
+  data[key] = value;
+  await saveAyarlar(data);
+  console.log(`[Pantry] ${key} kaydedildi`);
 }
 // HOSTING
 const PORT = process.env.PORT || 3000;
