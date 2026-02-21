@@ -21,6 +21,18 @@ const client = new Client({
     ] 
 });
 
+const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot aktif 🚀');
+}).listen(PORT, () => {
+    console.log(`[✓] Hosting port açık: ${PORT}`);
+});
+
+
 // --- AYARLAR ---
 const HEDEF_ROL_ID = "1425475242398187590"; // Formu tetikleyecek rol ID
 const LOG_KANAL_ID = "1425156091339079962"; // "Partnerlik Yapıldı" logu
