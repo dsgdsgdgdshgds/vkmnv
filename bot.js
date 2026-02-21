@@ -23,7 +23,7 @@ const client = new Client({
 });
 
 const BIN_ID = '699a2a421a35bc0895802e7b';
-const MASTER_KEY = '$2a$10$Eo4Em2uJNzX3Giq5Qb9Ycu/5Re69QE.bm3HmWQ0.AFci8ZOUiaJjC';
+const MASTER_KEY = '$2a$10$Eo4Em2uJNzX3Giq5Qb9Ycu';
 
 async function dbSet(key, value) {
     const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
