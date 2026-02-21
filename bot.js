@@ -22,8 +22,8 @@ const client = new Client({
 });
 
 // --- AYARLAR ---
-const HEDEF_ROL_ID = "TETIKLEYICI_ROL_ID"; // Formu tetikleyecek rol ID
-const LOG_KANAL_ID = "1447604632577904760"; // "Partnerlik Yapıldı" logu
+const HEDEF_ROL_ID = "1425475242398187590"; // Formu tetikleyecek rol ID
+const LOG_KANAL_ID = "1425156091339079962"; // "Partnerlik Yapıldı" logu
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ ${client.user.tag} hazır ve veritabanı bağlandı!`);
