@@ -23,7 +23,7 @@ const client = new Client({
 // ────────────────────────────────────────────────
 //  Pantry (JSON veritabanı) ayarları
 // ────────────────────────────────────────────────
-const PANTRY_URL = process.env.PARTNER_BASKET;
+const PANTRY_URL = process.env.PANTRY_BASKET;
 
 let ayarlarCache = null;
 
