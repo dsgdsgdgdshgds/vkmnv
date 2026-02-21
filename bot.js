@@ -40,7 +40,7 @@ function dbGet(key) {
     return data[key] || null;
 }
 
-// --- HOSTING (render vb. için) ---
+// --- HOSTING ---
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -49,67 +49,100 @@ http.createServer((req, res) => {
     console.log(`[✓] Hosting port açık: ${PORT}`);
 });
 
+// Kurulum sırası hatırlatma metni
+const KURULUM_SIRASI = `**Kurulum sırası önerisi:**
+1. #partner-rol @Partner  
+   → Hangi rol etiketlenince sistem açılsın?
+2. #partner-sistem #kanal  
+   → Butonun görüneceği kanal
+3. #partner-kanal #kanal  
+   → Onaylanan tanıtım metninin gönderileceği kanal
+4. #partner-log #kanal  
+   → Başarılı başvuru logu kanalı
+5. #partner-mesaj  
+   → Kullanıcıya gönderilecek davet mesajı (isteğe bağlı)
+
+Tüm ayarları yaptıktan sonra test etmek için o role sahip biriyle rolü etiketleyin!`;
+
 // --- KOMUTLAR ---
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
     const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
-    const args = message.content.trim().split(/ +/).slice(1);
+    const args = message.content.trim().split(/ +/).slice(1).join(' ');
 
-    // 1. Sistem kanalı ayarlama
-    if (prefix === '#partner-sistem') {
-        const targetChannel = message.mentions.channels.first();
-        if (!targetChannel) {
-            return message.reply("⚠️ Lütfen bir kanal etiketleyin! Örn: `#partner-sistem #kanal`")
-                .then(m => setTimeout(() => m.delete(), 5000));
-        }
-        dbSet(`sistemKanal_${message.guild.id}`, targetChannel.id);
-        return message.reply(`✅ Partnerlik sistemi artık <#${targetChannel.id}> kanalında çalışacak.`);
+    // Yardım komutu
+    if (prefix === '#yardım' || prefix === '#help') {
+        const embed = new EmbedBuilder()
+            .setTitle('🤝 Partner Bot Yardım Menüsü')
+            .setColor('#5865F2')
+            .setDescription('Aşağıdaki komutlarla partnerlik sistemini tamamen özelleştirebilirsiniz.')
+            .addFields(
+                { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanalı ayarlar', inline: true },
+                { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
+                { name: '#partner-log #kanal', value: 'Başarılı başvuru logunun gideceği kanal', inline: true },
+                { name: '#partner-rol @rol', value: 'Hangi rol etiketlenince sistem çalışsın', inline: true },
+                { name: '#partner-mesaj', value: 'Onaylandıktan sonra kullanıcıya gönderilecek davet/tanıtım mesajını ayarlar\n(İkinci satırdan itibaren metni yazın)', inline: false },
+                { name: 'Kullanım örneği:', value: '```#partner-mesaj\nSunucumuza hoş geldin!\nBurası çok eğlenceli bir yer...\nDavet link: discord.gg/abc```', inline: false }
+            )
+            .addFields({ name: 'Kurulum Sırası Hatırlatma', value: KURULUM_SIRASI, inline: false })
+            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir • Partner Bot' });
+
+        return message.channel.send({ embeds: [embed] });
     }
 
-    // 2. Reklam (form sonucu) kanalı ayarlama
-    if (prefix === '#partner-kanal') {
-        const targetChannel = message.mentions.channels.first();
-        if (!targetChannel) {
-            return message.reply("⚠️ Lütfen bir kanal etiketleyin! Örn: `#partner-kanal #kanal`")
-                .then(m => setTimeout(() => m.delete(), 5000));
-        }
-        dbSet(`reklamKanal_${message.guild.id}`, targetChannel.id);
-        return message.reply(`✅ Form doldurulduğunda metinler <#${targetChannel.id}> kanalına gönderilecek.`);
-    }
-
-    // 3. Log kanalı ayarlama (yeni)
-    if (prefix === '#partner-log') {
-        const targetChannel = message.mentions.channels.first();
-        if (!targetChannel) {
-            return message.reply("⚠️ Lütfen bir kanal etiketleyin! Örn: `#partner-log #log-kanalı`")
-                .then(m => setTimeout(() => m.delete(), 5000));
-        }
-        dbSet(`logKanal_${message.guild.id}`, targetChannel.id);
-        return message.reply(`✅ Partnerlik onay logu artık <#${targetChannel.id}> kanalına gidecek.`);
-    }
-
-    // 4. Hedef rol ayarlama (yeni)
+    // 1. Hedef rol (sıralamada ilk öneri)
     if (prefix === '#partner-rol') {
-        const targetRole = message.mentions.roles.first();
-        if (!targetRole) {
-            return message.reply("⚠️ Lütfen bir rol etiketleyin! Örn: `#partner-rol @Partner`")
-                .then(m => setTimeout(() => m.delete(), 5000));
-        }
-        dbSet(`hedefRol_${message.guild.id}`, targetRole.id);
-        return message.reply(`✅ Artık ${targetRole} rolü etiketlendiğinde partnerlik başvuru ekranı açılacak.`);
+        const target = message.mentions.roles.first();
+        if (!target) return message.reply('⚠️ Bir rol etiketlemelisiniz! Örn: `#partner-rol @Partner`').then(m => setTimeout(() => m.delete(), 8000));
+        dbSet(`hedefRol_${message.guild.id}`, target.id);
+        return message.reply(`✅ Tetikleyici rol → \( {target}\n\n**Sonraki adım:**\n#partner-sistem #kanal yazarak butonun görüneceği kanalı belirleyin.\n\n \){KURULUM_SIRASI}`);
     }
 
-    // 5. Rol etiketlenince başvuru embedi gönderme
+    // 2. Sistem kanalı
+    if (prefix === '#partner-sistem') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        dbSet(`sistemKanal_${message.guild.id}`, target.id);
+        return message.reply(`✅ Sistem kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-kanal #kanal yazarak tanıtım metninin gideceği kanalı ayarlayın.\n\n \){KURULUM_SIRASI}`);
+    }
+
+    // 3. Reklam / tanıtım kanalı
+    if (prefix === '#partner-kanal') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        dbSet(`reklamKanal_${message.guild.id}`, target.id);
+        return message.reply(`✅ Tanıtım metni kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-log #kanal yazarak log kanalını belirleyin.\n\n \){KURULUM_SIRASI}`);
+    }
+
+    // 4. Log kanalı
+    if (prefix === '#partner-log') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Bir kanal etiketlemelisiniz!').then(m => setTimeout(() => m.delete(), 8000));
+        dbSet(`logKanal_${message.guild.id}`, target.id);
+        return message.reply(`✅ Log kanalı → <#\( {target.id}>\n\n**Sonraki adım:**\n#partner-mesaj yazarak kullanıcıya gönderilecek davet mesajını ayarlayabilirsiniz (isteğe bağlı).\n\n \){KURULUM_SIRASI}`);
+    }
+
+    // 5. Davet / tanıtım mesajı ayarlama
+    if (prefix === '#partner-mesaj') {
+        if (!args.trim()) {
+            return message.reply('⚠️ Lütfen mesaj içeriğini de yazın!\nÖrnek:\n```#partner-mesaj\nSunucumuza hoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abcxyz```');
+        }
+        dbSet(`davetMesaji_${message.guild.id}`, args);
+        return message.reply('✅ Tanıtım / davet mesajı güncellendi!\n\nArtık kurulum tamamlandı diyebiliriz 🎉\nTest için partner rolünü etiketleyerek deneyebilirsiniz.\n\n' + KURULUM_SIRASI);
+    }
+
+    // Rol etiketlenince başvuru ekranı
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
         if (!sistemKanalId || message.channel.id !== sistemKanalId) return;
 
         const embed = new EmbedBuilder()
-            .setTitle("🤝 Partnerlik Başvurusu")
-            .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın ve formu doldurun. <@${message.author.id}>`)
-            .setColor("#5865F2");
+            .setTitle('🤝 Partnerlik Başvurusu')
+            .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın ve formu doldurun.\n<@${message.author.id}>`)
+            .setColor('#5865F2')
+            .setFooter({ text: 'Partnerlik sistemi • ' + message.guild.name });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -123,73 +156,61 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    // Butona basınca modal
+    if (!interaction.isButton() && !interaction.isModalSubmit()) return;
+
+    // Buton → Modal
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder()
             .setCustomId('p_modal')
             .setTitle('Partnerlik Başvurusu');
 
-        const partnerInput = new TextInputBuilder()
+        const input = new TextInputBuilder()
             .setCustomId('p_text')
-            .setLabel("Sunucu Tanıtım Metni")
-            .setPlaceholder("Sunucunuzun textini buraya yapıştırın...")
+            .setLabel('Sunucu Tanıtım Metni')
+            .setPlaceholder('Sunucunuzün tanıtım yazısını buraya yapıştırın...')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true);
 
-        modal.addComponents(new ActionRowBuilder().addComponents(partnerInput));
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
         await interaction.showModal(modal);
     }
 
     // Modal submit
     if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
-        const text = interaction.fields.getTextInputValue('p_text');
-        const reklamKanalId = dbGet(`reklamKanal_${interaction.guild.id}`);
-        const logKanalId = dbGet(`logKanal_${interaction.guild.id}`);
+        await interaction.deferReply({ ephemeral: true });
 
-        // 1. Reklam kanalına tanıtım metni
+        const text = interaction.fields.getTextInputValue('p_text');
+        const guildId = interaction.guild.id;
+
+        const reklamKanalId = dbGet(`reklamKanal_${guildId}`);
+        const logKanalId   = dbGet(`logKanal_${guildId}`);
+        const davetMesaji  = dbGet(`davetMesaji_${guildId}`);   // ← varsayılan yok, yoksa undefined → hiçbir şey gönderilmez
+
+        // Tanıtım metnini gönder
         if (reklamKanalId) {
-            const rChannel = interaction.client.channels.cache.get(reklamKanalId);
-            if (rChannel) await rChannel.send({ content: text }).catch(() => {});
+            const ch = interaction.client.channels.cache.get(reklamKanalId);
+            if (ch) await ch.send({ content: text }).catch(() => {});
         }
 
-        // 2. Log kanalına onay mesajı
+        // Log at
         if (logKanalId) {
-            const lChannel = interaction.client.channels.cache.get(logKanalId);
-            if (lChannel) {
-                await lChannel.send({
-                    content: `<@${interaction.user.id}>, **✅ Partnerlik Başarıyla Yapıldı.**`
-                }).catch(() => {});
+            const ch = interaction.client.channels.cache.get(logKanalId);
+            if (ch) {
+                await ch.send(`<@${interaction.user.id}> **→ Partnerlik başarıyla tamamlandı!**`).catch(() => {});
             }
         }
 
-        // 3. Kullanıcıya ephemeral hoş geldin mesajı
-        const hosgeldinMesaji = `# 🌿 ★ Vinland Saga \~Anime^Manga ☆ — huzur arayan savaşçının sığınağı
-
-**Kılıçların gölgesinde değil, kalbinin huzurunda yaşamak istiyorsan…
-Vinland seni bekliyor. ⚔️
-Savaşın yorgunluğunu atmak, dostlukla yoğrulmuş bir topluluğun parçası olmak isteyen herkese kapımız açık.
-Thorfinn’in aradığı toprakları biz burada bulduk — sen de bize katıl.
-Gif:https://tenor.com/view/askeladd-gif-19509516
-
----
-
-✦ Neler var bizde?
-
-🛡️ Estetik & Viking temalı tasarım
-⚔️ Anime sohbetleri (özellikle Vinland Saga üzerine derin muhabbetler)
-🌄 Etkinlikler: anime/film geceleri, bilgi yarışmaları, oyunlar
-🗡️ Rol ve seviye sistemi (klanlar & savaşçılar seni bekliyor)
-🍃 Chill ses kanalları, aktif sohbetler
-Samimi, saygılı ve toksik olmayan bir topluluk**
-|| @everyone @here ||
-Pins:https://discord.gg/FzZBhH3tnF`;
-
-        await interaction.reply({ content: hosgeldinMesaji, ephemeral: true });
+        // Eğer davet mesajı ayarlanmışsa gönder, yoksa boş (hiçbir şey yazma)
+        if (davetMesaji) {
+            await interaction.editReply({ content: davetMesaji });
+        } else {
+            await interaction.editReply({ content: 'Başvurunuz alındı ve işleme alındı! İyi şanslar ✌️' });
+        }
     }
 });
 
 client.once(Events.ClientReady, () => {
-    console.log(`✅ ${client.user.tag} hazır ve JSON veritabanı aktif!`);
+    console.log(`✅ ${client.user.tag} hazır! Partner bot aktif`);
 });
 
 client.login(process.env.token);
