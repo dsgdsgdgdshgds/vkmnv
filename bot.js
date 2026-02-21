@@ -22,24 +22,28 @@ const client = new Client({
     ]
 });
 
-// JSON VERİTABANI
-const dbPath = path.join(__dirname, 'kanal-ayar.json');
+const fetch = require('node-fetch');
+const BIN_ID = '699a2a421a35bc0895802e7b';
+const MASTER_KEY = '$2a$10$Eo4Em2uJNzX3Giq5Qb9Ycu/5Re69QE.bm3HmWQ0.AFci8ZOUiaJjC';
 
-if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({}));
+async function dbSet(key, value) {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': MASTER_KEY
+        },
+        body: JSON.stringify({ [key]: value }) // tüm datayı güncelle veya patch yap
+    });
 }
 
-function dbSet(key, value) {
-    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    data[key] = value;
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+async function dbGet(key) {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+        headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    const data = await res.json();
+    return data.record[key] || null;
 }
-
-function dbGet(key) {
-    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    return data[key] || null;
-}
-
 // HOSTING
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
