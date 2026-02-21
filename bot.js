@@ -272,7 +272,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     content: davetMesaji
                 });
             } catch {}
-        }, 1800);
+        }, 500);
     }
 });
 
