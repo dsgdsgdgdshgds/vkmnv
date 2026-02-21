@@ -201,14 +201,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
             if (ch) {
-                const introEmbed = new EmbedBuilder()
-                    .setColor('#5865F2')
-                    .setTitle('Yeni Partnerlik Tanıtımı')
-                    .setDescription(text)
-                    .setTimestamp()
-                    .setFooter({ text: `Gönderen: ${interaction.user.tag}` });
+                
+                    
 
-                await ch.send({ embeds: [introEmbed] }).catch(() => {});
+                await ch.send(text).catch(() => {});
             }
         }
 
