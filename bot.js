@@ -220,23 +220,16 @@ setTimeout(async () => {
                     content: davetMesaji,
                     ephemeral: true
                 });
+                await interaction.followUp({
+            content: (`**${interaction.user} Partnerlik başarılı!**`),
+            ephemeral: false,
+            embeds: [],
+            allowedMentions: { parse: ['users'] }); 
             } catch {
                 await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
             }
         }, 100);
     }
-});
-
-       // Başarılı mesajı (embedsiz, mentionlı)
-
- const ch = interaction.client.channels.cache.get(logkanalId);
-    setTimeout(async () => {
-        await interaction.followUp({
-            content: (`**${interaction.user} Partnerlik başarılı!**`),
-            ephemeral: false,
-            embeds: [],
-            allowedMentions: { parse: ['users'] }
-        },200);
 });
        
 
