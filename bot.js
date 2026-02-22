@@ -224,7 +224,7 @@ setTimeout(async () => {
             content: `**${interaction.user} Partnerlik başarılı!**`,
             ephemeral: false,
             embeds: [],
-            allowedMentions: { parse: ['users'] }); 
+            allowedMentions: { parse: ['users'] }}); 
             } catch {
                 await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
             }
