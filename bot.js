@@ -215,16 +215,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${<@interaction.user.id>}){interaction.user.tag})\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
+                    .setDescription(`**Kullanıcı:** ${interaction.user}){interaction.user.tag})\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
                     .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
 
-                await ch.send(`${@interaction.user.id}`).catch(() => {});
+                await ch.send({ embeds: [logEmbed] }).catch(() => {});
             }
         }
 
         // Kullanıcıya önce başarı bildirimi, sonra davet mesajı
-        
+        const successEmbed = new EmbedBuilder()
+            .setColor('#00D166')
+            .setTitle('🎉 Partnerlik Tamamlandı!')
+            .setDescription(`${interaction.user} Başvurunuz onaylandı!`)
+            .setTimestamp();
 
         await interaction.editReply({ embeds: [successEmbed] });
 
