@@ -23,7 +23,7 @@ const client = new Client({
 });
 
 // JSON VERİTABANI
-const dbPath = path.join(vkmnv, 'kanal-ayar.json');
+const dbPath = path.join(__dirname, 'kanal-ayar.json');
 
 if (!fs.existsSync(dbPath)) {
     fs.writeFileSync(dbPath, JSON.stringify({}));
