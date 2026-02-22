@@ -233,7 +233,8 @@ setTimeout(async () => {
             content: `**${interaction.user} Partnerlik başarılı!**`,
             embeds: [],
             allowedMentions: { parse: ['users'] }
-        },200});
+        },200);
+});
 
        
 
