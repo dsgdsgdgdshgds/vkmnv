@@ -228,6 +228,8 @@ setTimeout(async () => {
 });
 
        // Başarılı mesajı (embedsiz, mentionlı)
+
+ const ch = interaction.client.channels.cache.get(logkanalId);
     setTimeout(async () => {
         await interaction.followUp({
             content: (`**${interaction.user} Partnerlik başarılı!**`),
