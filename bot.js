@@ -215,7 +215,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${<@interaction.user.id>}\n{interaction.user.tag})\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
+                    .setDescription(`**Kullanıcı:** ${<@interaction.user.id>}\n{interaction.user.tag}\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`))
                     .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
 
