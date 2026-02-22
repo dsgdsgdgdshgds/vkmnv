@@ -215,7 +215,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // Başarılı mesajı (embedsiz, mentionlı)
     setTimeout(async () => {
-        await interaction.editReply({
+        await interaction.followUp({
             content: `**${interaction.user} Partnerlik başarılı!**`,
             embeds: [],
             ephemeral: false,
