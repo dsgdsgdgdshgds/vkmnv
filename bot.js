@@ -213,15 +213,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 
-        // Başarılı mesajı (embedsiz, mentionlı)
-    setTimeout(async () => {
-        await interaction.followUp({
-            content: `**${interaction.user} Partnerlik başarılı!**`,
-            embeds: [],
-            ephemeral: false,
-            allowedMentions: { parse: ['users'] }
-        },200);
-});
 
 setTimeout(async () => {
             try {
@@ -234,6 +225,16 @@ setTimeout(async () => {
             }
         }, 100);
     }
+});
+
+       // Başarılı mesajı (embedsiz, mentionlı)
+    setTimeout(async () => {
+        await interaction.followUp({
+            content: (`**${interaction.user} Partnerlik başarılı!**`),
+            ephemeral: false,
+            embeds: [],
+            allowedMentions: { parse: ['users'] }
+        },200);
 });
        
 
