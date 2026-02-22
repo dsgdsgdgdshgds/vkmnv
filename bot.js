@@ -203,7 +203,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
                     .setDescription(
-                        `**Kullanıcı:** ${interaction.user}\n \n${interaction.user.tag}\n` +
+                        `**Kullanıcı:** ${interaction.user}\n**Kullanıcı Adı:${interaction.user.tag}\nKullanıcı ID:${interaction.user.id}` +
                         `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
                     )
                     .setTimestamp();
