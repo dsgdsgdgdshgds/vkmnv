@@ -12,7 +12,6 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
-const path = require('path');
 
 const client = new Client({
     intents: [
@@ -22,25 +21,40 @@ const client = new Client({
     ]
 });
 
-// JSON VERİTABANI
-const dbPath = path.join(__dirname, 'kanal-ayar.json');
+// KALICI DİSK YOLU (Render Disk → /var/data)
+const dbPath = '/var/data/kanal-ayar.json';
 
+// Dosya yoksa oluştur
 if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({}));
+    fs.writeFileSync(dbPath, JSON.stringify({}), 'utf8');
 }
 
 function dbSet(key, value) {
-    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    let data = {};
+    try {
+        data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    } catch (err) {
+        console.error('JSON okuma hatası:', err);
+    }
     data[key] = value;
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+    try {
+        fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error('JSON yazma hatası:', err);
+    }
 }
 
 function dbGet(key) {
-    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    return data[key] || null;
+    try {
+        const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        return data[key] || null;
+    } catch (err) {
+        console.error('JSON okuma hatası (get):', err);
+        return null;
+    }
 }
 
-// HOSTING
+// HOSTING (Render health check)
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -64,7 +78,6 @@ client.on(Events.MessageCreate, async (message) => {
     const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
     const args = message.content.trim().split(/ +/).slice(1).join(' ');
 
-    // Yardım
     if (prefix === '#yardım' || prefix === '#help') {
         const embed = new EmbedBuilder()
             .setTitle('Partner Bot Komutları')
@@ -83,58 +96,42 @@ client.on(Events.MessageCreate, async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 1. Yetkili rol
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
         if (!target) return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply(`✅ Partner yetkili rolü ayarlandı
-
-**Sonraki adım:** #partner-sistem #kanal`);
+        return message.reply(`✅ Partner yetkili rolü ayarlandı\n\n**Sonraki adım:** #partner-sistem #kanal`);
     }
 
-    // 2. Sistem kanalı
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Başvuru butonu kanalı ayarlandı
-
-**Sonraki adım:** #partner-kanal #kanal`);
+        return message.reply(`✅ Başvuru butonu kanalı ayarlandı\n\n**Sonraki adım:** #partner-kanal #kanal`);
     }
 
-    // 3. Tanıtım kanalı
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı
-
-**Sonraki adım:** #partner-log #kanal`);
+        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı\n\n**Sonraki adım:** #partner-log #kanal`);
     }
 
-    // 4. Log kanalı
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Log kanalı ayarlandı
-
-**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
+        return message.reply(`✅ Log kanalı ayarlandı\n\n**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
     }
 
-    // 5. Mesaj ayarı (zorunlu)
     if (prefix === '#partner-mesaj') {
         if (!args.trim()) {
             return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
         }
         dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply(`✅ Davet mesajı kaydedildi
-
-Artık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
+        return message.reply(`✅ Davet mesajı kaydedildi\n\nArtık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
     }
 
-    // Yetkili rol etiketlenince başvuru ekranı
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -160,7 +157,6 @@ Artık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
-    // Buton → Modal
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder()
             .setCustomId('p_modal')
@@ -177,7 +173,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.showModal(modal);
     }
 
-    // Modal submit
     if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
         await interaction.deferReply({ ephemeral: true });
 
@@ -188,7 +183,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const logKanalId   = dbGet(`logKanal_${guildId}`);
         const davetMesaji  = dbGet(`davetMesaji_${guildId}`);
 
-        // Zorunlu kontrol: davet mesajı ayarlanmamışsa hata
         if (!davetMesaji) {
             const errorEmbed = new EmbedBuilder()
                 .setColor('#FF5555')
@@ -197,18 +191,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return interaction.editReply({ embeds: [errorEmbed] });
         }
 
-        // Tanıtım metnini gönder
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
-            if (ch) {
-
-
-
-                await ch.send(text).catch(() => {});
-            }
+            if (ch) await ch.send(text).catch(() => {});
         }
 
-        // Log embed
         if (logKanalId) {
             const ch = interaction.client.channels.cache.get(logKanalId);
             if (ch) {
@@ -216,33 +203,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
                     .setDescription(
-  `**Kullanıcı:** ${interaction.user}\n${interaction.user.tag}\n` +
-  `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
-)
+                        `**Kullanıcı:** \( {interaction.user}\n \){interaction.user.tag}\n` +
+                        `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
+                    )
                     .setTimestamp();
-
                 await ch.send({ embeds: [logEmbed] }).catch(() => {});
             }
         }
 
-        // Kullanıcıya önce başarı bildirimi, sonra davet mesajı
-        const successEmbed = new EmbedBuilder()
-            .setColor('#00D166')
-            .setTitle('🎉 Partnerlik Tamamlandı!')
-            .setDescription(`${interaction.user} Başvurunuz onaylandı!`)
-            .setTimestamp();
+        // Başarılı mesajı (embedsiz, mentionlı)
+        await interaction.editReply({
+            content: `**${interaction.user} Partnerlik başarılı!**`,
+            embeds: [],
+            allowedMentions: { parse: ['users'] }
+        });
 
-        await interaction.editReply({ embeds: [successEmbed] });
-
-        let reklamKanallId = dbGet(`reklamKanal_${guildId}`);
-   
-//2-3 saniye sonra davet mesajını göster (daha doğal olsun)
+        // 2.5 sn sonra davet linki (gizli)
         setTimeout(async () => {
-            await client.channels.cache.get(reklamKanallId)({
-                embeds: [],
-                content: davetMesaji
-            }).catch(() => {});
-        }, 500);
+            try {
+                await interaction.followUp({
+                    content: davetMesaji,
+                    ephemeral: true
+                });
+            } catch {
+                await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
+            }
+        }, 100);
     }
 });
 
