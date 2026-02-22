@@ -236,7 +236,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // 2-3 saniye sonra davet mesajını göster (daha doğal olsun)
         setTimeout(async () => {
-            await client.channels.cache.get(ReklamKanalId)({
+            await client.channels.cache.get(reklamKanalId)({
                 embeds: [],
                 content: davetMesaji
             }).catch(() => {});
