@@ -221,7 +221,7 @@ setTimeout(async () => {
                     ephemeral: true
                 });
                 await interaction.followUp({
-            content: (`**${interaction.user} Partnerlik başarılı!**`),
+            content: `**${interaction.user} Partnerlik başarılı!**`,
             ephemeral: false,
             embeds: [],
             allowedMentions: { parse: ['users'] }); 
