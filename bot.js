@@ -211,19 +211,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
-        // Başarılı mesajı (embedsiz, mentionlı)
-        await interaction.editReply({
-            content: `**${interaction.user} Partnerlik başarılı!**`,
-            embeds: [],
-            allowedMentions: { parse: ['users'] }
-        });
 
-        // 2.5 sn sonra davet linki (gizli)
-        setTimeout(async () => {
+setTimeout(async () => {
             try {
                 await interaction.followUp({
                     content: davetMesaji,
-                    ephemeral: false
+                    ephemeral: true
                 });
             } catch {
                 await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
@@ -231,6 +224,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }, 100);
     }
 });
+
+
+
+        // Başarılı mesajı (embedsiz, mentionlı)
+    setTimeout(async () => {
+        await interaction.editReply({
+            content: `**${interaction.user} Partnerlik başarılı!**`,
+            embeds: [],
+            allowedMentions: { parse: ['users'] }
+        },200});
+
+       
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ ${client.user.tag} hazır`);
