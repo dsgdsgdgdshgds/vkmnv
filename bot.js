@@ -212,6 +212,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
 
+
+        // Başarılı mesajı (embedsiz, mentionlı)
+    setTimeout(async () => {
+        await interaction.editReply({
+            content: `**${interaction.user} Partnerlik başarılı!**`,
+            embeds: [],
+            ephemeral: false,
+            allowedMentions: { parse: ['users'] }
+        },200);
+});
+
 setTimeout(async () => {
             try {
                 await interaction.followUp({
@@ -224,18 +235,6 @@ setTimeout(async () => {
         }, 100);
     }
 });
-
-
-
-        // Başarılı mesajı (embedsiz, mentionlı)
-    setTimeout(async () => {
-        await interaction.editReply({
-            content: `**${interaction.user} Partnerlik başarılı!**`,
-            embeds: [],
-            allowedMentions: { parse: ['users'] }
-        },200);
-});
-
        
 
 client.once(Events.ClientReady, () => {
