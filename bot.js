@@ -234,9 +234,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.editReply({ embeds: [successEmbed] });
 
-        // 2-3 saniye sonra davet mesajını göster (daha doğal olsun)
+        let reklamKanallId = dbGet(`reklamKanal_${guildId}`);
+   
+//2-3 saniye sonra davet mesajını göster (daha doğal olsun)
         setTimeout(async () => {
-            await client.channels.cache.get(reklamKanalId)({
+            await client.channels.cache.get(reklamKanallId)({
                 embeds: [],
                 content: davetMesaji
             }).catch(() => {});
