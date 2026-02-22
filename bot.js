@@ -215,8 +215,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${interaction.user}\n${interaction.user tag}\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
-                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true })
+                    .setDescription(
+  `**Kullanıcı:** \( {interaction.user} ( \){interaction.user.tag})\n` +
+  `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
+)
                     .setTimestamp();
 
                 await ch.send({ embeds: [logEmbed] }).catch(() => {});
