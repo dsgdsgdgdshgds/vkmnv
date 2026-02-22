@@ -223,7 +223,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             try {
                 await interaction.followUp({
                     content: davetMesaji,
-                    ephemeral: true
+                    ephemeral: false
                 });
             } catch {
                 await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
