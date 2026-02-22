@@ -215,8 +215,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${interaction.user}){interaction.user.tag})\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
-                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+                    .setDescription(`**Kullanıcı:** ${interaction.user}\n${interaction.user tag}\n**Başvuru zamanı:** <t:${Math.floor(Date.now()/1000)}:F>`)
+                    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true })
                     .setTimestamp();
 
                 await ch.send({ embeds: [logEmbed] }).catch(() => {});
@@ -234,7 +234,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // 2-3 saniye sonra davet mesajını göster (daha doğal olsun)
         setTimeout(async () => {
-            await interaction.editReply({
+            await interaction.send({
                 embeds: [],
                 content: davetMesaji
             }).catch(() => {});
