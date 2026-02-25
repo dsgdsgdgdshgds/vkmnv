@@ -54,6 +54,44 @@ function dbGet(key) {
     }
 }
 
+// Cooldown Map (kullanıcı başına - RAM'de tutulur, restartta sıfırlanır)
+const cooldowns = new Map(); // key: "userId_guildId"   value: { until: timestamp }
+
+// Süre parse fonksiyonu → "1h30m" → milisaniye
+function parseDuration(str) {
+    if (!str || str === '0') return 0;
+    const regex = /(\d+)([smhd])/gi;
+    let total = 0;
+    let match;
+    while ((match = regex.exec(str)) !== null) {
+        const value = parseInt(match[1], 10);
+        const unit = match[2].toLowerCase();
+        if (unit === 's') total += value * 1000;
+        else if (unit === 'm') total += value * 60 * 1000;
+        else if (unit === 'h') total += value * 3600 * 1000;
+        else if (unit === 'd') total += value * 86400 * 1000;
+    }
+    return total;
+}
+
+function formatRemaining(ms) {
+    if (ms <= 0) return "0 saniye";
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s} saniye`;
+
+    const m = Math.floor(s / 60);
+    const sn = s % 60;
+    if (m < 60) return `\( {m} dk \){sn > 0 ? ` ${sn} sn` : ''}`;
+
+    const h = Math.floor(m / 60);
+    const dk = m % 60;
+    if (h < 24) return `\( {h} saat \){dk > 0 ? ` ${dk} dk` : ''}`;
+
+    const d = Math.floor(h / 24);
+    const saat = h % 24;
+    return `\( {d} gün \){saat > 0 ? ` ${saat} saat` : ''}`;
+}
+
 // HOSTING (Render health check)
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
@@ -69,7 +107,8 @@ const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 2. #partner-sistem #kanal  
 3. #partner-kanal #kanal  
 4. #partner-log #kanal  
-5. #partner-mesaj ← bu zorunlu!`;
+5. #partner-mesaj ← bu zorunlu!  
+6. #partner-bekleme 30m ← opsiyonel`;
 
 // KOMUTLAR
 client.on(Events.MessageCreate, async (message) => {
@@ -88,7 +127,8 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanal', inline: true },
                 { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
                 { name: '#partner-log #kanal', value: 'Başarılı başvuru log kanalı', inline: true },
-                { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek sunucu textiniz\n**Zorunlu ayardır!**', inline: false }
+                { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek sunucu textiniz\n**Zorunlu ayardır!**', inline: false },
+                { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi\nÖr: 30m, 2h, 1d, 0 (kapatmak için)', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
             .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
@@ -130,6 +170,26 @@ client.on(Events.MessageCreate, async (message) => {
         }
         dbSet(`davetMesaji_${message.guild.id}`, args);
         return message.reply(`✅ Davet mesajı kaydedildi\n\nArtık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
+    }
+
+    if (prefix === '#partner-bekleme') {
+        if (!args.trim()) {
+            const current = dbGet(`cooldown_${message.guild.id}`) || "ayarlanmamış";
+            return message.reply(`Mevcut bekleme süresi: **${current}**\n\nKullanım:\n\`#partner-bekleme 30m\`\n\`#partner-bekleme 2h30m\`\n\`#partner-bekleme 0\` → kapatmak için`);
+        }
+
+        if (args === '0') {
+            dbSet(`cooldown_${message.guild.id}`, null);
+            return message.reply('✅ Partner bekleme süresi **kapatıldı**.');
+        }
+
+        const ms = parseDuration(args);
+        if (ms < 1000) {
+            return message.reply('❌ Geçersiz süre formatı.\nDesteklenen birimler: s, m, h, d\nÖrnek: 45s, 30m, 1h, 2h30m, 1d');
+        }
+
+        dbSet(`cooldown_${message.guild.id}`, args);
+        return message.reply(`✅ Partnerlik sonrası bekleme süresi **${args}** olarak ayarlandı.`);
     }
 
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
@@ -176,26 +236,49 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
         await interaction.deferReply({ ephemeral: true });
 
-        const text = interaction.fields.getTextInputValue('p_text');
         const guildId = interaction.guild.id;
+        const userId = interaction.user.id;
+        const cooldownKey = `\( {userId}_ \){guildId}`;
+
+        // Cooldown kontrolü
+        const cooldownStr = dbGet(`cooldown_${guildId}`);
+        if (cooldownStr && cooldownStr !== '0') {
+            const cooldownMs = parseDuration(cooldownStr);
+            const now = Date.now();
+
+            const userCooldown = cooldowns.get(cooldownKey);
+            if (userCooldown && now < userCooldown.until) {
+                const remainingMs = userCooldown.until - now;
+                const remainingText = formatRemaining(remainingMs);
+
+                return interaction.editReply({
+                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
+                    ephemeral: true
+                });
+            }
+        }
+
+        const text = interaction.fields.getTextInputValue('p_text');
 
         const reklamKanalId = dbGet(`reklamKanal_${guildId}`);
-        const logKanalId   = dbGet(`logKanal_${guildId}`);
-        const davetMesaji  = dbGet(`davetMesaji_${guildId}`);
+        const logKanalId    = dbGet(`logKanal_${guildId}`);
+        const davetMesaji   = dbGet(`davetMesaji_${guildId}`);
 
         if (!davetMesaji) {
             const errorEmbed = new EmbedBuilder()
                 .setColor('#FF5555')
                 .setTitle('❌ Eksik Ayar')
                 .setDescription('Sunucu sahibi `#partner-mesaj` komutunu kullanarak davet mesajını ayarlamamış.\nBaşvuru şu an mümkün değil.');
-            return interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.editReply({ embeds: [errorEmbed], ephemeral: true });
         }
 
+        // Reklam kanalına gönder
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
             if (ch) await ch.send(text).catch(() => {});
         }
 
+        // Log gönder
         if (logKanalId) {
             const ch = interaction.client.channels.cache.get(logKanalId);
             if (ch) {
@@ -203,7 +286,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
                     .setDescription(
-                        `**Kullanıcı:** **${interaction.user}\nKullanıcı Adı:${interaction.user.tag}\nKullanıcı ID:${interaction.user.id}**\n` +
+                        `**Kullanıcı:** ${interaction.user}\n` +
+                        `**Kullanıcı Adı:** ${interaction.user.tag}\n` +
+                        `**Kullanıcı ID:** ${interaction.user.id}\n` +
                         `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
                     )
                     .setTimestamp();
@@ -211,27 +296,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
-
-
-
-setTimeout(async () => {
-            try {
-                await interaction.followUp({
-                    content: davetMesaji,
-                    ephemeral: true
-                });
-                await interaction.followUp({
-            content: `**${interaction.user} Partnerlik başarılı!**`,
-            ephemeral: false,
-            embeds: [],
-            allowedMentions: { parse: ['users'] }}); 
-            } catch {
-                await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
+        // Başarılı başvuru → cooldown başlat
+        if (cooldownStr && cooldownStr !== '0') {
+            const ms = parseDuration(cooldownStr);
+            if (ms > 0) {
+                cooldowns.set(cooldownKey, { until: Date.now() + ms });
             }
-        }, 100);
+        }
+
+        // Kullanıcıya cevaplar
+        try {
+            await interaction.followUp({
+                content: davetMesaji,
+                ephemeral: true
+            });
+
+            await interaction.followUp({
+                content: `**${interaction.user} Partnerlik başarılı!**`,
+                ephemeral: false,
+                allowedMentions: { parse: ['users'] }
+            });
+        } catch (err) {
+            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
+        }
     }
 });
-       
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ ${client.user.tag} hazır`);
