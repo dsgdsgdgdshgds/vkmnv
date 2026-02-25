@@ -89,7 +89,7 @@ function formatRemaining(ms) {
 
     const d = Math.floor(h / 24);
     const saat = h % 24;
-    return `\( {d} gün \){saat > 0 ? ` ${saat} saat` : ''}`;
+  return `(${d} gün${saat > 0 ? ` ${saat} saat` : ''})`;
 }
 
 // HOSTING (Render health check)
