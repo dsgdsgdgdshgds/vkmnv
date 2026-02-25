@@ -81,11 +81,11 @@ function formatRemaining(ms) {
 
     const m = Math.floor(s / 60);
     const sn = s % 60;
-    if (m < 60) return `\( {m} dk \){sn > 0 ? ` ${sn} sn` : ''}`;
+    if (m < 60) return `(${m} dk${sn > 0 ? ` ${sn} sn` : ''})`;
 
     const h = Math.floor(m / 60);
     const dk = m % 60;
-    if (h < 24) return `\( {h} saat \){dk > 0 ? ` ${dk} dk` : ''}`;
+   if (m < 60) return `(${m} dk${sn > 0 ? ` ${sn} sn` : ''})`;
 
     const d = Math.floor(h / 24);
     const saat = h % 24;
