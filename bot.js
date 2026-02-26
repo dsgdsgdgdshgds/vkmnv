@@ -80,16 +80,18 @@ function saveCooldowns(cooldowns) {
 
 function setUserCooldown(userId, guildId, untilTimestamp) {
     const cooldowns = getCooldowns();
-    const key = `\( {userId}_ \){guildId}`;
+    const key = `${userId}_${guildId}`; // ✅ DÜZELTİLEN TEK SATIR
     cooldowns[key] = untilTimestamp;
     saveCooldowns(cooldowns);
 }
 
 function getUserCooldownUntil(userId, guildId) {
     const cooldowns = getCooldowns();
-   const key = `${userId}_${guildId}`;
+    const key = `${userId}_${guildId}`;
     return cooldowns[key] || 0;
 }
+
+// (DEVAMI AYNEN DEVAM EDİYOR — DEĞİŞMEDİ)
 
 // Süre parse fonksiyonu → "1h30m" → milisaniye
 function parseDuration(str) {
