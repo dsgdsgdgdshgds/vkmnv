@@ -110,20 +110,21 @@ function parseDuration(str) {
 
 function formatRemaining(ms) {
     if (ms <= 0) return "0 saniye";
+
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s} saniye`;
 
     const m = Math.floor(s / 60);
     const sn = s % 60;
-    if (m < 60) return `\( {m} dk \){sn > 0 ? ` ${sn} sn` : ''}`;
+    if (m < 60) return `${m} dk${sn > 0 ? ` ${sn} sn` : ''}`;
 
     const h = Math.floor(m / 60);
     const dk = m % 60;
-    if (h < 24) return `\( {h} saat \){dk > 0 ? ` ${dk} dk` : ''}`;
+    if (h < 24) return `${h} saat${dk > 0 ? ` ${dk} dk` : ''}`;
 
     const d = Math.floor(h / 24);
     const saat = h % 24;
-    return `\( {d} gün \){saat > 0 ? ` ${saat} saat` : ''}`;
+    return `${d} gün${saat > 0 ? ` ${saat} saat` : ''}`;
 }
 
 // HOSTING (Render health check)
