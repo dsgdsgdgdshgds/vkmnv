@@ -21,7 +21,7 @@ const client = new Client({
     ]
 });
 
-// KALICI DİSK YOLU (Render Disk → /var/data)
+// KALICI DİSK YOLU (sadece ayarlar için, cooldown yok)
 const dbPath = '/var/data/kanal-ayar.json';
 
 // Dosya yoksa oluştur
@@ -54,8 +54,14 @@ function dbGet(key) {
     }
 }
 
-// Cooldown Map (kullanıcı başına - RAM'de tutulur, restartta sıfırlanır)
-const cooldowns = new Map(); // key: "userId_guildId"   value: { until: timestamp }
+// ────────────────────────────────────────────────
+// COOLDOWN → sadece RAM'de, sunucu + kullanıcı bazlı
+// ────────────────────────────────────────────────
+const cooldowns = new Map(); // key: "userId_guildId"   value: timestamp (until)
+
+function getCooldownKey(userId, guildId) {
+    return `\( {userId}_ \){guildId}`;
+}
 
 // Süre parse fonksiyonu → "1h30m" → milisaniye
 function parseDuration(str) {
@@ -76,20 +82,20 @@ function parseDuration(str) {
 
 function formatRemaining(ms) {
     if (ms <= 0) return "0 saniye";
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s} saniye`;
+    const totalSeconds = Math.floor(ms / 1000);
 
-    const m = Math.floor(s / 60);
-    const sn = s % 60;
-    if (m < 60) return `(${m} dk${sn > 0 ? ` ${sn} sn` : ''})`;
+    const days    = Math.floor(totalSeconds / 86400);
+    const hours   = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
-    const h = Math.floor(m / 60);
-    const dk = m % 60;
-   if (m < 60) return `(${m} dk${sn > 0 ? ` ${sn} sn` : ''})`;
+    const parts = [];
+    if (days)    parts.push(`${days} gün`);
+    if (hours)   parts.push(`${hours} saat`);
+    if (minutes) parts.push(`${minutes} dk`);
+    if (seconds || parts.length === 0) parts.push(`${seconds} sn`);
 
-    const d = Math.floor(h / 24);
-    const saat = h % 24;
-  return `(${d} gün${saat > 0 ? ` ${saat} saat` : ''})`;
+    return parts.join(' ');
 }
 
 // HOSTING (Render health check)
@@ -131,7 +137,7 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi\nÖr: 30m, 2h, 1d, 0 (kapatmak için)', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
-            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
+            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir • Cooldown RAM’de tutulur (restartta sıfırlanır)' });
 
         return message.channel.send({ embeds: [embed] });
     }
@@ -238,21 +244,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
-        const cooldownKey = `\( {userId}_ \){guildId}`;
+        const cooldownKey = getCooldownKey(userId, guildId);
+
+        const cooldownStr = dbGet(`cooldown_${guildId}`);
 
         // Cooldown kontrolü
-        const cooldownStr = dbGet(`cooldown_${guildId}`);
         if (cooldownStr && cooldownStr !== '0') {
             const cooldownMs = parseDuration(cooldownStr);
             const now = Date.now();
+            const userUntil = cooldowns.get(cooldownKey) || 0;
 
-            const userCooldown = cooldowns.get(cooldownKey);
-            if (userCooldown && now < userCooldown.until) {
-                const remainingMs = userCooldown.until - now;
-                const remainingText = formatRemaining(remainingMs);
-
+            if (userUntil > now) {
+                const remainingMs = userUntil - now;
                 return interaction.editReply({
-                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
+                    content: `⏳ Bir sonraki başvurun için **${formatRemaining(remainingMs)}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
                     ephemeral: true
                 });
             }
@@ -274,13 +279,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // Reklam kanalına gönder
         if (reklamKanalId) {
-            const ch = interaction.client.channels.cache.get(reklamKanalId);
+            const ch = client.channels.cache.get(reklamKanalId);
             if (ch) await ch.send(text).catch(() => {});
         }
 
         // Log gönder
         if (logKanalId) {
-            const ch = interaction.client.channels.cache.get(logKanalId);
+            const ch = client.channels.cache.get(logKanalId);
             if (ch) {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
@@ -296,28 +301,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
-        // Başarılı başvuru → cooldown başlat
+        // Başarılı başvuru → cooldown başlat (RAM)
         if (cooldownStr && cooldownStr !== '0') {
             const ms = parseDuration(cooldownStr);
             if (ms > 0) {
-                cooldowns.set(cooldownKey, { until: Date.now() + ms });
+                cooldowns.set(cooldownKey, Date.now() + ms);
             }
         }
 
-        // Kullanıcıya cevaplar
+        // Kullanıcıya cevap
         try {
-            await interaction.followUp({
-                content: davetMesaji,
-                ephemeral: true
-            });
-
+            await interaction.followUp({ content: davetMesaji, ephemeral: true });
             await interaction.followUp({
                 content: `**${interaction.user} Partnerlik başarılı!**`,
                 ephemeral: false,
                 allowedMentions: { parse: ['users'] }
             });
         } catch (err) {
-            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
+            await interaction.editReply({ content: davetMesaji }).catch(() => {});
         }
     }
 });
