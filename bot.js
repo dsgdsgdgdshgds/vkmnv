@@ -21,12 +21,16 @@ const client = new Client({
     ]
 });
 
-// KALICI DİSK YOLU (sadece ayarlar için, cooldown yok)
+// KALICI DİSK YOLU (Render Disk → /var/data)
 const dbPath = '/var/data/kanal-ayar.json';
+const cooldownPath = '/var/data/partner-cooldowns.json';
 
-// Dosya yoksa oluştur
+// Dosyalar yoksa oluştur
 if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({}), 'utf8');
+    fs.writeFileSync(dbPath, JSON.stringify({}, null, 2), 'utf8');
+}
+if (!fs.existsSync(cooldownPath)) {
+    fs.writeFileSync(cooldownPath, JSON.stringify({}, null, 2), 'utf8');
 }
 
 function dbSet(key, value) {
@@ -34,33 +38,57 @@ function dbSet(key, value) {
     try {
         data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
     } catch (err) {
-        console.error('JSON okuma hatası:', err);
+        console.error('Ayar JSON okuma hatası:', err);
     }
     data[key] = value;
     try {
         fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
     } catch (err) {
-        console.error('JSON yazma hatası:', err);
+        console.error('Ayar JSON yazma hatası:', err);
     }
 }
 
 function dbGet(key) {
     try {
         const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-        return data[key] || null;
+        return data[key] ?? null;
     } catch (err) {
-        console.error('JSON okuma hatası (get):', err);
+        console.error('Ayar JSON okuma hatası (get):', err);
         return null;
     }
 }
 
 // ────────────────────────────────────────────────
-// COOLDOWN → sadece RAM'de, sunucu + kullanıcı bazlı
+// Cooldown (kalıcı) fonksiyonları
 // ────────────────────────────────────────────────
-const cooldowns = new Map(); // key: "userId_guildId"   value: timestamp (until)
+function getCooldowns() {
+    try {
+        return JSON.parse(fs.readFileSync(cooldownPath, 'utf8'));
+    } catch (err) {
+        console.error('Cooldown JSON okuma hatası:', err);
+        return {};
+    }
+}
 
-function getCooldownKey(userId, guildId) {
-    return `\( {userId}_ \){guildId}`;
+function saveCooldowns(cooldowns) {
+    try {
+        fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8');
+    } catch (err) {
+        console.error('Cooldown JSON yazma hatası:', err);
+    }
+}
+
+function setUserCooldown(userId, guildId, untilTimestamp) {
+    const cooldowns = getCooldowns();
+    const key = `\( {userId}_ \){guildId}`;
+    cooldowns[key] = untilTimestamp;
+    saveCooldowns(cooldowns);
+}
+
+function getUserCooldownUntil(userId, guildId) {
+    const cooldowns = getCooldowns();
+    const key = `\( {userId}_ \){guildId}`;
+    return cooldowns[key] || 0;
 }
 
 // Süre parse fonksiyonu → "1h30m" → milisaniye
@@ -82,20 +110,20 @@ function parseDuration(str) {
 
 function formatRemaining(ms) {
     if (ms <= 0) return "0 saniye";
-    const totalSeconds = Math.floor(ms / 1000);
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s} saniye`;
 
-    const days    = Math.floor(totalSeconds / 86400);
-    const hours   = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const m = Math.floor(s / 60);
+    const sn = s % 60;
+    if (m < 60) return `\( {m} dk \){sn > 0 ? ` ${sn} sn` : ''}`;
 
-    const parts = [];
-    if (days)    parts.push(`${days} gün`);
-    if (hours)   parts.push(`${hours} saat`);
-    if (minutes) parts.push(`${minutes} dk`);
-    if (seconds || parts.length === 0) parts.push(`${seconds} sn`);
+    const h = Math.floor(m / 60);
+    const dk = m % 60;
+    if (h < 24) return `\( {h} saat \){dk > 0 ? ` ${dk} dk` : ''}`;
 
-    return parts.join(' ');
+    const d = Math.floor(h / 24);
+    const saat = h % 24;
+    return `\( {d} gün \){saat > 0 ? ` ${saat} saat` : ''}`;
 }
 
 // HOSTING (Render health check)
@@ -137,7 +165,7 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi\nÖr: 30m, 2h, 1d, 0 (kapatmak için)', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
-            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir • Cooldown RAM’de tutulur (restartta sıfırlanır)' });
+            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
 
         return message.channel.send({ embeds: [embed] });
     }
@@ -244,7 +272,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
-        const cooldownKey = getCooldownKey(userId, guildId);
 
         const cooldownStr = dbGet(`cooldown_${guildId}`);
 
@@ -252,12 +279,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (cooldownStr && cooldownStr !== '0') {
             const cooldownMs = parseDuration(cooldownStr);
             const now = Date.now();
-            const userUntil = cooldowns.get(cooldownKey) || 0;
+            const userUntil = getUserCooldownUntil(userId, guildId);
 
             if (userUntil > now) {
                 const remainingMs = userUntil - now;
+                const remainingText = formatRemaining(remainingMs);
+
                 return interaction.editReply({
-                    content: `⏳ Bir sonraki başvurun için **${formatRemaining(remainingMs)}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
+                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
                     ephemeral: true
                 });
             }
@@ -279,13 +308,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // Reklam kanalına gönder
         if (reklamKanalId) {
-            const ch = client.channels.cache.get(reklamKanalId);
+            const ch = interaction.client.channels.cache.get(reklamKanalId);
             if (ch) await ch.send(text).catch(() => {});
         }
 
         // Log gönder
         if (logKanalId) {
-            const ch = client.channels.cache.get(logKanalId);
+            const ch = interaction.client.channels.cache.get(logKanalId);
             if (ch) {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
@@ -301,24 +330,29 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         }
 
-        // Başarılı başvuru → cooldown başlat (RAM)
+        // Başarılı başvuru → cooldown başlat (kalıcı)
         if (cooldownStr && cooldownStr !== '0') {
             const ms = parseDuration(cooldownStr);
             if (ms > 0) {
-                cooldowns.set(cooldownKey, Date.now() + ms);
+                const until = Date.now() + ms;
+                setUserCooldown(userId, guildId, until);
             }
         }
 
         // Kullanıcıya cevap
         try {
-            await interaction.followUp({ content: davetMesaji, ephemeral: true });
+            await interaction.followUp({
+                content: davetMesaji,
+                ephemeral: true
+            });
+
             await interaction.followUp({
                 content: `**${interaction.user} Partnerlik başarılı!**`,
                 ephemeral: false,
                 allowedMentions: { parse: ['users'] }
             });
         } catch (err) {
-            await interaction.editReply({ content: davetMesaji }).catch(() => {});
+            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
         }
     }
 });
