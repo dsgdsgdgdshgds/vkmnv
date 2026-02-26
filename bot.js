@@ -87,7 +87,7 @@ function setUserCooldown(userId, guildId, untilTimestamp) {
 
 function getUserCooldownUntil(userId, guildId) {
     const cooldowns = getCooldowns();
-    const key = `\( {userId}_ \){guildId}`;
+   const key = `${userId}_${guildId}`;
     return cooldowns[key] || 0;
 }
 
