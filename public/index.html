@@ -68,6 +68,16 @@
     let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
     let camYaw = 0, camPitch = -Math.PI / 8;
 
+    // --- SES DOSYALARI ---
+    const sfxHit = new Audio('/sounds/hit.mp3');
+    const sfxBreak = new Audio('/sounds/break.mp3');
+    const sfxCraft = new Audio('/sounds/craft.mp3');
+
+    function playSFX(audio) {
+        audio.currentTime = 0; // Başa sar
+        audio.play().catch(e => console.log("Ses oynatılamadı:", e));
+    }
+
     window.toggleCraft = () => document.getElementById('craft-panel').classList.toggle('open');
 
     function createNameTag(name) {
@@ -183,7 +193,7 @@
             const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
             group.add(rock);
         }
-        group.position.set(x, 0, z); // Zemine sıfırla
+        group.position.set(x, 0, z);
         group.userData = { type: isTree ? 'wood' : 'stone', hp: 10, maxHp: 10 };
         scene.add(group); worldObjects.push(group);
     }
@@ -191,18 +201,19 @@
     function performAttack() {
         if(!myPlayer) return;
         
-        // Animasyon
         const arm = myPlayer.userData.rightArmGroup;
         arm.rotation.x = -Math.PI / 2;
         setTimeout(() => { arm.rotation.x = 0; }, 150);
 
         const hitRange = 2.5; 
-        
+        let hitSomething = false;
+
         for (let i = worldObjects.length - 1; i >= 0; i--) {
             const obj = worldObjects[i];
             const dist = myPlayer.position.distanceTo(obj.position);
 
             if (dist < hitRange) {
+                hitSomething = true;
                 let dmg = 1;
                 if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 5;
                 if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 5;
@@ -212,21 +223,27 @@
                 obj.scale.set(s, s, s);
 
                 if (obj.userData.hp <= 0) {
+                    playSFX(sfxBreak); // Kırılma sesi
                     inv[obj.userData.type]++;
                     updateUI();
                     scene.remove(obj);
                     worldObjects.splice(i, 1);
                     socket.emit('collect', { type: obj.userData.type });
+                } else {
+                    playSFX(sfxHit); // Vurma sesi
                 }
             }
         }
+
+        // Eğer bir şeye vurulmadıysa (hava vuruşu veya PvP denemesi için de çalabilir)
+        if(!hitSomething) playSFX(sfxHit);
 
         Object.keys(otherPlayers).forEach(id => {
             if(myPlayer.position.distanceTo(otherPlayers[id].position) < 2.0) {
                 socket.emit('attackPlayer', { targetId: id, dmg: (inv.sword > 0 ? 20 : 5) });
             }
         });
-    };
+    }
 
     function updateUI() {
         document.getElementById('inv-wood').innerText = inv.wood;
@@ -252,7 +269,12 @@
         if(t==='axe' && inv.wood>=3) { inv.wood-=3; inv.axe=1; ok=true; }
         if(t==='pickaxe' && inv.stone>=3) { inv.stone-=3; inv.pickaxe=1; ok=true; }
         if(t==='sword' && inv.wood>=2 && inv.stone>=2) { inv.wood-=2; inv.stone-=2; inv.sword=1; ok=true; }
-        if(ok) { updateUI(); updateEquippedTool(); toggleCraft(); }
+        if(ok) { 
+            playSFX(sfxCraft); // Craft sesi
+            updateUI(); 
+            updateEquippedTool(); 
+            toggleCraft(); 
+        }
     };
 
     function setupControls() {
