@@ -273,7 +273,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ────────────────────────────────────────────────
-// WEB SUNUCUSU, OYUN VE SOCKET.IO (EXPRESS GÜNCELLEMESİ)
+// WEB SUNUCUSU, OYUN VE SOCKET.IO (CRAFTING & SURVIVAL UPDATE)
 // ────────────────────────────────────────────────
 const app = express();
 const server = http.createServer(app); 
@@ -285,7 +285,7 @@ let activePlayers = {};
 
 io.on('connection', (socket) => {
     
-    // Giriş ve Kayıt İşlemi (Şifre Korumalı + HP Eklendi)
+    // Giriş ve Kayıt İşlemi (Envanter Desteği Eklendi)
     socket.on('login', (data) => {
         const { username, password } = data;
         let allUsers = {};
@@ -296,37 +296,40 @@ io.on('connection', (socket) => {
             allUsers = {}; 
         }
 
-        // Eğer kullanıcı adı veritabanında yoksa YENİ KAYIT oluştur
         if (!allUsers[username]) {
             allUsers[username] = {
                 username: username,
                 password: password,
-                x: Math.random() * 20 - 10,
-                z: Math.random() * 20 - 10,
+                x: 0, z: 0,
                 color: Math.floor(Math.random() * 16777215),
-                hp: 100 // Yeni oyuncu full canla başlar
+                hp: 100,
+                inventory: { wood: 0, stone: 0, sword: 0, pickaxe: 0, axe: 0 } // Başlangıç envanteri
             };
             fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         } 
-        // Kullanıcı kayıtlıysa ŞİFRE KONTROLÜ yap
         else if (allUsers[username].password !== password) {
-            socket.emit('loginError', 'Hatalı şifre! Bu kullanıcı adı başkası tarafından alınmış.');
+            socket.emit('loginError', 'Hatalı şifre!');
             return;
         }
 
-        // Giriş başarılı, oyuncuyu aktifler listesine al
-        // Not: Giriş yaparken HP'yi her zaman 100 olarak başlatabiliriz veya DB'den çekebiliriz
-        activePlayers[socket.id] = { ...allUsers[username], id: socket.id, hp: 100 };
+        // Oyuncuyu aktif listeye al (Veritabanındaki envanteri yükle)
+        activePlayers[socket.id] = { 
+            ...allUsers[username], 
+            id: socket.id, 
+            hp: 100 // Her girişte can full başlar
+        };
         
         socket.emit('loginSuccess'); 
+        socket.emit('updateInventory', activePlayers[socket.id].inventory); // Envanteri gönder
         socket.emit('currentPlayers', activePlayers); 
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]); 
     });
 
-    // Oyuncu Hareket ve Kamera Rotasyonu
+    // Oyuncu Hareketi (Y koordinatı zıplama için eklendi)
     socket.on('playerMovement', (data) => {
         if (activePlayers[socket.id]) {
             activePlayers[socket.id].x = data.x;
+            activePlayers[socket.id].y = data.y || 0;
             activePlayers[socket.id].z = data.z;
             activePlayers[socket.id].rotationY = data.rotationY; 
             
@@ -334,37 +337,75 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- SALDIRI VE HASAR SİSTEMİ ---
+    // --- KAYNAK TOPLAMA ---
+    socket.on('collect', (resourceType) => {
+        const p = activePlayers[socket.id];
+        if (p && (resourceType === 'wood' || resourceType === 'stone')) {
+            p.inventory[resourceType] += 1;
+            socket.emit('updateInventory', p.inventory);
+            // İstersen burada fs.writeFileSync ile DB'ye anlık kaydedebilirsin
+        }
+    });
+
+    // --- CRAFTING (ÜRETİM) SİSTEMİ ---
+    socket.on('craft', (item) => {
+        const p = activePlayers[socket.id];
+        if (!p) return;
+
+        let success = false;
+        const inv = p.inventory;
+
+        if (item === 'sword' && inv.wood >= 2 && inv.stone >= 2) {
+            inv.wood -= 2; inv.stone -= 2; inv.sword += 1;
+            success = true;
+        } else if (item === 'pickaxe' && inv.wood >= 3 && inv.stone >= 1) {
+            inv.wood -= 3; inv.stone -= 1; inv.pickaxe += 1;
+            success = true;
+        } else if (item === 'axe' && inv.wood >= 1 && inv.stone >= 3) {
+            inv.wood -= 1; inv.stone -= 3; inv.axe += 1;
+            success = true;
+        }
+
+        if (success) {
+            socket.emit('updateInventory', inv);
+            console.log(`[CRAFT] ${p.username} üretti: ${item}`);
+        }
+    });
+
+    // --- SALDIRI VE HASAR SİSTEMİ (ALET BONUSLU) ---
     socket.on('attack', (targetId) => {
         const attacker = activePlayers[socket.id];
         const target = activePlayers[targetId];
 
         if (attacker && target) {
-            // Mesafe kontrolü (Hileyi önlemek için sunucu tarafında da kontrol)
             const dist = Math.sqrt(Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.z - target.z, 2));
             
-            if (dist < 5) { // 5 birim yakınlıktaysa vurabilir
-                target.hp -= 10; // 10 hasar ver
+            if (dist < 5) { 
+                // Kılıç varsa +20 hasar, yoksa 10 hasar
+                let damage = attacker.inventory.sword > 0 ? 30 : 10;
+                target.hp -= damage;
                 
-                // Eğer oyuncu öldüyse
                 if (target.hp <= 0) {
-                    target.hp = 100; // Canı fulle (Respawn)
-                    target.x = 0;    // Başlangıç noktasına gönder
-                    target.z = 0;
-                    
-                    // Ölen oyuncuya ve diğerlerine öldüğünü/ışınlandığını bildir
+                    target.hp = 100;
+                    target.x = 0; target.z = 0;
                     io.emit('playerMoved', target); 
                 }
 
-                // Herkese güncel can bilgisini gönder
                 io.emit('hpUpdate', { id: targetId, hp: target.hp });
             }
         }
     });
 
-    // Oyuncu Çıkışı
     socket.on('disconnect', () => {
         if (activePlayers[socket.id]) {
+            // Çıkarken envanteri kaydet
+            try {
+                let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+                const username = activePlayers[socket.id].username;
+                allUsers[username].inventory = activePlayers[socket.id].inventory;
+                fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+            } catch (e) {}
+
             delete activePlayers[socket.id];
             io.emit('playerDisconnected', socket.id);
         }
@@ -377,7 +418,6 @@ client.once(Events.ClientReady, () => {
     console.log(`✅ Discord: ${client.user.tag} hazır`);
 });
 
-// TÜM SİSTEMİ TEK PORTTAN BAŞLAT
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun http://localhost:${PORT} adresinde aktif.`);
 });
