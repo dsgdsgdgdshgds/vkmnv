@@ -2,61 +2,76 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Survival RPG: Evolution</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+    <title>Survival Evolution: Ultra</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87ceeb; touch-action: none; font-family: 'Segoe UI', sans-serif; }
-        #login-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .box { background: #222; padding: 30px; border-radius: 15px; text-align: center; color: white; border: 2px solid #444; width: 280px; }
-        input { padding: 12px; width: 90%; border-radius: 5px; border: none; margin-bottom: 10px; font-size: 16px; }
-        button { padding: 12px 30px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 5px; font-weight: bold; width: 100%; font-size: 16px; }
+        :root { --primary: #2ecc71; --ui-bg: rgba(0,0,0,0.6); }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
         
-        #ui-overlay { position: fixed; top: 20px; left: 20px; color: white; pointer-events: none; z-index: 1000; text-shadow: 2px 2px 2px #000; }
-        #hp-bar-ui { width: 200px; height: 15px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
-        #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
+        #portrait-warning { 
+            position: fixed; inset: 0; background: #1a1a1a; color: white; 
+            z-index: 9999; display: none; align-items: center; justify-content: center; text-align: center; 
+        }
+        @media screen and (orientation: portrait) { #portrait-warning { display: flex; } }
 
-        /* Crafting Menüsü */
-        #craft-menu { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; border: 1px solid #777; }
-        .item-slot { width: 60px; height: 60px; background: #444; border: 2px solid #888; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 10px; font-weight: bold; }
-        .item-slot:hover { background: #555; border-color: #2ecc71; }
+        /* Giriş Ekranı */
+        #login-screen { position: fixed; inset: 0; background: radial-gradient(circle, #2c3e50, #000); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .box { background: rgba(255,255,255,0.1); backdrop-filter: blur(15px); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); width: 320px; text-align: center; color: white; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: rgba(255,255,255,0.9); box-sizing: border-box; color: #333; }
+        button.start-btn { width: 100%; padding: 15px; background: var(--primary); border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; }
+
+        /* HUD */
+        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 1000; display: none; }
+        .stats { position: absolute; top: 20px; left: 20px; }
+        .hp-bar { width: 200px; height: 15px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; }
+        #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
         
+        /* Envanter */
+        #craft-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: var(--ui-bg); padding: 8px; border-radius: 15px; pointer-events: auto; }
+        .slot { width: 50px; height: 50px; background: rgba(255,255,255,0.1); border: 1px solid #777; border-radius: 8px; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer; }
+
         /* Mobil Kontroller */
-        #mobile-controls { display: none; }
-        #joystick-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); }
-        #joystick-knob { position: absolute; width: 50px; height: 50px; background: #fff; opacity: 0.5; border-radius: 50%; top: 35px; left: 35px; }
-        #jump-btn { position: absolute; bottom: 150px; right: 40px; width: 70px; height: 70px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; }
-        #attack-btn { position: absolute; bottom: 50px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.6); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 20px; }
+        .mobile-ui { display: none; }
+        @media (pointer: coarse) { .mobile-ui { display: block; } }
+
+        #joystick-base { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; }
+        #joystick-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; top: 30px; left: 30px; opacity: 0.5; }
         
-        @media (pointer: coarse) { #mobile-controls { display: block; } }
+        .action-btn { position: absolute; border-radius: 50%; border: 2px solid #fff; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+        #atk-btn { right: 30px; bottom: 30px; width: 80px; height: 80px; background: rgba(231, 76, 60, 0.6); font-size: 20px; }
+        #jmp-btn { right: 120px; bottom: 40px; width: 55px; height: 55px; background: rgba(255,255,255,0.2); font-size: 10px; }
     </style>
 </head>
 <body>
 
+<div id="portrait-warning">Lütfen cihazı yan çevirin! 🔄</div>
+
 <div id="login-screen">
     <div class="box">
-        <h2 style="color:#2ecc71">⚔️ CRAFT & SURVIVE</h2>
+        <h2 style="color:var(--primary); margin-top:0;">⚔️ EVOLUTION</h2>
         <input type="text" id="username" placeholder="Kullanıcı Adı">
         <input type="password" id="password" placeholder="Şifre">
-        <button onclick="attemptLogin()">DÜNYAYA GİR</button>
+        <button class="start-btn" onclick="joinGame()">DÜNYAYA BAĞLAN</button>
     </div>
 </div>
 
-<div id="ui-overlay">
-    <div id="player-name-display">Bekleniyor...</div>
-    <div id="hp-bar-ui"><div id="hp-fill"></div></div>
-    <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
-</div>
+<div id="hud">
+    <div class="stats">
+        <div id="name-tag" style="color:white; font-weight:bold; margin-bottom:5px;">OYUNCU</div>
+        <div class="hp-bar"><div id="hp-fill"></div></div>
+    </div>
 
-<div id="craft-menu">
-    <div class="item-slot" onclick="craft('axe')">🪓<br>Balta</div>
-    <div class="item-slot" onclick="craft('pickaxe')">⛏️<br>Kazma</div>
-    <div class="item-slot" onclick="craft('sword')">⚔️<br>Kılıç</div>
-</div>
+    <div id="craft-bar">
+        <div class="slot" onclick="doCraft('axe')">🪓<br>BALTA</div>
+        <div class="slot" onclick="doCraft('pickaxe')">⛏️<br>KAZMA</div>
+        <div class="slot" onclick="doCraft('sword')">⚔️<br>KILIÇ</div>
+    </div>
 
-<div id="mobile-controls">
-    <div id="joystick-container"><div id="joystick-knob"></div></div>
-    <button id="jump-btn" onclick="jump()">ZIPLA</button>
-    <button id="attack-btn" onclick="performAttack()">🔥</button>
+    <div class="mobile-ui">
+        <div id="joystick-base"><div id="joystick-knob"></div></div>
+        <button id="atk-btn" class="action-btn">🔥</button>
+        <button id="jmp-btn" class="action-btn">ZIP</button>
+    </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -64,264 +79,193 @@
     import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
     let scene, camera, renderer, socket, myPlayer, myId;
-    let joystickData = { x: 0, y: 0, active: false };
-    const otherPlayers = {}, worldObjects = [], keys = {};
+    let camYaw = 0, camPitch = -Math.PI / 6;
+    let isRightClick = false;
+    let vY = 0, isGrounded = true;
+    const players = {}, resources = [], keys = {};
     
-    // Sesler
-    const hitSound = new Audio('/sounds/hit.mp3');
-    const breakSound = new Audio('/sounds/break.mp3');
+    // Çoklu dokunmatik takibi
+    let moveTouchId = null;
+    let lookTouchId = null;
+    let lastLookX = 0, lastLookY = 0;
+    let moveDir = { x: 0, y: 0 };
 
-    // Fizik & Envanter
-    let velocityY = 0, isGrounded = true;
-    let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
-    let currentTool = null; // Elimizde ne var?
-
-    let camYaw = 0, camPitch = -Math.PI / 8;
-    let isDragging = false, lastMouseX, lastMouseY;
-
-    window.attemptLogin = () => {
+    window.joinGame = () => {
         const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        if(u.length < 2) return;
-        
+        if(!u) return;
         socket = io();
-        socket.emit('login', { username: u, password: p });
-        
+        socket.emit('login', { username: u, password: document.getElementById('password').value });
         socket.on('loginSuccess', () => {
             document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('player-name-display').innerText = u.toUpperCase();
-            initGame();
-        });
-
-        socket.on('updateInventory', data => {
-            inv = data;
-            document.getElementById('inv-wood').innerText = inv.wood;
-            document.getElementById('inv-stone').innerText = inv.stone;
-            updateEquippedTool();
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('name-tag').innerText = u.toUpperCase();
+            init();
         });
     };
 
-    function initGame() {
+    function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.Fog(0x87ceeb, 25, 120);
-
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-        sun.position.set(50, 80, 50); sun.castShadow = true;
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(50, 100, 50); sun.castShadow = true;
         scene.add(sun);
 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
         ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
         scene.add(ground);
 
-        // Map Nesneleri
-        for(let i=0; i<100; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
-
-        socket.on('currentPlayers', (players) => {
+        // --- Soket Yönetimi ---
+        socket.on('currentPlayers', data => {
             myId = socket.id;
-            Object.keys(players).forEach(id => {
-                if(id === myId) myPlayer = createHuman(players[id]);
-                else otherPlayers[id] = createHuman(players[id]);
+            Object.keys(data).forEach(id => {
+                if(id === myId) myPlayer = createChar(data[id], true);
+                else players[id] = createChar(data[id], false);
             });
         });
 
-        socket.on('playerMoved', data => {
-            if(data.id !== myId && otherPlayers[data.id]) {
-                otherPlayers[data.id].position.set(data.x, data.y || 0, data.z);
-                otherPlayers[data.id].rotation.y = data.rotationY;
-            }
+        socket.on('newPlayer', d => { players[d.id] = createChar(d, false); });
+        
+        socket.on('playerMoved', d => { 
+            if(players[d.id]) { 
+                players[d.id].position.set(d.x, d.y, d.z); 
+                players[d.id].rotation.y = d.rotationY; 
+            } 
         });
 
-        socket.on('playerDisconnected', id => {
-            if(otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; }
+        // BAĞLI OLMAYANLARI SİL
+        socket.on('playerDisconnected', id => { 
+            if(players[id]) { 
+                scene.remove(players[id]); 
+                delete players[id]; 
+            } 
         });
 
-        setupCameraControls();
-        setupJoystick();
+        bindInputs();
         animate();
     }
 
-    function createHuman(data) {
+    function createChar(data, isMe) {
         const group = new THREE.Group();
-        
-        // Gövde (Pantolonlu/Tişörtlü gibi renkli kutular)
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), new THREE.MeshStandardMaterial({color: 0x3498db}));
-        torso.position.y = 1.05; torso.castShadow = true; group.add(torso);
-        
-        const legs = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.28), new THREE.MeshStandardMaterial({color: 0x2c3e50}));
-        legs.position.y = 0.35; group.add(legs);
-
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1, 4, 8), new THREE.MeshStandardMaterial({ color: isMe ? 0x2ecc71 : 0xe74c3c }));
+        body.position.y = 0.9; body.castShadow = true; group.add(body);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xffdbac }));
         head.position.y = 1.6; group.add(head);
-
-        // Kollar
-        const rightArmGroup = new THREE.Group();
-        rightArmGroup.position.set(0.4, 1.3, 0);
-        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        rightArm.position.y = -0.25; rightArmGroup.add(rightArm);
-        group.add(rightArmGroup);
-
-        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        leftArm.position.set(-0.4, 1.05, 0); group.add(leftArm);
-
-        // Elindeki Eşya Yuvası
-        const toolSlot = new THREE.Group();
-        toolSlot.position.set(0, -0.5, 0.1); 
-        rightArm.add(toolSlot);
-
-        group.userData = { rightArmGroup, toolSlot };
         group.position.set(data.x || 0, 0, data.z || 0);
-        scene.add(group);
-        return group;
+        scene.add(group); return group;
     }
 
-    function updateEquippedTool() {
-        if(!myPlayer) return;
-        const slot = myPlayer.userData.toolSlot;
-        while(slot.children.length > 0) slot.remove(slot.children[0]);
-
-        let toolMesh;
-        if(inv.sword > 0) {
-            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
-        } else if(inv.axe > 0) {
-            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
-        } else if(inv.pickaxe > 0) {
-            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
-        }
-
-        if(toolMesh) slot.add(toolMesh);
-    }
-
-    function spawnResource(x, z) {
-        const isTree = Math.random() > 0.4;
-        const group = new THREE.Group();
-        if(isTree) {
-            const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({color:0x5d4037}));
-            const l = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshStandardMaterial({color:0x2e7d32}));
-            l.position.y = 2; group.add(t, l);
-        } else {
-            const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
-            group.add(r);
-        }
-        group.position.set(x, 0.5, z);
-        group.userData = { type: isTree ? 'wood' : 'stone', hp: Math.floor(Math.random()*6)+5 };
-        scene.add(group); worldObjects.push(group);
-    }
-
-    window.jump = () => { if(isGrounded) { velocityY = 0.3; isGrounded = false; } };
-    window.craft = (t) => socket.emit('craft', t);
-
-    window.performAttack = () => {
-        if(!myPlayer) return;
-        
-        // Vurma Animasyonu
-        const arm = myPlayer.userData.rightArmGroup;
-        arm.rotation.x = -Math.PI / 2;
-        hitSound.play().catch(()=>{});
-
-        setTimeout(() => { arm.rotation.x = 0; }, 150);
-
-        worldObjects.forEach((obj, i) => {
-            if(myPlayer.position.distanceTo(obj.position) < 4) {
-                let damage = 1;
-                if(obj.userData.type === 'wood' && inv.axe > 0) damage = 4;
-                if(obj.userData.type === 'stone' && inv.pickaxe > 0) damage = 4;
-                if(inv.sword > 0) damage += 1;
-
-                obj.userData.hp -= damage;
-                
-                // Kırılma Efekti (Küçülme)
-                obj.scale.multiplyScalar(0.9);
-
-                if(obj.userData.hp <= 0) {
-                    breakSound.play().catch(()=>{});
-                    socket.emit('collect', obj.userData.type);
-                    scene.remove(obj); worldObjects.splice(i, 1);
-                }
-            }
+    function bindInputs() {
+        // --- MASAÜSTÜ ---
+        window.addEventListener('mousedown', e => { 
+            if(e.button === 0) attack(); 
+            if(e.button === 2) isRightClick = true; 
         });
-    };
-
-    function setupCameraControls() {
-        // PC & Mobil Kamera
-        const handleMove = (dx, dy) => {
-            camYaw -= dx * 0.005;
-            camPitch = Math.max(-Math.PI/2.1, Math.min(-0.1, camPitch - dy * 0.005));
-        };
-
-        window.addEventListener('mousemove', e => { if(isDragging || e.buttons === 2) handleMove(e.movementX, e.movementY); });
-        window.addEventListener('mousedown', e => { if(e.button === 2) isDragging = true; });
-        window.addEventListener('mouseup', () => isDragging = false);
-
-        window.addEventListener('touchmove', e => {
-            const t = e.touches[0];
-            if(t.clientX > window.innerWidth/2) { // Sağ taraf kameradır
-                handleMove(t.clientX - (lastMouseX || t.clientX), t.clientY - (lastMouseY || t.clientY));
+        window.addEventListener('mouseup', e => { if(e.button === 2) isRightClick = false; });
+        window.addEventListener('mousemove', e => {
+            if(isRightClick) {
+                camYaw -= e.movementX * 0.005;
+                camPitch = Math.max(-Math.PI/2.2, Math.min(-0.1, camPitch - e.movementY * 0.005));
             }
-            lastMouseX = t.clientX; lastMouseY = t.clientY;
         });
         window.addEventListener('contextmenu', e => e.preventDefault());
-    }
+        window.onkeydown = e => { keys[e.code] = true; if(e.code === 'Space' && isGrounded) { vY = 0.25; isGrounded = false; } };
+        window.onkeyup = e => keys[e.code] = false;
 
-    function setupJoystick() {
-        const container = document.getElementById('joystick-container');
-        const knob = document.getElementById('joystick-knob');
-        container.addEventListener('touchstart', e => { joystickData.active = true; e.stopPropagation(); });
-        window.addEventListener('touchend', () => { 
-            joystickData.active = false; 
-            knob.style.transform = `translate(0,0)`;
-            joystickData.x = 0; joystickData.y = 0;
-        });
+        // --- MOBİL (GELİŞMİŞ MULTI-TOUCH) ---
+        const jsBase = document.getElementById('joystick-base'), knob = document.getElementById('joystick-knob');
+        
+        window.addEventListener('touchstart', e => {
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                const rect = jsBase.getBoundingClientRect();
+                
+                // Eğer dokunma joystick alanındaysa
+                if(t.clientX > rect.left && t.clientX < rect.right && t.clientY > rect.top && t.clientY < rect.bottom) {
+                    moveTouchId = t.identifier;
+                } else {
+                    // Ekranın geri kalanı kamera kontrolüdür
+                    lookTouchId = t.identifier;
+                    lastLookX = t.clientX;
+                    lastLookY = t.clientY;
+                }
+            }
+        }, {passive: false});
+
         window.addEventListener('touchmove', e => {
-            if(!joystickData.active) return;
-            const t = e.touches[0];
-            const dx = t.clientX - (container.offsetLeft + 60), dy = t.clientY - (container.offsetTop + 60);
-            const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 50), angle = Math.atan2(dy, dx);
-            knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
-            joystickData.x = Math.cos(angle) * (dist/50); joystickData.y = Math.sin(angle) * (dist/50);
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                
+                if(t.identifier === moveTouchId) {
+                    const rect = jsBase.getBoundingClientRect();
+                    const dx = t.clientX - (rect.left + 50), dy = t.clientY - (rect.top + 50);
+                    const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 40), angle = Math.atan2(dy, dx);
+                    knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+                    moveDir = { x: Math.cos(angle)*(dist/40), y: Math.sin(angle)*(dist/40) };
+                } 
+                else if(t.identifier === lookTouchId) {
+                    const dx = t.clientX - lastLookX, dy = t.clientY - lastLookY;
+                    camYaw -= dx * 0.008;
+                    camPitch = Math.max(-Math.PI/2.2, Math.min(-0.1, camPitch - dy * 0.008));
+                    lastLookX = t.clientX; lastLookY = t.clientY;
+                }
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchend', e => {
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if(t.identifier === moveTouchId) { moveTouchId = null; moveDir = {x:0, y:0}; knob.style.transform = 'translate(0,0)'; }
+                if(t.identifier === lookTouchId) { lookTouchId = null; }
+            }
         });
+
+        document.getElementById('atk-btn').addEventListener('touchstart', attack);
+        document.getElementById('jmp-btn').addEventListener('touchstart', () => { if(isGrounded) { vY = 0.25; isGrounded = false; } });
     }
 
-    window.onkeydown = e => { 
-        keys[e.code] = true; 
-        if(e.code === 'Space') jump(); 
-    };
-    window.onkeyup = e => keys[e.code] = false;
+    function attack() {
+        if(myPlayer) socket.emit('attack');
+    }
+
+    window.doCraft = (t) => socket.emit('craft', t);
 
     function animate() {
         requestAnimationFrame(animate);
         if(myPlayer) {
             const speed = 0.16;
             let mx = 0, mz = 0;
-            if(keys['KeyW'] || joystickData.y < -0.2) { mx += Math.sin(camYaw) * speed; mz += Math.cos(camYaw) * speed; }
-            if(keys['KeyS'] || joystickData.y > 0.2) { mx -= Math.sin(camYaw) * speed; mz -= Math.cos(camYaw) * speed; }
-            if(keys['KeyA']) { mx += Math.sin(camYaw + Math.PI/2) * speed; mz += Math.cos(camYaw + Math.PI/2) * speed; }
-            if(keys['KeyD']) { mx += Math.sin(camYaw - Math.PI/2) * speed; mz += Math.cos(camYaw - Math.PI/2) * speed; }
+            const forward = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+            const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward);
 
-            myPlayer.position.x += mx;
-            myPlayer.position.z += mz;
-            if(mx !== 0 || mz !== 0) myPlayer.rotation.y = Math.atan2(mx, mz);
+            // Hareket (WASD + Joystick)
+            if(keys['KeyW'] || moveDir.y < -0.2) { mx += forward.x * speed; mz += forward.z * speed; }
+            if(keys['KeyS'] || moveDir.y > 0.2) { mx -= forward.x * speed; mz -= forward.z * speed; }
+            if(keys['KeyA'] || moveDir.x < -0.2) { mx += right.x * speed; mz += right.z * speed; }
+            if(keys['KeyD'] || moveDir.x > 0.2) { mx -= right.x * speed; mz -= right.z * speed; }
 
-            // Zıplama Fiziği
-            myPlayer.position.y += velocityY;
-            if(myPlayer.position.y > 0) velocityY -= 0.015;
-            else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
+            myPlayer.position.x += mx; myPlayer.position.z += mz;
+            if(Math.abs(mx) > 0.01 || Math.abs(mz) > 0.01) myPlayer.rotation.y = Math.atan2(mx, mz);
 
-            socket.emit('playerMovement', {x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y});
+            myPlayer.position.y += vY;
+            if(myPlayer.position.y > 0) vY -= 0.012; else { myPlayer.position.y = 0; vY = 0; isGrounded = true; }
 
             // Akıcı Kamera
-            const camDist = 12;
-            camera.position.x = myPlayer.position.x - Math.sin(camYaw) * camDist * Math.cos(camPitch);
-            camera.position.y = myPlayer.position.y - Math.sin(camPitch) * camDist + 2;
-            camera.position.z = myPlayer.position.z - Math.cos(camYaw) * camDist * Math.cos(camPitch);
-            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1.6, myPlayer.position.z);
+            const d = 12;
+            camera.position.set(
+                myPlayer.position.x - Math.sin(camYaw) * d * Math.cos(camPitch),
+                myPlayer.position.y - Math.sin(camPitch) * d + 2,
+                myPlayer.position.z - Math.cos(camYaw) * d * Math.cos(camPitch)
+            );
+            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1.5, myPlayer.position.z);
+            
+            socket.emit('playerMovement', { x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y });
         }
         renderer.render(scene, camera);
     }
