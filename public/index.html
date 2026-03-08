@@ -22,7 +22,7 @@
         #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 110px; height: 110px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
         #joystick-knob { position: absolute; width: 45px; height: 45px; background: #fff; opacity: 0.5; border-radius: 50%; top: 32px; left: 32px; pointer-events: none; }
         #jump-btn { position: absolute; bottom: 130px; right: 30px; width: 65px; height: 65px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; pointer-events: auto; }
-        #attack-btn { position: absolute; bottom: 30px; right: 30px; width: 85px; height: 85px; background: rgba(231, 76, 60, 0.6); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 20px; pointer-events: auto; }
+        #attack-btn { position: absolute; bottom: 30px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.7); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 24px; pointer-events: auto; }
     </style>
 </head>
 <body>
@@ -68,42 +68,44 @@
     let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
     let camYaw = 0, camPitch = -Math.PI / 8;
 
-    // --- SES DOSYALARI ---
+    // Sesler
     const sfxHit = new Audio('/sounds/hit.mp3');
     const sfxBreak = new Audio('/sounds/break.mp3');
     const sfxCraft = new Audio('/sounds/craft.mp3');
 
     function playSFX(audio) {
-        audio.currentTime = 0; // Başa sar
-        audio.play().catch(e => console.log("Ses oynatılamadı:", e));
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
     }
 
-    window.toggleCraft = () => document.getElementById('craft-panel').classList.toggle('open');
-
-    function createNameTag(name) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 256; canvas.height = 64;
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = 'bold 32px Arial';
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.fillText(name, 128, 45);
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(2, 0.5, 1);
-        sprite.position.y = 2.2;
-        return sprite;
-    }
+    // --- OTURUM KAYDI (LOCAL STORAGE) ---
+    window.onload = () => {
+        const savedUser = localStorage.getItem('rpg_user');
+        const savedPass = localStorage.getItem('rpg_pass');
+        if(savedUser && savedPass) {
+            document.getElementById('username').value = savedUser;
+            document.getElementById('password').value = savedPass;
+            attemptLogin(); 
+        }
+    };
 
     window.attemptLogin = async () => {
         const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
         if(u.length < 2) return;
+
+        // Ekranı Yan Çevirme ve Fullscreen Denemesi
+        try {
+            if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+            if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
+        } catch(e) {}
+
         socket = io();
-        socket.emit('login', { username: u, password: document.getElementById('password').value });
+        socket.emit('login', { username: u, password: p });
+        
         socket.on('loginSuccess', () => {
+            localStorage.setItem('rpg_user', u);
+            localStorage.setItem('rpg_pass', p);
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             document.getElementById('player-name-display').innerText = u.toUpperCase();
@@ -115,23 +117,24 @@
     function initGame(username) {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.Fog(0x87ceeb, 25, 120);
+        scene.fog = new THREE.Fog(0x87ceeb, 20, 100);
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-        sun.position.set(50, 80, 50); sun.castShadow = true;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(10, 20, 10);
         scene.add(sun);
 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
-        ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
+        ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        for(let i=0; i<60; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
+        // Kaynakları Oluştur
+        for(let i=0; i<40; i++) spawnResource(Math.random()*100-50, Math.random()*100-50);
 
         socket.on('currentPlayers', (players) => {
             myId = socket.id;
@@ -141,108 +144,107 @@
             });
         });
 
-        socket.on('newPlayer', data => { if(data.id !== myId) otherPlayers[data.id] = createHuman(data, data.username); });
         socket.on('playerMoved', data => {
             if(data.id !== myId && otherPlayers[data.id]) {
-                otherPlayers[data.id].position.set(data.x, data.y || 0, data.z);
+                otherPlayers[data.id].position.set(data.x, data.y, data.z);
                 otherPlayers[data.id].rotation.y = data.rotationY;
             }
         });
-        socket.on('playerDisconnected', id => { if(otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; } });
 
         setupControls();
         document.getElementById('attack-btn').addEventListener('touchstart', performAttack);
         animate();
     }
 
-    function createHuman(data, name) {
-        const group = new THREE.Group();
-        const bodyColor = data.color || Math.random() * 0xffffff;
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), new THREE.MeshStandardMaterial({color: bodyColor}));
-        torso.position.y = 1.05; group.add(torso);
-        const legs = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.28), new THREE.MeshStandardMaterial({color: 0x2c3e50}));
-        legs.position.y = 0.35; group.add(legs);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        head.position.y = 1.6; group.add(head);
-        
-        const rightArmGroup = new THREE.Group();
-        rightArmGroup.position.set(0.4, 1.3, 0);
-        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        rightArm.position.y = -0.25; rightArmGroup.add(rightArm);
-        group.add(rightArmGroup);
-        const toolSlot = new THREE.Group();
-        toolSlot.position.set(0, -0.4, 0.1); 
-        rightArm.add(toolSlot);
-
-        if(name) group.add(createNameTag(name));
-
-        group.userData = { rightArmGroup, toolSlot, id: data.id };
-        group.position.set(data.x || 0, 0, data.z || 0);
-        scene.add(group);
-        return group;
-    }
-
     function spawnResource(x, z) {
-        const isTree = Math.random() > 0.4;
+        const isTree = Math.random() > 0.5;
         const group = new THREE.Group();
         if(isTree) {
-            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({color:0x5d4037}));
-            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshStandardMaterial({color:0x2e7d32}));
-            leaves.position.y = 2; group.add(trunk, leaves);
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2, 0.5), new THREE.MeshStandardMaterial({color: 0x5d4037}));
+            trunk.position.y = 1;
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
+            leaves.position.y = 2.5;
+            group.add(trunk, leaves);
         } else {
-            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x757575}));
+            rock.position.y = 0.35;
             group.add(rock);
         }
         group.position.set(x, 0, z);
         group.userData = { type: isTree ? 'wood' : 'stone', hp: 10, maxHp: 10 };
-        scene.add(group); worldObjects.push(group);
+        scene.add(group);
+        worldObjects.push(group);
     }
 
+    // --- KIRMA SİSTEMİ (FIXED) ---
     function performAttack() {
         if(!myPlayer) return;
-        
-        const arm = myPlayer.userData.rightArmGroup;
-        arm.rotation.x = -Math.PI / 2;
-        setTimeout(() => { arm.rotation.x = 0; }, 150);
 
-        const hitRange = 2.5; 
-        let hitSomething = false;
+        // Kol sallama animasyonu
+        const arm = myPlayer.userData.rightArmGroup;
+        arm.rotation.x = -Math.PI / 1.5;
+        setTimeout(() => arm.rotation.x = 0, 150);
+
+        let hitFound = false;
+        const reach = 3.5; // Vuruş mesafesi
 
         for (let i = worldObjects.length - 1; i >= 0; i--) {
             const obj = worldObjects[i];
             const dist = myPlayer.position.distanceTo(obj.position);
 
-            if (dist < hitRange) {
-                hitSomething = true;
-                let dmg = 1;
-                if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 5;
-                if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 5;
-                
+            if (dist < reach) {
+                hitFound = true;
+                let dmg = 2; // Temel hasar
+                if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 10;
+                if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 10;
+
                 obj.userData.hp -= dmg;
-                const s = Math.max(0.2, obj.userData.hp / obj.userData.maxHp);
-                obj.scale.set(s, s, s);
+                
+                // Geri bildirim: Nesneyi sars veya küçült
+                obj.scale.setScalar(obj.userData.hp / obj.userData.maxHp * 0.5 + 0.5);
 
                 if (obj.userData.hp <= 0) {
-                    playSFX(sfxBreak); // Kırılma sesi
+                    playSFX(sfxBreak);
                     inv[obj.userData.type]++;
                     updateUI();
                     scene.remove(obj);
                     worldObjects.splice(i, 1);
                     socket.emit('collect', { type: obj.userData.type });
                 } else {
-                    playSFX(sfxHit); // Vurma sesi
+                    playSFX(sfxHit);
                 }
+                break; // Aynı anda sadece bir nesneye vur
             }
         }
+        
+        if(!hitFound) playSFX(sfxHit); // Boşa vuruş sesi
+    }
 
-        // Eğer bir şeye vurulmadıysa (hava vuruşu veya PvP denemesi için de çalabilir)
-        if(!hitSomething) playSFX(sfxHit);
+    function createHuman(data, name) {
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.4), new THREE.MeshStandardMaterial({color: data.color || 0x3498db}));
+        body.position.y = 0.8;
+        group.add(body);
+        
+        const armGroup = new THREE.Group();
+        armGroup.position.set(0.4, 1.2, 0);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+        arm.position.y = -0.25;
+        armGroup.add(arm);
+        group.add(armGroup);
 
-        Object.keys(otherPlayers).forEach(id => {
-            if(myPlayer.position.distanceTo(otherPlayers[id].position) < 2.0) {
-                socket.emit('attackPlayer', { targetId: id, dmg: (inv.sword > 0 ? 20 : 5) });
-            }
-        });
+        const toolSlot = new THREE.Group();
+        toolSlot.position.set(0, -0.3, 0.1);
+        arm.add(toolSlot);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+        head.position.y = 1.5;
+        group.add(head);
+
+        group.userData = { rightArmGroup: armGroup, toolSlot };
+        group.position.set(data.x || 0, 0, data.z || 0);
+        scene.add(group);
+        return group;
     }
 
     function updateUI() {
@@ -256,33 +258,29 @@
         const slot = myPlayer.userData.toolSlot;
         while(slot.children.length > 0) slot.remove(slot.children[0]);
         let m;
-        if(inv.sword > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
-        else if(inv.axe > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
+        if(inv.sword > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
+        else if(inv.axe > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
         else if(inv.pickaxe > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
         if(m) slot.add(m);
     }
 
-    window.jump = () => { if(isGrounded) { velocityY = 0.3; isGrounded = false; } };
-    
+    window.toggleCraft = () => document.getElementById('craft-panel').classList.toggle('open');
+
     window.doCraft = (t) => {
         let ok = false;
         if(t==='axe' && inv.wood>=3) { inv.wood-=3; inv.axe=1; ok=true; }
         if(t==='pickaxe' && inv.stone>=3) { inv.stone-=3; inv.pickaxe=1; ok=true; }
         if(t==='sword' && inv.wood>=2 && inv.stone>=2) { inv.wood-=2; inv.stone-=2; inv.sword=1; ok=true; }
-        if(ok) { 
-            playSFX(sfxCraft); // Craft sesi
-            updateUI(); 
-            updateEquippedTool(); 
-            toggleCraft(); 
-        }
+        if(ok) { playSFX(sfxCraft); updateUI(); updateEquippedTool(); toggleCraft(); }
     };
+
+    window.jump = () => { if(isGrounded) { velocityY = 0.25; isGrounded = false; } };
 
     function setupControls() {
         const jsBase = document.getElementById('joystick-container');
         const knob = document.getElementById('joystick-knob');
         window.addEventListener('touchstart', e => {
-            for(let i=0; i<e.changedTouches.length; i++){
-                const t = e.changedTouches[i];
+            for(let t of e.changedTouches){
                 const rect = jsBase.getBoundingClientRect();
                 if(t.clientX > rect.left && t.clientX < rect.right && t.clientY > rect.top && t.clientY < rect.bottom) {
                     joystickData.active = true; joystickData.identifier = t.identifier;
@@ -293,8 +291,7 @@
             }
         });
         window.addEventListener('touchmove', e => {
-            for(let i=0; i<e.changedTouches.length; i++){
-                const t = e.changedTouches[i];
+            for(let t of e.changedTouches){
                 if(t.identifier === joystickData.identifier) {
                     const rect = jsBase.getBoundingClientRect();
                     const dx = t.clientX - (rect.left + 55), dy = t.clientY - (rect.top + 55);
@@ -303,9 +300,7 @@
                     joystickData.x = Math.cos(angle) * (dist/45); joystickData.y = Math.sin(angle) * (dist/45);
                 }
                 if(t.identifier === lookData.identifier) {
-                    const dx = t.clientX - lookData.lastX, dy = t.clientY - lookData.lastY;
-                    camYaw -= dx * 0.008;
-                    camPitch = Math.max(-Math.PI/2.1, Math.min(-0.1, camPitch - dy * 0.008));
+                    camYaw -= (t.clientX - lookData.lastX) * 0.007;
                     lookData.lastX = t.clientX; lookData.lastY = t.clientY;
                 }
             }
@@ -321,23 +316,22 @@
     function animate() {
         requestAnimationFrame(animate);
         if(myPlayer) {
-            const speed = 0.18;
-            let mx = 0, mz = 0;
+            const speed = 0.15;
             if(joystickData.active) { 
-                mx += (Math.sin(camYaw) * -joystickData.y + Math.cos(camYaw) * -joystickData.x) * speed;
-                mz += (Math.cos(camYaw) * -joystickData.y - Math.sin(camYaw) * -joystickData.x) * speed;
+                myPlayer.position.x += (Math.sin(camYaw) * -joystickData.y + Math.cos(camYaw) * -joystickData.x) * speed;
+                myPlayer.position.z += (Math.cos(camYaw) * -joystickData.y - Math.sin(camYaw) * -joystickData.x) * speed;
+                myPlayer.rotation.y = camYaw + Math.atan2(-joystickData.x, -joystickData.y);
             }
-            myPlayer.position.x += mx; myPlayer.position.z += mz;
-            if(mx !== 0 || mz !== 0) myPlayer.rotation.y = Math.atan2(mx, mz);
             myPlayer.position.y += velocityY;
-            if(myPlayer.position.y > 0) velocityY -= 0.015;
+            if(myPlayer.position.y > 0) velocityY -= 0.012;
             else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
+            
             socket.emit('playerMovement', {x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y});
-            const camDist = 12;
-            camera.position.x = myPlayer.position.x - Math.sin(camYaw) * camDist * Math.cos(camPitch);
-            camera.position.y = myPlayer.position.y - Math.sin(camPitch) * camDist + 2;
-            camera.position.z = myPlayer.position.z - Math.cos(camYaw) * camDist * Math.cos(camPitch);
-            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1.6, myPlayer.position.z);
+
+            camera.position.x = myPlayer.position.x - Math.sin(camYaw) * 8;
+            camera.position.z = myPlayer.position.z - Math.cos(camYaw) * 8;
+            camera.position.y = myPlayer.position.y + 5;
+            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1, myPlayer.position.z);
         }
         renderer.render(scene, camera);
     }
