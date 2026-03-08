@@ -6,54 +6,63 @@
     <title>Survival RPG: Evolution</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87ceeb; touch-action: none; font-family: 'Segoe UI', sans-serif; }
-        #login-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .box { background: #222; padding: 30px; border-radius: 15px; text-align: center; color: white; border: 2px solid #444; width: 280px; }
-        input { padding: 12px; width: 90%; border-radius: 5px; border: none; margin-bottom: 10px; font-size: 16px; }
-        button { padding: 12px 30px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 5px; font-weight: bold; width: 100%; font-size: 16px; }
         
+        /* Giriş Ekranı - Dikey Tasarım */
+        #login-screen { 
+            position: fixed; inset: 0; background: #1a1a1a; 
+            display: flex; align-items: center; justify-content: center; z-index: 2000; 
+        }
+        .box { background: #222; padding: 40px 20px; border-radius: 20px; text-align: center; color: white; border: 2px solid #333; width: 85%; max-width: 320px; }
+        input { padding: 15px; width: 90%; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px; font-size: 16px; background: #333; color: white; }
+        button.login-btn { padding: 15px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; width: 98%; font-size: 18px; }
+        
+        /* Oyun İçi UI - Başlangıçta Gizli */
+        #game-ui { display: none; }
+
         #ui-overlay { position: fixed; top: 20px; left: 20px; color: white; pointer-events: none; z-index: 1000; text-shadow: 2px 2px 2px #000; }
-        #hp-bar-ui { width: 200px; height: 15px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
+        #hp-bar-ui { width: 180px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
         #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
 
-        #craft-menu { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; border: 1px solid #777; z-index: 1500; }
-        .item-slot { width: 60px; height: 60px; background: #444; border: 2px solid #888; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 10px; font-weight: bold; }
+        #craft-menu { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; background: rgba(0,0,0,0.6); padding: 8px; border-radius: 12px; z-index: 1500; }
+        .item-slot { width: 55px; height: 55px; background: #333; border: 1px solid #666; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 9px; }
         
-        #mobile-controls { display: none; }
-        #joystick-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
-        #joystick-knob { position: absolute; width: 50px; height: 50px; background: #fff; opacity: 0.5; border-radius: 50%; top: 35px; left: 35px; pointer-events: none; }
-        #jump-btn { position: absolute; bottom: 150px; right: 40px; width: 70px; height: 70px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; pointer-events: auto; }
-        #attack-btn { position: absolute; bottom: 50px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.6); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 20px; pointer-events: auto; }
-        
-        @media (pointer: coarse) { #mobile-controls { display: block; } }
+        #mobile-controls { position: fixed; inset: 0; pointer-events: none; }
+        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 110px; height: 110px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
+        #joystick-knob { position: absolute; width: 45px; height: 45px; background: #fff; opacity: 0.5; border-radius: 50%; top: 32px; left: 32px; pointer-events: none; }
+        #jump-btn { position: absolute; bottom: 130px; right: 30px; width: 65px; height: 65px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; pointer-events: auto; }
+        #attack-btn { position: absolute; bottom: 30px; right: 30px; width: 85px; height: 85px; background: rgba(231, 76, 60, 0.6); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 20px; pointer-events: auto; }
     </style>
 </head>
 <body>
 
 <div id="login-screen">
     <div class="box">
-        <h2 style="color:#2ecc71">⚔️ CRAFT & SURVIVE</h2>
+        <h2 style="color:#2ecc71; margin-bottom: 25px;">⚔️ SURVIVAL EVOLUTION</h2>
         <input type="text" id="username" placeholder="Kullanıcı Adı">
         <input type="password" id="password" placeholder="Şifre">
-        <button onclick="attemptLogin()">DÜNYAYA GİR</button>
+        <button class="login-btn" onclick="attemptLogin()">DÜNYAYA GİR</button>
+        <p style="font-size: 12px; color: #777; margin-top: 15px;">Girişten sonra oyun yatay modda açılacaktır.</p>
     </div>
 </div>
 
-<div id="ui-overlay">
-    <div id="player-name-display">Bekleniyor...</div>
-    <div id="hp-bar-ui"><div id="hp-fill"></div></div>
-    <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
-</div>
+<div id="game-ui">
+    <div id="ui-overlay">
+        <div id="player-name-display">...</div>
+        <div id="hp-bar-ui"><div id="hp-fill"></div></div>
+        <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
+    </div>
 
-<div id="craft-menu">
-    <div class="item-slot" onclick="craft('axe')">🪓<br>Balta</div>
-    <div class="item-slot" onclick="craft('pickaxe')">⛏️<br>Kazma</div>
-    <div class="item-slot" onclick="craft('sword')">⚔️<br>Kılıç</div>
-</div>
+    <div id="craft-menu">
+        <div class="item-slot" onclick="craft('axe')">🪓<br>Balta</div>
+        <div class="item-slot" onclick="craft('pickaxe')">⛏️<br>Kazma</div>
+        <div class="item-slot" onclick="craft('sword')">⚔️<br>Kılıç</div>
+    </div>
 
-<div id="mobile-controls">
-    <div id="joystick-container"><div id="joystick-knob"></div></div>
-    <button id="jump-btn" onclick="jump()">ZIPLA</button>
-    <button id="attack-btn" onclick="performAttack()">🔥</button>
+    <div id="mobile-controls">
+        <div id="joystick-container"><div id="joystick-knob"></div></div>
+        <button id="jump-btn" onclick="jump()">ZIPLA</button>
+        <button id="attack-btn" onclick="performAttack()">🔥</button>
+    </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -65,30 +74,32 @@
     let lookData = { active: false, identifier: null, lastX: 0, lastY: 0 };
     const otherPlayers = {}, worldObjects = [], keys = {};
     
-    const hitSound = new Audio('/sounds/hit.mp3');
-    const breakSound = new Audio('/sounds/break.mp3');
-
     let velocityY = 0, isGrounded = true;
     let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
     let camYaw = 0, camPitch = -Math.PI / 8;
-    let isDragging = false;
 
-    window.attemptLogin = () => {
+    window.attemptLogin = async () => {
         const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
         if(u.length < 2) return;
-        
-        // Yan yatırma isteği (Fullscreen + Orientation)
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(()=>{});
-            if(screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{});
+
+        // --- YATAY MODA GEÇİŞ VE FULLSCREEN ---
+        try {
+            if (document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen();
+            }
+            if (screen.orientation && screen.orientation.lock) {
+                await screen.orientation.lock('landscape');
+            }
+        } catch (e) {
+            console.log("Oto-döndürme kısıtlandı, manuel çevirme gerekebilir.");
         }
 
         socket = io();
-        socket.emit('login', { username: u, password: p });
+        socket.emit('login', { username: u, password: document.getElementById('password').value });
         
         socket.on('loginSuccess', () => {
             document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
             document.getElementById('player-name-display').innerText = u.toUpperCase();
             initGame();
         });
@@ -121,7 +132,7 @@
         ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
         scene.add(ground);
 
-        // Harita Nesnelerini Yükle (Resource Spawn)
+        // HARİTA YÜKLEME (Harita burada canlanıyor)
         for(let i=0; i<100; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
 
         socket.on('currentPlayers', (players) => {
@@ -143,16 +154,18 @@
             }
         });
 
-        // Bağlantısı kopan oyuncuları haritadan temizle
         socket.on('playerDisconnected', id => {
-            if(otherPlayers[id]) { 
-                scene.remove(otherPlayers[id]); 
-                delete otherPlayers[id]; 
-            }
+            if(otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; }
         });
 
         setupControls();
         animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     }
 
     function createHuman(data) {
@@ -177,17 +190,6 @@
         return group;
     }
 
-    function updateEquippedTool() {
-        if(!myPlayer) return;
-        const slot = myPlayer.userData.toolSlot;
-        while(slot.children.length > 0) slot.remove(slot.children[0]);
-        let toolMesh;
-        if(inv.sword > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
-        else if(inv.axe > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
-        else if(inv.pickaxe > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
-        if(toolMesh) slot.add(toolMesh);
-    }
-
     function spawnResource(x, z) {
         const isTree = Math.random() > 0.4;
         const group = new THREE.Group();
@@ -200,8 +202,19 @@
             group.add(r);
         }
         group.position.set(x, 0.5, z);
-        group.userData = { type: isTree ? 'wood' : 'stone', hp: Math.floor(Math.random()*6)+5 };
+        group.userData = { type: isTree ? 'wood' : 'stone', hp: 5 };
         scene.add(group); worldObjects.push(group);
+    }
+
+    function updateEquippedTool() {
+        if(!myPlayer) return;
+        const slot = myPlayer.userData.toolSlot;
+        while(slot.children.length > 0) slot.remove(slot.children[0]);
+        let toolMesh;
+        if(inv.sword > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
+        else if(inv.axe > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
+        else if(inv.pickaxe > 0) toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
+        if(toolMesh) slot.add(toolMesh);
     }
 
     window.jump = () => { if(isGrounded) { velocityY = 0.3; isGrounded = false; } };
@@ -211,7 +224,6 @@
         if(!myPlayer) return;
         const arm = myPlayer.userData.rightArmGroup;
         arm.rotation.x = -Math.PI / 2;
-        hitSound.play().catch(()=>{});
         setTimeout(() => { arm.rotation.x = 0; }, 150);
         worldObjects.forEach((obj, i) => {
             if(myPlayer.position.distanceTo(obj.position) < 4) {
@@ -220,33 +232,26 @@
                 if(obj.userData.type === 'stone' && inv.pickaxe > 0) damage = 4;
                 obj.userData.hp -= damage;
                 obj.scale.multiplyScalar(0.9);
-                if(obj.userData.hp <= 0) {
-                    breakSound.play().catch(()=>{});
-                    socket.emit('collect', obj.userData.type);
-                    scene.remove(obj); worldObjects.splice(i, 1);
-                }
+                if(obj.userData.hp <= 0) { socket.emit('collect', obj.userData.type); scene.remove(obj); worldObjects.splice(i, 1); }
             }
         });
     };
 
     function setupControls() {
-        const jsCont = document.getElementById('joystick-container');
+        const jsBase = document.getElementById('joystick-container');
         const knob = document.getElementById('joystick-knob');
 
         window.addEventListener('touchstart', e => {
             for(let i=0; i<e.changedTouches.length; i++){
                 const t = e.changedTouches[i];
-                const rect = jsCont.getBoundingClientRect();
-                // Joystick Bölgesi
+                const rect = jsBase.getBoundingClientRect();
                 if(t.clientX > rect.left && t.clientX < rect.right && t.clientY > rect.top && t.clientY < rect.bottom) {
                     joystickData.active = true;
                     joystickData.identifier = t.identifier;
                 } else {
-                    // Ekranın geri kalanı Kamera
                     lookData.active = true;
                     lookData.identifier = t.identifier;
-                    lookData.lastX = t.clientX;
-                    lookData.lastY = t.clientY;
+                    lookData.lastX = t.clientX; lookData.lastY = t.clientY;
                 }
             }
         });
@@ -255,11 +260,11 @@
             for(let i=0; i<e.changedTouches.length; i++){
                 const t = e.changedTouches[i];
                 if(t.identifier === joystickData.identifier) {
-                    const rect = jsCont.getBoundingClientRect();
-                    const dx = t.clientX - (rect.left + 60), dy = t.clientY - (rect.top + 60);
-                    const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 50), angle = Math.atan2(dy, dx);
+                    const rect = jsBase.getBoundingClientRect();
+                    const dx = t.clientX - (rect.left + 55), dy = t.clientY - (rect.top + 55);
+                    const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 45), angle = Math.atan2(dy, dx);
                     knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
-                    joystickData.x = Math.cos(angle) * (dist/50); joystickData.y = Math.sin(angle) * (dist/50);
+                    joystickData.x = Math.cos(angle) * (dist/45); joystickData.y = Math.sin(angle) * (dist/45);
                 }
                 if(t.identifier === lookData.identifier) {
                     const dx = t.clientX - lookData.lastX, dy = t.clientY - lookData.lastY;
@@ -283,20 +288,15 @@
             }
         });
 
-        // Masaüstü
-        window.addEventListener('mousemove', e => { if(isDragging || e.buttons === 2) { camYaw -= e.movementX * 0.005; camPitch = Math.max(-Math.PI/2.1, Math.min(-0.1, camPitch - e.movementY * 0.005)); } });
-        window.addEventListener('mousedown', e => { if(e.button === 2) isDragging = true; });
-        window.addEventListener('mouseup', () => isDragging = false);
+        window.onkeydown = e => { keys[e.code] = true; if(e.code === 'Space') jump(); };
+        window.onkeyup = e => keys[e.code] = false;
         window.addEventListener('contextmenu', e => e.preventDefault());
     }
-
-    window.onkeydown = e => { keys[e.code] = true; if(e.code === 'Space') jump(); };
-    window.onkeyup = e => keys[e.code] = false;
 
     function animate() {
         requestAnimationFrame(animate);
         if(myPlayer) {
-            const speed = 0.16;
+            const speed = 0.18;
             let mx = 0, mz = 0;
             if(keys['KeyW'] || (joystickData.active && joystickData.y < -0.2)) { mx += Math.sin(camYaw) * speed; mz += Math.cos(camYaw) * speed; }
             if(keys['KeyS'] || (joystickData.active && joystickData.y > 0.2)) { mx -= Math.sin(camYaw) * speed; mz -= Math.cos(camYaw) * speed; }
