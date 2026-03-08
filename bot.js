@@ -284,33 +284,55 @@ app.use(express.static(path.join(__dirname, 'public')));
 let activePlayers = {}; 
 
 io.on('connection', (socket) => {
-    socket.on('login', (username) => {
+    
+    // Giriş ve Kayıt İşlemi (Şifre Korumalı)
+    socket.on('login', (data) => {
+        const { username, password } = data;
         let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        
+        try { 
+            allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); 
+        } catch (e) { 
+            allUsers = {}; 
+        }
 
+        // Eğer kullanıcı adı veritabanında yoksa YENİ KAYIT oluştur
         if (!allUsers[username]) {
             allUsers[username] = {
                 username: username,
+                password: password, // Şifreyi diske kaydet
                 x: Math.random() * 20 - 10,
                 z: Math.random() * 20 - 10,
-                color: Math.floor(Math.random() * 16777215)
+                color: Math.floor(Math.random() * 16777215) // Rastgele renk
             };
             fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+        } 
+        // Kullanıcı kayıtlıysa ŞİFRE KONTROLÜ yap
+        else if (allUsers[username].password !== password) {
+            socket.emit('loginError', 'Hatalı şifre! Bu kullanıcı adı başkası tarafından alınmış.');
+            return; // Şifre yanlışsa işlemi durdur
         }
 
+        // Giriş başarılı, oyuncuyu aktifler listesine al
         activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
-        socket.emit('currentPlayers', activePlayers);
-        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+        
+        socket.emit('loginSuccess'); // Siteye girişin onaylandığını bildir
+        socket.emit('currentPlayers', activePlayers); // Sahnedeki herkesi yükle
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]); // Diğerlerine "yeni biri geldi" de
     });
 
+    // Oyuncu Hareket ve Kamera Rotasyonu
     socket.on('playerMovement', (data) => {
         if (activePlayers[socket.id]) {
             activePlayers[socket.id].x = data.x;
             activePlayers[socket.id].z = data.z;
+            activePlayers[socket.id].rotationY = data.rotationY; // Karakterin baktığı yönü güncelle
+            
             socket.broadcast.emit('playerMoved', activePlayers[socket.id]);
         }
     });
 
+    // Oyuncu Çıkışı
     socket.on('disconnect', () => {
         if (activePlayers[socket.id]) {
             delete activePlayers[socket.id];
