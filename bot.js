@@ -285,7 +285,7 @@ let activePlayers = {};
 
 io.on('connection', (socket) => {
     
-    // Giriş ve Kayıt İşlemi (Şifre Korumalı)
+    // Giriş ve Kayıt İşlemi (Şifre Korumalı + HP Eklendi)
     socket.on('login', (data) => {
         const { username, password } = data;
         let allUsers = {};
@@ -300,25 +300,27 @@ io.on('connection', (socket) => {
         if (!allUsers[username]) {
             allUsers[username] = {
                 username: username,
-                password: password, // Şifreyi diske kaydet
+                password: password,
                 x: Math.random() * 20 - 10,
                 z: Math.random() * 20 - 10,
-                color: Math.floor(Math.random() * 16777215) // Rastgele renk
+                color: Math.floor(Math.random() * 16777215),
+                hp: 100 // Yeni oyuncu full canla başlar
             };
             fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         } 
         // Kullanıcı kayıtlıysa ŞİFRE KONTROLÜ yap
         else if (allUsers[username].password !== password) {
             socket.emit('loginError', 'Hatalı şifre! Bu kullanıcı adı başkası tarafından alınmış.');
-            return; // Şifre yanlışsa işlemi durdur
+            return;
         }
 
         // Giriş başarılı, oyuncuyu aktifler listesine al
-        activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
+        // Not: Giriş yaparken HP'yi her zaman 100 olarak başlatabiliriz veya DB'den çekebiliriz
+        activePlayers[socket.id] = { ...allUsers[username], id: socket.id, hp: 100 };
         
-        socket.emit('loginSuccess'); // Siteye girişin onaylandığını bildir
-        socket.emit('currentPlayers', activePlayers); // Sahnedeki herkesi yükle
-        socket.broadcast.emit('newPlayer', activePlayers[socket.id]); // Diğerlerine "yeni biri geldi" de
+        socket.emit('loginSuccess'); 
+        socket.emit('currentPlayers', activePlayers); 
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]); 
     });
 
     // Oyuncu Hareket ve Kamera Rotasyonu
@@ -326,9 +328,37 @@ io.on('connection', (socket) => {
         if (activePlayers[socket.id]) {
             activePlayers[socket.id].x = data.x;
             activePlayers[socket.id].z = data.z;
-            activePlayers[socket.id].rotationY = data.rotationY; // Karakterin baktığı yönü güncelle
+            activePlayers[socket.id].rotationY = data.rotationY; 
             
             socket.broadcast.emit('playerMoved', activePlayers[socket.id]);
+        }
+    });
+
+    // --- SALDIRI VE HASAR SİSTEMİ ---
+    socket.on('attack', (targetId) => {
+        const attacker = activePlayers[socket.id];
+        const target = activePlayers[targetId];
+
+        if (attacker && target) {
+            // Mesafe kontrolü (Hileyi önlemek için sunucu tarafında da kontrol)
+            const dist = Math.sqrt(Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.z - target.z, 2));
+            
+            if (dist < 5) { // 5 birim yakınlıktaysa vurabilir
+                target.hp -= 10; // 10 hasar ver
+                
+                // Eğer oyuncu öldüyse
+                if (target.hp <= 0) {
+                    target.hp = 100; // Canı fulle (Respawn)
+                    target.x = 0;    // Başlangıç noktasına gönder
+                    target.z = 0;
+                    
+                    // Ölen oyuncuya ve diğerlerine öldüğünü/ışınlandığını bildir
+                    io.emit('playerMoved', target); 
+                }
+
+                // Herkese güncel can bilgisini gönder
+                io.emit('hpUpdate', { id: targetId, hp: target.hp });
+            }
         }
     });
 
