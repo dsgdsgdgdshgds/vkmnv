@@ -129,15 +129,6 @@ function formatRemaining(ms) {
     return `${d} gün${saat > 0 ? ` ${saat} saat` : ''}`;
 }
 
-// HOSTING (Render health check)
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot aktif');
-}).listen(PORT, () => {
-    console.log(`[✓] Port ${PORT} açık`);
-});
-
 // Kurulum sırası (sadece yardımda)
 const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 1. #partner-yetkili @rol  
@@ -363,5 +354,70 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.once(Events.ClientReady, () => {
     console.log(`✅ ${client.user.tag} hazır`);
 });
+
+
+// --- OYUN VE SUNUCU ENTEGRASYONU ---
+const express = require('express');
+const { Server } = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app); // Mevcut http sunucunu kullanıyoruz
+const io = new Server(server);
+
+// Statik dosyalar için 'public' klasörü
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Oyuncu verilerini Render diskinde tutmak için yol
+const playersDataPath = '/var/data/players_db.json';
+if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, '{}');
+
+let activePlayers = {}; 
+
+io.on('connection', (socket) => {
+    socket.on('login', (username) => {
+        let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+        
+        // Eğer kullanıcı kayıtlı değilse oluştur
+        if (!allUsers[username]) {
+            allUsers[username] = {
+                username,
+                x: Math.random() * 20 - 10,
+                z: Math.random() * 20 - 10,
+                color: Math.floor(Math.random()*16777215)
+            };
+            fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+        }
+
+        activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
+        
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+    });
+
+    socket.on('playerMovement', (data) => {
+        if (activePlayers[socket.id]) {
+            activePlayers[socket.id].x = data.x;
+            activePlayers[socket.id].z = data.z;
+            socket.broadcast.emit('playerMoved', activePlayers[socket.id]);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        delete activePlayers[socket.id];
+        io.emit('playerDisconnected', socket.id);
+    });
+});
+
+// Bot hazır olduğunda konsola bilgi ver
+client.once('ready', () => {
+    console.log(`[!] Oyun Sunucusu ve Bot Aktif!`);
+});
+
+// Mevcut server.listen kısmını bot.js'de şu şekilde güncelle/değiştir:
+server.listen(PORT, () => {
+    console.log(`[✓] Sunucu port ${PORT} üzerinde çalışıyor`);
+});
+
 
 client.login(process.env.token);
