@@ -5,31 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Survival RPG: Evolution</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87ceeb; touch-action: none; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; touch-action: none; font-family: 'Segoe UI', sans-serif; }
         
-        /* GİRİŞ EKRANI - Orijinal Dikey Tasarım */
-        #login-screen { 
-            position: fixed; inset: 0; background: #1a1a1a; 
-            display: flex; align-items: center; justify-content: center; z-index: 2000; 
-        }
+        /* Giriş Ekranı - Orijinal Tasarım */
+        #login-screen { position: fixed; inset: 0; background: #1a1a1a; display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .box { background: #222; padding: 40px 20px; border-radius: 20px; text-align: center; color: white; border: 2px solid #333; width: 85%; max-width: 320px; }
         input { padding: 15px; width: 90%; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px; font-size: 16px; background: #333; color: white; }
         button.login-btn { padding: 15px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; width: 98%; font-size: 18px; }
         
-        /* OYUN UI */
         #game-ui { display: none; }
         #ui-overlay { position: fixed; top: 20px; left: 20px; color: white; pointer-events: none; z-index: 1000; text-shadow: 2px 2px 2px #000; }
         #hp-bar-ui { width: 180px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
         #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
 
-        /* CRAFT PANELİ */
         #craft-toggle { position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; background: rgba(0,0,0,0.6); color: white; border-radius: 10px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; z-index: 1600; }
         #craft-panel { position: fixed; top: 80px; right: -250px; width: 200px; background: rgba(0,0,0,0.85); border-radius: 15px 0 0 15px; padding: 15px; transition: 0.5s; z-index: 1500; color: white; }
         #craft-panel.open { right: 0; }
         .craft-option { background: #333; padding: 12px; margin-bottom: 10px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid #555; }
-        .craft-option:active { background: #2ecc71; }
 
-        /* MOBİL KONTROLLER */
         #mobile-controls { position: fixed; inset: 0; pointer-events: none; }
         #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 110px; height: 110px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
         #joystick-knob { position: absolute; width: 45px; height: 45px; background: #fff; opacity: 0.5; border-radius: 50%; top: 32px; left: 32px; pointer-events: none; }
@@ -45,7 +38,6 @@
         <input type="text" id="username" placeholder="Kullanıcı Adı">
         <input type="password" id="password" placeholder="Şifre">
         <button class="login-btn" onclick="attemptLogin()">DÜNYAYA GİR</button>
-        <p style="font-size: 12px; color: #777; margin-top: 15px;">Girişten sonra oyun otomatik dönecektir.</p>
     </div>
 </div>
 
@@ -55,14 +47,12 @@
         <div id="hp-bar-ui"><div id="hp-fill"></div></div>
         <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
     </div>
-
     <div id="craft-toggle" onclick="toggleCraft()">☰</div>
     <div id="craft-panel">
         <div class="craft-option" onclick="doCraft('axe')">🪓 Balta (3 Odun)</div>
         <div class="craft-option" onclick="doCraft('pickaxe')">⛏️ Kazma (3 Taş)</div>
         <div class="craft-option" onclick="doCraft('sword')">⚔️ Kılıç (2 Odun, 2 Taş)</div>
     </div>
-
     <div id="mobile-controls">
         <div id="joystick-container"><div id="joystick-knob"></div></div>
         <button id="jump-btn" onclick="jump()">ZIPLA</button>
@@ -79,36 +69,29 @@
     let lookData = { active: false, identifier: null, lastX: 0, lastY: 0 };
     const otherPlayers = {}, worldObjects = [], keys = {};
     
-    // SESLER
-    const sndHit = new Audio('sounds/hit.mp3');
-    const sndBreak = new Audio('sounds/break.mp3');
-    const sndCraft = new Audio('sounds/craft.mp3');
-
     let velocityY = 0, isGrounded = true, myHealth = 100;
     let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
     let camYaw = 0, camPitch = -Math.PI / 8;
 
     window.toggleCraft = () => document.getElementById('craft-panel').classList.toggle('open');
 
-    window.doCraft = (type) => {
-        let success = false;
-        if(type === 'axe' && inv.wood >= 3) { inv.wood -= 3; inv.axe = 1; success = true; }
-        if(type === 'pickaxe' && inv.stone >= 3) { inv.stone -= 3; inv.pickaxe = 1; success = true; }
-        if(type === 'sword' && inv.wood >= 2 && inv.stone >= 2) { inv.wood -= 2; inv.stone -= 2; inv.sword = 1; success = true; }
-        
-        if(success) {
-            sndCraft.play();
-            updateUI();
-            updateEquippedTool();
-            socket.emit('updateInventory', inv);
-            toggleCraft();
-        }
-    };
-
-    function updateUI() {
-        document.getElementById('inv-wood').innerText = inv.wood;
-        document.getElementById('inv-stone').innerText = inv.stone;
-        document.getElementById('hp-fill').style.width = myHealth + '%';
+    // İsim Etiketi Oluşturma Fonksiyonu
+    function createNameTag(name) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 256; canvas.height = 64;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = 'bold 32px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, 128, 45);
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(2, 0.5, 1);
+        sprite.position.y = 2.2;
+        return sprite;
     }
 
     window.attemptLogin = async () => {
@@ -118,26 +101,21 @@
             if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
             if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
         } catch (e) {}
-
         socket = io();
         socket.emit('login', { username: u, password: document.getElementById('password').value });
-        
         socket.on('loginSuccess', () => {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             document.getElementById('player-name-display').innerText = u.toUpperCase();
-            initGame();
+            initGame(u);
         });
-
         socket.on('updateInventory', data => { inv = data; updateUI(); updateEquippedTool(); });
-        socket.on('takeDamage', d => { myHealth -= d; updateUI(); if(myHealth <= 0) location.reload(); });
     };
 
-    function initGame() {
+    function initGame(username) {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
         scene.fog = new THREE.Fog(0x87ceeb, 25, 120);
-
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -153,18 +131,23 @@
         ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
         scene.add(ground);
 
-        // HARİTA YÜKLEME
-        for(let i=0; i<100; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
+        // İlk Harita Kaynakları
+        for(let i=0; i<60; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
+
+        // 2 Dakikada bir 5 yeni kaynak spawn
+        setInterval(() => {
+            for(let i=0; i<5; i++) spawnResource(Math.random()*150-75, Math.random()*150-75);
+        }, 120000);
 
         socket.on('currentPlayers', (players) => {
             myId = socket.id;
             Object.keys(players).forEach(id => {
-                if(id === myId) myPlayer = createHuman(players[id]);
-                else otherPlayers[id] = createHuman(players[id]);
+                if(id === myId) myPlayer = createHuman(players[id], username);
+                else otherPlayers[id] = createHuman(players[id], players[id].username);
             });
         });
 
-        socket.on('newPlayer', data => { if(data.id !== myId) otherPlayers[data.id] = createHuman(data); });
+        socket.on('newPlayer', data => { if(data.id !== myId) otherPlayers[data.id] = createHuman(data, data.username); });
         socket.on('playerMoved', data => {
             if(data.id !== myId && otherPlayers[data.id]) {
                 otherPlayers[data.id].position.set(data.x, data.y || 0, data.z);
@@ -177,24 +160,31 @@
         animate();
     }
 
-    function createHuman(data) {
+    function createHuman(data, name) {
         const group = new THREE.Group();
         const bodyColor = data.color || Math.random() * 0xffffff;
         const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), new THREE.MeshStandardMaterial({color: bodyColor}));
-        torso.position.y = 1.05; torso.castShadow = true; group.add(torso);
+        torso.position.y = 1.05; group.add(torso);
         const legs = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.28), new THREE.MeshStandardMaterial({color: 0x2c3e50}));
         legs.position.y = 0.35; group.add(legs);
         const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
         head.position.y = 1.6; group.add(head);
         
+        // Sağ Kol ve Tool Slot
         const rightArmGroup = new THREE.Group();
         rightArmGroup.position.set(0.4, 1.3, 0);
         const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
         rightArm.position.y = -0.25; rightArmGroup.add(rightArm);
         group.add(rightArmGroup);
         const toolSlot = new THREE.Group();
-        toolSlot.position.set(0, -0.5, 0.1); 
+        toolSlot.position.set(0, -0.4, 0.1); 
         rightArm.add(toolSlot);
+
+        // İSİM ETİKETİ EKLEME
+        if(name) {
+            const nameTag = createNameTag(name);
+            group.add(nameTag);
+        }
 
         group.userData = { rightArmGroup, toolSlot, id: data.id };
         group.position.set(data.x || 0, 0, data.z || 0);
@@ -206,16 +196,62 @@
         const isTree = Math.random() > 0.4;
         const group = new THREE.Group();
         if(isTree) {
-            const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({color:0x5d4037}));
-            const l = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshStandardMaterial({color:0x2e7d32}));
-            l.position.y = 2; group.add(t, l);
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({color:0x5d4037}));
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshStandardMaterial({color:0x2e7d32}));
+            leaves.position.y = 2; group.add(trunk, leaves);
         } else {
-            const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
-            group.add(r);
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
+            group.add(rock);
         }
         group.position.set(x, 0.5, z);
-        group.userData = { type: isTree ? 'wood' : 'stone', hp: 5, maxHp: 5 };
+        group.userData = { type: isTree ? 'wood' : 'stone', hp: 10, maxHp: 10 };
         scene.add(group); worldObjects.push(group);
+    }
+
+    window.performAttack = () => {
+        if(!myPlayer) return;
+        const arm = myPlayer.userData.rightArmGroup;
+        arm.rotation.x = -Math.PI / 2;
+        setTimeout(() => { arm.rotation.x = 0; }, 150);
+
+        const hitRange = 4.0; // Vuruş menzili
+        
+        // 1 METRE (VE ALAN) HASARI - ALAN HASARI MANTIĞI
+        for (let i = worldObjects.length - 1; i >= 0; i--) {
+            const obj = worldObjects[i];
+            const dist = myPlayer.position.distanceTo(obj.position);
+
+            if (dist < hitRange) {
+                let dmg = 1;
+                if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 5;
+                if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 5;
+                
+                obj.userData.hp -= dmg;
+                const s = Math.max(0.3, obj.userData.hp / obj.userData.maxHp);
+                obj.scale.set(s, s, s);
+
+                if (obj.userData.hp <= 0) {
+                    inv[obj.userData.type]++;
+                    updateUI();
+                    scene.remove(obj);
+                    worldObjects.splice(i, 1);
+                    socket.emit('collect', obj.userData.type);
+                }
+            }
+        }
+
+        // PvP Alan Hasarı
+        Object.keys(otherPlayers).forEach(id => {
+            if(myPlayer.position.distanceTo(otherPlayers[id].position) < 3.0) {
+                socket.emit('attackPlayer', { targetId: id, dmg: (inv.sword > 0 ? 20 : 5) });
+            }
+        });
+    };
+
+    function updateUI() {
+        document.getElementById('inv-wood').innerText = inv.wood;
+        document.getElementById('inv-stone').innerText = inv.stone;
+        document.getElementById('hp-fill').style.width = myHealth + '%';
     }
 
     function updateEquippedTool() {
@@ -230,36 +266,13 @@
     }
 
     window.jump = () => { if(isGrounded) { velocityY = 0.3; isGrounded = false; } };
-
-    window.performAttack = () => {
-        if(!myPlayer) return;
-        const arm = myPlayer.userData.rightArmGroup;
-        arm.rotation.x = -Math.PI / 2;
-        sndHit.play();
-        setTimeout(() => { arm.rotation.x = 0; }, 150);
-
-        worldObjects.forEach((obj, i) => {
-            if(myPlayer.position.distanceTo(obj.position) < 4) {
-                let d = 1;
-                if(obj.userData.type === 'wood' && inv.axe > 0) d = 4;
-                if(obj.userData.type === 'stone' && inv.pickaxe > 0) d = 4;
-                obj.userData.hp -= d;
-                obj.scale.setScalar(obj.userData.hp / obj.userData.maxHp + 0.2); // Vurdukça küçülme
-                if(obj.userData.hp <= 0) {
-                    sndBreak.play();
-                    inv[obj.userData.type]++;
-                    updateUI();
-                    socket.emit('collect', obj.userData.type);
-                    scene.remove(obj); worldObjects.splice(i, 1);
-                }
-            }
-        });
-
-        Object.keys(otherPlayers).forEach(id => {
-            if(myPlayer.position.distanceTo(otherPlayers[id].position) < 3.5) {
-                socket.emit('attackPlayer', { targetId: id, dmg: (inv.sword > 0 ? 20 : 5) });
-            }
-        });
+    
+    window.doCraft = (t) => {
+        let ok = false;
+        if(t==='axe' && inv.wood>=3) { inv.wood-=3; inv.axe=1; ok=true; }
+        if(t==='pickaxe' && inv.stone>=3) { inv.stone-=3; inv.pickaxe=1; ok=true; }
+        if(t==='sword' && inv.wood>=2 && inv.stone>=2) { inv.wood-=2; inv.stone-=2; inv.sword=1; ok=true; }
+        if(ok) { updateUI(); updateEquippedTool(); toggleCraft(); }
     };
 
     function setupControls() {
@@ -312,16 +325,12 @@
                 mx += (Math.sin(camYaw) * -joystickData.y + Math.cos(camYaw) * -joystickData.x) * speed;
                 mz += (Math.cos(camYaw) * -joystickData.y - Math.sin(camYaw) * -joystickData.x) * speed;
             }
-
             myPlayer.position.x += mx; myPlayer.position.z += mz;
             if(mx !== 0 || mz !== 0) myPlayer.rotation.y = Math.atan2(mx, mz);
-
             myPlayer.position.y += velocityY;
             if(myPlayer.position.y > 0) velocityY -= 0.015;
             else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
-
             socket.emit('playerMovement', {x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y});
-
             const camDist = 12;
             camera.position.x = myPlayer.position.x - Math.sin(camYaw) * camDist * Math.cos(camPitch);
             camera.position.y = myPlayer.position.y - Math.sin(camPitch) * camDist + 2;
