@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Survival RPG - Pro</title>
+    <title>Survival RPG: Evolution</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87ceeb; touch-action: none; font-family: 'Segoe UI', sans-serif; }
-        #login-screen { position: fixed; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        #login-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .box { background: #222; padding: 30px; border-radius: 15px; text-align: center; color: white; border: 2px solid #444; width: 280px; }
         input { padding: 12px; width: 90%; border-radius: 5px; border: none; margin-bottom: 10px; font-size: 16px; }
         button { padding: 12px 30px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 5px; font-weight: bold; width: 100%; font-size: 16px; }
@@ -15,16 +15,17 @@
         #hp-bar-ui { width: 200px; height: 15px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
         #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
 
-        /* Envanter ve Craft */
-        #inventory-ui { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; color: white; pointer-events: auto; display: flex; gap: 10px; border: 1px solid #555; }
-        .craft-btn { background: #f39c12; border: none; padding: 5px 10px; color: white; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        /* Crafting Menüsü */
+        #craft-menu { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; border: 1px solid #777; }
+        .item-slot { width: 60px; height: 60px; background: #444; border: 2px solid #888; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 10px; font-weight: bold; }
+        .item-slot:hover { background: #555; border-color: #2ecc71; }
         
-        /* Kontroller */
+        /* Mobil Kontroller */
         #mobile-controls { display: none; }
         #joystick-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); }
         #joystick-knob { position: absolute; width: 50px; height: 50px; background: #fff; opacity: 0.5; border-radius: 50%; top: 35px; left: 35px; }
         #jump-btn { position: absolute; bottom: 150px; right: 40px; width: 70px; height: 70px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; }
-        #attack-btn { position: absolute; bottom: 50px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.8); border-radius: 50%; color: white; font-weight: bold; border: 3px solid #fff; font-size: 14px; }
+        #attack-btn { position: absolute; bottom: 50px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.6); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 20px; }
         
         @media (pointer: coarse) { #mobile-controls { display: block; } }
     </style>
@@ -33,7 +34,7 @@
 
 <div id="login-screen">
     <div class="box">
-        <h2 style="color:#2ecc71">⚔️ HAYATTA KALMA</h2>
+        <h2 style="color:#2ecc71">⚔️ CRAFT & SURVIVE</h2>
         <input type="text" id="username" placeholder="Kullanıcı Adı">
         <input type="password" id="password" placeholder="Şifre">
         <button onclick="attemptLogin()">DÜNYAYA GİR</button>
@@ -43,19 +44,19 @@
 <div id="ui-overlay">
     <div id="player-name-display">Bekleniyor...</div>
     <div id="hp-bar-ui"><div id="hp-fill"></div></div>
-    <div style="margin-top:10px">Odun: <span id="inv-wood">0</span> | Taş: <span id="inv-stone">0</span></div>
+    <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
 </div>
 
-<div id="inventory-ui">
-    <button class="craft-btn" onclick="craft('axe')">Balta (1O+3T)</button>
-    <button class="craft-btn" onclick="craft('pickaxe')">Kazma (3O+1T)</button>
-    <button class="craft-btn" onclick="craft('sword')">Kılıç (2O+2T)</button>
+<div id="craft-menu">
+    <div class="item-slot" onclick="craft('axe')">🪓<br>Balta</div>
+    <div class="item-slot" onclick="craft('pickaxe')">⛏️<br>Kazma</div>
+    <div class="item-slot" onclick="craft('sword')">⚔️<br>Kılıç</div>
 </div>
 
 <div id="mobile-controls">
     <div id="joystick-container"><div id="joystick-knob"></div></div>
     <button id="jump-btn" onclick="jump()">ZIPLA</button>
-    <button id="attack-btn" onclick="performAttack()">VUR</button>
+    <button id="attack-btn" onclick="performAttack()">🔥</button>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -66,19 +67,22 @@
     let joystickData = { x: 0, y: 0, active: false };
     const otherPlayers = {}, worldObjects = [], keys = {};
     
-    // Fizik ve Envanter
-    let velocityY = 0;
-    let isGrounded = true;
+    // Sesler
+    const hitSound = new Audio('/sounds/hit.mp3');
+    const breakSound = new Audio('/sounds/break.mp3');
+
+    // Fizik & Envanter
+    let velocityY = 0, isGrounded = true;
     let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
+    let currentTool = null; // Elimizde ne var?
 
     let camYaw = 0, camPitch = -Math.PI / 8;
-    let isDragging = false;
-    let lastMouseX, lastMouseY;
+    let isDragging = false, lastMouseX, lastMouseY;
 
     window.attemptLogin = () => {
         const u = document.getElementById('username').value;
         const p = document.getElementById('password').value;
-        if(u.length < 2) return alert("Kısa isim!");
+        if(u.length < 2) return;
         
         socket = io();
         socket.emit('login', { username: u, password: p });
@@ -93,15 +97,14 @@
             inv = data;
             document.getElementById('inv-wood').innerText = inv.wood;
             document.getElementById('inv-stone').innerText = inv.stone;
+            updateEquippedTool();
         });
-
-        socket.on('loginError', (msg) => alert(msg));
     };
 
     function initGame() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.Fog(0x87ceeb, 20, 100);
+        scene.fog = new THREE.Fog(0x87ceeb, 25, 120);
 
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -109,27 +112,24 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(50, 50, 50); sun.castShadow = true;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+        sun.position.set(50, 80, 50); sun.castShadow = true;
         scene.add(sun);
 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x3e8e41 }));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
         ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
         scene.add(ground);
 
-        for(let i=0; i<80; i++) spawnResource(Math.random()*160-80, Math.random()*160-80);
+        // Map Nesneleri
+        for(let i=0; i<100; i++) spawnResource(Math.random()*200-100, Math.random()*200-100);
 
         socket.on('currentPlayers', (players) => {
             myId = socket.id;
             Object.keys(players).forEach(id => {
-                if(id === myId) myPlayer = createHumanoid(players[id]);
-                else otherPlayers[id] = createHumanoid(players[id]);
+                if(id === myId) myPlayer = createHuman(players[id]);
+                else otherPlayers[id] = createHuman(players[id]);
             });
-        });
-
-        socket.on('newPlayer', data => {
-            if(!otherPlayers[data.id]) otherPlayers[data.id] = createHumanoid(data);
         });
 
         socket.on('playerMoved', data => {
@@ -143,93 +143,129 @@
             if(otherPlayers[id]) { scene.remove(otherPlayers[id]); delete otherPlayers[id]; }
         });
 
-        socket.on('hpUpdate', data => { if(data.id === myId) document.getElementById('hp-fill').style.width = data.hp + "%"; });
-
         setupCameraControls();
         setupJoystick();
         animate();
     }
 
-    function createHumanoid(data) {
+    function createHuman(data) {
         const group = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.3), new THREE.MeshStandardMaterial({ color: data.color }));
-        body.position.y = 1; body.castShadow = true; group.add(body);
+        
+        // Gövde (Pantolonlu/Tişörtlü gibi renkli kutular)
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), new THREE.MeshStandardMaterial({color: 0x3498db}));
+        torso.position.y = 1.05; torso.castShadow = true; group.add(torso);
+        
+        const legs = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.28), new THREE.MeshStandardMaterial({color: 0x2c3e50}));
+        legs.position.y = 0.35; group.add(legs);
+
         const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        head.position.y = 1.75; group.add(head);
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        arm.position.set(0.45, 1.2, 0.1); group.add(arm);
-        group.userData = { arm: arm };
+        head.position.y = 1.6; group.add(head);
+
+        // Kollar
+        const rightArmGroup = new THREE.Group();
+        rightArmGroup.position.set(0.4, 1.3, 0);
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+        rightArm.position.y = -0.25; rightArmGroup.add(rightArm);
+        group.add(rightArmGroup);
+
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+        leftArm.position.set(-0.4, 1.05, 0); group.add(leftArm);
+
+        // Elindeki Eşya Yuvası
+        const toolSlot = new THREE.Group();
+        toolSlot.position.set(0, -0.5, 0.1); 
+        rightArm.add(toolSlot);
+
+        group.userData = { rightArmGroup, toolSlot };
         group.position.set(data.x || 0, 0, data.z || 0);
         scene.add(group);
         return group;
+    }
+
+    function updateEquippedTool() {
+        if(!myPlayer) return;
+        const slot = myPlayer.userData.toolSlot;
+        while(slot.children.length > 0) slot.remove(slot.children[0]);
+
+        let toolMesh;
+        if(inv.sword > 0) {
+            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
+        } else if(inv.axe > 0) {
+            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
+        } else if(inv.pickaxe > 0) {
+            toolMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
+        }
+
+        if(toolMesh) slot.add(toolMesh);
     }
 
     function spawnResource(x, z) {
         const isTree = Math.random() > 0.4;
         const group = new THREE.Group();
         if(isTree) {
-            const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2), new THREE.MeshStandardMaterial({color:0x4b3621}));
-            const l = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 6), new THREE.MeshStandardMaterial({color:0x1b5e20}));
+            const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.5, 0.4), new THREE.MeshStandardMaterial({color:0x5d4037}));
+            const l = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshStandardMaterial({color:0x2e7d32}));
             l.position.y = 2; group.add(t, l);
         } else {
-            const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({color:0x888888}));
+            const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), new THREE.MeshStandardMaterial({color:0x757575}));
             group.add(r);
         }
         group.position.set(x, 0.5, z);
-        group.userData = { type: isTree ? 'wood' : 'stone', hp: Math.floor(Math.random()*5)+5 };
+        group.userData = { type: isTree ? 'wood' : 'stone', hp: Math.floor(Math.random()*6)+5 };
         scene.add(group); worldObjects.push(group);
     }
 
-    window.jump = () => { if(isGrounded) { velocityY = 0.25; isGrounded = false; } };
-    window.craft = (type) => socket.emit('craft', type);
+    window.jump = () => { if(isGrounded) { velocityY = 0.3; isGrounded = false; } };
+    window.craft = (t) => socket.emit('craft', t);
 
     window.performAttack = () => {
         if(!myPlayer) return;
-        myPlayer.userData.arm.rotation.x = -Math.PI / 2;
-        setTimeout(() => myPlayer.userData.arm.rotation.x = 0, 150);
+        
+        // Vurma Animasyonu
+        const arm = myPlayer.userData.rightArmGroup;
+        arm.rotation.x = -Math.PI / 2;
+        hitSound.play().catch(()=>{});
+
+        setTimeout(() => { arm.rotation.x = 0; }, 150);
 
         worldObjects.forEach((obj, i) => {
-            if(myPlayer.position.distanceTo(obj.position) < 3.5) {
+            if(myPlayer.position.distanceTo(obj.position) < 4) {
                 let damage = 1;
-                if(obj.userData.type === 'wood' && inv.axe > 0) damage = 3;
-                if(obj.userData.type === 'stone' && inv.pickaxe > 0) damage = 3;
-                
+                if(obj.userData.type === 'wood' && inv.axe > 0) damage = 4;
+                if(obj.userData.type === 'stone' && inv.pickaxe > 0) damage = 4;
+                if(inv.sword > 0) damage += 1;
+
                 obj.userData.hp -= damage;
+                
+                // Kırılma Efekti (Küçülme)
+                obj.scale.multiplyScalar(0.9);
+
                 if(obj.userData.hp <= 0) {
+                    breakSound.play().catch(()=>{});
                     socket.emit('collect', obj.userData.type);
                     scene.remove(obj); worldObjects.splice(i, 1);
                 }
             }
         });
-
-        Object.keys(otherPlayers).forEach(id => {
-            if(myPlayer.position.distanceTo(otherPlayers[id].position) < 3) socket.emit('attack', id);
-        });
     };
 
     function setupCameraControls() {
-        window.addEventListener('mousedown', e => { if(e.button === 2 || e.button === 0) isDragging = true; });
+        // PC & Mobil Kamera
+        const handleMove = (dx, dy) => {
+            camYaw -= dx * 0.005;
+            camPitch = Math.max(-Math.PI/2.1, Math.min(-0.1, camPitch - dy * 0.005));
+        };
+
+        window.addEventListener('mousemove', e => { if(isDragging || e.buttons === 2) handleMove(e.movementX, e.movementY); });
+        window.addEventListener('mousedown', e => { if(e.button === 2) isDragging = true; });
         window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('mousemove', e => {
-            if(isDragging) {
-                camYaw -= e.movementX * 0.005;
-                camPitch = Math.max(-Math.PI/2.1, Math.min(-0.05, camPitch - e.movementY * 0.005));
-            }
-        });
-        window.addEventListener('touchstart', e => {
-            if(e.touches[0].clientX > window.innerWidth/2) {
-                isDragging = true;
-                lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
-            }
-        });
-        window.addEventListener('touchend', () => isDragging = false);
+
         window.addEventListener('touchmove', e => {
-            if(isDragging) {
-                const touch = e.touches[0];
-                camYaw -= (touch.clientX - lastMouseX) * 0.007;
-                camPitch = Math.max(-Math.PI/2.1, Math.min(-0.05, camPitch - (touch.clientY - lastMouseY) * 0.007));
-                lastMouseX = touch.clientX; lastMouseY = touch.clientY;
+            const t = e.touches[0];
+            if(t.clientX > window.innerWidth/2) { // Sağ taraf kameradır
+                handleMove(t.clientX - (lastMouseX || t.clientX), t.clientY - (lastMouseY || t.clientY));
             }
+            lastMouseX = t.clientX; lastMouseY = t.clientY;
         });
         window.addEventListener('contextmenu', e => e.preventDefault());
     }
@@ -239,7 +275,8 @@
         const knob = document.getElementById('joystick-knob');
         container.addEventListener('touchstart', e => { joystickData.active = true; e.stopPropagation(); });
         window.addEventListener('touchend', () => { 
-            joystickData.active = false; knob.style.transform = `translate(0,0)`;
+            joystickData.active = false; 
+            knob.style.transform = `translate(0,0)`;
             joystickData.x = 0; joystickData.y = 0;
         });
         window.addEventListener('touchmove', e => {
@@ -261,7 +298,7 @@
     function animate() {
         requestAnimationFrame(animate);
         if(myPlayer) {
-            const speed = 0.15;
+            const speed = 0.16;
             let mx = 0, mz = 0;
             if(keys['KeyW'] || joystickData.y < -0.2) { mx += Math.sin(camYaw) * speed; mz += Math.cos(camYaw) * speed; }
             if(keys['KeyS'] || joystickData.y > 0.2) { mx -= Math.sin(camYaw) * speed; mz -= Math.cos(camYaw) * speed; }
@@ -279,11 +316,12 @@
 
             socket.emit('playerMovement', {x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y});
 
+            // Akıcı Kamera
             const camDist = 12;
             camera.position.x = myPlayer.position.x - Math.sin(camYaw) * camDist * Math.cos(camPitch);
-            camera.position.y = myPlayer.position.y - Math.sin(camPitch) * camDist + 1.5;
+            camera.position.y = myPlayer.position.y - Math.sin(camPitch) * camDist + 2;
             camera.position.z = myPlayer.position.z - Math.cos(camYaw) * camDist * Math.cos(camPitch);
-            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1.5, myPlayer.position.z);
+            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1.6, myPlayer.position.z);
         }
         renderer.render(scene, camera);
     }
