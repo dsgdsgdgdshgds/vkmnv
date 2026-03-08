@@ -12,6 +12,9 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
+const express = require('express');
+const { Server } = require('socket.io');
+const path = require('path');
 
 const client = new Client({
     intents: [
@@ -21,66 +24,61 @@ const client = new Client({
     ]
 });
 
-// KALICI DİSK YOLU (Render Disk → /var/data)
+// PORT Tanımı (Render için kritik)
+const PORT = process.env.PORT || 3000;
+
+// ────────────────────────────────────────────────
+// KALICI DİSK YOLLARI (Render Disk → /var/data)
+// ────────────────────────────────────────────────
 const dbPath = '/var/data/kanal-ayar.json';
 const cooldownPath = '/var/data/partner-cooldowns.json';
+const playersDataPath = '/var/data/players_db.json';
 
-// Dosyalar yoksa oluştur
-if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({}, null, 2), 'utf8');
-}
-if (!fs.existsSync(cooldownPath)) {
-    fs.writeFileSync(cooldownPath, JSON.stringify({}, null, 2), 'utf8');
+// Klasör ve Dosyaların Kontrolü
+if (!fs.existsSync('/var/data')) {
+    fs.mkdirSync('/var/data', { recursive: true });
 }
 
+[dbPath, cooldownPath, playersDataPath].forEach(p => {
+    if (!fs.existsSync(p)) {
+        fs.writeFileSync(p, JSON.stringify({}, null, 2), 'utf8');
+    }
+});
+
+// ────────────────────────────────────────────────
+// DATABASE YARDIMCI FONKSİYONLARI
+// ────────────────────────────────────────────────
 function dbSet(key, value) {
     let data = {};
     try {
         data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    } catch (err) {
-        console.error('Ayar JSON okuma hatası:', err);
-    }
+    } catch (err) { console.error('JSON okuma hatası:', err); }
     data[key] = value;
     try {
         fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        console.error('Ayar JSON yazma hatası:', err);
-    }
+    } catch (err) { console.error('JSON yazma hatası:', err); }
 }
 
 function dbGet(key) {
     try {
         const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
         return data[key] ?? null;
-    } catch (err) {
-        console.error('Ayar JSON okuma hatası (get):', err);
-        return null;
-    }
+    } catch (err) { return null; }
 }
 
-// ────────────────────────────────────────────────
-// Cooldown (kalıcı) fonksiyonları
-// ────────────────────────────────────────────────
 function getCooldowns() {
-    try {
-        return JSON.parse(fs.readFileSync(cooldownPath, 'utf8'));
-    } catch (err) {
-        console.error('Cooldown JSON okuma hatası:', err);
-        return {};
-    }
+    try { return JSON.parse(fs.readFileSync(cooldownPath, 'utf8')); }
+    catch (err) { return {}; }
 }
 
 function saveCooldowns(cooldowns) {
-    try {
-        fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8');
-    } catch (err) {
-        console.error('Cooldown JSON yazma hatası:', err);
-    }
+    try { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); }
+    catch (err) { console.error('Cooldown yazma hatası:', err); }
 }
 
 function setUserCooldown(userId, guildId, untilTimestamp) {
     const cooldowns = getCooldowns();
-    const key = `${userId}_${guildId}`; // ✅ DÜZELTİLEN TEK SATIR
+    const key = `${userId}_${guildId}`;
     cooldowns[key] = untilTimestamp;
     saveCooldowns(cooldowns);
 }
@@ -91,14 +89,11 @@ function getUserCooldownUntil(userId, guildId) {
     return cooldowns[key] || 0;
 }
 
-// (DEVAMI AYNEN DEVAM EDİYOR — DEĞİŞMEDİ)
-
-// Süre parse fonksiyonu → "1h30m" → milisaniye
+// Süre ve Format Fonksiyonları
 function parseDuration(str) {
     if (!str || str === '0') return 0;
     const regex = /(\d+)([smhd])/gi;
-    let total = 0;
-    let match;
+    let total = 0; let match;
     while ((match = regex.exec(str)) !== null) {
         const value = parseInt(match[1], 10);
         const unit = match[2].toLowerCase();
@@ -112,24 +107,16 @@ function parseDuration(str) {
 
 function formatRemaining(ms) {
     if (ms <= 0) return "0 saniye";
-
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s} saniye`;
-
-    const m = Math.floor(s / 60);
-    const sn = s % 60;
+    const m = Math.floor(s / 60); const sn = s % 60;
     if (m < 60) return `${m} dk${sn > 0 ? ` ${sn} sn` : ''}`;
-
-    const h = Math.floor(m / 60);
-    const dk = m % 60;
+    const h = Math.floor(m / 60); const dk = m % 60;
     if (h < 24) return `${h} saat${dk > 0 ? ` ${dk} dk` : ''}`;
-
-    const d = Math.floor(h / 24);
-    const saat = h % 24;
+    const d = Math.floor(h / 24); const saat = h % 24;
     return `${d} gün${saat > 0 ? ` ${saat} saat` : ''}`;
 }
 
-// Kurulum sırası (sadece yardımda)
 const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 1. #partner-yetkili @rol  
 2. #partner-sistem #kanal  
@@ -138,7 +125,9 @@ const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 5. #partner-mesaj ← bu zorunlu!  
 6. #partner-bekleme 30m ← opsiyonel`;
 
-// KOMUTLAR
+// ────────────────────────────────────────────────
+// DISCORD BOT KOMUTLARI
+// ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -156,7 +145,7 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
                 { name: '#partner-log #kanal', value: 'Başarılı başvuru log kanalı', inline: true },
                 { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek sunucu textiniz\n**Zorunlu ayardır!**', inline: false },
-                { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi\nÖr: 30m, 2h, 1d, 0 (kapatmak için)', inline: false }
+                { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi', inline: false }
             )
             .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
             .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
@@ -166,58 +155,51 @@ client.on(Events.MessageCreate, async (message) => {
 
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
-        if (!target) return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
+        if (!target) return message.reply('⚠️ Bir rol etiketleyin');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply(`✅ Partner yetkili rolü ayarlandı\n\n**Sonraki adım:** #partner-sistem #kanal`);
+        return message.reply(`✅ Partner yetkili rolü ayarlandı.`);
     }
 
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Başvuru butonu kanalı ayarlandı\n\n**Sonraki adım:** #partner-kanal #kanal`);
+        return message.reply(`✅ Başvuru butonu kanalı ayarlandı.`);
     }
 
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı\n\n**Sonraki adım:** #partner-log #kanal`);
+        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı.`);
     }
 
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Log kanalı ayarlandı\n\n**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
+        return message.reply(`✅ Log kanalı ayarlandı.`);
     }
 
     if (prefix === '#partner-mesaj') {
-        if (!args.trim()) {
-            return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
-        }
+        if (!args.trim()) return message.reply('⚠️ Mesaj içeriği yazmalısınız.');
         dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply(`✅ Davet mesajı kaydedildi\n\nArtık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
+        return message.reply(`✅ Davet mesajı kaydedildi.`);
     }
 
     if (prefix === '#partner-bekleme') {
         if (!args.trim()) {
             const current = dbGet(`cooldown_${message.guild.id}`) || "ayarlanmamış";
-            return message.reply(`Mevcut bekleme süresi: **${current}**\n\nKullanım:\n\`#partner-bekleme 30m\`\n\`#partner-bekleme 2h30m\`\n\`#partner-bekleme 0\` → kapatmak için`);
+            return message.reply(`Mevcut bekleme süresi: **${current}**`);
         }
-
         if (args === '0') {
             dbSet(`cooldown_${message.guild.id}`, null);
-            return message.reply('✅ Partner bekleme süresi **kapatıldı**.');
+            return message.reply('✅ Partner bekleme süresi kapatıldı.');
         }
-
         const ms = parseDuration(args);
-        if (ms < 1000) {
-            return message.reply('❌ Geçersiz süre formatı.\nDesteklenen birimler: s, m, h, d\nÖrnek: 45s, 30m, 1h, 2h30m, 1d');
-        }
-
+        if (ms < 1000) return message.reply('❌ Geçersiz süre formatı.');
         dbSet(`cooldown_${message.guild.id}`, args);
-        return message.reply(`✅ Partnerlik sonrası bekleme süresi **${args}** olarak ayarlandı.`);
+        return message.reply(`✅ Bekleme süresi **${args}** olarak ayarlandı.`);
     }
 
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
@@ -228,16 +210,11 @@ client.on(Events.MessageCreate, async (message) => {
         const embed = new EmbedBuilder()
             .setTitle('🤝 Partnerlik Başvurusu')
             .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın.\n<@${message.author.id}>`)
-            .setColor('#00D166')
-            .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() });
+            .setColor('#00D166');
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('p_basvuru')
-                .setLabel('Başvuru Yap')
-                .setStyle(ButtonStyle.Success)
+            new ButtonBuilder().setCustomId('p_basvuru').setLabel('Başvuru Yap').setStyle(ButtonStyle.Success)
         );
-
         await message.channel.send({ embeds: [embed], components: [row] });
     }
 });
@@ -246,147 +223,71 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
-        const modal = new ModalBuilder()
-            .setCustomId('p_modal')
-            .setTitle('Partnerlik Başvurusu');
-
-        const input = new TextInputBuilder()
-            .setCustomId('p_text')
-            .setLabel('Sunucu Tanıtım Metni')
-            .setPlaceholder('Sunucunuzün tanıtım yazısını buraya yapıştırın...')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true);
-
+        const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Partnerlik Başvurusu');
+        const input = new TextInputBuilder().setCustomId('p_text').setLabel('Sunucu Tanıtım Metni').setStyle(TextInputStyle.Paragraph).setRequired(true);
         modal.addComponents(new ActionRowBuilder().addComponents(input));
         await interaction.showModal(modal);
     }
 
     if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
         await interaction.deferReply({ ephemeral: true });
-
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
-
         const cooldownStr = dbGet(`cooldown_${guildId}`);
 
-        // Cooldown kontrolü
         if (cooldownStr && cooldownStr !== '0') {
-            const cooldownMs = parseDuration(cooldownStr);
             const now = Date.now();
             const userUntil = getUserCooldownUntil(userId, guildId);
-
             if (userUntil > now) {
-                const remainingMs = userUntil - now;
-                const remainingText = formatRemaining(remainingMs);
-
-                return interaction.editReply({
-                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
-                    ephemeral: true
-                });
+                return interaction.editReply({ content: `⏳ Beklemen gerek: **${formatRemaining(userUntil - now)}**` });
             }
         }
 
         const text = interaction.fields.getTextInputValue('p_text');
-
         const reklamKanalId = dbGet(`reklamKanal_${guildId}`);
-        const logKanalId    = dbGet(`logKanal_${guildId}`);
-        const davetMesaji   = dbGet(`davetMesaji_${guildId}`);
+        const logKanalId = dbGet(`logKanal_${guildId}`);
+        const davetMesaji = dbGet(`davetMesaji_${guildId}`);
 
-        if (!davetMesaji) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor('#FF5555')
-                .setTitle('❌ Eksik Ayar')
-                .setDescription('Sunucu sahibi `#partner-mesaj` komutunu kullanarak davet mesajını ayarlamamış.\nBaşvuru şu an mümkün değil.');
-            return interaction.editReply({ embeds: [errorEmbed], ephemeral: true });
-        }
+        if (!davetMesaji) return interaction.editReply({ content: '❌ #partner-mesaj ayarlanmamış.' });
 
-        // Reklam kanalına gönder
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
             if (ch) await ch.send(text).catch(() => {});
         }
 
-        // Log gönder
         if (logKanalId) {
             const ch = interaction.client.channels.cache.get(logKanalId);
             if (ch) {
-                const logEmbed = new EmbedBuilder()
-                    .setColor('#00D166')
-                    .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(
-                        `**Kullanıcı:** ${interaction.user}\n` +
-                        `**Kullanıcı Adı:** ${interaction.user.tag}\n` +
-                        `**Kullanıcı ID:** ${interaction.user.id}\n` +
-                        `**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`
-                    )
-                    .setTimestamp();
+                const logEmbed = new EmbedBuilder().setColor('#00D166').setTitle('✅ Partnerlik Tamamlandı').setDescription(`**Kullanıcı:** ${interaction.user}\n**ID:** ${interaction.user.id}`).setTimestamp();
                 await ch.send({ embeds: [logEmbed] }).catch(() => {});
             }
         }
 
-        // Başarılı başvuru → cooldown başlat (kalıcı)
         if (cooldownStr && cooldownStr !== '0') {
             const ms = parseDuration(cooldownStr);
-            if (ms > 0) {
-                const until = Date.now() + ms;
-                setUserCooldown(userId, guildId, until);
-            }
+            if (ms > 0) setUserCooldown(userId, guildId, Date.now() + ms);
         }
 
-        // Kullanıcıya cevap
-        try {
-            await interaction.followUp({
-                content: davetMesaji,
-                ephemeral: true
-            });
-
-            await interaction.followUp({
-                content: `**${interaction.user} Partnerlik başarılı!**`,
-                ephemeral: false,
-                allowedMentions: { parse: ['users'] }
-            });
-        } catch (err) {
-            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
-        }
+        await interaction.followUp({ content: davetMesaji, ephemeral: true });
     }
 });
 
-client.once(Events.ClientReady, () => {
-    console.log(`✅ ${client.user.tag} hazır`);
-});
-
-
 // ────────────────────────────────────────────────
-// OYUN, WEB SUNUCUSU VE SOCKET.IO ENTEGRASYONU
+// WEB SUNUCUSU, OYUN VE SOCKET.IO (EXPRESS GÜNCELLEMESİ)
 // ────────────────────────────────────────────────
-const express = require('express');
-const { Server } = require('socket.io');
-const path = require('path');
-
 const app = express();
-// Mevcut bot kodundaki 'http' modülünü kullanarak sunucuyu Express ile bağlıyoruz
 const server = http.createServer(app); 
 const io = new Server(server);
 
-// Statik dosyalar (index.html vb.) için 'public' klasörünü ayarla
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Oyuncu verilerini Render diskinde tutmak için yol
-const playersDataPath = '/var/data/players_db.json';
-if (!fs.existsSync(playersDataPath)) {
-    fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2), 'utf8');
-}
 
 let activePlayers = {}; 
 
 io.on('connection', (socket) => {
     socket.on('login', (username) => {
         let allUsers = {};
-        try {
-            allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        } catch (e) { allUsers = {}; }
-        
-        // Kayıt kontrolü veya yeni oluşturma
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+
         if (!allUsers[username]) {
             allUsers[username] = {
                 username: username,
@@ -397,10 +298,7 @@ io.on('connection', (socket) => {
             fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         }
 
-        // Oyuncuyu aktif listeye ekle
         activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
-        
-        // Bağlanan kişiye dünyayı, diğerlerine yeni oyuncuyu gönder
         socket.emit('currentPlayers', activePlayers);
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
@@ -421,18 +319,15 @@ io.on('connection', (socket) => {
     });
 });
 
-// Render için Health Check ve Web Arayüzü
-app.get('/status', (req, res) => res.send('Bot ve Oyun Aktif!'));
+app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// Bot hazır olduğunda konsola bilgi ver
-client.once('ready', () => {
-    console.log(`[!] ${client.user.tag} ve Oyun Sunucusu Aktif!`);
+client.once(Events.ClientReady, () => {
+    console.log(`✅ Discord: ${client.user.tag} hazır`);
 });
 
-// SUNUCUYU BAŞLAT (Eski http.createServer(...).listen kısmının yerine geçer)
+// TÜM SİSTEMİ TEK PORTTAN BAŞLAT
 server.listen(PORT, () => {
-    console.log(`[✓] Web/Oyun Portu ${PORT} üzerinde açıldı.`);
+    console.log(`[✓] Sunucu ve Oyun http://localhost:${PORT} adresinde aktif.`);
 });
 
-// Discord Bot Girişi
 client.login(process.env.token);
