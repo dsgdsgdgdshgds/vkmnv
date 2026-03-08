@@ -356,41 +356,51 @@ client.once(Events.ClientReady, () => {
 });
 
 
-// --- OYUN VE SUNUCU ENTEGRASYONU ---
+// ────────────────────────────────────────────────
+// OYUN, WEB SUNUCUSU VE SOCKET.IO ENTEGRASYONU
+// ────────────────────────────────────────────────
 const express = require('express');
 const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
-const server = http.createServer(app); // Mevcut http sunucunu kullanıyoruz
+// Mevcut bot kodundaki 'http' modülünü kullanarak sunucuyu Express ile bağlıyoruz
+const server = http.createServer(app); 
 const io = new Server(server);
 
-// Statik dosyalar için 'public' klasörü
+// Statik dosyalar (index.html vb.) için 'public' klasörünü ayarla
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Oyuncu verilerini Render diskinde tutmak için yol
 const playersDataPath = '/var/data/players_db.json';
-if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, '{}');
+if (!fs.existsSync(playersDataPath)) {
+    fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2), 'utf8');
+}
 
 let activePlayers = {}; 
 
 io.on('connection', (socket) => {
     socket.on('login', (username) => {
-        let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+        let allUsers = {};
+        try {
+            allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+        } catch (e) { allUsers = {}; }
         
-        // Eğer kullanıcı kayıtlı değilse oluştur
+        // Kayıt kontrolü veya yeni oluşturma
         if (!allUsers[username]) {
             allUsers[username] = {
-                username,
+                username: username,
                 x: Math.random() * 20 - 10,
                 z: Math.random() * 20 - 10,
-                color: Math.floor(Math.random()*16777215)
+                color: Math.floor(Math.random() * 16777215)
             };
             fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         }
 
+        // Oyuncuyu aktif listeye ekle
         activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
         
+        // Bağlanan kişiye dünyayı, diğerlerine yeni oyuncuyu gönder
         socket.emit('currentPlayers', activePlayers);
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
@@ -404,20 +414,25 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        delete activePlayers[socket.id];
-        io.emit('playerDisconnected', socket.id);
+        if (activePlayers[socket.id]) {
+            delete activePlayers[socket.id];
+            io.emit('playerDisconnected', socket.id);
+        }
     });
 });
 
+// Render için Health Check ve Web Arayüzü
+app.get('/status', (req, res) => res.send('Bot ve Oyun Aktif!'));
+
 // Bot hazır olduğunda konsola bilgi ver
 client.once('ready', () => {
-    console.log(`[!] Oyun Sunucusu ve Bot Aktif!`);
+    console.log(`[!] ${client.user.tag} ve Oyun Sunucusu Aktif!`);
 });
 
-// Mevcut server.listen kısmını bot.js'de şu şekilde güncelle/değiştir:
+// SUNUCUYU BAŞLAT (Eski http.createServer(...).listen kısmının yerine geçer)
 server.listen(PORT, () => {
-    console.log(`[✓] Sunucu port ${PORT} üzerinde çalışıyor`);
+    console.log(`[✓] Web/Oyun Portu ${PORT} üzerinde açıldı.`);
 });
 
-
+// Discord Bot Girişi
 client.login(process.env.token);
