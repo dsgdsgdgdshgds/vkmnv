@@ -119,7 +119,28 @@
         .field-input:focus { border-color: var(--gold-dark); box-shadow: inset 0 2px 8px #00000066, 0 0 12px #c9a84c22; }
         .field-input::placeholder { color: #3a2a10; }
         .field-input.error { border-color: #c0392b88; box-shadow: 0 0 8px #c0392b44; }
-        .field-input.success { border-color: #27ae6088; }
+        .field-input.success { border-color: #27ae6088; box-shadow: 0 0 8px #27ae6044; }
+        .field-input.checking { border-color: #c9a84c88; }
+
+        .field-hint {
+            font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 1px;
+            margin-top: 4px; min-height: 14px; transition: all 0.2s;
+        }
+        .field-hint.error { color: #e74c3c; }
+        .field-hint.success { color: #27ae60; }
+        .field-hint.info { color: #c9a84c; }
+
+        .field-status {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            font-size: 16px; pointer-events: none;
+        }
+
+        .forgot-link {
+            font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 2px;
+            color: var(--gold-dark); cursor: pointer; transition: color 0.2s;
+            text-decoration: underline; text-underline-offset: 3px;
+        }
+        .forgot-link:hover { color: var(--gold); }
 
         .captcha-box {
             background: #0a0806; border: 1px solid #2a1e08; border-radius: 2px;
@@ -386,7 +407,7 @@
             <div class="corner bl">◆</div>
             <div class="corner br">◆</div>
 
-            <div class="auth-tabs">
+            <div class="auth-tabs" id="auth-tabs-main">
                 <div class="auth-tab active" onclick="switchTab('login')">⚔ Giriş Yap</div>
                 <div class="auth-tab" onclick="switchTab('register')">📜 Kayıt Ol</div>
             </div>
@@ -395,12 +416,15 @@
             <div class="form-panel active" id="panel-login">
                 <div id="msg-login" class="msg-box"></div>
                 <div class="field-wrap">
-                    <label class="field-label">⚔ Kahraman Adı</label>
-                    <input type="text" id="login-user" class="field-input" placeholder="Kullanıcı adınız..." autocomplete="username">
+                    <label class="field-label">⚔ Kahraman Adı veya E-Posta</label>
+                    <input type="text" id="login-user" class="field-input" placeholder="Kullanıcı adı veya e-posta..." autocomplete="username">
                 </div>
                 <div class="field-wrap">
                     <label class="field-label">🔒 Şifre</label>
                     <input type="password" id="login-pass" class="field-input" placeholder="Şifreniz..." autocomplete="current-password">
+                </div>
+                <div style="text-align:right; margin-bottom:14px; margin-top:-8px;">
+                    <span class="forgot-link" onclick="switchTab('forgot')">🔑 Şifremi Unuttum</span>
                 </div>
                 <button class="btn-enter" onclick="doLogin()">⚔ DÜNYAYA GİR ⚔</button>
             </div>
@@ -410,15 +434,26 @@
                 <div id="msg-register" class="msg-box"></div>
                 <div class="field-wrap">
                     <label class="field-label">⚔ Kahraman Adı</label>
-                    <input type="text" id="reg-user" class="field-input" placeholder="Kullanıcı adınız..." autocomplete="username">
+                    <div style="position:relative;">
+                        <input type="text" id="reg-user" class="field-input" placeholder="3-16 karakter, harf ve rakam..." autocomplete="username" oninput="checkUsername(this)">
+                        <span class="field-status" id="reg-user-status"></span>
+                    </div>
+                    <div class="field-hint" id="reg-user-hint"></div>
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">📧 E-Posta</label>
+                    <input type="email" id="reg-email" class="field-input" placeholder="ornek@mail.com..." autocomplete="email" oninput="checkEmail(this)">
+                    <div class="field-hint" id="reg-email-hint"></div>
                 </div>
                 <div class="field-wrap">
                     <label class="field-label">🔒 Şifre</label>
-                    <input type="password" id="reg-pass" class="field-input" placeholder="Şifreniz..." autocomplete="new-password">
+                    <input type="password" id="reg-pass" class="field-input" placeholder="En az 6 karakter..." autocomplete="new-password" oninput="checkPassword(this)">
+                    <div class="field-hint" id="reg-pass-hint"></div>
                 </div>
                 <div class="field-wrap">
                     <label class="field-label">🔒 Şifre Tekrar</label>
-                    <input type="password" id="reg-pass2" class="field-input" placeholder="Şifrenizi tekrar girin..." autocomplete="new-password">
+                    <input type="password" id="reg-pass2" class="field-input" placeholder="Şifrenizi tekrar girin..." autocomplete="new-password" oninput="checkPassword2(this)">
+                    <div class="field-hint" id="reg-pass2-hint"></div>
                 </div>
                 <div class="captcha-box">
                     <div class="captcha-img" id="captcha-display">
@@ -429,6 +464,38 @@
                     <input type="text" id="captcha-input" class="field-input" placeholder="Kodu girin..." style="flex:1">
                 </div>
                 <button class="btn-enter" onclick="doRegister()">📜 KAHRAMAN OLUŞTUR 📜</button>
+            </div>
+
+            <!-- FORGOT PASSWORD -->
+            <div class="form-panel" id="panel-forgot">
+                <div id="msg-forgot" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinizi girin. Şifre sıfırlama bağlantısı gönderilecektir.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">📧 E-Posta</label>
+                    <input type="email" id="forgot-email" class="field-input" placeholder="ornek@mail.com...">
+                </div>
+                <button class="btn-enter" onclick="doForgotPassword()">📨 BAĞLANTI GÖNDER</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('login')">← Giriş ekranına dön</span>
+                </div>
+            </div>
+
+            <!-- EMAIL VERIFY -->
+            <div class="form-panel" id="panel-verify">
+                <div id="msg-verify" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen kontrol edin.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">🔑 Doğrulama Kodu</label>
+                    <input type="text" id="verify-code" class="field-input" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;">
+                </div>
+                <button class="btn-enter" onclick="doVerifyCode()">✅ DOĞRULA VE GİRİŞ YAP</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="resendCode()">↻ Kodu tekrar gönder</span>
+                </div>
             </div>
         </div>
     </div>
@@ -565,38 +632,182 @@ function refreshCaptcha() { generateCaptcha(); }
 generateCaptcha();
 
 // ═══════════════════════════════════════════════
-//  AUTH TABS
+//  SESSION
+// ═══════════════════════════════════════════════
+const SESSION_KEY = 'survival_evo_session';
+
+function saveSession(data) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadSession() {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  TABS & MESSAGES
 // ═══════════════════════════════════════════════
 function switchTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    const tabsMain = document.getElementById('auth-tabs-main');
+
     if (tab === 'login') {
-        document.querySelector('.auth-tab:first-child').classList.add('active');
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:first-child').classList.add('active');
         document.getElementById('panel-login').classList.add('active');
-    } else {
-        document.querySelector('.auth-tab:last-child').classList.add('active');
+    } else if (tab === 'register') {
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:last-child').classList.add('active');
         document.getElementById('panel-register').classList.add('active');
+    } else if (tab === 'forgot') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-forgot').classList.add('active');
+    } else if (tab === 'verify') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-verify').classList.add('active');
     }
 }
 
 function showMsg(id, type, text) {
     const el = document.getElementById(id);
     el.className = 'msg-box ' + type;
-    el.textContent = (type === 'error' ? '⚠ ' : '✓ ') + text;
+    el.innerHTML = (type === 'error' ? '⚠&nbsp;&nbsp;' : '✓&nbsp;&nbsp;') + text;
     el.style.display = 'flex';
 }
-function hideMsg(id) { document.getElementById(id).style.display = 'none'; }
+function hideMsg(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
+
+// ── Field Validation ──
+let usernameCheckTimer = null;
+function checkUsername(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('success','error','checking');
+
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; status.textContent = ''; return; }
+    if (val.length < 3) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 3 karakter gerekli';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    if (val.length > 16) {
+        input.classList.add('error');
+        hint.textContent = '✖ En fazla 16 karakter olabilir';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(val)) {
+        input.classList.add('error');
+        hint.textContent = '✖ Sadece harf, rakam ve alt çizgi kullanın';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    input.classList.add('checking');
+    hint.textContent = '⏳ Kontrol ediliyor...';
+    hint.className = 'field-hint info';
+    status.textContent = '...';
+
+    clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(() => {
+        socket.emit('checkUsername', val);
+    }, 500);
+}
+
+function checkEmail(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-email-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    if (ok) {
+        input.classList.add('success');
+        hint.textContent = '✓ Geçerli e-posta adresi';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Geçerli bir e-posta adresi girin';
+        hint.className = 'field-hint error';
+    }
+}
+
+function checkPassword(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val.length < 6) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 6 karakter gerekli';
+        hint.className = 'field-hint error';
+    } else {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifre yeterince güçlü';
+        hint.className = 'field-hint success';
+    }
+    checkPassword2(document.getElementById('reg-pass2'));
+}
+
+function checkPassword2(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass2-hint');
+    const pass1 = document.getElementById('reg-pass').value;
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val === pass1) {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifreler eşleşiyor';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Şifreler eşleşmiyor';
+        hint.className = 'field-hint error';
+    }
+}
+
+socket.on('usernameAvailable', (data) => {
+    const input = document.getElementById('reg-user');
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('checking');
+    if (data.available) {
+        input.classList.add('success');
+        hint.textContent = '✓ Bu kahraman adı kullanılabilir!';
+        hint.className = 'field-hint success';
+        status.textContent = '✓';
+        status.style.color = '#27ae60';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Bu kahraman adı zaten alınmış';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        status.style.color = '#e74c3c';
+    }
+});
 
 // ═══════════════════════════════════════════════
 //  SOCKET.IO CONNECTION
 // ═══════════════════════════════════════════════
 const socket = io();
 
+// ─ Auto-login from session ─
+const _sess = loadSession();
+if (_sess && _sess.token) {
+    socket.emit('loginWithToken', _sess.token);
+}
+
 // ── Login ──
 function doLogin() {
     const username = document.getElementById('login-user').value.trim();
     const password = document.getElementById('login-pass').value;
-    if (!username || !password) { showMsg('msg-login', 'error', 'Tüm alanları doldurun!'); return; }
+    if (!username) { showMsg('msg-login', 'error', 'Kahraman adı veya e-posta boş bırakılamaz.'); return; }
+    if (!password) { showMsg('msg-login', 'error', 'Şifre alanı boş bırakılamaz.'); return; }
     hideMsg('msg-login');
     socket.emit('login', { username, password });
 }
@@ -604,37 +815,91 @@ function doLogin() {
 // ── Register ──
 function doRegister() {
     const username = document.getElementById('reg-user').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-pass').value;
     const password2 = document.getElementById('reg-pass2').value;
     const captchaInput = document.getElementById('captcha-input').value.toUpperCase();
 
-    if (!username || !password) { showMsg('msg-register', 'error', 'Tüm alanları doldurun!'); return; }
-    if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler eşleşmiyor!'); return; }
-    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı!'); refreshCaptcha(); return; }
+    if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; }
+    if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) { showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam ve _ kullanın.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; }
+    if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; }
+    if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; }
+    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı. Lütfen yeniden deneyin.'); refreshCaptcha(); return; }
 
     hideMsg('msg-register');
-    socket.emit('login', { username, password });
+    socket.emit('register', { username, email, password });
+}
+
+// ── Forgot Password ──
+function doForgotPassword() {
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showMsg('msg-forgot', 'error', 'Lütfen geçerli bir e-posta adresi girin.');
+        return;
+    }
+    hideMsg('msg-forgot');
+    socket.emit('forgotPassword', { email });
+    showMsg('msg-forgot', 'success', 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
+    document.getElementById('forgot-email').value = '';
+}
+
+// ── Email Verify ──
+let pendingVerifyUser = null;
+function doVerifyCode() {
+    const code = document.getElementById('verify-code').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-verify', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-verify');
+    socket.emit('verifyEmail', { username: pendingVerifyUser, code });
+}
+function resendCode() {
+    if (!pendingVerifyUser) return;
+    socket.emit('resendVerifyCode', { username: pendingVerifyUser });
+    showMsg('msg-verify', 'success', 'Doğrulama kodu tekrar gönderildi.');
 }
 
 // Enter tuşu desteği
 document.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-        const activePanel = document.querySelector('.form-panel.active').id;
-        if (activePanel === 'panel-login') doLogin();
-        else doRegister();
+        const activePanel = document.querySelector('.form-panel.active');
+        if (!activePanel) return;
+        if (activePanel.id === 'panel-login') doLogin();
+        else if (activePanel.id === 'panel-register') doRegister();
+        else if (activePanel.id === 'panel-forgot') doForgotPassword();
+        else if (activePanel.id === 'panel-verify') doVerifyCode();
     }
 });
 
-// ── Login Success ──
-socket.on('loginSuccess', () => {
+// ── Socket Auth Events ──
+socket.on('loginSuccess', (data) => {
+    if (data && data.token) saveSession({ token: data.token, username: data.username });
     startLoadingSequence();
 });
 
-// ── Login Error ──
+socket.on('registerSuccess', (data) => {
+    pendingVerifyUser = data.username;
+    showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanızı doğrulayın.');
+    setTimeout(() => switchTab('verify'), 1200);
+});
+
+socket.on('verifySuccess', () => {
+    showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
+    setTimeout(() => startLoadingSequence(), 1000);
+});
+
 socket.on('loginError', (msg) => {
-    const activePanel = document.querySelector('.form-panel.active').id;
-    const msgId = activePanel === 'panel-login' ? 'msg-login' : 'msg-register';
-    showMsg(msgId, 'error', msg);
+    const activePanel = document.querySelector('.form-panel.active');
+    let msgId = 'msg-login';
+    if (activePanel) {
+        if (activePanel.id === 'panel-register') msgId = 'msg-register';
+        else if (activePanel.id === 'panel-verify') msgId = 'msg-verify';
+        else if (activePanel.id === 'panel-forgot') msgId = 'msg-forgot';
+    }
+    showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
 });
 
 // ═══════════════════════════════════════════════
@@ -682,13 +947,17 @@ let resourceObjects = [];
 let myPlayer = null;
 
 const keys = {};
-const mouse = { dx: 0, dy: 0 };
 let yaw = 0, pitch = 0;
 let velocityY = 0;
 const GRAVITY = -0.015;
 const JUMP_FORCE = 0.3;
 let onGround = true;
 let pointerLocked = false;
+
+// 3rd person camera
+const CAM_DISTANCE = 5;
+const CAM_HEIGHT = 2;
+let playerPos = { x: 0, y: 0, z: 0 };
 
 const joystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
 
@@ -700,6 +969,13 @@ function enterGame() {
     document.getElementById('minimap').style.display = 'block';
     document.getElementById('online-count').style.display = 'block';
     document.getElementById('crosshair').style.display = 'block';
+
+    // restore saved position
+    const sess = loadSession();
+    if (sess && sess.pos) {
+        playerPos = sess.pos;
+        yaw = sess.yaw || 0;
+    }
 
     initThree(canvas);
     buildWorld();
@@ -714,8 +990,8 @@ function initThree(canvas) {
     scene.background = new THREE.Color(0x1a0f05);
     scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 1.7, 0);
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -829,18 +1105,82 @@ function createRock(x, z, id) {
 
 function createPlayerMesh(color) {
     const group = new THREE.Group();
-    const bodyMat = new THREE.MeshLambertMaterial({ color: color || 0xc9a84c });
+    const skinColor = color || 0xc9a84c;
+    const darkColor = 0x1a1206;
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.3), bodyMat);
-    body.position.y = 0.8; group.add(body);
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
+    const armorMat = new THREE.MeshLambertMaterial({ color: skinColor });
+    const darkMat = new THREE.MeshLambertMaterial({ color: darkColor });
+    const beltMat = new THREE.MeshLambertMaterial({ color: 0x3a2010 });
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), bodyMat);
-    head.position.y = 1.5; group.add(head);
+    // -- Head --
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.42), skinMat);
+    head.position.y = 1.72; head.castShadow = true;
+    group.add(head);
 
-    [-0.15, 0.15].forEach(ox => {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), bodyMat);
-        leg.position.set(ox, 0.25, 0); group.add(leg);
+    // Hair
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.14, 0.44), darkMat);
+    hair.position.y = 1.99;
+    group.add(hair);
+
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 6), skinMat);
+    neck.position.y = 1.44;
+    group.add(neck);
+
+    // -- Torso --
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.28), armorMat);
+    chest.position.y = 1.18; chest.castShadow = true;
+    group.add(chest);
+
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.3, 0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
+    plate.position.set(0, 1.18, 0.17);
+    group.add(plate);
+
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.24), armorMat);
+    waist.position.y = 0.88;
+    group.add(waist);
+
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, 0.26), beltMat);
+    belt.position.y = 0.78;
+    group.add(belt);
+
+    // -- Arms --
+    [-0.32, 0.32].forEach((ox) => {
+        const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.18), armorMat);
+        ua.position.set(ox, 1.08, 0); ua.castShadow = true;
+        group.add(ua);
+        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 4), armorMat);
+        elbow.position.set(ox, 0.88, 0);
+        group.add(elbow);
+        const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.15), skinMat);
+        fa.position.set(ox, 0.68, 0); fa.castShadow = true;
+        group.add(fa);
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.12), skinMat);
+        hand.position.set(ox, 0.5, 0);
+        group.add(hand);
     });
+
+    // -- Legs --
+    [-0.14, 0.14].forEach(ox => {
+        const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), armorMat);
+        ul.position.set(ox, 0.45, 0); ul.castShadow = true;
+        group.add(ul);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), armorMat);
+        knee.position.set(ox, 0.25, 0);
+        group.add(knee);
+        const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.38, 0.19), darkMat);
+        ll.position.set(ox, 0.04, 0); ll.castShadow = true;
+        group.add(ll);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.28), darkMat);
+        boot.position.set(ox, -0.17, 0.04);
+        group.add(boot);
+    });
+
+    // Sword on back
+    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
+    swordBlade.position.set(0.28, 0.95, -0.18); swordBlade.rotation.z = 0.2;
+    group.add(swordBlade);
 
     return group;
 }
@@ -851,6 +1191,9 @@ socket.on('currentPlayers', (players) => {
         if (p.id === socket.id) {
             myPlayer = p;
             document.getElementById('player-name-display').textContent = p.username.toUpperCase();
+            playerMesh = createPlayerMesh(p.color);
+            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+            scene.add(playerMesh);
         } else {
             addOtherPlayer(p);
         }
@@ -865,7 +1208,14 @@ socket.on('newPlayer', (p) => {
 });
 
 socket.on('playerMoved', (p) => {
-    if (p.id === socket.id) return;
+    if (p.id === socket.id) {
+        if (p.x === 0 && p.z === 0 && p.hp === 100) {
+            playerPos.x = 0; playerPos.y = 0; playerPos.z = 0;
+            updateHP(100);
+            showNotification('☠️ Öldürüldünüz! Yeniden doğuyorsunuz...');
+        }
+        return;
+    }
     if (otherPlayerMeshes[p.id]) {
         otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z);
         if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY;
@@ -918,20 +1268,26 @@ function updateOnlineCount(n) {
 //  INPUT
 // ═══════════════════════════════════════════════
 function setupInput(canvas) {
-    canvas.addEventListener('click', () => {
-        if (!pointerLocked) canvas.requestPointerLock();
-    });
-    document.addEventListener('pointerlockchange', () => {
-        pointerLocked = document.pointerLockElement === canvas;
-    });
+    let mouseDown = false;
+    let lastMouseX = 0, lastMouseY = 0;
 
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
+        if (e.button === 0) doAttackNearest();
+    });
+    document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; });
     document.addEventListener('mousemove', (e) => {
-        if (!pointerLocked) return;
-        yaw -= e.movementX * 0.002;
-        pitch -= e.movementY * 0.002;
-        pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, pitch));
+        if (!mouseDown) return;
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        yaw -= dx * 0.004;
+        pitch -= dy * 0.003;
+        pitch = Math.max(-0.6, Math.min(0.8, pitch));
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
     });
 
+    document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => { keys[e.code] = true; });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -941,11 +1297,7 @@ function setupInput(canvas) {
         if (e.code === 'Space') tryJump();
     });
 
-    document.addEventListener('mousedown', e => {
-        if (e.button === 0 && pointerLocked) doAttackNearest();
-        if (e.button === 2 && pointerLocked) tryCollect();
-    });
-    document.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('wheel', (e) => {}, { passive: true });
 }
 
 function tryJump() {
@@ -1016,6 +1368,7 @@ function setupMobileControls() {
 //  GAME LOOP
 // ═══════════════════════════════════════════════
 let lastSent = 0;
+let sessionSaveTimer = 0;
 
 function gameLoop() {
     requestAnimationFrame(gameLoop);
@@ -1037,28 +1390,53 @@ function gameLoop() {
         move.addScaledVector(right, joystick.dx * speed);
     }
 
-    camera.position.add(move);
+    playerPos.x += move.x;
+    playerPos.z += move.z;
 
     velocityY += GRAVITY;
-    camera.position.y += velocityY;
-    if (camera.position.y < 1.7) { camera.position.y = 1.7; velocityY = 0; onGround = true; }
+    playerPos.y += velocityY;
+    if (playerPos.y < 0) { playerPos.y = 0; velocityY = 0; onGround = true; }
 
-    camera.position.x = Math.max(-98, Math.min(98, camera.position.x));
-    camera.position.z = Math.max(-98, Math.min(98, camera.position.z));
+    playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
+    playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
 
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = yaw;
-    camera.rotation.x = pitch;
+    if (playerMesh) {
+        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+        playerMesh.rotation.y = yaw + Math.PI;
+    }
+
+    const camOffX = -Math.sin(yaw) * CAM_DISTANCE;
+    const camOffZ = -Math.cos(yaw) * CAM_DISTANCE;
+    const targetCamX = playerPos.x - camOffX;
+    const targetCamY = playerPos.y + CAM_HEIGHT + pitch * 2;
+    const targetCamZ = playerPos.z - camOffZ;
+
+    camera.position.x += (targetCamX - camera.position.x) * 0.15;
+    camera.position.y += (targetCamY - camera.position.y) * 0.15;
+    camera.position.z += (targetCamZ - camera.position.z) * 0.15;
+
+    camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
 
     const now = Date.now();
     if (now - lastSent > 50) {
         lastSent = now;
         socket.emit('playerMovement', {
-            x: camera.position.x,
-            y: camera.position.y - 1.7,
-            z: camera.position.z,
+            x: playerPos.x,
+            y: playerPos.y,
+            z: playerPos.z,
             rotationY: yaw
         });
+    }
+
+    sessionSaveTimer++;
+    if (sessionSaveTimer > 300) {
+        sessionSaveTimer = 0;
+        const sess = loadSession();
+        if (sess) {
+            sess.pos = { x: playerPos.x, y: playerPos.y, z: playerPos.z };
+            sess.yaw = yaw;
+            saveSession(sess);
+        }
     }
 
     resourceObjects.forEach(r => {
@@ -1073,7 +1451,7 @@ function gameLoop() {
 //  COLLECT
 // ═══════════════════════════════════════════════
 function tryCollect() {
-    const px = camera.position.x, pz = camera.position.z;
+    const px = playerPos.x, pz = playerPos.z;
     resourceObjects.forEach(r => {
         if (!r.mesh) return;
         const dx = px - r.x, dz = pz - r.z;
@@ -1089,7 +1467,7 @@ function tryCollect() {
 //  ATTACK
 // ═══════════════════════════════════════════════
 function doAttackNearest() {
-    const px = camera.position.x, pz = camera.position.z;
+    const px = playerPos.x, pz = playerPos.z;
     let nearest = null, nearDist = 5;
     Object.entries(otherPlayerMeshes).forEach(([id, mesh]) => {
         const dx = px - mesh.position.x, dz = pz - mesh.position.z;
@@ -1142,7 +1520,7 @@ function drawMinimap() {
         ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2); ctx.fill();
     });
 
-    const sx = (camera.position.x + 100) * scale, sy = (camera.position.z + 100) * scale;
+    const sx = (playerPos.x + 100) * scale, sy = (playerPos.z + 100) * scale;
     ctx.fillStyle = '#c9a84c';
     ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
 
@@ -1174,18 +1552,6 @@ function addKillFeed(text) {
     setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500);
 }
 
-socket.on('playerMoved', (p) => {
-    if (p.id !== socket.id) return;
-    if (p.x === 0 && p.z === 0 && p.hp === 100) {
-        camera.position.set(0, 1.7, 0);
-        updateHP(100);
-        showNotification('☠️ Öldürüldünüz! Yeniden doğuyorsunuz...');
-    }
-});
-
-socket.on('hpUpdate', (data) => {
-    if (data.id === socket.id) updateHP(data.hp);
-});
 </script>
 </body>
 </html>
