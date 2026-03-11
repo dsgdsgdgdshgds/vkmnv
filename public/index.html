@@ -3,338 +3,1538 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Survival RPG: Evolution</title>
+    <title>⚔️ Survival Evolution RPG</title>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; touch-action: none; font-family: 'Segoe UI', sans-serif; }
-        #login-screen { position: fixed; inset: 0; background: #1a1a1a; display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .box { background: #222; padding: 40px 20px; border-radius: 20px; text-align: center; color: white; border: 2px solid #333; width: 85%; max-width: 320px; }
-        input { padding: 15px; width: 90%; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px; font-size: 16px; background: #333; color: white; }
-        button.login-btn { padding: 15px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 8px; font-weight: bold; width: 98%; font-size: 18px; }
+        :root {
+            --gold: #c9a84c;
+            --gold-light: #f0d080;
+            --gold-dark: #7a5c1e;
+            --dark: #0a0806;
+            --dark2: #12100d;
+            --dark3: #1c1710;
+            --red: #c0392b;
+            --green: #27ae60;
+            --ember: #e67e22;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--dark);
+            font-family: 'Crimson Text', serif;
+            overflow: hidden;
+            touch-action: none;
+            cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>⚔️</text></svg>") 10 10, auto;
+        }
+
+        /* ===== PARTICLES ===== */
+        #particles-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+        /* ===== AUTH SCREEN ===== */
+        #auth-screen {
+            position: fixed; inset: 0; z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at 30% 40%, #2a1a05 0%, #0a0806 60%);
+            overflow: hidden;
+        }
+
+        .bg-rune {
+            position: absolute; font-size: 120px; opacity: 0.03;
+            animation: runeFloat 8s ease-in-out infinite;
+            pointer-events: none; color: var(--gold); user-select: none;
+        }
+        @keyframes runeFloat { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
+
+        .auth-container {
+            position: relative; z-index: 10;
+            width: 420px; max-width: 95vw;
+        }
+
+        .auth-title-wrap {
+            text-align: center; margin-bottom: 8px;
+        }
+        .auth-title {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: clamp(20px, 5vw, 32px);
+            color: var(--gold-light);
+            text-shadow: 0 0 30px #c9a84c88, 0 0 60px #c9a84c44;
+            letter-spacing: 4px;
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes titleGlow {
+            from { text-shadow: 0 0 20px #c9a84c88; }
+            to { text-shadow: 0 0 40px #f0d08099, 0 2px 4px #000; }
+        }
+        .auth-subtitle {
+            font-family: 'Cinzel', serif;
+            color: #8a6a2a; font-size: 11px; letter-spacing: 8px;
+            text-transform: uppercase; margin-top: 4px;
+        }
+
+        .panel-frame {
+            background: linear-gradient(160deg, #1c1508 0%, #0e0b05 60%, #1a1206 100%);
+            border: 1px solid #3a2a10;
+            border-radius: 4px;
+            padding: 32px 28px;
+            position: relative;
+            box-shadow: 0 0 60px #00000099, inset 0 1px 0 #3a2a10, inset 0 -1px 0 #1a0f05;
+        }
+        .panel-frame::before {
+            content: '';
+            position: absolute; inset: 6px;
+            border: 1px solid #2a1e08;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Corner ornaments */
+        .corner { position: absolute; width: 20px; height: 20px; color: var(--gold-dark); font-size: 14px; }
+        .corner.tl { top: 4px; left: 4px; }
+        .corner.tr { top: 4px; right: 4px; transform: scaleX(-1); }
+        .corner.bl { bottom: 4px; left: 4px; transform: scaleY(-1); }
+        .corner.br { bottom: 4px; right: 4px; transform: scale(-1); }
+
+        /* Tabs */
+        .auth-tabs {
+            display: flex; margin-bottom: 24px;
+            border-bottom: 1px solid #2a1e08;
+        }
+        .auth-tab {
+            flex: 1; padding: 10px; text-align: center;
+            font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 2px;
+            color: #5a4820; cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s; text-transform: uppercase;
+        }
+        .auth-tab.active {
+            color: var(--gold-light);
+            border-bottom-color: var(--gold);
+        }
+        .auth-tab:hover { color: var(--gold); }
+
+        /* Form panels */
+        .form-panel { display: none; }
+        .form-panel.active { display: block; }
+
+        .field-wrap { margin-bottom: 14px; position: relative; }
+        .field-label {
+            display: block; font-family: 'Cinzel', serif;
+            font-size: 10px; letter-spacing: 3px;
+            color: var(--gold-dark); margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .field-input {
+            width: 100%; padding: 12px 16px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #2a1e08;
+            border-radius: 2px;
+            color: #e8d8a0;
+            font-family: 'Crimson Text', serif;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s;
+            box-shadow: inset 0 2px 8px #00000066;
+        }
+        .field-input:focus {
+            border-color: var(--gold-dark);
+            box-shadow: inset 0 2px 8px #00000066, 0 0 12px #c9a84c22;
+        }
+        .field-input::placeholder { color: #3a2a10; }
+        .field-input.error { border-color: #c0392b88; box-shadow: 0 0 8px #c0392b44; }
+        .field-input.success { border-color: #27ae6088; }
+
+        /* Captcha */
+        .captcha-box {
+            background: #0a0806;
+            border: 1px solid #2a1e08;
+            border-radius: 2px;
+            padding: 14px 16px;
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 14px;
+        }
+        .captcha-img {
+            background: linear-gradient(135deg, #1a1206, #0e0b05);
+            border: 1px solid #3a2a10;
+            border-radius: 2px;
+            padding: 8px 16px;
+            font-family: 'Cinzel Decorative', serif;
+            font-size: 18px; letter-spacing: 6px;
+            color: var(--gold-light);
+            text-shadow: 2px 2px 4px #000;
+            user-select: none;
+            position: relative; overflow: hidden;
+            min-width: 120px; text-align: center;
+        }
+        .captcha-img::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
+        }
+        .captcha-line {
+            position: absolute;
+            width: 100%; height: 1px;
+            background: #c9a84c44;
+            transform: rotate(-8deg);
+            top: 50%;
+        }
+        .captcha-refresh {
+            background: none; border: 1px solid #2a1e08;
+            color: var(--gold-dark); cursor: pointer;
+            padding: 6px 10px; border-radius: 2px;
+            font-size: 16px; transition: all 0.2s;
+        }
+        .captcha-refresh:hover { border-color: var(--gold-dark); color: var(--gold); }
+
+        /* Error / Success messages */
+        .msg-box {
+            padding: 10px 14px; border-radius: 2px;
+            font-size: 13px; margin-bottom: 14px;
+            display: none; align-items: center; gap: 8px;
+            font-family: 'Cinzel', serif; letter-spacing: 1px;
+        }
+        .msg-box.error { background: #c0392b22; border: 1px solid #c0392b88; color: #e74c3c; display: flex; }
+        .msg-box.success { background: #27ae6022; border: 1px solid #27ae6088; color: #2ecc71; display: flex; }
+
+        /* Submit button */
+        .btn-enter {
+            width: 100%; padding: 14px;
+            background: linear-gradient(180deg, #3a2a0a 0%, #1a1005 50%, #2a1e08 100%);
+            border: 1px solid var(--gold-dark);
+            color: var(--gold-light);
+            font-family: 'Cinzel', serif;
+            font-size: 14px; letter-spacing: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.3s;
+            position: relative; overflow: hidden;
+            box-shadow: 0 4px 20px #00000088;
+        }
+        .btn-enter::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(201,168,76,0.1) 100%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .btn-enter:hover::before { opacity: 1; }
+        .btn-enter:hover { border-color: var(--gold); color: #fff; box-shadow: 0 4px 30px #c9a84c44; }
+        .btn-enter:active { transform: translateY(1px); }
+
+        .divider {
+            text-align: center; color: #2a1e08;
+            font-size: 10px; letter-spacing: 6px;
+            margin: 16px 0; text-transform: uppercase;
+            position: relative;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            position: absolute; top: 50%;
+            width: 35%; height: 1px;
+            background: #2a1e08;
+        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        /* Loading overlay */
+        #loading-overlay {
+            position: fixed; inset: 0; z-index: 3000;
+            background: #0a0806;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            display: none;
+        }
+        .loading-title {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: 24px; color: var(--gold-light);
+            margin-bottom: 30px;
+            text-shadow: 0 0 30px var(--gold);
+        }
+        .loading-bar-wrap {
+            width: 300px; height: 4px;
+            background: #1a1206;
+            border: 1px solid #3a2a10;
+            border-radius: 2px; overflow: hidden;
+        }
+        .loading-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+            width: 0%; transition: width 0.3s;
+            box-shadow: 0 0 8px var(--gold);
+        }
+        .loading-text {
+            font-family: 'Cinzel', serif;
+            color: #5a4820; font-size: 11px;
+            letter-spacing: 4px; margin-top: 12px;
+        }
+
+        /* ===== GAME UI ===== */
         #game-ui { display: none; }
-        #ui-overlay { position: fixed; top: 20px; left: 20px; color: white; pointer-events: none; z-index: 1000; text-shadow: 2px 2px 2px #000; }
-        #hp-bar-ui { width: 180px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 10px; overflow: hidden; margin-top: 5px; }
-        #hp-fill { width: 100%; height: 100%; background: #e74c3c; transition: 0.3s; }
-        #craft-toggle { position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; background: rgba(0,0,0,0.6); color: white; border-radius: 10px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; z-index: 1600; }
-        #craft-panel { position: fixed; top: 80px; right: -250px; width: 200px; background: rgba(0,0,0,0.85); border-radius: 15px 0 0 15px; padding: 15px; transition: 0.5s; z-index: 1500; color: white; }
+
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 1000; pointer-events: none;
+            padding: 16px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+        }
+        .player-hud {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .avatar-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #1c1508, #2a1e08);
+            border: 2px solid var(--gold-dark);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .player-info { flex: 1; }
+        #player-name-display {
+            font-family: 'Cinzel', serif;
+            color: var(--gold-light); font-size: 13px;
+            letter-spacing: 2px;
+        }
+        .hp-bar-wrap {
+            display: flex; align-items: center; gap: 6px;
+            margin-top: 4px;
+        }
+        .hp-icon { font-size: 12px; }
+        #hp-bar-ui {
+            width: 150px; height: 8px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #3a1010;
+            border-radius: 2px; overflow: hidden;
+        }
+        #hp-fill {
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            transition: 0.3s;
+            box-shadow: 0 0 6px #e74c3c88;
+        }
+        .hp-text { font-family: 'Cinzel', serif; font-size: 10px; color: #c0392b; }
+
+        .inv-bar {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .inv-item {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #2a1e08;
+            border-radius: 3px;
+            padding: 4px 10px;
+            font-family: 'Cinzel', serif;
+            font-size: 11px; color: #c9a84c;
+            letter-spacing: 1px;
+        }
+
+        /* Toolbar icons */
+        #toolbar {
+            position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; z-index: 1000; pointer-events: auto;
+        }
+        .tool-slot {
+            width: 52px; height: 52px;
+            background: rgba(0,0,0,0.75);
+            border: 2px solid #2a1e08;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        .tool-slot.equipped { border-color: var(--gold); box-shadow: 0 0 12px var(--gold-dark); }
+        .tool-slot span { font-size: 9px; position: absolute; bottom: 2px; right: 4px; color: #c9a84c; font-family: 'Cinzel', serif; }
+
+        /* Craft panel */
+        #craft-toggle {
+            position: fixed; top: 80px; right: 16px;
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #1c1508, #0e0b05);
+            border: 2px solid var(--gold-dark);
+            border-radius: 6px;
+            color: var(--gold); font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 1600;
+            box-shadow: 0 4px 12px #00000088;
+            transition: all 0.2s;
+        }
+        #craft-toggle:hover { border-color: var(--gold); box-shadow: 0 0 16px var(--gold-dark); }
+
+        #craft-panel {
+            position: fixed; top: 60px; right: -280px;
+            width: 260px;
+            background: linear-gradient(160deg, #1c1508, #0e0b05);
+            border: 1px solid #3a2a10;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            padding: 20px 16px;
+            transition: right 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1500; color: white;
+        }
         #craft-panel.open { right: 0; }
-        .craft-option { background: #333; padding: 12px; margin-bottom: 10px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid #555; }
-        #mobile-controls { position: fixed; inset: 0; pointer-events: none; }
-        #joystick-container { position: absolute; bottom: 30px; left: 30px; width: 110px; height: 110px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
-        #joystick-knob { position: absolute; width: 45px; height: 45px; background: #fff; opacity: 0.5; border-radius: 50%; top: 32px; left: 32px; pointer-events: none; }
-        #jump-btn { position: absolute; bottom: 130px; right: 30px; width: 65px; height: 65px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%; color: white; font-weight: bold; pointer-events: auto; }
-        #attack-btn { position: absolute; bottom: 30px; right: 40px; width: 90px; height: 90px; background: rgba(231, 76, 60, 0.7); border-radius: 50%; color: white; border: 3px solid #fff; font-size: 24px; pointer-events: auto; }
+        .craft-title {
+            font-family: 'Cinzel', serif;
+            color: var(--gold-light); font-size: 13px;
+            letter-spacing: 4px; text-transform: uppercase;
+            margin-bottom: 16px; padding-bottom: 10px;
+            border-bottom: 1px solid #2a1e08;
+        }
+        .craft-option {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #2a1e08;
+            border-radius: 4px;
+            padding: 12px 14px; margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .craft-option:hover { border-color: var(--gold-dark); background: rgba(201,168,76,0.1); }
+        .craft-option .icon { font-size: 22px; }
+        .craft-option .info { flex: 1; }
+        .craft-option .name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold-light); }
+        .craft-option .cost { font-size: 11px; color: #5a4820; margin-top: 2px; }
+
+        /* Mobile controls */
+        #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 900; }
+
+        #joystick-container {
+            position: absolute; bottom: 28px; left: 28px;
+            width: 120px; height: 120px;
+            background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, rgba(0,0,0,0.3) 100%);
+            border: 2px solid rgba(201,168,76,0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #joystick-inner {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 40px; height: 40px;
+            border: 1px solid rgba(201,168,76,0.4);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute; width: 44px; height: 44px;
+            background: radial-gradient(circle, rgba(201,168,76,0.6) 0%, rgba(100,70,20,0.8) 100%);
+            border: 2px solid rgba(201,168,76,0.5);
+            border-radius: 50%;
+            top: 38px; left: 38px;
+            pointer-events: none;
+            box-shadow: 0 2px 8px #00000088;
+            transition: transform 0.05s;
+        }
+
+        #jump-btn {
+            position: absolute; bottom: 28px; right: 140px;
+            width: 64px; height: 64px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid rgba(201,168,76,0.4);
+            border-radius: 50%;
+            color: var(--gold); font-family: 'Cinzel', serif;
+            font-size: 10px; letter-spacing: 1px;
+            pointer-events: auto;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 2px;
+        }
+        #jump-btn .j-icon { font-size: 20px; }
+
+        #attack-btn {
+            position: absolute; bottom: 28px; right: 28px;
+            width: 100px; height: 100px;
+            background: radial-gradient(circle, rgba(192,57,43,0.5) 0%, rgba(100,20,10,0.7) 100%);
+            border: 3px solid rgba(192,57,43,0.6);
+            border-radius: 50%;
+            font-size: 32px;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(192,57,43,0.3);
+            transition: all 0.1s;
+        }
+        #attack-btn:active {
+            transform: scale(0.92);
+            box-shadow: 0 0 30px rgba(192,57,43,0.6);
+        }
+
+        /* Minimap */
+        #minimap {
+            position: fixed; top: 16px; right: 16px;
+            width: 100px; height: 100px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #3a2a10;
+            border-radius: 4px;
+            overflow: hidden; z-index: 1000;
+        }
+        #minimap-canvas { width: 100%; height: 100%; }
+
+        /* Damage flash */
+        #damage-flash {
+            position: fixed; inset: 0; z-index: 999;
+            background: rgba(192,57,43,0); pointer-events: none;
+            transition: background 0.1s;
+        }
+        #damage-flash.flash { background: rgba(192,57,43,0.25); }
+
+        /* Kill feed */
+        #killfeed {
+            position: fixed; top: 130px; right: 16px;
+            z-index: 1000; pointer-events: none;
+            width: 220px;
+        }
+        .kill-entry {
+            background: rgba(0,0,0,0.7);
+            border-left: 2px solid var(--gold-dark);
+            padding: 4px 10px;
+            font-family: 'Cinzel', serif; font-size: 10px;
+            color: #c9a84c; letter-spacing: 1px;
+            margin-bottom: 4px;
+            animation: killFade 4s forwards;
+        }
+        @keyframes killFade { 0% { opacity:1; } 80% { opacity:1; } 100% { opacity:0; } }
+
+        /* Notification */
+        #notification {
+            position: fixed; top: 80px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 1500;
+            font-family: 'Cinzel', serif;
+            font-size: 13px; letter-spacing: 3px;
+            color: var(--gold-light);
+            background: rgba(0,0,0,0.85);
+            border: 1px solid var(--gold-dark);
+            padding: 10px 24px;
+            border-radius: 4px;
+            opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        #notification.show { opacity: 1; }
+
+        /* Online counter */
+        #online-count {
+            position: fixed; bottom: 8px; left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Cinzel', serif; font-size: 10px;
+            color: rgba(201,168,76,0.4); letter-spacing: 3px;
+            z-index: 1000; pointer-events: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .auth-container { width: 95vw; }
+            .panel-frame { padding: 24px 16px; }
+            .auth-title { font-size: 18px; }
+        }
     </style>
 </head>
 <body>
 
-<div id="login-screen">
-    <div class="box">
-        <h2 style="color:#2ecc71; margin-bottom: 25px;">⚔️ SURVIVAL EVOLUTION</h2>
-        <input type="text" id="username" placeholder="Kullanıcı Adı">
-        <input type="password" id="password" placeholder="Şifre">
-        <button class="login-btn" onclick="attemptLogin()">DÜNYAYA GİR</button>
+<canvas id="particles-canvas"></canvas>
+
+<!-- ===== LOADING ===== -->
+<div id="loading-overlay">
+    <div class="loading-title">⚔️ SURVIVAL EVOLUTION</div>
+    <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-fill"></div></div>
+    <div class="loading-text" id="loading-text">DÜNYA YÜKLENİYOR...</div>
+</div>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="auth-screen">
+    <div class="bg-rune" style="top:10%; left:5%; animation-delay:0s;">⚔</div>
+    <div class="bg-rune" style="top:60%; right:8%; animation-delay:2s; font-size:80px;">🛡</div>
+    <div class="bg-rune" style="bottom:15%; left:15%; animation-delay:4s; font-size:60px;">⛏</div>
+    <div class="bg-rune" style="top:30%; right:20%; animation-delay:1s; font-size:50px;">🗡</div>
+
+    <div class="auth-container">
+        <div class="auth-title-wrap">
+            <div class="auth-title">⚔️ SURVIVAL<br>EVOLUTION</div>
+            <div class="auth-subtitle">Çok Oyunculu Hayatta Kalma RPG</div>
+        </div>
+
+        <br>
+
+        <div class="panel-frame">
+            <div class="corner tl">◆</div>
+            <div class="corner tr">◆</div>
+            <div class="corner bl">◆</div>
+            <div class="corner br">◆</div>
+
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchTab('login')">⚔ Giriş Yap</div>
+                <div class="auth-tab" onclick="switchTab('register')">📜 Kayıt Ol</div>
+            </div>
+
+            <!-- LOGIN -->
+            <div class="form-panel active" id="panel-login">
+                <div id="msg-login" class="msg-box"></div>
+                <div class="field-wrap">
+                    <label class="field-label">⚔ Kahraman Adı</label>
+                    <input type="text" id="login-user" class="field-input" placeholder="Kullanıcı adınız..." autocomplete="username">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre</label>
+                    <input type="password" id="login-pass" class="field-input" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <button class="btn-enter" onclick="attemptLogin()">
+                    ⚔ DÜNYAYA GİR
+                </button>
+            </div>
+
+            <!-- REGISTER -->
+            <div class="form-panel" id="panel-register">
+                <div id="msg-register" class="msg-box"></div>
+                <div class="field-wrap">
+                    <label class="field-label">⚔ Kahraman Adı</label>
+                    <input type="text" id="reg-user" class="field-input" placeholder="3-16 karakter..." maxlength="16" oninput="validateRegUser(this)">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre</label>
+                    <input type="password" id="reg-pass" class="field-input" placeholder="En az 6 karakter..." oninput="validateRegPass(this)">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre Tekrarı</label>
+                    <input type="password" id="reg-pass2" class="field-input" placeholder="Şifreyi tekrar girin..." oninput="validateRegPass2(this)">
+                </div>
+                <div class="captcha-box">
+                    <div class="captcha-img" id="captcha-display">
+                        <div class="captcha-line"></div>
+                        <span id="captcha-text">A7B3K</span>
+                    </div>
+                    <button class="captcha-refresh" onclick="refreshCaptcha()" title="Yenile">↺</button>
+                    <input type="text" id="reg-captcha" class="field-input" placeholder="Kodu girin" style="margin-bottom:0; flex:1; padding:8px 12px; font-size:13px;">
+                </div>
+                <button class="btn-enter" onclick="attemptRegister()">
+                    📜 KAHRAMANI YARAT
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- ===== GAME UI ===== -->
 <div id="game-ui">
     <div id="ui-overlay">
-        <div id="player-name-display">...</div>
-        <div id="hp-bar-ui"><div id="hp-fill"></div></div>
-        <div style="margin-top:10px; font-weight: bold;">🪵 <span id="inv-wood">0</span> | 🪨 <span id="inv-stone">0</span></div>
+        <div class="player-hud">
+            <div class="avatar-icon">🧙</div>
+            <div class="player-info">
+                <div id="player-name-display">KAHRAMAN</div>
+                <div class="hp-bar-wrap">
+                    <span class="hp-icon">❤️</span>
+                    <div id="hp-bar-ui"><div id="hp-fill"></div></div>
+                    <span class="hp-text" id="hp-text">100</span>
+                </div>
+            </div>
+        </div>
+        <div class="inv-bar">
+            <div class="inv-item">🪵 <span id="inv-wood">0</span></div>
+            <div class="inv-item">🪨 <span id="inv-stone">0</span></div>
+            <div class="inv-item">🗡 <span id="inv-sword">0</span></div>
+            <div class="inv-item">🪓 <span id="inv-axe">0</span></div>
+            <div class="inv-item">⛏ <span id="inv-pick">0</span></div>
+        </div>
     </div>
-    <div id="craft-toggle" onclick="toggleCraft()">☰</div>
+
+    <div id="minimap">
+        <canvas id="minimap-canvas" width="100" height="100"></canvas>
+    </div>
+
+    <div id="craft-toggle" onclick="toggleCraft()">🔨</div>
     <div id="craft-panel">
-        <div class="craft-option" onclick="doCraft('axe')">🪓 Balta (3 Odun)</div>
-        <div class="craft-option" onclick="doCraft('pickaxe')">⛏️ Kazma (3 Taş)</div>
-        <div class="craft-option" onclick="doCraft('sword')">⚔️ Kılıç (2 Odun, 2 Taş)</div>
+        <div class="craft-title">⚒ Üretim Masası</div>
+        <div class="craft-option" onclick="doCraft('axe')">
+            <span class="icon">🪓</span>
+            <div class="info">
+                <div class="name">Balta</div>
+                <div class="cost">🪵 3 Odun gerekir</div>
+            </div>
+        </div>
+        <div class="craft-option" onclick="doCraft('pickaxe')">
+            <span class="icon">⛏️</span>
+            <div class="info">
+                <div class="name">Kazma</div>
+                <div class="cost">🪨 3 Taş gerekir</div>
+            </div>
+        </div>
+        <div class="craft-option" onclick="doCraft('sword')">
+            <span class="icon">⚔️</span>
+            <div class="info">
+                <div class="name">Kılıç</div>
+                <div class="cost">🪵 2 Odun + 🪨 2 Taş</div>
+            </div>
+        </div>
     </div>
+
     <div id="mobile-controls">
-        <div id="joystick-container"><div id="joystick-knob"></div></div>
-        <button id="jump-btn" onclick="jump()">ZIPLA</button>
-        <button id="attack-btn">🔥</button>
+        <div id="joystick-container">
+            <div id="joystick-inner"></div>
+            <div id="joystick-knob"></div>
+        </div>
+        <button id="jump-btn" onclick="jumpAction()">
+            <span class="j-icon">↑</span>
+            <span>ZIPLAMA</span>
+        </button>
+        <button id="attack-btn">⚔</button>
     </div>
+
+    <div id="online-count">🌐 <span id="online-num">1</span> Kahraman Online</div>
+    <div id="killfeed"></div>
+    <div id="notification"></div>
+    <div id="damage-flash"></div>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script>
+/* ===== PARTICLE SYSTEM ===== */
+(function() {
+    const canvas = document.getElementById('particles-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const particles = Array.from({length: 60}, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1.5 + 0.5,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -Math.random() * 0.5 - 0.2,
+        alpha: Math.random() * 0.6 + 0.1,
+        color: Math.random() > 0.5 ? '#c9a84c' : '#e67e22'
+    }));
+    function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if(p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            ctx.fillStyle = p.color + Math.floor(p.alpha * 255).toString(16).padStart(2,'0');
+            ctx.fill();
+        });
+        requestAnimationFrame(tick);
+    }
+    tick();
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+})();
+
+/* ===== AUTH ===== */
+let currentCaptcha = '';
+const USERS_KEY = 'rpg_users_db';
+const SESSION_KEY = 'rpg_session';
+
+function getUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '{}'); } catch { return {}; }
+}
+function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+
+function generateCaptcha() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({length:5}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function refreshCaptcha() {
+    currentCaptcha = generateCaptcha();
+    document.getElementById('captcha-text').textContent = currentCaptcha;
+}
+refreshCaptcha();
+
+function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    clearMsg();
+}
+
+function clearMsg() {
+    document.querySelectorAll('.msg-box').forEach(m => { m.className='msg-box'; m.style.display='none'; });
+    document.querySelectorAll('.field-input').forEach(i => i.classList.remove('error','success'));
+}
+
+function showMsg(id, type, txt) {
+    const el = document.getElementById(id);
+    el.className = 'msg-box ' + type;
+    el.style.display = 'flex';
+    el.innerHTML = (type==='error'?'⚠ ':'✓ ') + txt;
+}
+
+function validateRegUser(el) {
+    const v = el.value.trim();
+    el.classList.toggle('error', v.length > 0 && v.length < 3);
+    el.classList.toggle('success', v.length >= 3);
+}
+function validateRegPass(el) {
+    const v = el.value;
+    el.classList.toggle('error', v.length > 0 && v.length < 6);
+    el.classList.toggle('success', v.length >= 6);
+}
+function validateRegPass2(el) {
+    const v1 = document.getElementById('reg-pass').value;
+    el.classList.toggle('error', el.value !== v1 && el.value.length > 0);
+    el.classList.toggle('success', el.value === v1 && el.value.length > 0);
+}
+
+function attemptRegister() {
+    clearMsg();
+    const u = document.getElementById('reg-user').value.trim();
+    const p = document.getElementById('reg-pass').value;
+    const p2 = document.getElementById('reg-pass2').value;
+    const cap = document.getElementById('reg-captcha').value.toUpperCase().trim();
+
+    if(u.length < 3) return showMsg('msg-register','error','Kullanıcı adı en az 3 karakter olmalı!');
+    if(/[^a-zA-Z0-9_]/.test(u)) return showMsg('msg-register','error','Sadece harf, rakam ve alt çizgi kullanın!');
+    if(p.length < 6) return showMsg('msg-register','error','Şifre en az 6 karakter olmalı!');
+    if(p !== p2) return showMsg('msg-register','error','Şifreler eşleşmiyor!');
+    if(cap !== currentCaptcha) { refreshCaptcha(); return showMsg('msg-register','error','Güvenlik kodu hatalı! Yenisi üretildi.'); }
+
+    const users = getUsers();
+    if(users[u.toLowerCase()]) return showMsg('msg-register','error','Bu kullanıcı adı zaten kayıtlı!');
+
+    users[u.toLowerCase()] = { username: u, password: btoa(p), color: Math.floor(Math.random()*0xffffff) };
+    saveUsers(users);
+    showMsg('msg-register','success','Kahraman yaratıldı! Giriş yapılıyor...');
+    setTimeout(() => { switchTab('login'); document.getElementById('login-user').value = u; }, 1500);
+}
+
+function attemptLogin() {
+    clearMsg();
+    const u = document.getElementById('login-user').value.trim();
+    const p = document.getElementById('login-pass').value;
+
+    if(!u || !p) return showMsg('msg-login','error','Tüm alanları doldurun!');
+
+    const users = getUsers();
+    const user = users[u.toLowerCase()];
+
+    if(!user || user.password !== btoa(p)) {
+        document.getElementById('login-user').classList.add('error');
+        document.getElementById('login-pass').classList.add('error');
+        return showMsg('msg-login','error','Kullanıcı adı veya şifre hatalı!');
+    }
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ username: user.username, color: user.color }));
+    startGame(user);
+}
+
+// Auto-login
+window.addEventListener('load', () => {
+    try {
+        const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+        if(s) { document.getElementById('login-user').value = s.username; }
+    } catch {}
+});
+
+async function startGame(user) {
+    // Try fullscreen + landscape
+    try {
+        if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+        if(screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(()=>{});
+    } catch(e) {}
+
+    // Loading screen
+    const lo = document.getElementById('loading-overlay');
+    lo.style.display = 'flex';
+    document.getElementById('auth-screen').style.display = 'none';
+
+    const steps = ['ARAZI ÜRETİLİYOR...', 'KAYNAKLAR YERLEŞTİRİLİYOR...', 'SUNUCUYA BAĞLANILIYOR...', 'KAHRAMAN OLUŞTURULUYOR...', 'GİRİLİYOR...'];
+    const fill = document.getElementById('loading-fill');
+    const txt = document.getElementById('loading-text');
+    for(let i=0; i<steps.length; i++) {
+        txt.textContent = steps[i];
+        fill.style.width = ((i+1)/steps.length*100) + '%';
+        await new Promise(r => setTimeout(r, 400));
+    }
+
+    lo.style.display = 'none';
+    document.getElementById('game-ui').style.display = 'block';
+    document.getElementById('player-name-display').textContent = user.username.toUpperCase();
+    initGame(user);
+}
+</script>
+
 <script type="module">
-    import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-    let scene, camera, renderer, socket, myPlayer, myId;
-    let joystickData = { x: 0, y: 0, active: false, identifier: null };
-    let lookData = { active: false, identifier: null, lastX: 0, lastY: 0 };
-    const otherPlayers = {}, worldObjects = [];
-    
-    let velocityY = 0, isGrounded = true, myHealth = 100;
-    let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
-    let camYaw = 0, camPitch = -Math.PI / 8;
+let scene, camera, renderer;
+let myPlayer, myId = 'player_' + Math.random().toString(36).slice(2,8);
+let velocityY = 0, isGrounded = true, myHealth = 100;
+let inv = { wood: 0, stone: 0, sword: 0, axe: 0, pickaxe: 0 };
+let camYaw = 0;
+let joystickData = { x: 0, y: 0, active: false, identifier: null };
+let lookData = { active: false, identifier: null, lastX: 0, lastY: 0 };
+const worldObjects = [];
+const otherPlayers = {};
 
-    // Sesler
-    const sfxHit = new Audio('/sounds/hit.mp3');
-    const sfxBreak = new Audio('/sounds/break.mp3');
-    const sfxCraft = new Audio('/sounds/craft.mp3');
+// Simulated other players for demo
+const fakePlayerNames = ['Aragorn', 'Legolas', 'Gimli', 'Gandalf', 'Boromir'];
+const fakePlayers = {};
 
-    function playSFX(audio) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-    }
+// Sounds
+function beep(freq=440, dur=0.1, type='sine') {
+    try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = freq; o.type = type;
+        g.gain.setValueAtTime(0.15, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+dur);
+        o.start(); o.stop(ctx.currentTime+dur);
+    } catch(e) {}
+}
 
-    // --- OTURUM KAYDI (LOCAL STORAGE) ---
-    window.onload = () => {
-        const savedUser = localStorage.getItem('rpg_user');
-        const savedPass = localStorage.getItem('rpg_pass');
-        if(savedUser && savedPass) {
-            document.getElementById('username').value = savedUser;
-            document.getElementById('password').value = savedPass;
-            attemptLogin(); 
-        }
-    };
+window.initGame = function(user) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0xaad4f5, 30, 120);
 
-    window.attemptLogin = async () => {
-        const u = document.getElementById('username').value;
-        const p = document.getElementById('password').value;
-        if(u.length < 2) return;
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 500);
 
-        // Ekranı Yan Çevirme ve Fullscreen Denemesi
-        try {
-            if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-            if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
-        } catch(e) {}
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    document.body.appendChild(renderer.domElement);
 
-        socket = io();
-        socket.emit('login', { username: u, password: p });
-        
-        socket.on('loginSuccess', () => {
-            localStorage.setItem('rpg_user', u);
-            localStorage.setItem('rpg_pass', p);
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            document.getElementById('player-name-display').innerText = u.toUpperCase();
-            initGame(u);
-        });
-        socket.on('updateInventory', data => { inv = data; updateUI(); updateEquippedTool(); });
-    };
+    // Lights
+    const ambient = new THREE.AmbientLight(0xfff5e0, 0.5);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
+    sun.position.set(30, 60, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -80;
+    sun.shadow.camera.right = sun.shadow.camera.top = 80;
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x4488ff, 0.3);
+    fill.position.set(-10, 5, -20);
+    scene.add(fill);
 
-    function initGame(username) {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.Fog(0x87ceeb, 20, 100);
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+    buildTerrain();
+    buildEnvironment();
+
+    // My player
+    myPlayer = createHuman(user.color || 0x3498db, user.username, true);
+    myPlayer.position.set(Math.random()*10-5, 0, Math.random()*10-5);
+    scene.add(myPlayer);
+
+    // Fake online players
+    fakePlayerNames.forEach((name, i) => {
+        const colors = [0xe74c3c, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
+        const fp = createHuman(colors[i], name, false);
+        fp.position.set((i-2)*15 + Math.random()*8, 0, Math.random()*20-10);
+        scene.add(fp);
+        fakePlayers[name] = { mesh: fp, tx: fp.position.x, tz: fp.position.z, targetY: 0 };
+    });
+    document.getElementById('online-num').textContent = fakePlayerNames.length + 1;
+
+    // Resources
+    for(let i=0; i<60; i++) spawnResource(Math.random()*160-80, Math.random()*160-80);
+
+    setupControls();
+    document.getElementById('attack-btn').addEventListener('touchstart', e => { e.preventDefault(); performAttack(); });
+    document.getElementById('attack-btn').addEventListener('click', performAttack);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
+    });
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(10, 20, 10);
-        scene.add(sun);
+    showNotification('⚔ Dünyaya hoş geldin, ' + user.username + '!');
+    animate();
+    minimapLoop();
+    fakeBotLoop();
+};
 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
-        ground.rotation.x = -Math.PI / 2;
-        scene.add(ground);
+function buildTerrain() {
+    // Grass ground
+    const grassGeo = new THREE.PlaneGeometry(300, 300, 60, 60);
+    const pos = grassGeo.attributes.position;
+    for(let i=0; i<pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i);
+        pos.setY(i, (Math.sin(x*0.05)*Math.cos(z*0.04)*2 + Math.sin(x*0.1+z*0.1)*0.5));
+    }
+    grassGeo.computeVertexNormals();
+    const grass = new THREE.Mesh(grassGeo, new THREE.MeshStandardMaterial({
+        color: 0x4a8c3f, roughness: 0.9, metalness: 0
+    }));
+    grass.rotation.x = -Math.PI/2;
+    grass.receiveShadow = true;
+    scene.add(grass);
 
-        // Kaynakları Oluştur
-        for(let i=0; i<40; i++) spawnResource(Math.random()*100-50, Math.random()*100-50);
-
-        socket.on('currentPlayers', (players) => {
-            myId = socket.id;
-            Object.keys(players).forEach(id => {
-                if(id === myId) myPlayer = createHuman(players[id], username);
-                else otherPlayers[id] = createHuman(players[id], players[id].username);
-            });
-        });
-
-        socket.on('playerMoved', data => {
-            if(data.id !== myId && otherPlayers[data.id]) {
-                otherPlayers[data.id].position.set(data.x, data.y, data.z);
-                otherPlayers[data.id].rotation.y = data.rotationY;
-            }
-        });
-
-        setupControls();
-        document.getElementById('attack-btn').addEventListener('touchstart', performAttack);
-        animate();
+    // Dirt paths
+    for(let i=0; i<5; i++) {
+        const path = new THREE.Mesh(
+            new THREE.PlaneGeometry(2, 20+Math.random()*30),
+            new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 1 })
+        );
+        path.rotation.x = -Math.PI/2;
+        path.rotation.z = Math.random()*Math.PI;
+        path.position.set(Math.random()*80-40, 0.01, Math.random()*80-40);
+        scene.add(path);
     }
 
-    function spawnResource(x, z) {
-        const isTree = Math.random() > 0.5;
-        const group = new THREE.Group();
-        if(isTree) {
-            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2, 0.5), new THREE.MeshStandardMaterial({color: 0x5d4037}));
-            trunk.position.y = 1;
-            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.MeshStandardMaterial({color: 0x2e7d32}));
-            leaves.position.y = 2.5;
-            group.add(trunk, leaves);
-        } else {
-            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({color: 0x757575}));
-            rock.position.y = 0.35;
-            group.add(rock);
+    // Water
+    const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(30, 20),
+        new THREE.MeshStandardMaterial({ color: 0x1a6999, transparent: true, opacity: 0.8, metalness: 0.1, roughness: 0.1 })
+    );
+    water.rotation.x = -Math.PI/2;
+    water.position.set(60, 0.05, 30);
+    scene.add(water);
+
+    // Mountains in distance
+    for(let i=0; i<8; i++) {
+        const h = 15 + Math.random()*25;
+        const mt = new THREE.Mesh(
+            new THREE.ConeGeometry(8+Math.random()*6, h, 8),
+            new THREE.MeshStandardMaterial({ color: i%2===0?0x6b8c5a:0x5a6b52, roughness: 1 })
+        );
+        const angle = (i/8)*Math.PI*2;
+        mt.position.set(Math.cos(angle)*110, h/2-2, Math.sin(angle)*110);
+        scene.add(mt);
+        // Snow cap
+        const snow = new THREE.Mesh(
+            new THREE.ConeGeometry(3, h*0.3, 8),
+            new THREE.MeshStandardMaterial({ color: 0xf0f0f0 })
+        );
+        snow.position.set(0, h*0.35, 0);
+        mt.add(snow);
+    }
+
+    // Clouds
+    for(let i=0; i<12; i++) {
+        const cloud = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, transparent: true, opacity: 0.9 });
+        [0,0.8,-0.8].forEach(ox => {
+            const s = new THREE.Mesh(new THREE.SphereGeometry(1.5+Math.random(), 8, 6), mat);
+            s.position.set(ox*2, Math.random()*0.5, 0);
+            cloud.add(s);
+        });
+        cloud.position.set(Math.random()*200-100, 25+Math.random()*15, Math.random()*200-100);
+        cloud.scale.setScalar(2+Math.random()*3);
+        cloud.userData.speed = (Math.random()-0.5)*0.01;
+        scene.add(cloud);
+        worldObjects.push({ type: 'cloud', mesh: cloud });
+    }
+}
+
+function buildEnvironment() {
+    // Village huts
+    for(let i=0; i<4; i++) {
+        const hut = new THREE.Group();
+        const walls = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 3, 4),
+            new THREE.MeshStandardMaterial({ color: 0xd4a878, roughness: 1 })
+        );
+        walls.position.y = 1.5;
+        walls.castShadow = true;
+        const roof = new THREE.Mesh(
+            new THREE.ConeGeometry(3.5, 2, 4),
+            new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 1 })
+        );
+        roof.position.y = 4;
+        roof.rotation.y = Math.PI/4;
+        hut.add(walls, roof);
+        hut.position.set(Math.random()*60-30, 0, Math.random()*60-30);
+        scene.add(hut);
+    }
+
+    // Fence posts
+    for(let i=0; i<20; i++) {
+        const fence = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 1.2, 0.15),
+            new THREE.MeshStandardMaterial({ color: 0x8b6914 })
+        );
+        fence.position.set(-20+i*2, 0.6, -25);
+        fence.castShadow = true;
+        scene.add(fence);
+    }
+
+    // Campfire
+    const fireGroup = new THREE.Group();
+    const logs = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x5d3a1a })
+    );
+    logs.rotation.z = Math.PI/4;
+    const fire = new THREE.PointLight(0xff6600, 2, 8);
+    fire.position.y = 0.5;
+    const ember = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 2 })
+    );
+    ember.position.y = 0.3;
+    fireGroup.add(logs, fire, ember);
+    fireGroup.position.set(5, 0, 5);
+    scene.add(fireGroup);
+    worldObjects.push({ type: 'fire', mesh: fireGroup, light: fire });
+}
+
+function createHuman(color, name, isMe) {
+    const group = new THREE.Group();
+
+    const skinTones = [0xffd5b0, 0xd4956a, 0xc68642, 0xf1c27d, 0x8d5524];
+    const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
+
+    // Legs
+    const legMat = new THREE.MeshStandardMaterial({ color: isMe ? 0x2c3e50 : 0x34495e });
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.22), legMat);
+    leftLeg.position.set(-0.14, 0.32, 0); leftLeg.castShadow = true;
+    const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.22), legMat);
+    rightLeg.position.set(0.14, 0.32, 0); rightLeg.castShadow = true;
+
+    // Boots
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+    const lb = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.32), bootMat);
+    lb.position.set(-0.14, 0.09, 0.05); lb.castShadow = true;
+    const rb = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.32), bootMat);
+    rb.position.set(0.14, 0.09, 0.05); rb.castShadow = true;
+
+    // Body / Chest
+    const bodyMat = new THREE.MeshStandardMaterial({ color: color });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.7, 0.35), bodyMat);
+    body.position.y = 1; body.castShadow = true;
+
+    // Belt
+    const belt = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.1, 0.37),
+        new THREE.MeshStandardMaterial({ color: 0x5d3a1a, metalness: 0.5, roughness: 0.5 })
+    );
+    belt.position.y = 0.67;
+
+    // Shoulder armor
+    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.7, roughness: 0.3 });
+    const ls = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), shoulderMat);
+    ls.position.set(-0.38, 1.28, 0);
+    const rs = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), shoulderMat);
+    rs.position.set(0.38, 1.28, 0);
+
+    // Arms
+    const armMat = new THREE.MeshStandardMaterial({ color: skin });
+    const leftArmGrp = new THREE.Group();
+    leftArmGrp.position.set(-0.38, 1.2, 0);
+    const la = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), armMat);
+    la.position.y = -0.27; la.castShadow = true;
+
+    const rightArmGrp = new THREE.Group();
+    rightArmGrp.position.set(0.38, 1.2, 0);
+    const ra = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), armMat);
+    ra.position.y = -0.27; ra.castShadow = true;
+
+    // Gloves
+    const gloveMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+    const lg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), gloveMat);
+    lg.position.y = -0.55;
+    const rg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), gloveMat);
+    rg.position.y = -0.55;
+
+    // Tool slot
+    const toolSlot = new THREE.Group();
+    toolSlot.position.set(0, -0.55, 0.12);
+
+    la.add(lg); ra.add(rg);
+    ra.add(toolSlot);
+    leftArmGrp.add(la); rightArmGrp.add(ra);
+
+    // Neck
+    const neck = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 0.15, 8),
+        new THREE.MeshStandardMaterial({ color: skin })
+    );
+    neck.position.y = 1.42;
+
+    // Head
+    const head = new THREE.Group();
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.38), new THREE.MeshStandardMaterial({ color: skin }));
+    headMesh.castShadow = true;
+
+    // Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e });
+    const le = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat);
+    le.position.set(-0.1, 0.04, 0.19);
+    const re = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat);
+    re.position.set(0.1, 0.04, 0.19);
+
+    // Mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.02), new THREE.MeshStandardMaterial({ color: 0x8b3a2a }));
+    mouth.position.set(0, -0.1, 0.19);
+
+    // Helmet
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.8, roughness: 0.2 });
+    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.3, 0.44), helmetMat);
+    helmet.position.y = 0.12;
+
+    head.add(headMesh, le, re, mouth, helmet);
+    head.position.set(0, 1.57, 0);
+
+    // Name label (sprite)
+    if(name) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.clearRect(0,0,256,64);
+        ctx.font = 'bold 20px Cinzel, serif';
+        ctx.fillStyle = isMe ? '#f0d080' : '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+        ctx.fillText(name.toUpperCase(), 128, 40);
+        const tex = new THREE.CanvasTexture(canvas);
+        const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+        label.position.y = 2.3;
+        label.scale.set(2.5, 0.6, 1);
+        group.add(label);
+    }
+
+    group.add(leftLeg, rightLeg, lb, rb, body, belt, ls, rs, leftArmGrp, rightArmGrp, neck, head);
+    group.userData = { rightArmGroup: rightArmGrp, toolSlot, leftLeg, rightLeg, phase: Math.random()*Math.PI*2, isMe };
+    return group;
+}
+
+function spawnResource(x, z) {
+    const isTree = Math.random() > 0.4;
+    const group = new THREE.Group();
+
+    if(isTree) {
+        const h = 2.5 + Math.random() * 2;
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.18, 0.25, h, 8),
+            new THREE.MeshStandardMaterial({ color: 0x5d3a1a, roughness: 1 })
+        );
+        trunk.position.y = h/2; trunk.castShadow = true;
+
+        // Layered leaves
+        [0, 0.7, 1.3].forEach((yo, i) => {
+            const leaves = new THREE.Mesh(
+                new THREE.ConeGeometry(1.4-i*0.3, 1.2, 8),
+                new THREE.MeshStandardMaterial({ color: i===0?0x2d6a2d:0x3a8c3a, roughness: 1 })
+            );
+            leaves.position.y = h*0.55 + yo;
+            leaves.castShadow = true;
+            group.add(leaves);
+        });
+        group.add(trunk);
+        group.userData = { type: 'wood', hp: 10, maxHp: 10 };
+    } else {
+        const r = 0.5 + Math.random()*0.4;
+        const rock = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(r, 1),
+            new THREE.MeshStandardMaterial({ color: 0x7f7f7f, roughness: 0.9, metalness: 0.1 })
+        );
+        rock.position.y = r*0.5; rock.castShadow = true;
+        // Small rocks around
+        for(let i=0; i<2; i++) {
+            const sr = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(r*0.4, 1),
+                new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 1 })
+            );
+            sr.position.set(Math.random()*0.8-0.4, r*0.2, Math.random()*0.8-0.4);
+            group.add(sr);
         }
-        group.position.set(x, 0, z);
-        group.userData = { type: isTree ? 'wood' : 'stone', hp: 10, maxHp: 10 };
-        scene.add(group);
-        worldObjects.push(group);
+        group.add(rock);
+        group.userData = { type: 'stone', hp: 10, maxHp: 10 };
     }
 
-    // --- KIRMA SİSTEMİ (FIXED) ---
-    function performAttack() {
-        if(!myPlayer) return;
+    group.position.set(x, 0, z);
+    scene.add(group);
+    worldObjects.push(group);
+}
 
-        // Kol sallama animasyonu
-        const arm = myPlayer.userData.rightArmGroup;
-        arm.rotation.x = -Math.PI / 1.5;
-        setTimeout(() => arm.rotation.x = 0, 150);
+function updateEquippedTool() {
+    if(!myPlayer) return;
+    const slot = myPlayer.userData.toolSlot;
+    while(slot.children.length > 0) slot.remove(slot.children[0]);
+    let m;
+    if(inv.sword > 0) {
+        const swordGrp = new THREE.Group();
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.04), new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.1 }));
+        blade.position.y = 0.4;
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), new THREE.MeshStandardMaterial({ color: 0x8b6914, metalness: 0.7 }));
+        guard.position.y = 0.05;
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
+        grip.position.y = -0.1;
+        swordGrp.add(blade, guard, grip);
+        m = swordGrp;
+    } else if(inv.axe > 0) {
+        const axeGrp = new THREE.Group();
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
+        handle.position.y = 0.35;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.08), new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.7 }));
+        head.position.set(0.12, 0.65, 0);
+        axeGrp.add(handle, head);
+        m = axeGrp;
+    } else if(inv.pickaxe > 0) {
+        const pickGrp = new THREE.Group();
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
+        handle.position.y = 0.35;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.08), new THREE.MeshStandardMaterial({ color: 0x95a5a6, metalness: 0.7 }));
+        head.position.set(0, 0.68, 0);
+        head.rotation.z = 0.3;
+        pickGrp.add(handle, head);
+        m = pickGrp;
+    }
+    if(m) slot.add(m);
+}
 
-        let hitFound = false;
-        const reach = 3.5; // Vuruş mesafesi
+function performAttack() {
+    if(!myPlayer) return;
+    beep(300, 0.08, 'sawtooth');
+    const arm = myPlayer.userData.rightArmGroup;
+    arm.rotation.x = -Math.PI/1.3;
+    setTimeout(() => arm.rotation.x = 0, 180);
 
-        for (let i = worldObjects.length - 1; i >= 0; i--) {
-            const obj = worldObjects[i];
-            const dist = myPlayer.position.distanceTo(obj.position);
+    const reach = 4;
+    for(let i = worldObjects.length-1; i>=0; i--) {
+        const obj = worldObjects[i];
+        if(!obj.userData || !obj.userData.type || obj.userData.type === 'cloud' || obj.userData.type === 'fire') continue;
+        const dist = myPlayer.position.distanceTo(obj.position);
+        if(dist < reach) {
+            let dmg = 2;
+            if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 10;
+            if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 10;
+            if(inv.sword > 0) dmg = Math.max(dmg, 5);
+            obj.userData.hp -= dmg;
+            obj.scale.setScalar(Math.max(0.4, obj.userData.hp / obj.userData.maxHp));
+            if(obj.userData.hp <= 0) {
+                beep(200, 0.2, 'square');
+                inv[obj.userData.type]++;
+                updateUI();
+                scene.remove(obj);
+                worldObjects.splice(i, 1);
+                showNotification(obj.userData.type === 'wood' ? '🪵 Odun toplandı!' : '🪨 Taş toplandı!');
+            } else {
+                beep(440, 0.05, 'sine');
+            }
+            break;
+        }
+    }
+}
 
-            if (dist < reach) {
-                hitFound = true;
-                let dmg = 2; // Temel hasar
-                if(obj.userData.type === 'wood' && inv.axe > 0) dmg = 10;
-                if(obj.userData.type === 'stone' && inv.pickaxe > 0) dmg = 10;
+window.doCraft = function(t) {
+    let ok = false;
+    if(t==='axe' && inv.wood>=3) { inv.wood-=3; inv.axe=1; ok=true; }
+    if(t==='pickaxe' && inv.stone>=3) { inv.stone-=3; inv.pickaxe=1; ok=true; }
+    if(t==='sword' && inv.wood>=2 && inv.stone>=2) { inv.wood-=2; inv.stone-=2; inv.sword=1; ok=true; }
+    if(ok) { beep(880, 0.2, 'sine'); updateUI(); updateEquippedTool(); toggleCraft(); showNotification('⚒ ' + t + ' üretildi!'); }
+    else showNotification('❌ Yeterli kaynak yok!');
+};
 
-                obj.userData.hp -= dmg;
-                
-                // Geri bildirim: Nesneyi sars veya küçült
-                obj.scale.setScalar(obj.userData.hp / obj.userData.maxHp * 0.5 + 0.5);
+window.toggleCraft = function() { document.getElementById('craft-panel').classList.toggle('open'); };
+window.jumpAction = function() { if(isGrounded) { velocityY = 0.28; isGrounded = false; beep(600, 0.05); } };
 
-                if (obj.userData.hp <= 0) {
-                    playSFX(sfxBreak);
-                    inv[obj.userData.type]++;
-                    updateUI();
-                    scene.remove(obj);
-                    worldObjects.splice(i, 1);
-                    socket.emit('collect', { type: obj.userData.type });
-                } else {
-                    playSFX(sfxHit);
-                }
-                break; // Aynı anda sadece bir nesneye vur
+function updateUI() {
+    document.getElementById('inv-wood').textContent = inv.wood;
+    document.getElementById('inv-stone').textContent = inv.stone;
+    document.getElementById('inv-sword').textContent = inv.sword;
+    document.getElementById('inv-axe').textContent = inv.axe;
+    document.getElementById('inv-pick').textContent = inv.pickaxe;
+    document.getElementById('hp-fill').style.width = myHealth + '%';
+    document.getElementById('hp-text').textContent = myHealth;
+}
+
+function showNotification(msg) {
+    const n = document.getElementById('notification');
+    n.textContent = msg;
+    n.classList.add('show');
+    clearTimeout(n._t);
+    n._t = setTimeout(() => n.classList.remove('show'), 2500);
+}
+
+function setupControls() {
+    const jsBase = document.getElementById('joystick-container');
+    const knob = document.getElementById('joystick-knob');
+    const R = 38;
+
+    window.addEventListener('touchstart', e => {
+        for(const t of e.changedTouches) {
+            const r = jsBase.getBoundingClientRect();
+            if(t.clientX > r.left && t.clientX < r.right && t.clientY > r.top && t.clientY < r.bottom) {
+                joystickData.active = true; joystickData.identifier = t.identifier;
+            } else if(t.clientX > window.innerWidth * 0.3) {
+                lookData.active = true; lookData.identifier = t.identifier;
+                lookData.lastX = t.clientX; lookData.lastY = t.clientY;
             }
         }
-        
-        if(!hitFound) playSFX(sfxHit); // Boşa vuruş sesi
-    }
+    }, {passive: true});
 
-    function createHuman(data, name) {
-        const group = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.4), new THREE.MeshStandardMaterial({color: data.color || 0x3498db}));
-        body.position.y = 0.8;
-        group.add(body);
-        
-        const armGroup = new THREE.Group();
-        armGroup.position.set(0.4, 1.2, 0);
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        arm.position.y = -0.25;
-        armGroup.add(arm);
-        group.add(armGroup);
-
-        const toolSlot = new THREE.Group();
-        toolSlot.position.set(0, -0.3, 0.1);
-        arm.add(toolSlot);
-
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-        head.position.y = 1.5;
-        group.add(head);
-
-        group.userData = { rightArmGroup: armGroup, toolSlot };
-        group.position.set(data.x || 0, 0, data.z || 0);
-        scene.add(group);
-        return group;
-    }
-
-    function updateUI() {
-        document.getElementById('inv-wood').innerText = inv.wood;
-        document.getElementById('inv-stone').innerText = inv.stone;
-        document.getElementById('hp-fill').style.width = myHealth + '%';
-    }
-
-    function updateEquippedTool() {
-        if(!myPlayer) return;
-        const slot = myPlayer.userData.toolSlot;
-        while(slot.children.length > 0) slot.remove(slot.children[0]);
-        let m;
-        if(inv.sword > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.1), new THREE.MeshStandardMaterial({color: 0xbdc3c7}));
-        else if(inv.axe > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.1), new THREE.MeshStandardMaterial({color: 0x7f8c8d}));
-        else if(inv.pickaxe > 0) m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.1), new THREE.MeshStandardMaterial({color: 0x95a5a6}));
-        if(m) slot.add(m);
-    }
-
-    window.toggleCraft = () => document.getElementById('craft-panel').classList.toggle('open');
-
-    window.doCraft = (t) => {
-        let ok = false;
-        if(t==='axe' && inv.wood>=3) { inv.wood-=3; inv.axe=1; ok=true; }
-        if(t==='pickaxe' && inv.stone>=3) { inv.stone-=3; inv.pickaxe=1; ok=true; }
-        if(t==='sword' && inv.wood>=2 && inv.stone>=2) { inv.wood-=2; inv.stone-=2; inv.sword=1; ok=true; }
-        if(ok) { playSFX(sfxCraft); updateUI(); updateEquippedTool(); toggleCraft(); }
-    };
-
-    window.jump = () => { if(isGrounded) { velocityY = 0.25; isGrounded = false; } };
-
-    function setupControls() {
-        const jsBase = document.getElementById('joystick-container');
-        const knob = document.getElementById('joystick-knob');
-        window.addEventListener('touchstart', e => {
-            for(let t of e.changedTouches){
-                const rect = jsBase.getBoundingClientRect();
-                if(t.clientX > rect.left && t.clientX < rect.right && t.clientY > rect.top && t.clientY < rect.bottom) {
-                    joystickData.active = true; joystickData.identifier = t.identifier;
-                } else {
-                    lookData.active = true; lookData.identifier = t.identifier;
-                    lookData.lastX = t.clientX; lookData.lastY = t.clientY;
-                }
+    window.addEventListener('touchmove', e => {
+        for(const t of e.changedTouches) {
+            if(t.identifier === joystickData.identifier) {
+                const r = jsBase.getBoundingClientRect();
+                const cx = r.left+60, cy = r.top+60;
+                const dx = t.clientX-cx, dy = t.clientY-cy;
+                const dist = Math.min(Math.sqrt(dx*dx+dy*dy), R);
+                const angle = Math.atan2(dy, dx);
+                knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+                joystickData.x = Math.cos(angle)*(dist/R); joystickData.y = Math.sin(angle)*(dist/R);
             }
-        });
-        window.addEventListener('touchmove', e => {
-            for(let t of e.changedTouches){
-                if(t.identifier === joystickData.identifier) {
-                    const rect = jsBase.getBoundingClientRect();
-                    const dx = t.clientX - (rect.left + 55), dy = t.clientY - (rect.top + 55);
-                    const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 45), angle = Math.atan2(dy, dx);
-                    knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
-                    joystickData.x = Math.cos(angle) * (dist/45); joystickData.y = Math.sin(angle) * (dist/45);
-                }
-                if(t.identifier === lookData.identifier) {
-                    camYaw -= (t.clientX - lookData.lastX) * 0.007;
-                    lookData.lastX = t.clientX; lookData.lastY = t.clientY;
-                }
+            if(t.identifier === lookData.identifier) {
+                camYaw -= (t.clientX-lookData.lastX)*0.007;
+                lookData.lastX = t.clientX; lookData.lastY = t.clientY;
             }
-        });
-        window.addEventListener('touchend', e => {
-            for(let t of e.changedTouches){
-                if(t.identifier === joystickData.identifier) { joystickData.active = false; knob.style.transform = `translate(0,0)`; joystickData.x = 0; joystickData.y = 0; }
-                if(t.identifier === lookData.identifier) lookData.active = false;
+        }
+    }, {passive: true});
+
+    window.addEventListener('touchend', e => {
+        for(const t of e.changedTouches) {
+            if(t.identifier === joystickData.identifier) {
+                joystickData.active=false; joystickData.x=0; joystickData.y=0;
+                knob.style.transform='translate(0,0)';
             }
-        });
+            if(t.identifier === lookData.identifier) lookData.active=false;
+        }
+    }, {passive: true});
+
+    // Keyboard for desktop
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code]=true);
+    window.addEventListener('keyup', e => keys[e.code]=false);
+    window.addEventListener('keydown', e => {
+        if(e.code==='Space') jumpAction();
+        if(e.code==='KeyF') performAttack();
+        if(e.code==='KeyE') toggleCraft();
+    });
+
+    // Mouse look for desktop
+    window.addEventListener('mousemove', e => {
+        if(document.pointerLockElement === document.body) {
+            camYaw -= e.movementX * 0.003;
+        }
+    });
+    renderer.domElement.addEventListener('click', () => {
+        if(!document.pointerLockElement) renderer.domElement.requestPointerLock();
+    });
+
+    // Store keys for update
+    window._keys = keys;
+}
+
+let prevTime = performance.now();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now();
+    const dt = Math.min((now-prevTime)/16.7, 3);
+    prevTime = now;
+
+    if(myPlayer) {
+        const speed = 0.12 * dt;
+        let moved = false;
+        const keys = window._keys || {};
+
+        // Keyboard movement
+        const kx = (keys['KeyA']?-1:0)+(keys['KeyD']?1:0);
+        const kz = (keys['KeyW']?-1:0)+(keys['KeyS']?1:0);
+        if(kx !== 0 || kz !== 0) {
+            myPlayer.position.x += (Math.sin(camYaw)*kz + Math.cos(camYaw)*kx) * speed;
+            myPlayer.position.z += (Math.cos(camYaw)*kz - Math.sin(camYaw)*kx) * speed;
+            myPlayer.rotation.y = camYaw + Math.atan2(kx, kz);
+            moved = true;
+        }
+
+        // Joystick
+        if(joystickData.active) {
+            const jx = joystickData.x, jy = joystickData.y;
+            myPlayer.position.x += (Math.sin(camYaw)*-jy + Math.cos(camYaw)*-jx) * speed;
+            myPlayer.position.z += (Math.cos(camYaw)*-jy - Math.sin(camYaw)*-jx) * speed;
+            myPlayer.rotation.y = camYaw + Math.atan2(-jx, -jy);
+            moved = true;
+        }
+
+        // Clamp to world
+        myPlayer.position.x = Math.max(-140, Math.min(140, myPlayer.position.x));
+        myPlayer.position.z = Math.max(-140, Math.min(140, myPlayer.position.z));
+
+        // Gravity / Jump
+        myPlayer.position.y += velocityY;
+        if(myPlayer.position.y > 0) velocityY -= 0.015 * dt;
+        else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
+
+        // Walk animation
+        const p = myPlayer.userData.phase;
+        if(moved) myPlayer.userData.phase += 0.18 * dt;
+        myPlayer.userData.leftLeg.rotation.x = moved ? Math.sin(p)*0.5 : 0;
+        myPlayer.userData.rightLeg.rotation.x = moved ? -Math.sin(p)*0.5 : 0;
+
+        // Camera follow
+        camera.position.x = myPlayer.position.x - Math.sin(camYaw)*9;
+        camera.position.z = myPlayer.position.z - Math.cos(camYaw)*9;
+        camera.position.y = myPlayer.position.y + 6;
+        camera.lookAt(myPlayer.position.x, myPlayer.position.y+1.2, myPlayer.position.z);
     }
 
-    function animate() {
-        requestAnimationFrame(animate);
+    // Animate fire light flicker
+    worldObjects.forEach(obj => {
+        if(obj.type === 'fire' && obj.light) {
+            obj.light.intensity = 1.5 + Math.sin(Date.now()*0.01)*0.5 + Math.random()*0.3;
+        }
+        if(obj.type === 'cloud') {
+            obj.mesh.position.x += obj.mesh.userData.speed || 0.005;
+            if(obj.mesh.position.x > 120) obj.mesh.position.x = -120;
+        }
+    });
+
+    // Animate fake players
+    Object.values(fakePlayers).forEach(fp => {
+        fp.mesh.position.x += (Math.random()-0.5)*0.02;
+        fp.mesh.position.z += (Math.random()-0.5)*0.02;
+        fp.mesh.userData.phase = (fp.mesh.userData.phase || 0) + 0.08;
+        if(fp.mesh.userData.leftLeg) {
+            fp.mesh.userData.leftLeg.rotation.x = Math.sin(fp.mesh.userData.phase)*0.3;
+            fp.mesh.userData.rightLeg.rotation.x = -Math.sin(fp.mesh.userData.phase)*0.3;
+        }
+    });
+
+    renderer.render(scene, camera);
+}
+
+function minimapLoop() {
+    const canvas = document.getElementById('minimap-canvas');
+    const ctx = canvas.getContext('2d');
+    function draw() {
+        ctx.fillStyle = '#0a1a0a';
+        ctx.fillRect(0,0,100,100);
+        const scale = 0.6;
+        const cx = 50, cy = 50;
+        // Draw resources
+        worldObjects.forEach(obj => {
+            if(!obj.userData || obj.userData.type === 'cloud' || obj.userData.type === 'fire') return;
+            const mx = cx + obj.position.x*scale, my = cy + obj.position.z*scale;
+            if(mx<0||mx>100||my<0||my>100) return;
+            ctx.fillStyle = obj.userData.type === 'wood' ? '#3a8c3a' : '#7f7f7f';
+            ctx.fillRect(mx-1,my-1,2,2);
+        });
+        // Fake players
+        Object.values(fakePlayers).forEach(fp => {
+            const mx = cx+fp.mesh.position.x*scale, my = cy+fp.mesh.position.z*scale;
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath(); ctx.arc(mx,my,2,0,Math.PI*2); ctx.fill();
+        });
+        // My player
         if(myPlayer) {
-            const speed = 0.15;
-            if(joystickData.active) { 
-                myPlayer.position.x += (Math.sin(camYaw) * -joystickData.y + Math.cos(camYaw) * -joystickData.x) * speed;
-                myPlayer.position.z += (Math.cos(camYaw) * -joystickData.y - Math.sin(camYaw) * -joystickData.x) * speed;
-                myPlayer.rotation.y = camYaw + Math.atan2(-joystickData.x, -joystickData.y);
-            }
-            myPlayer.position.y += velocityY;
-            if(myPlayer.position.y > 0) velocityY -= 0.012;
-            else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
-            
-            socket.emit('playerMovement', {x: myPlayer.position.x, y: myPlayer.position.y, z: myPlayer.position.z, rotationY: myPlayer.rotation.y});
-
-            camera.position.x = myPlayer.position.x - Math.sin(camYaw) * 8;
-            camera.position.z = myPlayer.position.z - Math.cos(camYaw) * 8;
-            camera.position.y = myPlayer.position.y + 5;
-            camera.lookAt(myPlayer.position.x, myPlayer.position.y + 1, myPlayer.position.z);
+            const mx = cx+myPlayer.position.x*scale, my = cy+myPlayer.position.z*scale;
+            ctx.fillStyle = '#f0d080';
+            ctx.beginPath(); ctx.arc(mx,my,3,0,Math.PI*2); ctx.fill();
         }
-        renderer.render(scene, camera);
+        requestAnimationFrame(draw);
     }
+    draw();
+}
+
+function fakeBotLoop() {
+    // Occasionally add kill feed entries
+    setInterval(() => {
+        const names = fakePlayerNames;
+        const a = names[Math.floor(Math.random()*names.length)];
+        const b = names[Math.floor(Math.random()*names.length)];
+        if(a !== b) {
+            const kf = document.getElementById('killfeed');
+            const e = document.createElement('div');
+            e.className = 'kill-entry';
+            e.textContent = `${a} ⚔ ${b}`;
+            kf.appendChild(e);
+            setTimeout(() => e.remove(), 4200);
+        }
+    }, 8000);
+}
 </script>
 </body>
 </html>
