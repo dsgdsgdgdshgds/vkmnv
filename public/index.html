@@ -647,6 +647,11 @@ function clearSession() {
 }
 
 // ═══════════════════════════════════════════════
+//  SOCKET.IO — EN BAŞTA TANIMLA (tüm fonksiyonlar kullanabilsin)
+// ═══════════════════════════════════════════════
+const socket = io();
+
+// ═══════════════════════════════════════════════
 //  TABS & MESSAGES
 // ═══════════════════════════════════════════════
 function switchTab(tab) {
@@ -771,6 +776,7 @@ function checkPassword2(input) {
     }
 }
 
+// ── Socket: usernameAvailable ──
 socket.on('usernameAvailable', (data) => {
     const input = document.getElementById('reg-user');
     const hint = document.getElementById('reg-user-hint');
@@ -790,11 +796,6 @@ socket.on('usernameAvailable', (data) => {
         status.style.color = '#e74c3c';
     }
 });
-
-// ═══════════════════════════════════════════════
-//  SOCKET.IO CONNECTION
-// ═══════════════════════════════════════════════
-const socket = io();
 
 // ─ Auto-login from session (sayfa yenilemede otomatik giriş) ─
 const _sess = loadSession();
@@ -840,6 +841,8 @@ function doForgotPassword() {
         return;
     }
     hideMsg('msg-forgot');
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ GÖNDERİLİYOR...'; }
     socket.emit('forgotPassword', { email });
 }
 
@@ -874,7 +877,6 @@ document.addEventListener('keydown', e => {
 
 // ── Socket Auth Events ──
 socket.on('loginSuccess', (data) => {
-    // Backend token + username gönderirse oturumu kaydet
     if (data && data.token) saveSession({ token: data.token, username: data.username });
     startLoadingSequence();
 });
@@ -891,8 +893,11 @@ socket.on('verifySuccess', () => {
 });
 
 socket.on('forgotPasswordSent', () => {
-    showMsg('msg-forgot', 'success', 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
+    // Backend güvenlik nedeniyle kullanıcı var/yok fark etmeksizin bu eventi gönderiyor
+    showMsg('msg-forgot', 'success', 'Eğer bu e-posta kayıtlıysa, sıfırlama bağlantısı gönderildi. Gelen kutunuzu kontrol edin.');
     document.getElementById('forgot-email').value = '';
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = false; btn.textContent = '📨 BAĞLANTI GÖNDER'; }
 });
 
 socket.on('loginError', (msg) => {
@@ -901,7 +906,11 @@ socket.on('loginError', (msg) => {
     if (activePanel) {
         if (activePanel.id === 'panel-register') msgId = 'msg-register';
         else if (activePanel.id === 'panel-verify') msgId = 'msg-verify';
-        else if (activePanel.id === 'panel-forgot') msgId = 'msg-forgot';
+        else if (activePanel.id === 'panel-forgot') {
+            msgId = 'msg-forgot';
+            const btn = document.querySelector('#panel-forgot .btn-enter');
+            if (btn) { btn.disabled = false; btn.textContent = '📨 BAĞLANTI GÖNDER'; }
+        }
     }
     showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
 });
@@ -928,10 +937,7 @@ function startLoadingSequence() {
 
     function nextStep() {
         if (i >= steps.length) {
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                enterGame();
-            }, 300);
+            setTimeout(() => { overlay.style.display = 'none'; enterGame(); }, 300);
             return;
         }
         const [pct, text] = steps[i++];
@@ -956,9 +962,7 @@ let velocityY = 0;
 const GRAVITY = -0.015;
 const JUMP_FORCE = 0.3;
 let onGround = true;
-let pointerLocked = false;
 
-// 3rd person camera
 const CAM_DISTANCE = 5;
 const CAM_HEIGHT = 2;
 let playerPos = { x: 0, y: 0, z: 0 };
@@ -974,12 +978,8 @@ function enterGame() {
     document.getElementById('online-count').style.display = 'block';
     document.getElementById('crosshair').style.display = 'block';
 
-    // restore saved position
     const sess = loadSession();
-    if (sess && sess.pos) {
-        playerPos = sess.pos;
-        yaw = sess.yaw || 0;
-    }
+    if (sess && sess.pos) { playerPos = sess.pos; yaw = sess.yaw || 0; }
 
     initThree(canvas);
     buildWorld();
@@ -995,7 +995,6 @@ function initThree(canvas) {
     scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
 
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
-    // 3rd person: camera starts behind player
     camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -1016,94 +1015,58 @@ function initThree(canvas) {
     sun.position.set(30, 60, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.near = 0.1;
-    sun.shadow.camera.far = 200;
+    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 200;
     sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
     sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
     scene.add(sun);
 
     [[5,1,5],[-5,1,-5],[10,1,-8],[-8,1,12]].forEach(([x,y,z]) => {
         const pt = new THREE.PointLight(0xe67e22, 1.5, 12);
-        pt.position.set(x, y, z);
-        scene.add(pt);
+        pt.position.set(x, y, z); scene.add(pt);
     });
 }
 
 function buildWorld() {
-    const groundGeo = new THREE.PlaneGeometry(200, 200, 40, 40);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x1a1005 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 40, 40), new THREE.MeshLambertMaterial({ color: 0x1a1005 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
     const grid = new THREE.GridHelper(200, 50, 0x2a1e08, 0x1a1005);
-    grid.position.y = 0.01;
-    scene.add(grid);
+    grid.position.y = 0.01; scene.add(grid);
 
     const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.5 });
-    [
-        [0, 2, 100], [0, 2, -100], [100, 2, 0], [-100, 2, 0]
-    ].forEach(([x, y, z]) => {
-        const geo = z === 0 ? new THREE.BoxGeometry(1, 4, 200) : new THREE.BoxGeometry(200, 4, 1);
+    [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => {
+        const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1);
         const wall = new THREE.Mesh(geo, wallMat);
-        wall.position.set(x, y, z);
-        scene.add(wall);
+        wall.position.set(x, y, z); scene.add(wall);
     });
 
     for (let i = 0; i < 20; i++) {
         const r = Math.random() * 0.4 + 0.1;
-        const geo = new THREE.DodecahedronGeometry(r, 0);
-        const mat = new THREE.MeshLambertMaterial({ color: 0x2a2216 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set((Math.random() - 0.5) * 180, r, (Math.random() - 0.5) * 180);
+        const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 }));
+        mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180);
         mesh.rotation.set(Math.random(), Math.random(), Math.random());
         scene.add(mesh);
     }
 }
 
 function spawnResources() {
-    for (let i = 0; i < 15; i++) {
-        const x = (Math.random() - 0.5) * 160;
-        const z = (Math.random() - 0.5) * 160;
-        createTree(x, z, i);
-    }
-    for (let i = 0; i < 12; i++) {
-        const x = (Math.random() - 0.5) * 160;
-        const z = (Math.random() - 0.5) * 160;
-        createRock(x, z, i + 100);
-    }
+    for (let i = 0; i < 15; i++) createTree((Math.random()-0.5)*160, (Math.random()-0.5)*160, i);
+    for (let i = 0; i < 12; i++) createRock((Math.random()-0.5)*160, (Math.random()-0.5)*160, i+100);
 }
 
 function createTree(x, z, id) {
     const group = new THREE.Group();
-
-    const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, 2.5, 7);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x3a2010 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 1.25;
-    trunk.castShadow = true;
-    group.add(trunk);
-
-    const foliageGeo = new THREE.ConeGeometry(1.6, 3, 8);
-    const foliageMat = new THREE.MeshLambertMaterial({ color: 0x1a3a10 });
-    const foliage = new THREE.Mesh(foliageGeo, foliageMat);
-    foliage.position.y = 3.8;
-    foliage.castShadow = true;
-    group.add(foliage);
-
-    group.position.set(x, 0, z);
-    scene.add(group);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,2.5,7), new THREE.MeshLambertMaterial({color:0x3a2010}));
+    trunk.position.y = 1.25; trunk.castShadow = true; group.add(trunk);
+    const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.6,3,8), new THREE.MeshLambertMaterial({color:0x1a3a10}));
+    foliage.position.y = 3.8; foliage.castShadow = true; group.add(foliage);
+    group.position.set(x, 0, z); scene.add(group);
     resourceObjects.push({ mesh: group, type: 'wood', id, x, z, radius: 2 });
 }
 
 function createRock(x, z, id) {
-    const geo = new THREE.DodecahedronGeometry(0.9 + Math.random() * 0.4, 0);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x4a4030 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, 0.7, z);
-    mesh.rotation.set(Math.random(), Math.random(), Math.random());
-    mesh.castShadow = true;
+    const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.4,0), new THREE.MeshLambertMaterial({color:0x4a4030}));
+    mesh.position.set(x, 0.7, z); mesh.rotation.set(Math.random(),Math.random(),Math.random()); mesh.castShadow = true;
     scene.add(mesh);
     resourceObjects.push({ mesh, type: 'stone', id, x, z, radius: 1.5 });
 }
@@ -1111,110 +1074,64 @@ function createRock(x, z, id) {
 function createPlayerMesh(color) {
     const group = new THREE.Group();
     const skinColor = color || 0xc9a84c;
-    const armorColor = new THREE.Color(skinColor).multiplyScalar(0.4).getHex();
-    const darkColor = 0x1a1206;
-
     const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
     const armorMat = new THREE.MeshLambertMaterial({ color: skinColor });
-    const darkMat = new THREE.MeshLambertMaterial({ color: darkColor });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x1a1206 });
     const beltMat = new THREE.MeshLambertMaterial({ color: 0x3a2010 });
 
-    // -- Head --
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.42), skinMat);
-    head.position.y = 1.72; head.castShadow = true;
-    group.add(head);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.46,0.42), skinMat);
+    head.position.y = 1.72; head.castShadow = true; group.add(head);
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44,0.14,0.44), darkMat);
+    hair.position.y = 1.99; group.add(hair);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.12,6), skinMat);
+    neck.position.y = 1.44; group.add(neck);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56,0.42,0.28), armorMat);
+    chest.position.y = 1.18; chest.castShadow = true; group.add(chest);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.3,0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
+    plate.position.set(0,1.18,0.17); group.add(plate);
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.2,0.24), armorMat);
+    waist.position.y = 0.88; group.add(waist);
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48,0.08,0.26), beltMat);
+    belt.position.y = 0.78; group.add(belt);
 
-    // Hair (top)
-    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.14, 0.44), darkMat);
-    hair.position.y = 1.99;
-    group.add(hair);
-
-    // Neck
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.12, 6), skinMat);
-    neck.position.y = 1.44;
-    group.add(neck);
-
-    // -- Torso (chest + waist) --
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.28), armorMat);
-    chest.position.y = 1.18; chest.castShadow = true;
-    group.add(chest);
-
-    // Chest plate detail
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.3, 0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
-    plate.position.set(0, 1.18, 0.17);
-    group.add(plate);
-
-    // Belly/waist
-    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.24), armorMat);
-    waist.position.y = 0.88;
-    group.add(waist);
-
-    // Belt
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, 0.26), beltMat);
-    belt.position.y = 0.78;
-    group.add(belt);
-
-    // -- Arms --
-    [-0.32, 0.32].forEach((ox, i) => {
-        // Upper arm
-        const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.18), armorMat);
-        ua.position.set(ox, 1.08, 0); ua.castShadow = true;
-        group.add(ua);
-        // Elbow
-        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 4), armorMat);
-        elbow.position.set(ox, 0.88, 0);
-        group.add(elbow);
-        // Forearm
-        const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.15), skinMat);
-        fa.position.set(ox, 0.68, 0); fa.castShadow = true;
-        group.add(fa);
-        // Hand
-        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.12), skinMat);
-        hand.position.set(ox, 0.5, 0);
-        group.add(hand);
+    [-0.32, 0.32].forEach(ox => {
+        const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.34,0.18), armorMat);
+        ua.position.set(ox,1.08,0); ua.castShadow = true; group.add(ua);
+        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4), armorMat);
+        elbow.position.set(ox,0.88,0); group.add(elbow);
+        const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,0.15), skinMat);
+        fa.position.set(ox,0.68,0); fa.castShadow = true; group.add(fa);
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.12), skinMat);
+        hand.position.set(ox,0.5,0); group.add(hand);
     });
 
-    // -- Legs --
     [-0.14, 0.14].forEach(ox => {
-        // Upper leg
-        const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), armorMat);
-        ul.position.set(ox, 0.45, 0); ul.castShadow = true;
-        group.add(ul);
-        // Knee
-        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), armorMat);
-        knee.position.set(ox, 0.25, 0);
-        group.add(knee);
-        // Lower leg
-        const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.38, 0.19), darkMat);
-        ll.position.set(ox, 0.04, 0); ll.castShadow = true;
-        group.add(ll);
-        // Foot/boot
-        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.28), darkMat);
-        boot.position.set(ox, -0.17, 0.04);
-        group.add(boot);
+        const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.38,0.22), armorMat);
+        ul.position.set(ox,0.45,0); ul.castShadow = true; group.add(ul);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4), armorMat);
+        knee.position.set(ox,0.25,0); group.add(knee);
+        const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19,0.38,0.19), darkMat);
+        ll.position.set(ox,0.04,0); ll.castShadow = true; group.add(ll);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.1,0.28), darkMat);
+        boot.position.set(ox,-0.17,0.04); group.add(boot);
     });
 
-    // Sword on back (decorative)
-    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
-    swordBlade.position.set(0.28, 0.95, -0.18); swordBlade.rotation.z = 0.2;
-    group.add(swordBlade);
+    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.55,0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
+    swordBlade.position.set(0.28,0.95,-0.18); swordBlade.rotation.z = 0.2; group.add(swordBlade);
 
     return group;
 }
 
-// ── Socket: Other Players ──
+// ── Socket: Game Events ──
 socket.on('currentPlayers', (players) => {
     Object.values(players).forEach(p => {
         if (p.id === socket.id) {
             myPlayer = p;
             document.getElementById('player-name-display').textContent = p.username.toUpperCase();
-            // spawn own player mesh (visible in 3rd person)
             playerMesh = createPlayerMesh(p.color);
             playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
             scene.add(playerMesh);
-        } else {
-            addOtherPlayer(p);
-        }
+        } else { addOtherPlayer(p); }
     });
     updateOnlineCount(Object.keys(players).length);
 });
@@ -1226,14 +1143,7 @@ socket.on('newPlayer', (p) => {
 });
 
 socket.on('playerMoved', (p) => {
-    if (p.id === socket.id) {
-        if (p.x === 0 && p.z === 0 && p.hp === 100) {
-            playerPos.x = 0; playerPos.y = 0; playerPos.z = 0;
-            updateHP(100);
-            showNotification('☠️ Öldürüldünüz! Yeniden doğuyorsunuz...');
-        }
-        return;
-    }
+    if (p.id === socket.id) return;
     if (otherPlayerMeshes[p.id]) {
         otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z);
         if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY;
@@ -1241,10 +1151,7 @@ socket.on('playerMoved', (p) => {
 });
 
 socket.on('playerDisconnected', (id) => {
-    if (otherPlayerMeshes[id]) {
-        scene.remove(otherPlayerMeshes[id]);
-        delete otherPlayerMeshes[id];
-    }
+    if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; }
     updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
 });
 
@@ -1267,28 +1174,21 @@ socket.on('hpUpdate', (data) => {
 
 function addOtherPlayer(p) {
     const mesh = createPlayerMesh(p.color);
-    mesh.position.set(p.x || 0, p.y || 0, p.z || 0);
-    scene.add(mesh);
-    otherPlayerMeshes[p.id] = mesh;
+    mesh.position.set(p.x||0, p.y||0, p.z||0);
+    scene.add(mesh); otherPlayerMeshes[p.id] = mesh;
 }
-
 function updateHP(hp) {
-    const pct = Math.max(0, hp) / 100;
-    document.getElementById('hp-fill').style.width = (pct * 100) + '%';
-    document.getElementById('hp-text').textContent = `${Math.max(0, hp)}/100`;
+    const pct = Math.max(0,hp)/100;
+    document.getElementById('hp-fill').style.width = (pct*100)+'%';
+    document.getElementById('hp-text').textContent = `${Math.max(0,hp)}/100`;
 }
-
-function updateOnlineCount(n) {
-    document.getElementById('online-num').textContent = n;
-}
+function updateOnlineCount(n) { document.getElementById('online-num').textContent = n; }
 
 // ═══════════════════════════════════════════════
 //  INPUT
 // ═══════════════════════════════════════════════
 function setupInput(canvas) {
-    // 3rd person: right-click drag to rotate camera
-    let mouseDown = false;
-    let lastMouseX = 0, lastMouseY = 0;
+    let mouseDown = false, lastMouseX = 0, lastMouseY = 0;
 
     canvas.addEventListener('mousedown', (e) => {
         if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
@@ -1297,40 +1197,30 @@ function setupInput(canvas) {
     document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; });
     document.addEventListener('mousemove', (e) => {
         if (!mouseDown) return;
-        const dx = e.clientX - lastMouseX;
-        const dy = e.clientY - lastMouseY;
-        yaw -= dx * 0.004;
-        pitch -= dy * 0.003;
+        yaw -= (e.clientX - lastMouseX) * 0.004;
+        pitch -= (e.clientY - lastMouseY) * 0.003;
         pitch = Math.max(-0.6, Math.min(0.8, pitch));
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
+        lastMouseX = e.clientX; lastMouseY = e.clientY;
     });
 
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => { keys[e.code] = true; });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
-
     document.addEventListener('keydown', e => {
         if (e.code === 'KeyE') tryCollect();
         if (e.code === 'KeyF') doAttackNearest();
         if (e.code === 'Space') tryJump();
     });
-
-    // Scroll wheel to adjust camera distance
-    canvas.addEventListener('wheel', (e) => {}, { passive: true });
+    canvas.addEventListener('wheel', () => {}, { passive: true });
 }
 
-function tryJump() {
-    if (onGround) { velocityY = JUMP_FORCE; onGround = false; }
-}
+function tryJump() { if (onGround) { velocityY = JUMP_FORCE; onGround = false; } }
 
 // ═══════════════════════════════════════════════
 //  MOBILE CONTROLS
 // ═══════════════════════════════════════════════
 function setupMobileControls() {
-    const isMobile = 'ontouchstart' in window;
-    if (!isMobile) return;
-
+    if (!('ontouchstart' in window)) return;
     document.getElementById('mobile-controls').style.display = 'block';
     document.getElementById('crosshair').style.display = 'none';
 
@@ -1339,44 +1229,38 @@ function setupMobileControls() {
     const maxR = 38;
 
     jc.addEventListener('touchstart', e => {
-        const t = e.touches[0];
         const rect = jc.getBoundingClientRect();
-        joystick.startX = rect.left + rect.width / 2;
-        joystick.startY = rect.top + rect.height / 2;
+        joystick.startX = rect.left + rect.width/2;
+        joystick.startY = rect.top + rect.height/2;
         joystick.active = true;
     }, { passive: true });
 
     jc.addEventListener('touchmove', e => {
         if (!joystick.active) return;
         const t = e.touches[0];
-        let dx = t.clientX - joystick.startX;
-        let dy = t.clientY - joystick.startY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > maxR) { dx *= maxR / dist; dy *= maxR / dist; }
-        joystick.dx = dx / maxR;
-        joystick.dy = dy / maxR;
-        knob.style.transform = `translate(${dx}px, ${dy}px)`;
+        let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; }
+        joystick.dx = dx/maxR; joystick.dy = dy/maxR;
+        knob.style.transform = `translate(${dx}px,${dy}px)`;
     }, { passive: true });
 
-    const resetJoystick = () => {
-        joystick.active = false; joystick.dx = 0; joystick.dy = 0;
-        knob.style.transform = '';
-    };
+    const resetJoystick = () => { joystick.active=false; joystick.dx=0; joystick.dy=0; knob.style.transform=''; };
     jc.addEventListener('touchend', resetJoystick);
     jc.addEventListener('touchcancel', resetJoystick);
 
-    let lastTX = 0, lastTY = 0;
+    let lastTX=0, lastTY=0;
     document.addEventListener('touchstart', e => {
         const t = e.touches[0];
-        if (t.clientX > window.innerWidth / 2) { lastTX = t.clientX; lastTY = t.clientY; }
+        if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; }
     }, { passive: true });
     document.addEventListener('touchmove', e => {
         for (let t of e.touches) {
-            if (t.clientX > window.innerWidth / 2) {
-                yaw -= (t.clientX - lastTX) * 0.005;
-                pitch -= (t.clientY - lastTY) * 0.005;
-                pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, pitch));
-                lastTX = t.clientX; lastTY = t.clientY;
+            if (t.clientX > window.innerWidth/2) {
+                yaw -= (t.clientX-lastTX)*0.005;
+                pitch -= (t.clientY-lastTY)*0.005;
+                pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
+                lastTX=t.clientX; lastTY=t.clientY;
             }
         }
     }, { passive: true });
@@ -1387,8 +1271,7 @@ function setupMobileControls() {
 // ═══════════════════════════════════════════════
 //  GAME LOOP
 // ═══════════════════════════════════════════════
-let lastSent = 0;
-let sessionSaveTimer = 0;
+let lastSent = 0, sessionSaveTimer = 0;
 
 function gameLoop() {
     requestAnimationFrame(gameLoop);
@@ -1399,122 +1282,77 @@ function gameLoop() {
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     const move = new THREE.Vector3();
 
-    if (keys['KeyW'] || keys['ArrowUp']) move.addScaledVector(forward, speed);
-    if (keys['KeyS'] || keys['ArrowDown']) move.addScaledVector(forward, -speed);
-    if (keys['KeyA'] || keys['ArrowLeft']) move.addScaledVector(right, -speed);
-    if (keys['KeyD'] || keys['ArrowRight']) move.addScaledVector(right, speed);
+    if (keys['KeyW']||keys['ArrowUp']) move.addScaledVector(forward, speed);
+    if (keys['KeyS']||keys['ArrowDown']) move.addScaledVector(forward, -speed);
+    if (keys['KeyA']||keys['ArrowLeft']) move.addScaledVector(right, -speed);
+    if (keys['KeyD']||keys['ArrowRight']) move.addScaledVector(right, speed);
     if (keys['Space']) tryJump();
 
     if (joystick.active) {
-        move.addScaledVector(forward, -joystick.dy * speed);
-        move.addScaledVector(right, joystick.dx * speed);
+        move.addScaledVector(forward, -joystick.dy*speed);
+        move.addScaledVector(right, joystick.dx*speed);
     }
 
-    playerPos.x += move.x;
-    playerPos.z += move.z;
-
-    velocityY += GRAVITY;
-    playerPos.y += velocityY;
-    if (playerPos.y < 0) { playerPos.y = 0; velocityY = 0; onGround = true; }
-
+    playerPos.x += move.x; playerPos.z += move.z;
+    velocityY += GRAVITY; playerPos.y += velocityY;
+    if (playerPos.y < 0) { playerPos.y=0; velocityY=0; onGround=true; }
     playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
     playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
 
-    // Update player mesh
-    if (playerMesh) {
-        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-        playerMesh.rotation.y = yaw + Math.PI;
-    }
+    if (playerMesh) { playerMesh.position.set(playerPos.x,playerPos.y,playerPos.z); playerMesh.rotation.y = yaw+Math.PI; }
 
-    // 3rd person camera: orbit around player
-    const camOffX = -Math.sin(yaw) * CAM_DISTANCE;
-    const camOffZ = -Math.cos(yaw) * CAM_DISTANCE;
-    const targetCamX = playerPos.x - camOffX;
-    const targetCamY = playerPos.y + CAM_HEIGHT + pitch * 2;
-    const targetCamZ = playerPos.z - camOffZ;
-
-    // Smooth camera follow
-    camera.position.x += (targetCamX - camera.position.x) * 0.15;
-    camera.position.y += (targetCamY - camera.position.y) * 0.15;
-    camera.position.z += (targetCamZ - camera.position.z) * 0.15;
-
-    camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
+    const camOffX = -Math.sin(yaw)*CAM_DISTANCE, camOffZ = -Math.cos(yaw)*CAM_DISTANCE;
+    camera.position.x += (playerPos.x-camOffX - camera.position.x)*0.15;
+    camera.position.y += (playerPos.y+CAM_HEIGHT+pitch*2 - camera.position.y)*0.15;
+    camera.position.z += (playerPos.z-camOffZ - camera.position.z)*0.15;
+    camera.lookAt(playerPos.x, playerPos.y+1, playerPos.z);
 
     const now = Date.now();
     if (now - lastSent > 50) {
         lastSent = now;
-        socket.emit('playerMovement', {
-            x: playerPos.x,
-            y: playerPos.y,
-            z: playerPos.z,
-            rotationY: yaw
-        });
+        socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw });
     }
 
-    // Save session position every 5 seconds
     sessionSaveTimer++;
     if (sessionSaveTimer > 300) {
         sessionSaveTimer = 0;
         const sess = loadSession();
-        if (sess) {
-            sess.pos = { x: playerPos.x, y: playerPos.y, z: playerPos.z };
-            sess.yaw = yaw;
-            saveSession(sess);
-        }
+        if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); }
     }
 
-    resourceObjects.forEach(r => {
-        if (r.mesh) r.mesh.rotation.y += 0.003;
-    });
-
+    resourceObjects.forEach(r => { if (r.mesh) r.mesh.rotation.y += 0.003; });
     drawMinimap();
     renderer.render(scene, camera);
 }
 
 // ═══════════════════════════════════════════════
-//  COLLECT
+//  COLLECT / ATTACK / CRAFT
 // ═══════════════════════════════════════════════
 function tryCollect() {
-    const px = playerPos.x, pz = playerPos.z;
     resourceObjects.forEach(r => {
         if (!r.mesh) return;
-        const dx = px - r.x, dz = pz - r.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < r.radius + 2) {
+        const dx=playerPos.x-r.x, dz=playerPos.z-r.z;
+        if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) {
             socket.emit('collect', r.type);
-            showNotification(`${r.type === 'wood' ? '🪵 Ahşap' : '🪨 Taş'} toplandı!`);
+            showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`);
         }
     });
 }
 
-// ═══════════════════════════════════════════════
-//  ATTACK
-// ═══════════════════════════════════════════════
 function doAttackNearest() {
-    const px = playerPos.x, pz = playerPos.z;
-    let nearest = null, nearDist = 5;
-    Object.entries(otherPlayerMeshes).forEach(([id, mesh]) => {
-        const dx = px - mesh.position.x, dz = pz - mesh.position.z;
-        const d = Math.sqrt(dx * dx + dz * dz);
-        if (d < nearDist) { nearDist = d; nearest = id; }
+    let nearest=null, nearDist=5;
+    Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => {
+        const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z;
+        const d=Math.sqrt(dx*dx+dz*dz);
+        if (d<nearDist) { nearDist=d; nearest=id; }
     });
-    if (nearest) {
-        socket.emit('attack', nearest);
-        showNotification('⚔️ Saldırı!');
-    }
+    if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); }
 }
 
-// ═══════════════════════════════════════════════
-//  CRAFT
-// ═══════════════════════════════════════════════
-function toggleCraft() {
-    document.getElementById('craft-panel').classList.toggle('open');
-}
-
+function toggleCraft() { document.getElementById('craft-panel').classList.toggle('open'); }
 function doCraft(item) {
     socket.emit('craft', item);
-    const names = { sword: '⚔️ Kılıç', pickaxe: '⛏️ Kazma', axe: '🪓 Balta' };
-    showNotification(`${names[item] || item} üretildi!`);
+    showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`);
 }
 
 // ═══════════════════════════════════════════════
@@ -1523,36 +1361,28 @@ function doCraft(item) {
 function drawMinimap() {
     const canvas = document.getElementById('minimap-canvas');
     const ctx = canvas.getContext('2d');
-    const W = 100, H = 100, scale = 100 / 200;
+    const W=100, H=100, scale=100/200;
 
-    ctx.fillStyle = '#0a0806';
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.strokeStyle = '#1a1005'; ctx.lineWidth = 0.5;
-    for (let i = 0; i <= W; i += 10) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke(); }
-    for (let i = 0; i <= H; i += 10) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke(); }
+    ctx.fillStyle='#0a0806'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1a1005'; ctx.lineWidth=0.5;
+    for (let i=0;i<=W;i+=10) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for (let i=0;i<=H;i+=10) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
 
     resourceObjects.forEach(r => {
-        const mx = (r.x + 100) * scale, my = (r.z + 100) * scale;
-        ctx.fillStyle = r.type === 'wood' ? '#1a3a10' : '#4a4030';
-        ctx.fillRect(mx - 1, my - 1, 3, 3);
+        const mx=(r.x+100)*scale, my=(r.z+100)*scale;
+        ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030';
+        ctx.fillRect(mx-1,my-1,3,3);
     });
-
     Object.values(otherPlayerMeshes).forEach(mesh => {
-        const mx = (mesh.position.x + 100) * scale, my = (mesh.position.z + 100) * scale;
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2); ctx.fill();
+        const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale;
+        ctx.fillStyle='#e74c3c';
+        ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill();
     });
 
-    const sx = (playerPos.x + 100) * scale, sy = (playerPos.z + 100) * scale;
-    ctx.fillStyle = '#c9a84c';
-    ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
-
-    ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx - Math.sin(yaw) * 6, sy - Math.cos(yaw) * 6);
-    ctx.stroke();
+    const sx=(playerPos.x+100)*scale, sy=(playerPos.z+100)*scale;
+    ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke();
 }
 
 // ═══════════════════════════════════════════════
@@ -1561,8 +1391,7 @@ function drawMinimap() {
 let notifTimer = null;
 function showNotification(text) {
     const el = document.getElementById('notification');
-    el.textContent = text;
-    el.classList.add('show');
+    el.textContent = text; el.classList.add('show');
     clearTimeout(notifTimer);
     notifTimer = setTimeout(() => el.classList.remove('show'), 2000);
 }
@@ -1570,12 +1399,10 @@ function showNotification(text) {
 function addKillFeed(text) {
     const feed = document.getElementById('killfeed');
     const div = document.createElement('div');
-    div.className = 'kill-entry';
-    div.textContent = text;
+    div.className = 'kill-entry'; div.textContent = text;
     feed.appendChild(div);
     setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500);
 }
-
 </script>
 </body>
 </html>
