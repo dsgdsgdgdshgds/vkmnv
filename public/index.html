@@ -28,10 +28,8 @@
             cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>⚔️</text></svg>") 10 10, auto;
         }
 
-        /* ===== PARTICLES ===== */
         #particles-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
-        /* ===== AUTH SCREEN ===== */
         #auth-screen {
             position: fixed; inset: 0; z-index: 2000;
             display: flex; align-items: center; justify-content: center;
@@ -51,9 +49,7 @@
             width: 420px; max-width: 95vw;
         }
 
-        .auth-title-wrap {
-            text-align: center; margin-bottom: 8px;
-        }
+        .auth-title-wrap { text-align: center; margin-bottom: 8px; }
         .auth-title {
             font-family: 'Cinzel Decorative', serif;
             font-size: clamp(20px, 5vw, 32px);
@@ -88,14 +84,12 @@
             pointer-events: none;
         }
 
-        /* Corner ornaments */
         .corner { position: absolute; width: 20px; height: 20px; color: var(--gold-dark); font-size: 14px; }
         .corner.tl { top: 4px; left: 4px; }
         .corner.tr { top: 4px; right: 4px; transform: scaleX(-1); }
         .corner.bl { bottom: 4px; left: 4px; transform: scaleY(-1); }
         .corner.br { bottom: 4px; right: 4px; transform: scale(-1); }
 
-        /* Tabs */
         .auth-tabs {
             display: flex; margin-bottom: 24px;
             border-bottom: 1px solid #2a1e08;
@@ -107,13 +101,9 @@
             border-bottom: 2px solid transparent;
             transition: all 0.3s; text-transform: uppercase;
         }
-        .auth-tab.active {
-            color: var(--gold-light);
-            border-bottom-color: var(--gold);
-        }
+        .auth-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
         .auth-tab:hover { color: var(--gold); }
 
-        /* Form panels */
         .form-panel { display: none; }
         .form-panel.active { display: block; }
 
@@ -144,7 +134,6 @@
         .field-input.error { border-color: #c0392b88; box-shadow: 0 0 8px #c0392b44; }
         .field-input.success { border-color: #27ae6088; }
 
-        /* Captcha */
         .captcha-box {
             background: #0a0806;
             border: 1px solid #2a1e08;
@@ -186,7 +175,6 @@
         }
         .captcha-refresh:hover { border-color: var(--gold-dark); color: var(--gold); }
 
-        /* Error / Success messages */
         .msg-box {
             padding: 10px 14px; border-radius: 2px;
             font-size: 13px; margin-bottom: 14px;
@@ -196,7 +184,6 @@
         .msg-box.error { background: #c0392b22; border: 1px solid #c0392b88; color: #e74c3c; display: flex; }
         .msg-box.success { background: #27ae6022; border: 1px solid #27ae6088; color: #2ecc71; display: flex; }
 
-        /* Submit button */
         .btn-enter {
             width: 100%; padding: 14px;
             background: linear-gradient(180deg, #3a2a0a 0%, #1a1005 50%, #2a1e08 100%);
@@ -221,28 +208,11 @@
         .btn-enter:hover { border-color: var(--gold); color: #fff; box-shadow: 0 4px 30px #c9a84c44; }
         .btn-enter:active { transform: translateY(1px); }
 
-        .divider {
-            text-align: center; color: #2a1e08;
-            font-size: 10px; letter-spacing: 6px;
-            margin: 16px 0; text-transform: uppercase;
-            position: relative;
-        }
-        .divider::before, .divider::after {
-            content: '';
-            position: absolute; top: 50%;
-            width: 35%; height: 1px;
-            background: #2a1e08;
-        }
-        .divider::before { left: 0; }
-        .divider::after { right: 0; }
-
-        /* Loading overlay */
         #loading-overlay {
             position: fixed; inset: 0; z-index: 3000;
             background: #0a0806;
-            display: flex; flex-direction: column;
+            display: none; flex-direction: column;
             align-items: center; justify-content: center;
-            display: none;
         }
         .loading-title {
             font-family: 'Cinzel Decorative', serif;
@@ -268,7 +238,6 @@
             letter-spacing: 4px; margin-top: 12px;
         }
 
-        /* ===== GAME UI ===== */
         #game-ui { display: none; }
 
         #ui-overlay {
@@ -277,9 +246,7 @@
             padding: 16px;
             background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
         }
-        .player-hud {
-            display: flex; align-items: center; gap: 12px;
-        }
+        .player-hud { display: flex; align-items: center; gap: 12px; }
         .avatar-icon {
             width: 44px; height: 44px;
             background: linear-gradient(135deg, #1c1508, #2a1e08);
@@ -294,10 +261,7 @@
             color: var(--gold-light); font-size: 13px;
             letter-spacing: 2px;
         }
-        .hp-bar-wrap {
-            display: flex; align-items: center; gap: 6px;
-            margin-top: 4px;
-        }
+        .hp-bar-wrap { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
         .hp-icon { font-size: 12px; }
         #hp-bar-ui {
             width: 150px; height: 8px;
@@ -312,10 +276,7 @@
             box-shadow: 0 0 6px #e74c3c88;
         }
         .hp-text { font-family: 'Cinzel', serif; font-size: 10px; color: #c0392b; }
-
-        .inv-bar {
-            display: flex; gap: 8px; margin-top: 8px;
-        }
+        .inv-bar { display: flex; gap: 8px; margin-top: 8px; }
         .inv-item {
             background: rgba(0,0,0,0.6);
             border: 1px solid #2a1e08;
@@ -326,25 +287,6 @@
             letter-spacing: 1px;
         }
 
-        /* Toolbar icons */
-        #toolbar {
-            position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 8px; z-index: 1000; pointer-events: auto;
-        }
-        .tool-slot {
-            width: 52px; height: 52px;
-            background: rgba(0,0,0,0.75);
-            border: 2px solid #2a1e08;
-            border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px;
-            position: relative;
-            transition: border-color 0.2s;
-        }
-        .tool-slot.equipped { border-color: var(--gold); box-shadow: 0 0 12px var(--gold-dark); }
-        .tool-slot span { font-size: 9px; position: absolute; bottom: 2px; right: 4px; color: #c9a84c; font-family: 'Cinzel', serif; }
-
-        /* Craft panel */
         #craft-toggle {
             position: fixed; top: 80px; right: 16px;
             width: 48px; height: 48px;
@@ -393,7 +335,6 @@
         .craft-option .name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold-light); }
         .craft-option .cost { font-size: 11px; color: #5a4820; margin-top: 2px; }
 
-        /* Mobile controls */
         #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 900; }
 
         #joystick-container {
@@ -449,12 +390,8 @@
             box-shadow: 0 0 20px rgba(192,57,43,0.3);
             transition: all 0.1s;
         }
-        #attack-btn:active {
-            transform: scale(0.92);
-            box-shadow: 0 0 30px rgba(192,57,43,0.6);
-        }
+        #attack-btn:active { transform: scale(0.92); box-shadow: 0 0 30px rgba(192,57,43,0.6); }
 
-        /* Minimap */
         #minimap {
             position: fixed; top: 16px; right: 16px;
             width: 100px; height: 100px;
@@ -465,7 +402,6 @@
         }
         #minimap-canvas { width: 100%; height: 100%; }
 
-        /* Damage flash */
         #damage-flash {
             position: fixed; inset: 0; z-index: 999;
             background: rgba(192,57,43,0); pointer-events: none;
@@ -473,7 +409,6 @@
         }
         #damage-flash.flash { background: rgba(192,57,43,0.25); }
 
-        /* Kill feed */
         #killfeed {
             position: fixed; top: 130px; right: 16px;
             z-index: 1000; pointer-events: none;
@@ -490,7 +425,6 @@
         }
         @keyframes killFade { 0% { opacity:1; } 80% { opacity:1; } 100% { opacity:0; } }
 
-        /* Notification */
         #notification {
             position: fixed; top: 80px; left: 50%;
             transform: translateX(-50%);
@@ -507,7 +441,6 @@
         }
         #notification.show { opacity: 1; }
 
-        /* Online counter */
         #online-count {
             position: fixed; bottom: 8px; left: 50%;
             transform: translateX(-50%);
@@ -516,7 +449,6 @@
             z-index: 1000; pointer-events: none;
         }
 
-        /* ===== RESPONSIVE ===== */
         @media (max-width: 480px) {
             .auth-container { width: 95vw; }
             .panel-frame { padding: 24px 16px; }
@@ -528,14 +460,12 @@
 
 <canvas id="particles-canvas"></canvas>
 
-<!-- ===== LOADING ===== -->
 <div id="loading-overlay">
     <div class="loading-title">⚔️ SURVIVAL EVOLUTION</div>
     <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-fill"></div></div>
     <div class="loading-text" id="loading-text">DÜNYA YÜKLENİYOR...</div>
 </div>
 
-<!-- ===== AUTH SCREEN ===== -->
 <div id="auth-screen">
     <div class="bg-rune" style="top:10%; left:5%; animation-delay:0s;">⚔</div>
     <div class="bg-rune" style="top:60%; right:8%; animation-delay:2s; font-size:80px;">🛡</div>
@@ -547,9 +477,7 @@
             <div class="auth-title">⚔️ SURVIVAL<br>EVOLUTION</div>
             <div class="auth-subtitle">Çok Oyunculu Hayatta Kalma RPG</div>
         </div>
-
         <br>
-
         <div class="panel-frame">
             <div class="corner tl">◆</div>
             <div class="corner tr">◆</div>
@@ -561,7 +489,6 @@
                 <div class="auth-tab" onclick="switchTab('register')">📜 Kayıt Ol</div>
             </div>
 
-            <!-- LOGIN -->
             <div class="form-panel active" id="panel-login">
                 <div id="msg-login" class="msg-box"></div>
                 <div class="field-wrap">
@@ -572,12 +499,9 @@
                     <label class="field-label">🔒 Şifre</label>
                     <input type="password" id="login-pass" class="field-input" placeholder="••••••••" autocomplete="current-password">
                 </div>
-                <button class="btn-enter" onclick="attemptLogin()">
-                    ⚔ DÜNYAYA GİR
-                </button>
+                <button class="btn-enter" onclick="attemptLogin()">⚔ DÜNYAYA GİR</button>
             </div>
 
-            <!-- REGISTER -->
             <div class="form-panel" id="panel-register">
                 <div id="msg-register" class="msg-box"></div>
                 <div class="field-wrap">
@@ -600,15 +524,12 @@
                     <button class="captcha-refresh" onclick="refreshCaptcha()" title="Yenile">↺</button>
                     <input type="text" id="reg-captcha" class="field-input" placeholder="Kodu girin" style="margin-bottom:0; flex:1; padding:8px 12px; font-size:13px;">
                 </div>
-                <button class="btn-enter" onclick="attemptRegister()">
-                    📜 KAHRAMANI YARAT
-                </button>
+                <button class="btn-enter" onclick="attemptRegister()">📜 KAHRAMANI YARAT</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ===== GAME UI ===== -->
 <div id="game-ui">
     <div id="ui-overlay">
         <div class="player-hud">
@@ -631,33 +552,22 @@
         </div>
     </div>
 
-    <div id="minimap">
-        <canvas id="minimap-canvas" width="100" height="100"></canvas>
-    </div>
+    <div id="minimap"><canvas id="minimap-canvas" width="100" height="100"></canvas></div>
 
     <div id="craft-toggle" onclick="toggleCraft()">🔨</div>
     <div id="craft-panel">
         <div class="craft-title">⚒ Üretim Masası</div>
         <div class="craft-option" onclick="doCraft('axe')">
             <span class="icon">🪓</span>
-            <div class="info">
-                <div class="name">Balta</div>
-                <div class="cost">🪵 3 Odun gerekir</div>
-            </div>
+            <div class="info"><div class="name">Balta</div><div class="cost">🪵 3 Odun gerekir</div></div>
         </div>
         <div class="craft-option" onclick="doCraft('pickaxe')">
             <span class="icon">⛏️</span>
-            <div class="info">
-                <div class="name">Kazma</div>
-                <div class="cost">🪨 3 Taş gerekir</div>
-            </div>
+            <div class="info"><div class="name">Kazma</div><div class="cost">🪨 3 Taş gerekir</div></div>
         </div>
         <div class="craft-option" onclick="doCraft('sword')">
             <span class="icon">⚔️</span>
-            <div class="info">
-                <div class="name">Kılıç</div>
-                <div class="cost">🪵 2 Odun + 🪨 2 Taş</div>
-            </div>
+            <div class="info"><div class="name">Kılıç</div><div class="cost">🪵 2 Odun + 🪨 2 Taş</div></div>
         </div>
     </div>
 
@@ -680,7 +590,6 @@
 </div>
 
 <script>
-/* ===== PARTICLE SYSTEM ===== */
 (function() {
     const canvas = document.getElementById('particles-canvas');
     const ctx = canvas.getContext('2d');
@@ -711,7 +620,6 @@
     window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 })();
 
-/* ===== AUTH ===== */
 let currentCaptcha = '';
 const USERS_KEY = 'rpg_users_db';
 const SESSION_KEY = 'rpg_session';
@@ -809,7 +717,6 @@ function attemptLogin() {
     startGame(user);
 }
 
-// Auto-login
 window.addEventListener('load', () => {
     try {
         const s = JSON.parse(localStorage.getItem(SESSION_KEY));
@@ -818,13 +725,11 @@ window.addEventListener('load', () => {
 });
 
 async function startGame(user) {
-    // Try fullscreen + landscape
     try {
         if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
         if(screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(()=>{});
     } catch(e) {}
 
-    // Loading screen
     const lo = document.getElementById('loading-overlay');
     lo.style.display = 'flex';
     document.getElementById('auth-screen').style.display = 'none';
@@ -856,13 +761,9 @@ let camYaw = 0;
 let joystickData = { x: 0, y: 0, active: false, identifier: null };
 let lookData = { active: false, identifier: null, lastX: 0, lastY: 0 };
 const worldObjects = [];
-const otherPlayers = {};
-
-// Simulated other players for demo
-const fakePlayerNames = ['Aragorn', 'Legolas', 'Gimli', 'Gandalf', 'Boromir'];
 const fakePlayers = {};
+const fakePlayerNames = ['Aragorn', 'Legolas', 'Gimli', 'Gandalf', 'Boromir'];
 
-// Sounds
 function beep(freq=440, dur=0.1, type='sine') {
     try {
         const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -890,7 +791,6 @@ window.initGame = function(user) {
     renderer.toneMappingExposure = 1.2;
     document.body.appendChild(renderer.domElement);
 
-    // Lights
     const ambient = new THREE.AmbientLight(0xfff5e0, 0.5);
     scene.add(ambient);
     const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
@@ -909,22 +809,19 @@ window.initGame = function(user) {
     buildTerrain();
     buildEnvironment();
 
-    // My player
     myPlayer = createHuman(user.color || 0x3498db, user.username, true);
     myPlayer.position.set(Math.random()*10-5, 0, Math.random()*10-5);
     scene.add(myPlayer);
 
-    // Fake online players
     fakePlayerNames.forEach((name, i) => {
         const colors = [0xe74c3c, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x3498db];
         const fp = createHuman(colors[i], name, false);
         fp.position.set((i-2)*15 + Math.random()*8, 0, Math.random()*20-10);
         scene.add(fp);
-        fakePlayers[name] = { mesh: fp, tx: fp.position.x, tz: fp.position.z, targetY: 0 };
+        fakePlayers[name] = { mesh: fp };
     });
     document.getElementById('online-num').textContent = fakePlayerNames.length + 1;
 
-    // Resources
     for(let i=0; i<60; i++) spawnResource(Math.random()*160-80, Math.random()*160-80);
 
     setupControls();
@@ -944,7 +841,6 @@ window.initGame = function(user) {
 };
 
 function buildTerrain() {
-    // Grass ground
     const grassGeo = new THREE.PlaneGeometry(300, 300, 60, 60);
     const pos = grassGeo.attributes.position;
     for(let i=0; i<pos.count; i++) {
@@ -952,14 +848,11 @@ function buildTerrain() {
         pos.setY(i, (Math.sin(x*0.05)*Math.cos(z*0.04)*2 + Math.sin(x*0.1+z*0.1)*0.5));
     }
     grassGeo.computeVertexNormals();
-    const grass = new THREE.Mesh(grassGeo, new THREE.MeshStandardMaterial({
-        color: 0x4a8c3f, roughness: 0.9, metalness: 0
-    }));
+    const grass = new THREE.Mesh(grassGeo, new THREE.MeshStandardMaterial({ color: 0x4a8c3f, roughness: 0.9 }));
     grass.rotation.x = -Math.PI/2;
     grass.receiveShadow = true;
     scene.add(grass);
 
-    // Dirt paths
     for(let i=0; i<5; i++) {
         const path = new THREE.Mesh(
             new THREE.PlaneGeometry(2, 20+Math.random()*30),
@@ -971,7 +864,6 @@ function buildTerrain() {
         scene.add(path);
     }
 
-    // Water
     const water = new THREE.Mesh(
         new THREE.PlaneGeometry(30, 20),
         new THREE.MeshStandardMaterial({ color: 0x1a6999, transparent: true, opacity: 0.8, metalness: 0.1, roughness: 0.1 })
@@ -980,7 +872,6 @@ function buildTerrain() {
     water.position.set(60, 0.05, 30);
     scene.add(water);
 
-    // Mountains in distance
     for(let i=0; i<8; i++) {
         const h = 15 + Math.random()*25;
         const mt = new THREE.Mesh(
@@ -990,7 +881,6 @@ function buildTerrain() {
         const angle = (i/8)*Math.PI*2;
         mt.position.set(Math.cos(angle)*110, h/2-2, Math.sin(angle)*110);
         scene.add(mt);
-        // Snow cap
         const snow = new THREE.Mesh(
             new THREE.ConeGeometry(3, h*0.3, 8),
             new THREE.MeshStandardMaterial({ color: 0xf0f0f0 })
@@ -999,7 +889,6 @@ function buildTerrain() {
         mt.add(snow);
     }
 
-    // Clouds
     for(let i=0; i<12; i++) {
         const cloud = new THREE.Group();
         const mat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, transparent: true, opacity: 0.9 });
@@ -1012,32 +901,28 @@ function buildTerrain() {
         cloud.scale.setScalar(2+Math.random()*3);
         cloud.userData.speed = (Math.random()-0.5)*0.01;
         scene.add(cloud);
-        worldObjects.push({ type: 'cloud', mesh: cloud });
+        worldObjects.push({ type: 'cloud', mesh: cloud, position: cloud.position });
     }
 }
 
 function buildEnvironment() {
-    // Village huts
     for(let i=0; i<4; i++) {
         const hut = new THREE.Group();
         const walls = new THREE.Mesh(
             new THREE.BoxGeometry(4, 3, 4),
             new THREE.MeshStandardMaterial({ color: 0xd4a878, roughness: 1 })
         );
-        walls.position.y = 1.5;
-        walls.castShadow = true;
+        walls.position.y = 1.5; walls.castShadow = true;
         const roof = new THREE.Mesh(
             new THREE.ConeGeometry(3.5, 2, 4),
             new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 1 })
         );
-        roof.position.y = 4;
-        roof.rotation.y = Math.PI/4;
+        roof.position.y = 4; roof.rotation.y = Math.PI/4;
         hut.add(walls, roof);
         hut.position.set(Math.random()*60-30, 0, Math.random()*60-30);
         scene.add(hut);
     }
 
-    // Fence posts
     for(let i=0; i<20; i++) {
         const fence = new THREE.Mesh(
             new THREE.BoxGeometry(0.15, 1.2, 0.15),
@@ -1048,66 +933,57 @@ function buildEnvironment() {
         scene.add(fence);
     }
 
-    // Campfire
     const fireGroup = new THREE.Group();
     const logs = new THREE.Mesh(
         new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8),
         new THREE.MeshStandardMaterial({ color: 0x5d3a1a })
     );
     logs.rotation.z = Math.PI/4;
-    const fire = new THREE.PointLight(0xff6600, 2, 8);
-    fire.position.y = 0.5;
+    const fireLight = new THREE.PointLight(0xff6600, 2, 8);
+    fireLight.position.y = 0.5;
     const ember = new THREE.Mesh(
         new THREE.SphereGeometry(0.2, 8, 8),
         new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 2 })
     );
     ember.position.y = 0.3;
-    fireGroup.add(logs, fire, ember);
+    fireGroup.add(logs, fireLight, ember);
     fireGroup.position.set(5, 0, 5);
     scene.add(fireGroup);
-    worldObjects.push({ type: 'fire', mesh: fireGroup, light: fire });
+    worldObjects.push({ type: 'fire', mesh: fireGroup, light: fireLight, position: fireGroup.position });
 }
 
 function createHuman(color, name, isMe) {
     const group = new THREE.Group();
-
     const skinTones = [0xffd5b0, 0xd4956a, 0xc68642, 0xf1c27d, 0x8d5524];
     const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
 
-    // Legs
     const legMat = new THREE.MeshStandardMaterial({ color: isMe ? 0x2c3e50 : 0x34495e });
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.22), legMat);
     leftLeg.position.set(-0.14, 0.32, 0); leftLeg.castShadow = true;
     const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.22), legMat);
     rightLeg.position.set(0.14, 0.32, 0); rightLeg.castShadow = true;
 
-    // Boots
     const bootMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
     const lb = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.32), bootMat);
-    lb.position.set(-0.14, 0.09, 0.05); lb.castShadow = true;
+    lb.position.set(-0.14, 0.09, 0.05);
     const rb = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.32), bootMat);
-    rb.position.set(0.14, 0.09, 0.05); rb.castShadow = true;
+    rb.position.set(0.14, 0.09, 0.05);
 
-    // Body / Chest
-    const bodyMat = new THREE.MeshStandardMaterial({ color: color });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.7, 0.35), bodyMat);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.7, 0.35), new THREE.MeshStandardMaterial({ color }));
     body.position.y = 1; body.castShadow = true;
 
-    // Belt
     const belt = new THREE.Mesh(
         new THREE.BoxGeometry(0.6, 0.1, 0.37),
         new THREE.MeshStandardMaterial({ color: 0x5d3a1a, metalness: 0.5, roughness: 0.5 })
     );
     belt.position.y = 0.67;
 
-    // Shoulder armor
     const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.7, roughness: 0.3 });
     const ls = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), shoulderMat);
     ls.position.set(-0.38, 1.28, 0);
     const rs = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), shoulderMat);
     rs.position.set(0.38, 1.28, 0);
 
-    // Arms
     const armMat = new THREE.MeshStandardMaterial({ color: skin });
     const leftArmGrp = new THREE.Group();
     leftArmGrp.position.set(-0.38, 1.2, 0);
@@ -1119,14 +995,12 @@ function createHuman(color, name, isMe) {
     const ra = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.2), armMat);
     ra.position.y = -0.27; ra.castShadow = true;
 
-    // Gloves
     const gloveMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
     const lg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), gloveMat);
     lg.position.y = -0.55;
     const rg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), gloveMat);
     rg.position.y = -0.55;
 
-    // Tool slot
     const toolSlot = new THREE.Group();
     toolSlot.position.set(0, -0.55, 0.12);
 
@@ -1134,30 +1008,24 @@ function createHuman(color, name, isMe) {
     ra.add(toolSlot);
     leftArmGrp.add(la); rightArmGrp.add(ra);
 
-    // Neck
     const neck = new THREE.Mesh(
         new THREE.CylinderGeometry(0.1, 0.1, 0.15, 8),
         new THREE.MeshStandardMaterial({ color: skin })
     );
     neck.position.y = 1.42;
 
-    // Head
     const head = new THREE.Group();
     const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.38), new THREE.MeshStandardMaterial({ color: skin }));
     headMesh.castShadow = true;
 
-    // Eyes
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e });
     const le = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat);
     le.position.set(-0.1, 0.04, 0.19);
     const re = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat);
     re.position.set(0.1, 0.04, 0.19);
-
-    // Mouth
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.02), new THREE.MeshStandardMaterial({ color: 0x8b3a2a }));
     mouth.position.set(0, -0.1, 0.19);
 
-    // Helmet
     const helmetMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.8, roughness: 0.2 });
     const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.3, 0.44), helmetMat);
     helmet.position.y = 0.12;
@@ -1165,19 +1033,17 @@ function createHuman(color, name, isMe) {
     head.add(headMesh, le, re, mouth, helmet);
     head.position.set(0, 1.57, 0);
 
-    // Name label (sprite)
     if(name) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256; canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0)';
+        const cnv = document.createElement('canvas');
+        cnv.width = 256; cnv.height = 64;
+        const ctx = cnv.getContext('2d');
         ctx.clearRect(0,0,256,64);
-        ctx.font = 'bold 20px Cinzel, serif';
+        ctx.font = 'bold 20px serif';
         ctx.fillStyle = isMe ? '#f0d080' : '#ffffff';
         ctx.textAlign = 'center';
         ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
         ctx.fillText(name.toUpperCase(), 128, 40);
-        const tex = new THREE.CanvasTexture(canvas);
+        const tex = new THREE.CanvasTexture(cnv);
         const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
         label.position.y = 2.3;
         label.scale.set(2.5, 0.6, 1);
@@ -1185,7 +1051,7 @@ function createHuman(color, name, isMe) {
     }
 
     group.add(leftLeg, rightLeg, lb, rb, body, belt, ls, rs, leftArmGrp, rightArmGrp, neck, head);
-    group.userData = { rightArmGroup: rightArmGrp, toolSlot, leftLeg, rightLeg, phase: Math.random()*Math.PI*2, isMe };
+    group.userData = { rightArmGroup: rightArmGrp, toolSlot, leftLeg, rightLeg, phase: Math.random()*Math.PI*2 };
     return group;
 }
 
@@ -1200,8 +1066,6 @@ function spawnResource(x, z) {
             new THREE.MeshStandardMaterial({ color: 0x5d3a1a, roughness: 1 })
         );
         trunk.position.y = h/2; trunk.castShadow = true;
-
-        // Layered leaves
         [0, 0.7, 1.3].forEach((yo, i) => {
             const leaves = new THREE.Mesh(
                 new THREE.ConeGeometry(1.4-i*0.3, 1.2, 8),
@@ -1220,7 +1084,6 @@ function spawnResource(x, z) {
             new THREE.MeshStandardMaterial({ color: 0x7f7f7f, roughness: 0.9, metalness: 0.1 })
         );
         rock.position.y = r*0.5; rock.castShadow = true;
-        // Small rocks around
         for(let i=0; i<2; i++) {
             const sr = new THREE.Mesh(
                 new THREE.DodecahedronGeometry(r*0.4, 1),
@@ -1244,32 +1107,28 @@ function updateEquippedTool() {
     while(slot.children.length > 0) slot.remove(slot.children[0]);
     let m;
     if(inv.sword > 0) {
-        const swordGrp = new THREE.Group();
+        const sg = new THREE.Group();
         const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.04), new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.1 }));
         blade.position.y = 0.4;
         const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), new THREE.MeshStandardMaterial({ color: 0x8b6914, metalness: 0.7 }));
         guard.position.y = 0.05;
         const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
         grip.position.y = -0.1;
-        swordGrp.add(blade, guard, grip);
-        m = swordGrp;
+        sg.add(blade, guard, grip); m = sg;
     } else if(inv.axe > 0) {
-        const axeGrp = new THREE.Group();
+        const ag = new THREE.Group();
         const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
         handle.position.y = 0.35;
         const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.08), new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.7 }));
         head.position.set(0.12, 0.65, 0);
-        axeGrp.add(handle, head);
-        m = axeGrp;
+        ag.add(handle, head); m = ag;
     } else if(inv.pickaxe > 0) {
-        const pickGrp = new THREE.Group();
+        const pg = new THREE.Group();
         const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x5d3a1a }));
         handle.position.y = 0.35;
         const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.08), new THREE.MeshStandardMaterial({ color: 0x95a5a6, metalness: 0.7 }));
-        head.position.set(0, 0.68, 0);
-        head.rotation.z = 0.3;
-        pickGrp.add(handle, head);
-        m = pickGrp;
+        head.position.set(0, 0.68, 0); head.rotation.z = 0.3;
+        pg.add(handle, head); m = pg;
     }
     if(m) slot.add(m);
 }
@@ -1280,7 +1139,6 @@ function performAttack() {
     const arm = myPlayer.userData.rightArmGroup;
     arm.rotation.x = -Math.PI/1.3;
     setTimeout(() => arm.rotation.x = 0, 180);
-
     const reach = 4;
     for(let i = worldObjects.length-1; i>=0; i--) {
         const obj = worldObjects[i];
@@ -1383,7 +1241,6 @@ function setupControls() {
         }
     }, {passive: true});
 
-    // Keyboard for desktop
     const keys = {};
     window.addEventListener('keydown', e => keys[e.code]=true);
     window.addEventListener('keyup', e => keys[e.code]=false);
@@ -1392,8 +1249,6 @@ function setupControls() {
         if(e.code==='KeyF') performAttack();
         if(e.code==='KeyE') toggleCraft();
     });
-
-    // Mouse look for desktop
     window.addEventListener('mousemove', e => {
         if(document.pointerLockElement === document.body) {
             camYaw -= e.movementX * 0.003;
@@ -1402,8 +1257,6 @@ function setupControls() {
     renderer.domElement.addEventListener('click', () => {
         if(!document.pointerLockElement) renderer.domElement.requestPointerLock();
     });
-
-    // Store keys for update
     window._keys = keys;
 }
 
@@ -1417,20 +1270,17 @@ function animate() {
 
     if(myPlayer) {
         const speed = 0.12 * dt;
-        let moved = false;
         const keys = window._keys || {};
-
-        // Keyboard movement
         const kx = (keys['KeyA']?-1:0)+(keys['KeyD']?1:0);
         const kz = (keys['KeyW']?-1:0)+(keys['KeyS']?1:0);
+        let moved = false;
+
         if(kx !== 0 || kz !== 0) {
             myPlayer.position.x += (Math.sin(camYaw)*kz + Math.cos(camYaw)*kx) * speed;
             myPlayer.position.z += (Math.cos(camYaw)*kz - Math.sin(camYaw)*kx) * speed;
             myPlayer.rotation.y = camYaw + Math.atan2(kx, kz);
             moved = true;
         }
-
-        // Joystick
         if(joystickData.active) {
             const jx = joystickData.x, jy = joystickData.y;
             myPlayer.position.x += (Math.sin(camYaw)*-jy + Math.cos(camYaw)*-jx) * speed;
@@ -1439,29 +1289,23 @@ function animate() {
             moved = true;
         }
 
-        // Clamp to world
         myPlayer.position.x = Math.max(-140, Math.min(140, myPlayer.position.x));
         myPlayer.position.z = Math.max(-140, Math.min(140, myPlayer.position.z));
-
-        // Gravity / Jump
         myPlayer.position.y += velocityY;
         if(myPlayer.position.y > 0) velocityY -= 0.015 * dt;
         else { myPlayer.position.y = 0; velocityY = 0; isGrounded = true; }
 
-        // Walk animation
         const p = myPlayer.userData.phase;
         if(moved) myPlayer.userData.phase += 0.18 * dt;
         myPlayer.userData.leftLeg.rotation.x = moved ? Math.sin(p)*0.5 : 0;
         myPlayer.userData.rightLeg.rotation.x = moved ? -Math.sin(p)*0.5 : 0;
 
-        // Camera follow
         camera.position.x = myPlayer.position.x - Math.sin(camYaw)*9;
         camera.position.z = myPlayer.position.z - Math.cos(camYaw)*9;
         camera.position.y = myPlayer.position.y + 6;
         camera.lookAt(myPlayer.position.x, myPlayer.position.y+1.2, myPlayer.position.z);
     }
 
-    // Animate fire light flicker
     worldObjects.forEach(obj => {
         if(obj.type === 'fire' && obj.light) {
             obj.light.intensity = 1.5 + Math.sin(Date.now()*0.01)*0.5 + Math.random()*0.3;
@@ -1472,7 +1316,6 @@ function animate() {
         }
     });
 
-    // Animate fake players
     Object.values(fakePlayers).forEach(fp => {
         fp.mesh.position.x += (Math.random()-0.5)*0.02;
         fp.mesh.position.z += (Math.random()-0.5)*0.02;
@@ -1492,9 +1335,7 @@ function minimapLoop() {
     function draw() {
         ctx.fillStyle = '#0a1a0a';
         ctx.fillRect(0,0,100,100);
-        const scale = 0.6;
-        const cx = 50, cy = 50;
-        // Draw resources
+        const scale = 0.6, cx = 50, cy = 50;
         worldObjects.forEach(obj => {
             if(!obj.userData || obj.userData.type === 'cloud' || obj.userData.type === 'fire') return;
             const mx = cx + obj.position.x*scale, my = cy + obj.position.z*scale;
@@ -1502,13 +1343,11 @@ function minimapLoop() {
             ctx.fillStyle = obj.userData.type === 'wood' ? '#3a8c3a' : '#7f7f7f';
             ctx.fillRect(mx-1,my-1,2,2);
         });
-        // Fake players
         Object.values(fakePlayers).forEach(fp => {
             const mx = cx+fp.mesh.position.x*scale, my = cy+fp.mesh.position.z*scale;
             ctx.fillStyle = '#e74c3c';
             ctx.beginPath(); ctx.arc(mx,my,2,0,Math.PI*2); ctx.fill();
         });
-        // My player
         if(myPlayer) {
             const mx = cx+myPlayer.position.x*scale, my = cy+myPlayer.position.z*scale;
             ctx.fillStyle = '#f0d080';
@@ -1520,7 +1359,6 @@ function minimapLoop() {
 }
 
 function fakeBotLoop() {
-    // Occasionally add kill feed entries
     setInterval(() => {
         const names = fakePlayerNames;
         const a = names[Math.floor(Math.random()*names.length)];
