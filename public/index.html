@@ -796,7 +796,7 @@ socket.on('usernameAvailable', (data) => {
 // ═══════════════════════════════════════════════
 const socket = io();
 
-// ─ Auto-login from session ─
+// ─ Auto-login from session (sayfa yenilemede otomatik giriş) ─
 const _sess = loadSession();
 if (_sess && _sess.token) {
     socket.emit('loginWithToken', _sess.token);
@@ -841,8 +841,6 @@ function doForgotPassword() {
     }
     hideMsg('msg-forgot');
     socket.emit('forgotPassword', { email });
-    showMsg('msg-forgot', 'success', 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
-    document.getElementById('forgot-email').value = '';
 }
 
 // ── Email Verify ──
@@ -876,19 +874,25 @@ document.addEventListener('keydown', e => {
 
 // ── Socket Auth Events ──
 socket.on('loginSuccess', (data) => {
+    // Backend token + username gönderirse oturumu kaydet
     if (data && data.token) saveSession({ token: data.token, username: data.username });
     startLoadingSequence();
 });
 
 socket.on('registerSuccess', (data) => {
     pendingVerifyUser = data.username;
-    showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanızı doğrulayın.');
+    showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanıza doğrulama kodu gönderildi.');
     setTimeout(() => switchTab('verify'), 1200);
 });
 
 socket.on('verifySuccess', () => {
     showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
-    setTimeout(() => startLoadingSequence(), 1000);
+    // loginSuccess zaten backend'den gelecek, startLoadingSequence orada tetiklenir
+});
+
+socket.on('forgotPasswordSent', () => {
+    showMsg('msg-forgot', 'success', 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
+    document.getElementById('forgot-email').value = '';
 });
 
 socket.on('loginError', (msg) => {
@@ -991,6 +995,7 @@ function initThree(canvas) {
     scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
 
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+    // 3rd person: camera starts behind player
     camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -1106,6 +1111,7 @@ function createRock(x, z, id) {
 function createPlayerMesh(color) {
     const group = new THREE.Group();
     const skinColor = color || 0xc9a84c;
+    const armorColor = new THREE.Color(skinColor).multiplyScalar(0.4).getHex();
     const darkColor = 0x1a1206;
 
     const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
@@ -1118,7 +1124,7 @@ function createPlayerMesh(color) {
     head.position.y = 1.72; head.castShadow = true;
     group.add(head);
 
-    // Hair
+    // Hair (top)
     const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.14, 0.44), darkMat);
     hair.position.y = 1.99;
     group.add(hair);
@@ -1128,34 +1134,41 @@ function createPlayerMesh(color) {
     neck.position.y = 1.44;
     group.add(neck);
 
-    // -- Torso --
+    // -- Torso (chest + waist) --
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.28), armorMat);
     chest.position.y = 1.18; chest.castShadow = true;
     group.add(chest);
 
+    // Chest plate detail
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.3, 0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
     plate.position.set(0, 1.18, 0.17);
     group.add(plate);
 
+    // Belly/waist
     const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.24), armorMat);
     waist.position.y = 0.88;
     group.add(waist);
 
+    // Belt
     const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, 0.26), beltMat);
     belt.position.y = 0.78;
     group.add(belt);
 
     // -- Arms --
-    [-0.32, 0.32].forEach((ox) => {
+    [-0.32, 0.32].forEach((ox, i) => {
+        // Upper arm
         const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 0.18), armorMat);
         ua.position.set(ox, 1.08, 0); ua.castShadow = true;
         group.add(ua);
+        // Elbow
         const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 4), armorMat);
         elbow.position.set(ox, 0.88, 0);
         group.add(elbow);
+        // Forearm
         const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.15), skinMat);
         fa.position.set(ox, 0.68, 0); fa.castShadow = true;
         group.add(fa);
+        // Hand
         const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.12), skinMat);
         hand.position.set(ox, 0.5, 0);
         group.add(hand);
@@ -1163,21 +1176,25 @@ function createPlayerMesh(color) {
 
     // -- Legs --
     [-0.14, 0.14].forEach(ox => {
+        // Upper leg
         const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.22), armorMat);
         ul.position.set(ox, 0.45, 0); ul.castShadow = true;
         group.add(ul);
+        // Knee
         const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), armorMat);
         knee.position.set(ox, 0.25, 0);
         group.add(knee);
+        // Lower leg
         const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.38, 0.19), darkMat);
         ll.position.set(ox, 0.04, 0); ll.castShadow = true;
         group.add(ll);
+        // Foot/boot
         const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.28), darkMat);
         boot.position.set(ox, -0.17, 0.04);
         group.add(boot);
     });
 
-    // Sword on back
+    // Sword on back (decorative)
     const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
     swordBlade.position.set(0.28, 0.95, -0.18); swordBlade.rotation.z = 0.2;
     group.add(swordBlade);
@@ -1191,6 +1208,7 @@ socket.on('currentPlayers', (players) => {
         if (p.id === socket.id) {
             myPlayer = p;
             document.getElementById('player-name-display').textContent = p.username.toUpperCase();
+            // spawn own player mesh (visible in 3rd person)
             playerMesh = createPlayerMesh(p.color);
             playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
             scene.add(playerMesh);
@@ -1268,6 +1286,7 @@ function updateOnlineCount(n) {
 //  INPUT
 // ═══════════════════════════════════════════════
 function setupInput(canvas) {
+    // 3rd person: right-click drag to rotate camera
     let mouseDown = false;
     let lastMouseX = 0, lastMouseY = 0;
 
@@ -1297,6 +1316,7 @@ function setupInput(canvas) {
         if (e.code === 'Space') tryJump();
     });
 
+    // Scroll wheel to adjust camera distance
     canvas.addEventListener('wheel', (e) => {}, { passive: true });
 }
 
@@ -1400,17 +1420,20 @@ function gameLoop() {
     playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
     playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
 
+    // Update player mesh
     if (playerMesh) {
         playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
         playerMesh.rotation.y = yaw + Math.PI;
     }
 
+    // 3rd person camera: orbit around player
     const camOffX = -Math.sin(yaw) * CAM_DISTANCE;
     const camOffZ = -Math.cos(yaw) * CAM_DISTANCE;
     const targetCamX = playerPos.x - camOffX;
     const targetCamY = playerPos.y + CAM_HEIGHT + pitch * 2;
     const targetCamZ = playerPos.z - camOffZ;
 
+    // Smooth camera follow
     camera.position.x += (targetCamX - camera.position.x) * 0.15;
     camera.position.y += (targetCamY - camera.position.y) * 0.15;
     camera.position.z += (targetCamZ - camera.position.z) * 0.15;
@@ -1428,6 +1451,7 @@ function gameLoop() {
         });
     }
 
+    // Save session position every 5 seconds
     sessionSaveTimer++;
     if (sessionSaveTimer > 300) {
         sessionSaveTimer = 0;
