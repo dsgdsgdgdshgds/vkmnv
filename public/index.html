@@ -524,7 +524,7 @@
                     <button class="captcha-refresh" onclick="refreshCaptcha()" title="Yenile">↺</button>
                     <input type="text" id="reg-captcha" class="field-input" placeholder="Kodu girin" style="margin-bottom:0; flex:1; padding:8px 12px; font-size:13px;">
                 </div>
-                <button class="btn-enter" onclick="attemptRegister()">📜 KAHRAMANI YARAT</button>
+                <button class="btn-enter" onclick="attemptRegister()">📜 KAHRAMANI OLUŞTUR</button>
             </div>
         </div>
     </div>
@@ -693,7 +693,7 @@ function attemptRegister() {
 
     users[u.toLowerCase()] = { username: u, password: btoa(p), color: Math.floor(Math.random()*0xffffff) };
     saveUsers(users);
-    showMsg('msg-register','success','Kahraman yaratıldı! Giriş yapılıyor...');
+    showMsg('msg-register','success','Kahraman oluşturuldu! Giriş yapılıyor...');
     setTimeout(() => { switchTab('login'); document.getElementById('login-user').value = u; }, 1500);
 }
 
