@@ -402,7 +402,7 @@
                     <label class="field-label">🔒 Şifre</label>
                     <input type="password" id="login-pass" class="field-input" placeholder="Şifreniz..." autocomplete="current-password">
                 </div>
-                <button class="btn-enter" onclick="doLogin()">⚔ ALEME GİR ⚔</button>
+                <button class="btn-enter" onclick="doLogin()">⚔ DÜNYAYA GİR ⚔</button>
             </div>
 
             <!-- REGISTER -->
@@ -428,7 +428,7 @@
                     <button class="captcha-refresh" onclick="refreshCaptcha()" title="Yenile">↻</button>
                     <input type="text" id="captcha-input" class="field-input" placeholder="Kodu girin..." style="flex:1">
                 </div>
-                <button class="btn-enter" onclick="doRegister()">📜 EFSANE YARAT 📜</button>
+                <button class="btn-enter" onclick="doRegister()">📜 KAHRAMAN OLUŞTUR 📜</button>
             </div>
         </div>
     </div>
@@ -861,7 +861,7 @@ socket.on('currentPlayers', (players) => {
 socket.on('newPlayer', (p) => {
     if (p.id !== socket.id) addOtherPlayer(p);
     updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
-    addKillFeed(`⚔ ${p.username} aleme katıldı`);
+    addKillFeed(`⚔ ${p.username} dünyaya katıldı`);
 });
 
 socket.on('playerMoved', (p) => {
