@@ -94,6 +94,7 @@ function getUserCooldownUntil(userId, guildId) {
     return cooldowns[key] || 0;
 }
 
+
 // Süre ve Format Fonksiyonları
 function parseDuration(str) {
     if (!str || str === '0') return 0;
