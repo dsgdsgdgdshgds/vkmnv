@@ -218,8 +218,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const playersDataPath = path.join(__dirname, 'players.json');
 
 // ── NODEMAILER YAPILANDIRMASI ──
