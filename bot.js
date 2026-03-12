@@ -15,9 +15,20 @@ const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 const path = require('path');
-const crypto = require('crypto'); // EKSİKTİ EKLENDİ
-const nodemailer = require('nodemailer'); // EKSİKTİ EKLENDİ
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
+// ────────────────────────────────────────────────
+// GENEL AYARLAR VE PORT
+// ────────────────────────────────────────────────
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.PORT || 3000;
+
+// ────────────────────────────────────────────────
+// DISCORD BOT BAŞLATMA
+// ────────────────────────────────────────────────
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -26,76 +37,54 @@ const client = new Client({
     ]
 });
 
-// PORT Tanımı (Çift tanım teke indirildi)
-const PORT = process.env.PORT || 3000;
-
 // ────────────────────────────────────────────────
 // KALICI DİSK YOLLARI
 // ────────────────────────────────────────────────
 const dbPath = '/var/data/kanal-ayar.json';
 const cooldownPath = '/var/data/partner-cooldowns.json';
-const playersDataPath = '/var/data/players_db.json'; // Alttaki ile birleştirildi
+const playersDataPath = path.join(__dirname, 'players.json'); // Oyun verisi
 
-// Klasör ve Dosyaların Kontrolü
+// Klasör Kontrolü
 if (!fs.existsSync('/var/data')) {
     try { fs.mkdirSync('/var/data', { recursive: true }); } catch (e) {}
 }
 
-[dbPath, cooldownPath, playersDataPath].forEach(p => {
-    if (!fs.existsSync(p)) {
-        try { fs.writeFileSync(p, JSON.stringify({}, null, 2), 'utf8'); } catch (e) {}
-    }
-});
-
 // ────────────────────────────────────────────────
-// DATABASE YARDIMCI FONKSİYONLARI
+// DATABASE YARDIMCI FONKSİYONLARI (Discord)
 // ────────────────────────────────────────────────
 function dbSet(key, value) {
     let data = {};
-    try {
-        data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    } catch (err) { console.error('Ayar JSON okuma hatası:', err); }
+    try { data = JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch (err) {}
     data[key] = value;
-    try {
-        fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) { console.error('Ayar JSON yazma hatası:', err); }
+    try { fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8'); } catch (err) {}
 }
 
 function dbGet(key) {
     try {
         const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
         return data[key] ?? null;
-    } catch (err) { 
-        console.error('Ayar JSON okuma hatası (get):', err);
-        return null; 
-    }
+    } catch (err) { return null; }
 }
 
 function getCooldowns() {
-    try { return JSON.parse(fs.readFileSync(cooldownPath, 'utf8')); }
-    catch (err) { console.error('Cooldown JSON okuma hatası:', err); return {}; }
+    try { return JSON.parse(fs.readFileSync(cooldownPath, 'utf8')); } catch (err) { return {}; }
 }
 
 function saveCooldowns(cooldowns) {
-    try { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); }
-    catch (err) { console.error('Cooldown JSON yazma hatası:', err); }
+    try { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); } catch (err) {}
 }
 
 function setUserCooldown(userId, guildId, untilTimestamp) {
     const cooldowns = getCooldowns();
-    const key = `${userId}_${guildId}`; 
-    cooldowns[key] = untilTimestamp;
+    cooldowns[`${userId}_${guildId}`] = untilTimestamp;
     saveCooldowns(cooldowns);
 }
 
 function getUserCooldownUntil(userId, guildId) {
     const cooldowns = getCooldowns();
-    const key = `${userId}_${guildId}`;
-    return cooldowns[key] || 0;
+    return cooldowns[`${userId}_${guildId}`] || 0;
 }
 
-
-// Süre ve Format Fonksiyonları
 function parseDuration(str) {
     if (!str || str === '0') return 0;
     const regex = /(\d+)([smhd])/gi;
@@ -112,223 +101,133 @@ function parseDuration(str) {
 }
 
 function formatRemaining(ms) {
-    if (ms <= 0) return "0 saniye";
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s} saniye`;
-    const m = Math.floor(s / 60); const sn = s % 60;
-    if (m < 60) return `${m} dk${sn > 0 ? ` ${sn} sn` : ''}`;
-    const h = Math.floor(m / 60); const dk = m % 60;
-    if (h < 24) return `${h} saat${dk > 0 ? ` ${dk} dk` : ''}`;
-    const d = Math.floor(h / 24); const saat = h % 24;
-    return `${d} gün${saat > 0 ? ` ${saat} saat` : ''}`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} dk`;
+    const h = Math.floor(m / 60);
+    return `${h} saat`;
 }
-
-const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
-1. #partner-yetkili @rol  
-2. #partner-sistem #kanal  
-3. #partner-kanal #kanal  
-4. #partner-log #kanal  
-5. #partner-mesaj ← bu zorunlu!  
-6. #partner-bekleme 30m ← opsiyonel`;
 
 // ────────────────────────────────────────────────
 // DISCORD BOT KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
-
     const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
     const args = message.content.trim().split(/ +/).slice(1).join(' ');
 
-    if (prefix === '#yardım' || prefix === '#help') {
+    if (prefix === '#yardım') {
         const embed = new EmbedBuilder()
             .setTitle('Partner Bot Komutları')
             .setColor('#00D166')
-            .setDescription('Partnerlik başvuru sistemini kurmak için aşağıdaki komutları kullanın.')
             .addFields(
-                { name: '#partner-yetkili @rol', value: 'Başvuru sistemini başlatacak yetkili rolü', inline: true },
-                { name: '#partner-sistem #kanal', value: 'Başvuru butonunun görüneceği kanal', inline: true },
-                { name: '#partner-kanal #kanal', value: 'Onaylanan tanıtım metninin gönderileceği kanal', inline: true },
-                { name: '#partner-log #kanal', value: 'Başarılı başvuru log kanalı', inline: true },
-                { name: '#partner-mesaj', value: 'Başvuru sonrası kullanıcıya gidecek sunucu textiniz\n**Zorunlu ayardır!**', inline: false },
-                { name: '#partner-bekleme [süre]', value: 'Aynı kullanıcının tekrar başvuru yapabilmesi için bekleme süresi\nÖr: 30m, 2h, 1d, 0 (kapatmak için)', inline: false }
-            )
-            .addFields({ name: 'Kurulum Sırası', value: KURULUM_SIRASI, inline: false })
-            .setFooter({ text: 'Tüm ayarlar sunucuya özeldir' });
-
+                { name: '#partner-yetkili @rol', value: 'Yetkili rolü', inline: true },
+                { name: '#partner-sistem #kanal', value: 'Başvuru kanalı', inline: true },
+                { name: '#partner-kanal #kanal', value: 'Reklam kanalı', inline: true },
+                { name: '#partner-log #kanal', value: 'Log kanalı', inline: true },
+                { name: '#partner-mesaj', value: 'Davet metni', inline: false },
+                { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false }
+            );
         return message.channel.send({ embeds: [embed] });
     }
 
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
-        if (!target) return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
+        if (!target) return message.reply('⚠️ Rol etiketle!');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply(`✅ Partner yetkili rolü ayarlandı\n\n**Sonraki adım:** #partner-sistem #kanal`);
+        return message.reply('✅ Ayarlandı.');
     }
 
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Başvuru butonu kanalı ayarlandı\n\n**Sonraki adım:** #partner-kanal #kanal`);
+        return message.reply('✅ Ayarlandı.');
     }
 
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı\n\n**Sonraki adım:** #partner-log #kanal`);
+        return message.reply('✅ Ayarlandı.');
     }
 
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Log kanalı ayarlandı\n\n**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
+        return message.reply('✅ Ayarlandı.');
     }
 
     if (prefix === '#partner-mesaj') {
-        if (!args.trim()) {
-            return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
-        }
+        if (!args.trim()) return message.reply('⚠️ Metin gir!');
         dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply(`✅ Davet mesajı kaydedildi\n\nArtık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
+        return message.reply('✅ Kaydedildi.');
     }
 
     if (prefix === '#partner-bekleme') {
-        if (!args.trim()) {
-            const current = dbGet(`cooldown_${message.guild.id}`) || "ayarlanmamış";
-            return message.reply(`Mevcut bekleme süresi: **${current}**\n\nKullanım:\n\`#partner-bekleme 30m\`\n\`#partner-bekleme 2h30m\`\n\`#partner-bekleme 0\` → kapatmak için`);
-        }
-
         if (args === '0') {
             dbSet(`cooldown_${message.guild.id}`, null);
-            return message.reply('✅ Partner bekleme süresi **kapatıldı**.');
+            return message.reply('✅ Kapatıldı.');
         }
-
-        const ms = parseDuration(args);
-        if (ms < 1000) {
-            return message.reply('❌ Geçersiz süre formatı.\nDesteklenen birimler: s, m, h, d\nÖrnek: 45s, 30m, 1h, 2h30m, 1d');
-        }
-
         dbSet(`cooldown_${message.guild.id}`, args);
-        return message.reply(`✅ Partnerlik sonrası bekleme süresi **${args}** olarak ayarlandı.`);
+        return message.reply(`✅ ${args} olarak ayarlandı.`);
     }
 
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
-        if (!sistemKanalId || message.channel.id !== sistemKanalId) return;
-
-        const embed = new EmbedBuilder()
-            .setTitle('🤝 Partnerlik Başvurusu')
-            .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın.\n<@${message.author.id}>`)
-            .setColor('#00D166')
-            .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() });
+        if (message.channel.id !== sistemKanalId) return;
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('p_basvuru').setLabel('Başvuru Yap').setStyle(ButtonStyle.Success)
         );
-        await message.channel.send({ embeds: [embed], components: [row] });
+        await message.channel.send({ content: '🤝 Partnerlik Başvurusu', components: [row] });
     }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isButton() && !interaction.isModalSubmit()) return;
-
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
-        const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Partnerlik Başvurusu');
-        const input = new TextInputBuilder()
-            .setCustomId('p_text')
-            .setLabel('Sunucu Tanıtım Metni')
-            .setPlaceholder('Sunucunuzün tanıtım yazısını buraya yapıştırın...')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true);
+        const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Başvuru');
+        const input = new TextInputBuilder().setCustomId('p_text').setLabel('Tanıtım Metni').setStyle(TextInputStyle.Paragraph).setRequired(true);
         modal.addComponents(new ActionRowBuilder().addComponents(input));
         await interaction.showModal(modal);
     }
 
     if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
         await interaction.deferReply({ ephemeral: true });
-        const guildId = interaction.guild.id;
-        const userId = interaction.user.id;
-        const cooldownStr = dbGet(`cooldown_${guildId}`);
-
-        if (cooldownStr && cooldownStr !== '0') {
-            const now = Date.now();
-            const userUntil = getUserCooldownUntil(userId, guildId);
-            if (userUntil > now) {
-                const remainingText = formatRemaining(userUntil - now);
-                return interaction.editReply({ 
-                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
-                    ephemeral: true 
-                });
-            }
+        const cooldownStr = dbGet(`cooldown_${interaction.guild.id}`);
+        if (cooldownStr) {
+            const until = getUserCooldownUntil(interaction.user.id, interaction.guild.id);
+            if (until > Date.now()) return interaction.editReply(`⏳ Beklemelisin: ${formatRemaining(until - Date.now())}`);
         }
 
         const text = interaction.fields.getTextInputValue('p_text');
-        const reklamKanalId = dbGet(`reklamKanal_${guildId}`);
-        const logKanalId = dbGet(`logKanal_${guildId}`);
-        const davetMesaji = dbGet(`davetMesaji_${guildId}`);
-
-        if (!davetMesaji) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor('#FF5555')
-                .setTitle('❌ Eksik Ayar')
-                .setDescription('Sunucu sahibi `#partner-mesaj` komutunu kullanarak davet mesajını ayarlamamış.\nBaşvuru şu an mümkün değil.');
-            return interaction.editReply({ embeds: [errorEmbed], ephemeral: true });
-        }
-
+        const reklamKanalId = dbGet(`reklamKanal_${interaction.guild.id}`);
+        const davet = dbGet(`davetMesaji_${interaction.guild.id}`);
+        
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
-            if (ch) await ch.send(text).catch(() => {});
+            if (ch) ch.send(text);
         }
 
-        if (logKanalId) {
-            const ch = interaction.client.channels.cache.get(logKanalId);
-            if (ch) {
-                const logEmbed = new EmbedBuilder()
-                    .setColor('#00D166')
-                    .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${interaction.user}\n**Kullanıcı Adı:** ${interaction.user.tag}\n**Kullanıcı ID:** ${interaction.user.id}\n**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-                    .setTimestamp();
-                await ch.send({ embeds: [logEmbed] }).catch(() => {});
-            }
-        }
-
-        if (cooldownStr && cooldownStr !== '0') {
-            const ms = parseDuration(cooldownStr);
-            if (ms > 0) setUserCooldown(userId, guildId, Date.now() + ms);
-        }
-
-        try {
-            await interaction.followUp({ content: davetMesaji, ephemeral: true });
-            await interaction.followUp({
-                content: `**${interaction.user} Partnerlik başarılı!**`,
-                ephemeral: false,
-                allowedMentions: { parse: ['users'] }
-            });
-        } catch (err) {
-            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
-        }
+        if (cooldownStr) setUserCooldown(interaction.user.id, interaction.guild.id, Date.now() + parseDuration(cooldownStr));
+        await interaction.editReply(davet || "✅ Başarılı!");
     }
 });
 
 // ────────────────────────────────────────────────
-// EXPRESS / SOCKET.IO SUNUCUSU
+// OYUN SUNUCUSU AYARLARI (GÜNCEL HALİ)
 // ────────────────────────────────────────────────
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 const transporter = nodemailer.createTransport({
     service: 'gmail', 
     auth: {
-        user: 'atlaswarfare.com@gmail.com', 
-        pass: 'actd oipe dhmi dyvi'         
+        user: 'atlaswarfare.com@gmail.com',
+        pass: 'Actd oipe dhmi dyvi'
     }
 });
 
@@ -337,43 +236,21 @@ const pendingVerifications = {};
 const passwordResetTokens = {};  
 let activePlayers = {};
 
-function generateToken() {
-    return crypto.randomBytes(32).toString('hex');
-}
+function generateToken() { return crypto.randomBytes(32).toString('hex'); }
+function generateVerifyCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
 
 async function sendEmail(to, subject, body) {
-    const mailOptions = {
-        from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
-        to: to,
-        subject: subject,
-        text: body
-    };
-    try {
-        await transporter.sendMail(mailOptions);
-    } catch (error) {
-        console.error(`E-posta gönderim hatası:`, error);
-    }
-}
-
-function generateVerifyCode() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    const mailOptions = { from: '"Survival Evolution" <GMAIL_ADRESINIZ@gmail.com>', to, subject, text: body };
+    try { await transporter.sendMail(mailOptions); } catch (error) { console.error(error); }
 }
 
 io.on('connection', (socket) => {
     socket.on('loginWithToken', (token) => {
         const username = sessionTokens[token];
-        if (!username) {
-            socket.emit('loginError', 'Oturum süresi dolmuş.');
-            return;
-        }
-
+        if (!username) return socket.emit('loginError', 'Oturum süresi dolmuş.');
         let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-
-        if (!allUsers[username]) {
-            socket.emit('loginError', 'Hesap bulunamadı.');
-            return;
-        }
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
+        if (!allUsers[username]) return socket.emit('loginError', 'Hesap bulunamadı.');
 
         activePlayers[socket.id] = { ...allUsers[username], id: socket.id, hp: allUsers[username].hp || 100 };
         socket.emit('loginSuccess', { token, username });
@@ -385,43 +262,105 @@ io.on('connection', (socket) => {
     socket.on('register', (data) => {
         const { username, email, password } = data;
         let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-
-        if (allUsers[username]) {
-            socket.emit('loginError', 'Bu kahraman adı zaten alınmış.');
-            return;
-        }
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
+        if (allUsers[username]) return socket.emit('loginError', 'Bu ad alınmış.');
 
         const code = generateVerifyCode();
-        pendingVerifications[username] = {
-            code, email, password,
-            userData: { username, email, password, x: 0, y: 0, z: 0, hp: 100, inventory: {}, verified: false }
-        };
-
-        sendEmail(email, 'E-posta Doğrulama', `Kodunuz: ${code}`);
+        pendingVerifications[username] = { code, email, password, userData: { username, email, password, x: 0, y: 0, z: 0, color: Math.floor(Math.random() * 16777215), hp: 100, inventory: { wood: 0, stone: 0, sword: 0, pickaxe: 0, axe: 0 }, verified: false } };
+        sendEmail(email, '⚔️ Doğrulama', `Kodun: ${code}`);
         socket.emit('registerSuccess', { username });
     });
 
     socket.on('verifyEmail', (data) => {
         const { username, code } = data;
         const pending = pendingVerifications[username];
-        if (!pending || pending.code !== code) {
-            socket.emit('loginError', 'Hatalı kod.');
-            return;
-        }
+        if (!pending || pending.code !== code) return socket.emit('loginError', 'Kod hatalı.');
 
         let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
         pending.userData.verified = true;
         allUsers[username] = pending.userData;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+        delete pendingVerifications[username];
 
         const token = generateToken();
         sessionTokens[token] = username;
+        activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
         socket.emit('verifySuccess');
         socket.emit('loginSuccess', { token, username });
     });
+
+    socket.on('login', (data) => {
+        const { username, password } = data;
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
+        let foundUser = allUsers[username] || Object.values(allUsers).find(u => u.email === username);
+        if (!foundUser || foundUser.password !== password) return socket.emit('loginError', 'Hatalı giriş.');
+        if (!foundUser.verified) return socket.emit('loginError', 'Doğrulanmamış.');
+
+        const token = generateToken();
+        sessionTokens[token] = foundUser.username;
+        activePlayers[socket.id] = { ...foundUser, id: socket.id };
+        socket.emit('loginSuccess', { token, username: foundUser.username });
+        socket.emit('updateInventory', activePlayers[socket.id].inventory);
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+    });
+
+    socket.on('playerMovement', (data) => {
+        if (activePlayers[socket.id]) {
+            activePlayers[socket.id].x = data.x;
+            activePlayers[socket.id].y = data.y || 0;
+            activePlayers[socket.id].z = data.z;
+            activePlayers[socket.id].rotationY = data.rotationY;
+            socket.broadcast.emit('playerMoved', activePlayers[socket.id]);
+        }
+    });
+
+    socket.on('collect', (resourceType) => {
+        const p = activePlayers[socket.id];
+        if (p && (resourceType === 'wood' || resourceType === 'stone')) {
+            p.inventory[resourceType] += 1;
+            socket.emit('updateInventory', p.inventory);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if (activePlayers[socket.id]) {
+            try {
+                let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+                const p = activePlayers[socket.id];
+                allUsers[p.username].inventory = p.inventory;
+                allUsers[p.username].x = p.x || 0;
+                allUsers[p.username].hp = p.hp;
+                fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+            } catch (e) {}
+            delete activePlayers[socket.id];
+            io.emit('playerDisconnected', socket.id);
+        }
+    });
 });
 
-server.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
+// ────────────────────────────────────────────────
+// HTTP ENDPOINTS (Şifre Sıfırlama)
+// ────────────────────────────────────────────────
+app.get('/reset-password', (req, res) => {
+    const { token } = req.query;
+    if (!passwordResetTokens[token] || Date.now() > passwordResetTokens[token].expires) return res.send("Bağlantı geçersiz.");
+    res.send(`<h2>Şifre Sıfırla</h2><input type="password" id="p1"><button onclick="fetch('/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:'${token}',password:document.getElementById('p1').value})}).then(r=>r.json()).then(d=>alert(d.success?'Tamam':'Hata'))">Güncelle</button>`);
+});
+
+app.post('/reset-password', (req, res) => {
+    const { token, password } = req.body;
+    const data = passwordResetTokens[token];
+    if (!data || Date.now() > data.expires) return res.json({ success: false });
+    let users = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+    users[data.username].password = password;
+    fs.writeFileSync(playersDataPath, JSON.stringify(users, null, 2));
+    delete passwordResetTokens[token];
+    res.json({ success: true });
+});
+
+// Başlatma
+server.listen(PORT, () => console.log(`[✓] Sunucu Port ${PORT} aktif.`));
 client.login(process.env.token);
