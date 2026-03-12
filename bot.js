@@ -245,7 +245,7 @@ function generateVerifyCode() { return String(Math.floor(100000 + Math.random() 
 // ── GERÇEK E-POSTA GÖNDERİCİ ──
 async function sendEmail(to, subject, body) {
     const mailOptions = {
-        from: '"⚔️ Survival Evolution" <EPOSTA_ADRESIN@gmail.com>',
+        from: '"⚔️ Survival Evolution" <atlaswarfare.com@gmail.com>',
         to: to,
         subject: subject,
         text: body,
