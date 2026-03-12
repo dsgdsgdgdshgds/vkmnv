@@ -227,7 +227,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'atlaswarfare.com@gmail.com', 
-        pass: 'Actd oipe dhmi dyvi' 
+        pass: 'Actdoipedhmidyvi' 
     }
 });
 
@@ -252,7 +252,7 @@ function generateVerifyCode() {
 // GERÇEK E-POSTA GÖNDERİCİ (Güncellendi)
 function sendEmail(to, subject, body) {
     const mailOptions = {
-        from: '"Survival Evolution" <EPOSTA_ADRESIN@gmail.com>',
+        from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
         to: to,
         subject: subject,
         text: body
