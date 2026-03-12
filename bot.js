@@ -218,7 +218,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-const playersDataPath = path.join(__dirname, 'players.json');
+
 
 // ── NODEMAILER YAPILANDIRMASI ──
 // Gmail kullanıyorsanız "Uygulama Şifresi" almanız gerekir.
