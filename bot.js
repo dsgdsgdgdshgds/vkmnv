@@ -15,8 +15,8 @@ const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 const path = require('path');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const crypto = require('crypto'); // EKSİKTİ EKLENDİ
+const nodemailer = require('nodemailer'); // EKSİKTİ EKLENDİ
 
 const client = new Client({
     intents: [
@@ -26,33 +26,24 @@ const client = new Client({
     ]
 });
 
-// PORT Tanımı - Sadece bir kez tanımlanmalıdır
+// PORT Tanımı (Çift tanım teke indirildi)
 const PORT = process.env.PORT || 3000;
 
 // ────────────────────────────────────────────────
 // KALICI DİSK YOLLARI
 // ────────────────────────────────────────────────
-// Render gibi platformlarda /var/data kullanılır, yerelde çalıştırıyorsanız bu klasörü oluşturun.
-const baseDataPath = '/var/data';
-const dbPath = path.join(baseDataPath, 'kanal-ayar.json');
-const cooldownPath = path.join(baseDataPath, 'partner-cooldowns.json');
-const playersDataPath = path.join(baseDataPath, 'players_db.json');
+const dbPath = '/var/data/kanal-ayar.json';
+const cooldownPath = '/var/data/partner-cooldowns.json';
+const playersDataPath = '/var/data/players_db.json'; // Alttaki ile birleştirildi
 
 // Klasör ve Dosyaların Kontrolü
-if (!fs.existsSync(baseDataPath)) {
-    try {
-        fs.mkdirSync(baseDataPath, { recursive: true });
-    } catch (e) {
-        // Eğer /var/data izni yoksa çalışma dizinine oluşturur
-        console.warn("Kalıcı disk yolu bulunamadı, yerel dizin kullanılıyor.");
-    }
+if (!fs.existsSync('/var/data')) {
+    try { fs.mkdirSync('/var/data', { recursive: true }); } catch (e) {}
 }
 
 [dbPath, cooldownPath, playersDataPath].forEach(p => {
-    const dir = path.dirname(p);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(p)) {
-        fs.writeFileSync(p, JSON.stringify({}, null, 2), 'utf8');
+        try { fs.writeFileSync(p, JSON.stringify({}, null, 2), 'utf8'); } catch (e) {}
     }
 });
 
@@ -75,13 +66,14 @@ function dbGet(key) {
         const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
         return data[key] ?? null;
     } catch (err) { 
+        console.error('Ayar JSON okuma hatası (get):', err);
         return null; 
     }
 }
 
 function getCooldowns() {
     try { return JSON.parse(fs.readFileSync(cooldownPath, 'utf8')); }
-    catch (err) { return {}; }
+    catch (err) { console.error('Cooldown JSON okuma hatası:', err); return {}; }
 }
 
 function saveCooldowns(cooldowns) {
@@ -102,6 +94,7 @@ function getUserCooldownUntil(userId, guildId) {
     return cooldowns[key] || 0;
 }
 
+// Süre ve Format Fonksiyonları
 function parseDuration(str) {
     if (!str || str === '0') return 0;
     const regex = /(\d+)([smhd])/gi;
@@ -138,7 +131,7 @@ const KURULUM_SIRASI = `**Önerilen kurulum sırası:**
 6. #partner-bekleme 30m ← opsiyonel`;
 
 // ────────────────────────────────────────────────
-// DISCORD BOT OLAYLARI
+// DISCORD BOT KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
@@ -167,51 +160,58 @@ client.on(Events.MessageCreate, async (message) => {
 
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
-        if (!target) return message.reply('⚠️ Bir rol etiketleyin');
+        if (!target) return message.reply('⚠️ Bir rol etiketleyin\nÖrn: `#partner-yetkili @Yetkili`');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply(`✅ Partner yetkili rolü ayarlandı`);
+        return message.reply(`✅ Partner yetkili rolü ayarlandı\n\n**Sonraki adım:** #partner-sistem #kanal`);
     }
 
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Başvuru butonu kanalı ayarlandı`);
+        return message.reply(`✅ Başvuru butonu kanalı ayarlandı\n\n**Sonraki adım:** #partner-kanal #kanal`);
     }
 
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı`);
+        return message.reply(`✅ Tanıtım gönderim kanalı ayarlandı\n\n**Sonraki adım:** #partner-log #kanal`);
     }
 
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Bir kanal etiketleyin');
         dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply(`✅ Log kanalı ayarlandı`);
+        return message.reply(`✅ Log kanalı ayarlandı\n\n**Sonraki adım:** #partner-mesaj ← bu zorunlu!`);
     }
 
     if (prefix === '#partner-mesaj') {
-        if (!args.trim()) return message.reply('⚠️ Mesaj içeriği yazmalısınız');
+        if (!args.trim()) {
+            return message.reply('⚠️ Mesaj içeriği yazmalısınız\nÖrn:\n```#partner-mesaj\nHoş geldin!\nBurası anime & chill ortamı\ndiscord.gg/abc```');
+        }
         dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply(`✅ Davet mesajı kaydedildi`);
+        return message.reply(`✅ Davet mesajı kaydedildi\n\nArtık sistem hazır! Test için yetkili rolü etiketleyebilirsiniz.`);
     }
 
     if (prefix === '#partner-bekleme') {
         if (!args.trim()) {
             const current = dbGet(`cooldown_${message.guild.id}`) || "ayarlanmamış";
-            return message.reply(`Mevcut bekleme süresi: **${current}**`);
+            return message.reply(`Mevcut bekleme süresi: **${current}**\n\nKullanım:\n\`#partner-bekleme 30m\`\n\`#partner-bekleme 2h30m\`\n\`#partner-bekleme 0\` → kapatmak için`);
         }
+
         if (args === '0') {
             dbSet(`cooldown_${message.guild.id}`, null);
-            return message.reply('✅ Bekleme süresi kapatıldı.');
+            return message.reply('✅ Partner bekleme süresi **kapatıldı**.');
         }
+
         const ms = parseDuration(args);
-        if (ms < 1000) return message.reply('❌ Geçersiz süre formatı.');
+        if (ms < 1000) {
+            return message.reply('❌ Geçersiz süre formatı.\nDesteklenen birimler: s, m, h, d\nÖrnek: 45s, 30m, 1h, 2h30m, 1d');
+        }
+
         dbSet(`cooldown_${message.guild.id}`, args);
-        return message.reply(`✅ Bekleme süresi **${args}** olarak ayarlandı.`);
+        return message.reply(`✅ Partnerlik sonrası bekleme süresi **${args}** olarak ayarlandı.`);
     }
 
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
@@ -222,7 +222,8 @@ client.on(Events.MessageCreate, async (message) => {
         const embed = new EmbedBuilder()
             .setTitle('🤝 Partnerlik Başvurusu')
             .setDescription(`Partnerlik başvurusu yapmak için aşağıdaki butona tıklayın.\n<@${message.author.id}>`)
-            .setColor('#00D166');
+            .setColor('#00D166')
+            .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('p_basvuru').setLabel('Başvuru Yap').setStyle(ButtonStyle.Success)
@@ -232,11 +233,14 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton() && !interaction.isModalSubmit()) return;
+
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Partnerlik Başvurusu');
         const input = new TextInputBuilder()
             .setCustomId('p_text')
             .setLabel('Sunucu Tanıtım Metni')
+            .setPlaceholder('Sunucunuzün tanıtım yazısını buraya yapıştırın...')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true);
         modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -253,8 +257,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const now = Date.now();
             const userUntil = getUserCooldownUntil(userId, guildId);
             if (userUntil > now) {
+                const remainingText = formatRemaining(userUntil - now);
                 return interaction.editReply({ 
-                    content: `⏳ Beklemen gerekiyor: **${formatRemaining(userUntil - now)}**`,
+                    content: `⏳ Bir sonraki başvurun için **${remainingText}** beklemelisin.\n(Bekleme süresi: ${cooldownStr})`,
                     ephemeral: true 
                 });
             }
@@ -265,7 +270,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const logKanalId = dbGet(`logKanal_${guildId}`);
         const davetMesaji = dbGet(`davetMesaji_${guildId}`);
 
-        if (!davetMesaji) return interaction.editReply({ content: '❌ Davet mesajı ayarlanmamış.' });
+        if (!davetMesaji) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#FF5555')
+                .setTitle('❌ Eksik Ayar')
+                .setDescription('Sunucu sahibi `#partner-mesaj` komutunu kullanarak davet mesajını ayarlamamış.\nBaşvuru şu an mümkün değil.');
+            return interaction.editReply({ embeds: [errorEmbed], ephemeral: true });
+        }
 
         if (reklamKanalId) {
             const ch = interaction.client.channels.cache.get(reklamKanalId);
@@ -278,7 +289,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const logEmbed = new EmbedBuilder()
                     .setColor('#00D166')
                     .setTitle('✅ Partnerlik Tamamlandı')
-                    .setDescription(`**Kullanıcı:** ${interaction.user}`)
+                    .setDescription(`**Kullanıcı:** ${interaction.user}\n**Kullanıcı Adı:** ${interaction.user.tag}\n**Kullanıcı ID:** ${interaction.user.id}\n**Başvuru zamanı:** <t:${Math.floor(Date.now() / 1000)}:F>`)
                     .setTimestamp();
                 await ch.send({ embeds: [logEmbed] }).catch(() => {});
             }
@@ -289,7 +300,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (ms > 0) setUserCooldown(userId, guildId, Date.now() + ms);
         }
 
-        await interaction.editReply({ content: davetMesaji });
+        try {
+            await interaction.followUp({ content: davetMesaji, ephemeral: true });
+            await interaction.followUp({
+                content: `**${interaction.user} Partnerlik başarılı!**`,
+                ephemeral: false,
+                allowedMentions: { parse: ['users'] }
+            });
+        } catch (err) {
+            await interaction.editReply({ content: davetMesaji, embeds: [] }).catch(() => {});
+        }
     }
 });
 
@@ -307,16 +327,18 @@ const transporter = nodemailer.createTransport({
     service: 'gmail', 
     auth: {
         user: 'atlaswarfare.com@gmail.com', 
-        pass: 'actd oipe dhmi dyvi' 
+        pass: 'actd oipe dhmi dyvi'         
     }
 });
 
 const sessionTokens = {}; 
 const pendingVerifications = {}; 
+const passwordResetTokens = {};  
 let activePlayers = {};
 
-function generateToken() { return crypto.randomBytes(32).toString('hex'); }
-function generateVerifyCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
 
 async function sendEmail(to, subject, body) {
     const mailOptions = {
@@ -328,22 +350,35 @@ async function sendEmail(to, subject, body) {
     try {
         await transporter.sendMail(mailOptions);
     } catch (error) {
-        console.error(`E-posta hatası:`, error);
+        console.error(`E-posta gönderim hatası:`, error);
     }
+}
+
+function generateVerifyCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 io.on('connection', (socket) => {
     socket.on('loginWithToken', (token) => {
         const username = sessionTokens[token];
-        if (!username) return socket.emit('loginError', 'Oturum geçersiz.');
+        if (!username) {
+            socket.emit('loginError', 'Oturum süresi dolmuş.');
+            return;
+        }
 
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
 
-        if (!allUsers[username]) return socket.emit('loginError', 'Hesap bulunamadı.');
+        if (!allUsers[username]) {
+            socket.emit('loginError', 'Hesap bulunamadı.');
+            return;
+        }
 
-        activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
+        activePlayers[socket.id] = { ...allUsers[username], id: socket.id, hp: allUsers[username].hp || 100 };
         socket.emit('loginSuccess', { token, username });
+        socket.emit('updateInventory', activePlayers[socket.id].inventory);
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
     socket.on('register', (data) => {
@@ -351,31 +386,35 @@ io.on('connection', (socket) => {
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
 
-        if (allUsers[username]) return socket.emit('loginError', 'Bu ad alınmış.');
+        if (allUsers[username]) {
+            socket.emit('loginError', 'Bu kahraman adı zaten alınmış.');
+            return;
+        }
 
         const code = generateVerifyCode();
         pendingVerifications[username] = {
             code, email, password,
-            userData: { username, email, password, hp: 100, inventory: {}, verified: false }
+            userData: { username, email, password, x: 0, y: 0, z: 0, hp: 100, inventory: {}, verified: false }
         };
 
-        sendEmail(email, 'Doğrulama Kodu', `Kodunuz: ${code}`);
+        sendEmail(email, 'E-posta Doğrulama', `Kodunuz: ${code}`);
         socket.emit('registerSuccess', { username });
     });
 
     socket.on('verifyEmail', (data) => {
         const { username, code } = data;
         const pending = pendingVerifications[username];
-
-        if (!pending || pending.code !== code) return socket.emit('loginError', 'Kod hatalı.');
+        if (!pending || pending.code !== code) {
+            socket.emit('loginError', 'Hatalı kod.');
+            return;
+        }
 
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-
         pending.userData.verified = true;
         allUsers[username] = pending.userData;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-        
+
         const token = generateToken();
         sessionTokens[token] = username;
         socket.emit('verifySuccess');
@@ -383,9 +422,5 @@ io.on('connection', (socket) => {
     });
 });
 
-// Bot ve Sunucuyu Başlat
-server.listen(PORT, () => {
-    console.log(`Web Sunucu ${PORT} portunda aktif.`);
-});
-
+server.listen(PORT, () => console.log(`Sunucu ${PORT} portunda aktif.`));
 client.login(process.env.token);
