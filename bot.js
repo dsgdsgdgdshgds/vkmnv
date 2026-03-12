@@ -316,11 +316,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const fs = require('fs');
+
+
 const crypto = require('crypto');
 const nodemailer = require('nodemailer'); // Eklendi
 
