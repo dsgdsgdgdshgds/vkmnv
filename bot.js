@@ -447,7 +447,7 @@ io.on('connection', (socket) => {
             username: user.username,
             expires: Date.now() + 30 * 60 * 1000
         };
-        const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+        const resetUrl = `http://atlaswarfare.com:3000/reset-password?token=${resetToken}`;
         sendEmail(
             email,
             '⚔️ Survival Evolution - Şifre Sıfırlama',
