@@ -219,6 +219,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
+
+
 // ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -234,7 +236,7 @@ app.use(express.json());
 // ── Veri Depoları ──
 const sessionTokens = {}; // token -> username
 const pendingVerifications = {}; // username -> { code, email, userData }
-const passwordResetTokens = {};  // token -> { username, expires }
+const passwordResetTokens = {};  // token -> { email, expires }
 let activePlayers = {};
 
 // ── Yardımcı Fonksiyonlar ──
@@ -246,6 +248,7 @@ function generateVerifyCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// GERÇEK E-POSTA GÖNDERİCİ
 function sendEmail(to, subject, body) {
     const mailOptions = {
         from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
@@ -443,11 +446,11 @@ io.on('connection', (socket) => {
             username: user.username,
             expires: Date.now() + 30 * 60 * 1000
         };
-        const resetUrl = `http://atlaswarfare.com:\(${PORT}/reset-password?token= \${resetToken}`;
+        const resetUrl = `http://atlaswarfare.com:3000/reset-password?token=${resetToken}`;
         sendEmail(
             email,
             '⚔️ Survival Evolution - Şifre Sıfırlama',
-            `Merhaba \(${user.username},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n \)${resetUrl}\n\nBu bağlantı 30 dakika geçerlidir.`
+            `Merhaba \( {user.username},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n \){resetUrl}\n\nBu bağlantı 30 dakika geçerlidir.`
         );
         socket.emit('forgotPasswordSent');
     });
@@ -527,106 +530,93 @@ io.on('connection', (socket) => {
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// Şifre sıfırlama sayfası (GET) ── DÜZELTİLEN KISIM
-app.get('/reset-password', (req, res) => {
-    const { token } = req.query;
-    const resetData = passwordResetTokens[token];
-    if (!resetData || Date.now() > resetData.expires) {
-        return res.send(`<html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px"><h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2></body></html>`);
-    }
+// Şifre sıfırlama (GET + POST)
+app.route('/reset-password')
+    .get((req, res) => {
+        const { token } = req.query;
 
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="tr">
-        <head>
-            <meta charset="UTF-8">
-            <title>⚔️ Şifre Sıfırla</title>
-            <style>
-                body { background:#0a0806; color:#e8d8a0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
-                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; }
-                h2 { color:#c9a84c; text-align:center; margin-bottom:24px; }
-                input { width:100%; padding:12px; background:#0a0806; border:1px solid #3a2a10; color:#e8d8a0; border-radius:3px; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
-                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:3px; cursor:pointer; border-radius:3px; }
-                .msg { padding:10px; border-radius:3px; margin-bottom:14px; text-align:center; display:none; }
-                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; display:block; }
-                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; display:block; }
-            </style>
-        </head>
-        <body>
-        <div class="box">
-            <h2>⚔️ Şifre Sıfırla</h2>
-            <div id="msg" class="msg"></div>
-            <input type="password" id="pass1" placeholder="Yeni şifre" autocomplete="new-password">
-            <input type="password" id="pass2" placeholder="Tekrar girin" autocomplete="new-password">
-            <button onclick="doReset()">🔑 ŞİFREYİ GÜNCELLE</button>
-        </div>
-        <script>
-            // Token güvenli şekilde JavaScript değişkenine aktarılıyor
-            const resetToken = "${token.replace(/"/g, '\\"')}";
+        if (!token) {
+            return res.send(`
+                <html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px">
+                    <h2>⚠️ Token eksik</h2>
+                    <p>Lütfen e-postadan gelen tam bağlantıyı kullanın.</p>
+                </body></html>
+            `);
+        }
 
-            async function doReset() {
-                const p1 = document.getElementById('pass1').value.trim();
-                const p2 = document.getElementById('pass2').value.trim();
-                const msg = document.getElementById('msg');
+        const resetData = passwordResetTokens[token];
+        if (!resetData || Date.now() > resetData.expires) {
+            if (resetData) delete passwordResetTokens[token];
+            return res.send(`
+                <html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px">
+                    <h2>⚠️ Bağlantı geçersiz veya süresi dolmuş</h2>
+                    <p>Lütfen tekrar "Şifremi Unuttum" talebinde bulunun.</p>
+                </body></html>
+            `);
+        }
 
-                if (!p1 || !p2) {
-                    msg.className = 'msg error';
-                    msg.textContent = 'Şifre alanları boş bırakılamaz.';
-                    msg.style.display = 'block';
-                    return;
-                }
-
-                if (p1 !== p2) {
-                    msg.className = 'msg error';
-                    msg.textContent = 'Şifreler eşleşmiyor.';
-                    msg.style.display = 'block';
-                    return;
-                }
-
-                try {
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="tr">
+            <head>
+                <meta charset="UTF-8">
+                <title>⚔️ Şifre Sıfırla</title>
+                <style>
+                    body { background:#0a0806; color:#e8d8a0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+                    .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; }
+                    h2 { color:#c9a84c; text-align:center; margin-bottom:24px; }
+                    input { width:100%; padding:12px; background:#0a0806; border:1px solid #3a2a10; color:#e8d8a0; border-radius:3px; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
+                    button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:3px; cursor:pointer; border-radius:3px; }
+                    .msg { padding:10px; border-radius:3px; margin-bottom:14px; text-align:center; display:none; }
+                    .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; display:block; }
+                    .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; display:block; }
+                </style>
+            </head>
+            <body>
+            <div class="box">
+                <h2>⚔️ Şifre Sıfırla</h2>
+                <div id="msg" class="msg"></div>
+                <input type="password" id="pass1" placeholder="Yeni şifre">
+                <input type="password" id="pass2" placeholder="Tekrar girin">
+                <button onclick="doReset()">🔑 ŞİFREYİ GÜNCELLE</button>
+            </div>
+            <script>
+                async function doReset() {
+                    const p1 = document.getElementById('pass1').value;
+                    const p2 = document.getElementById('pass2').value;
+                    const msg = document.getElementById('msg');
+                    if (p1 !== p2) { msg.className='msg error'; msg.textContent='Şifreler eşleşmiyor.'; return; }
                     const res = await fetch('/reset-password', {
                         method: 'POST',
                         headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ token: resetToken, password: p1 })
+                        body: JSON.stringify({ token: '${token}', password: p1 })
                     });
-
                     const data = await res.json();
-
                     if (data.success) {
-                        msg.className = 'msg success';
-                        msg.textContent = 'Şifreniz güncellendi! Ana sayfaya yönlendiriliyorsunuz...';
-                        msg.style.display = 'block';
-                        setTimeout(() => window.location.href = '/', 2200);
+                        msg.className='msg success'; msg.textContent='Şifreniz güncellendi! Giriş sayfasına yönlendiriliyorsunuz...';
+                        setTimeout(() => { window.location.href = '/'; }, 2000);
                     } else {
-                        msg.className = 'msg error';
-                        msg.textContent = data.error || 'İşlem başarısız oldu.';
-                        msg.style.display = 'block';
+                        msg.className='msg error'; msg.textContent = data.error || 'Hata!';
                     }
-                } catch (err) {
-                    msg.className = 'msg error';
-                    msg.textContent = 'Sunucuyla bağlantı kurulamadı.';
-                    msg.style.display = 'block';
                 }
-            }
-        </script>
-        </body></html>
-    `);
-});
-
-// Şifre sıfırlama işlemi (POST)
-app.post('/reset-password', (req, res) => {
-    const { token, password } = req.body;
-    const resetData = passwordResetTokens[token];
-    if (!resetData || Date.now() > resetData.expires) return res.json({ success: false, error: 'Süre dolmuş.' });
-    try {
-        let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        if (!allUsers[resetData.username]) return res.json({ success: false, error: 'Kullanıcı yok.' });
-        allUsers[resetData.username].password = password;
-        fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-        delete passwordResetTokens[token];
-        res.json({ success: true });
-    } catch (e) { res.json({ success: false, error: 'Sunucu hatası.' }); }
-});
+            </script>
+            </body>
+            </html>
+        `);
+    })
+    .post((req, res) => {
+        const { token, password } = req.body;
+        const resetData = passwordResetTokens[token];
+        if (!resetData || Date.now() > resetData.expires) return res.json({ success: false, error: 'Süre dolmuş veya geçersiz token.' });
+        try {
+            let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+            if (!allUsers[resetData.username]) return res.json({ success: false, error: 'Kullanıcı yok.' });
+            allUsers[resetData.username].password = password;
+            fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+            delete passwordResetTokens[token];
+            res.json({ success: true });
+        } catch (e) { res.json({ success: false, error: 'Sunucu hatası.' }); }
+    });
 
 // ── Sunucu ve Discord Başlatma ──
 if (typeof client !== 'undefined') {
@@ -636,4 +626,4 @@ if (typeof client !== 'undefined') {
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
-}); 
+});
