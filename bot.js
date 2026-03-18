@@ -459,7 +459,7 @@ Bu bağlantı 30 dakika geçerlidir.
 
 Saygılar,
 Survival Evolution Ekibi`
-);
+});
     // ── OYUNCU HAREKETİ ──
     socket.on('playerMovement', (data) => {
         if (activePlayers[socket.id]) {
