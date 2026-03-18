@@ -446,15 +446,20 @@ io.on('connection', (socket) => {
             username: user.username,
             expires: Date.now() + 30 * 60 * 1000
         };
-        const resetUrl = `http://atlaswarfare.com:3000/reset-password?token=${resetToken}`;
+        const resetUrl = `http://atlaswarfare.com:10000/reset-password?token=${resetToken}`;
         sendEmail(
-            email,
-            '⚔️ Survival Evolution - Şifre Sıfırlama',
-            `Merhaba \( {user.username},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n \){resetUrl}\n\nBu bağlantı 30 dakika geçerlidir.`
-        );
-        socket.emit('forgotPasswordSent');
-    });
+    email,
+    '⚔️ Survival Evolution - Şifre Sıfırlama',
+    `Merhaba ${user.username},
 
+Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:
+${resetUrl}
+
+Bu bağlantı 30 dakika geçerlidir.
+
+Saygılar,
+Survival Evolution Ekibi`
+);
     // ── OYUNCU HAREKETİ ──
     socket.on('playerMovement', (data) => {
         if (activePlayers[socket.id]) {
