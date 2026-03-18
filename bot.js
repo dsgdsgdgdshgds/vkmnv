@@ -636,4 +636,4 @@ if (typeof client !== 'undefined') {
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
-});
+}); 
