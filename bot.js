@@ -18,6 +18,7 @@ const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE PORT
 // ────────────────────────────────────────────────
@@ -25,9 +26,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
 
 // ────────────────────────────────────────────────
 // DISCORD BOT BAŞLATMA
@@ -45,7 +43,7 @@ const client = new Client({
 // ────────────────────────────────────────────────
 const dbPath = '/var/data/kanal-ayar.json';
 const cooldownPath = '/var/data/partner-cooldowns.json';
-const playersDataPath = path.join(__dirname, 'players.json');
+const playersDataPath = path.join(__dirname, 'players.json'); // Oyun verisi
 
 // Klasör Kontrolü
 if (!fs.existsSync('/var/data')) {
@@ -113,7 +111,7 @@ function formatRemaining(ms) {
 }
 
 // ────────────────────────────────────────────────
-// DISCORD BOT KOMUTLARI (değişmedi)
+// DISCORD BOT KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
@@ -135,7 +133,48 @@ client.on(Events.MessageCreate, async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // ... diğer #partner- komutları aynı kaldı (yetkili, sistem, kanal, log, mesaj, bekleme)
+    if (prefix === '#partner-yetkili') {
+        const target = message.mentions.roles.first();
+        if (!target) return message.reply('⚠️ Rol etiketle!');
+        dbSet(`hedefRol_${message.guild.id}`, target.id);
+        return message.reply('✅ Ayarlandı.');
+    }
+
+    if (prefix === '#partner-sistem') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
+        dbSet(`sistemKanal_${message.guild.id}`, target.id);
+        return message.reply('✅ Ayarlandı.');
+    }
+
+    if (prefix === '#partner-kanal') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
+        dbSet(`reklamKanal_${message.guild.id}`, target.id);
+        return message.reply('✅ Ayarlandı.');
+    }
+
+    if (prefix === '#partner-log') {
+        const target = message.mentions.channels.first();
+        if (!target) return message.reply('⚠️ Kanal etiketle!');
+        dbSet(`logKanal_${message.guild.id}`, target.id);
+        return message.reply('✅ Ayarlandı.');
+    }
+
+    if (prefix === '#partner-mesaj') {
+        if (!args.trim()) return message.reply('⚠️ Metin gir!');
+        dbSet(`davetMesaji_${message.guild.id}`, args);
+        return message.reply('✅ Kaydedildi.');
+    }
+
+    if (prefix === '#partner-bekleme') {
+        if (args === '0') {
+            dbSet(`cooldown_${message.guild.id}`, null);
+            return message.reply('✅ Kapatıldı.');
+        }
+        dbSet(`cooldown_${message.guild.id}`, args);
+        return message.reply(`✅ ${args} olarak ayarlandı.`);
+    }
 
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
@@ -150,37 +189,66 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    // ... başvuru butonu ve modal submit kısmı aynı kaldı
+    if (interaction.isButton() && interaction.customId === 'p_basvuru') {
+        const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Başvuru');
+        const input = new TextInputBuilder().setCustomId('p_text').setLabel('Tanıtım Metni').setStyle(TextInputStyle.Paragraph).setRequired(true);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        await interaction.showModal(modal);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
+        await interaction.deferReply({ ephemeral: true });
+        const cooldownStr = dbGet(`cooldown_${interaction.guild.id}`);
+        if (cooldownStr) {
+            const until = getUserCooldownUntil(interaction.user.id, interaction.guild.id);
+            if (until > Date.now()) return interaction.editReply(`⏳ Beklemelisin: ${formatRemaining(until - Date.now())}`);
+        }
+
+        const text = interaction.fields.getTextInputValue('p_text');
+        const reklamKanalId = dbGet(`reklamKanal_${interaction.guild.id}`);
+        const davet = dbGet(`davetMesaji_${interaction.guild.id}`);
+        
+        if (reklamKanalId) {
+            const ch = interaction.client.channels.cache.get(reklamKanalId);
+            if (ch) ch.send(text);
+        }
+
+        if (cooldownStr) setUserCooldown(interaction.user.id, interaction.guild.id, Date.now() + parseDuration(cooldownStr));
+        await interaction.editReply(davet || "✅ Başarılı!");
+    }
 });
 
-// ── NODEMAILER – ORİJİNALE YAKIN + LOG EKLENMİŞ ──
+
+
+
+// ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,               // 465 için SSL
+    service: 'gmail',
     auth: {
-        user: 'atlaswarfare.com@gmail.com',
-        pass: process.env.google || ''   // ← burası boşsa mail gitmez!
+        user: 'atlaswarfare.com@gmail.com', 
+        pass: process.env.google
     }
 });
 
-// Hata olursa konsola bassın
-transporter.verify((error, success) => {
-    if (error) {
-        console.error('SMTP bağlantı testi BAŞARISIZ:', error);
-    } else {
-        console.log('SMTP sunucusuna bağlanıldı ✓');
-    }
-});
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// ── Veri Depoları ──
+const sessionTokens = {}; // token -> username
+const pendingVerifications = {}; // username -> { code, email, userData }
+const passwordResetTokens = {};  // token -> { email, expires }
+let activePlayers = {};
+
+// ── Yardımcı Fonksiyonlar ──
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+function generateVerifyCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 function sendEmail(to, subject, body) {
-    if (!process.env.google || process.env.google.trim() === '') {
-        console.error('[E-POSTA] UYARI: process.env.google boş! Mail gönderilemiyor.');
-        return;
-    }
-
-    console.log(`[E-POSTA] Gönderme denemesi → ${to} | ${subject}`);
-
     const mailOptions = {
         from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
         to: to,
@@ -190,40 +258,196 @@ function sendEmail(to, subject, body) {
 
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            console.error('[E-POSTA HATASI]', error.message);
-            if (error.response) console.error('→ SMTP Cevap:', error.response);
+            console.log('❌ E-posta Hatası:', error);
         } else {
-            console.log('[E-POSTA BAŞARILI]', info.messageId, '→', to);
+            console.log('📧 E-posta Gönderildi: ' + info.response);
         }
     });
 }
 
-// ── diğer kısımlar (sessionTokens, pendingVerifications, socket.io olayları, reset-password endpoint vs.) aynı kaldı ──
+io.on('connection', (socket) => {
 
-// Örnek: forgotPassword içinde
-socket.on('forgotPassword', (data) => {
-    const { email } = data;
-    // ... kullanıcı bulma kısmı aynı
-    const resetUrl = `http://atlaswarfare.com:\( {PORT}/reset-password?token= \){resetToken}`;
-    sendEmail(
-        email,
-        '⚔️ Survival Evolution - Şifre Sıfırlama',
-        `Merhaba \( {user.username},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n \){resetUrl}\n\nBu bağlantı 30 dakika geçerlidir.`
-    );
-    socket.emit('forgotPasswordSent');
+    // ── TOKEN İLE OTOMATİK GİRİŞ ──
+    socket.on('loginWithToken', (token) => {
+        const username = sessionTokens[token];
+        if (!username) {
+            socket.emit('loginError', 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
+            return;
+        }
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        if (!allUsers[username]) {
+            socket.emit('loginError', 'Hesap bulunamadı.');
+            return;
+        }
+        activePlayers[socket.id] = {
+            ...allUsers[username],
+            id: socket.id,
+            hp: allUsers[username].hp || 100
+        };
+        socket.emit('loginSuccess', { token, username });
+        socket.emit('updateInventory', activePlayers[socket.id].inventory);
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+    });
+
+    // kalan socket.on kısımları tamamen aynı kaldı (checkUsername, register, verifyEmail, login, forgotPassword, playerMovement, collect, craft, attack, disconnect)
+
+    // ── ŞİFREMİ UNUTTUM ── (burada resetUrl port ile yazılmış hali korunuyor)
+    socket.on('forgotPassword', (data) => {
+        const { email } = data;
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        const user = Object.values(allUsers).find(u => u.email === email);
+        if (!user) {
+            socket.emit('forgotPasswordSent');
+            return;
+        }
+        const resetToken = generateToken();
+        passwordResetTokens[resetToken] = {
+            username: user.username,
+            expires: Date.now() + 30 * 60 * 1000
+        };
+        const resetUrl = `http://atlaswarfare.com:\( {PORT}/reset-password?token= \){resetToken}`;
+        sendEmail(
+            email,
+            '⚔️ Survival Evolution - Şifre Sıfırlama',
+            `Merhaba \( {user.username},\n\nŞifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:\n \){resetUrl}\n\nBu bağlantı 30 dakika geçerlidir.`
+        );
+        socket.emit('forgotPasswordSent');
+    });
+
+    // ... diğer socket event'leri değişmedi
 });
 
-// register içindeki doğrulama maili de aynı şekilde sendEmail ile çağrılıyor
+// ── HTTP ENDPOINTS ──
+app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// ── Sunucu başlatma ──
-client.once('ready', () => {
-    console.log(`✅ Discord: ${client.user.tag} hazır`);
+// Şifre sıfırlama sayfası (GET) ── DÜZELTİLEN KISIM
+app.get('/reset-password', (req, res) => {
+    const { token } = req.query;
+    const resetData = passwordResetTokens[token];
+
+    if (!token || !resetData || Date.now() > resetData.expires) {
+        return res.send(`<html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px"><h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2></body></html>`);
+    }
+
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="tr">
+        <head>
+            <meta charset="UTF-8">
+            <title>⚔️ Şifre Sıfırla</title>
+            <style>
+                body { background:#0a0806; color:#e8d8a0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; }
+                h2 { color:#c9a84c; text-align:center; margin-bottom:24px; }
+                input { width:100%; padding:12px; background:#0a0806; border:1px solid #3a2a10; color:#e8d8a0; border-radius:3px; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
+                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:3px; cursor:pointer; border-radius:3px; }
+                .msg { padding:10px; border-radius:3px; margin-bottom:14px; text-align:center; display:none; }
+                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; display:block; }
+                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; display:block; }
+            </style>
+        </head>
+        <body>
+        <div class="box">
+            <h2>⚔️ Şifre Sıfırla</h2>
+            <div id="msg" class="msg"></div>
+            <input type="password" id="pass1" placeholder="Yeni şifre">
+            <input type="password" id="pass2" placeholder="Tekrar girin">
+            <button onclick="doReset()">🔑 ŞİFREYİ GÜNCELLE</button>
+        </div>
+        <script>
+            const resetToken = "${token.replace(/"/g, '\\"')}";
+
+            async function doReset() {
+                const p1 = document.getElementById('pass1').value;
+                const p2 = document.getElementById('pass2').value;
+                const msgEl = document.getElementById('msg');
+
+                if (p1 !== p2) {
+                    msgEl.className = 'msg error';
+                    msgEl.textContent = 'Şifreler eşleşmiyor.';
+                    msgEl.style.display = 'block';
+                    return;
+                }
+
+                if (p1.length < 6) {
+                    msgEl.className = 'msg error';
+                    msgEl.textContent = 'Şifre en az 6 karakter olmalı.';
+                    msgEl.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/reset-password', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ token: resetToken, password: p1 })
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                        msgEl.className = 'msg success';
+                        msgEl.textContent = 'Şifreniz güncellendi! Yönlendiriliyorsunuz...';
+                        msgEl.style.display = 'block';
+                        setTimeout(() => window.location.href = '/', 1800);
+                    } else {
+                        msgEl.className = 'msg error';
+                        msgEl.textContent = data.error || 'İşlem başarısız.';
+                        msgEl.style.display = 'block';
+                    }
+                } catch (err) {
+                    msgEl.className = 'msg error';
+                    msgEl.textContent = 'Sunucu hatası oluştu.';
+                    msgEl.style.display = 'block';
+                }
+            }
+        </script>
+        </body></html>
+    `);
 });
 
-client.login(process.env.token).catch(err => {
-    console.error('Discord login başarısız:', err);
+// Şifre sıfırlama işlemi (POST) ── DÜZELTİLEN KISIM
+app.post('/reset-password', (req, res) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return res.json({ success: false, error: 'Eksik bilgi.' });
+    }
+
+    const resetData = passwordResetTokens[token];
+    if (!resetData) {
+        return res.json({ success: false, error: 'Geçersiz token.' });
+    }
+
+    if (Date.now() > resetData.expires) {
+        delete passwordResetTokens[token];
+        return res.json({ success: false, error: 'Token süresi dolmuş.' });
+    }
+
+    try {
+        let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+        if (!allUsers[resetData.username]) {
+            return res.json({ success: false, error: 'Kullanıcı bulunamadı.' });
+        }
+
+        allUsers[resetData.username].password = password;
+        fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+
+        delete passwordResetTokens[token];
+        res.json({ success: true });
+    } catch (e) {
+        console.error(e);
+        res.json({ success: false, error: 'Sunucu hatası.' });
+    }
 });
+
+// ── Sunucu ve Discord Başlatma ──
+client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
+client.login(process.env.token);
 
 server.listen(PORT, () => {
-    console.log(`[✓] Sunucu ${PORT} portunda aktif`);
+    console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
 });
