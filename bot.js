@@ -219,8 +219,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-
-
 // ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -236,7 +234,7 @@ app.use(express.json());
 // ── Veri Depoları ──
 const sessionTokens = {}; // token -> username
 const pendingVerifications = {}; // username -> { code, email, userData }
-const passwordResetTokens = {};  // token -> { email, expires }
+const passwordResetTokens = {};  // token -> { username, expires }
 let activePlayers = {};
 
 // ── Yardımcı Fonksiyonlar ──
@@ -291,9 +289,9 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // kalan socket.on kısımları tamamen aynı kaldı (checkUsername, register, verifyEmail, login, forgotPassword, playerMovement, collect, craft, attack, disconnect)
+    // ... diğer socket.on kısımları (checkUsername, register, verifyEmail, resendVerifyCode, login, playerMovement, collect, craft, attack, disconnect) tamamen aynı kaldı ...
 
-    // ── ŞİFREMİ UNUTTUM ── (burada resetUrl port ile yazılmış hali korunuyor)
+    // ── ŞİFREMİ UNUTTUM ──
     socket.on('forgotPassword', (data) => {
         const { email } = data;
         let allUsers = {};
@@ -316,20 +314,22 @@ io.on('connection', (socket) => {
         );
         socket.emit('forgotPasswordSent');
     });
-
-    // ... diğer socket event'leri değişmedi
 });
 
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// Şifre sıfırlama sayfası (GET) ── DÜZELTİLEN KISIM
+// ── DÜZELTİLEN KISIM: Şifre sıfırlama sayfası ──
 app.get('/reset-password', (req, res) => {
     const { token } = req.query;
-    const resetData = passwordResetTokens[token];
 
-    if (!token || !resetData || Date.now() > resetData.expires) {
-        return res.send(`<html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px"><h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2></body></html>`);
+    if (!token || !passwordResetTokens[token] || Date.now() > passwordResetTokens[token].expires) {
+        return res.send(`
+            <html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:80px;font-family:sans-serif;">
+                <h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2>
+                <p>Lütfen yeni bir şifre sıfırlama talebi oluşturun.</p>
+            </body></html>
+        `);
     }
 
     res.send(`
@@ -337,71 +337,68 @@ app.get('/reset-password', (req, res) => {
         <html lang="tr">
         <head>
             <meta charset="UTF-8">
-            <title>⚔️ Şifre Sıfırla</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>⚔️ Şifre Sıfırla - Survival Evolution</title>
             <style>
                 body { background:#0a0806; color:#e8d8a0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
-                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; }
+                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; max-width:90%; }
                 h2 { color:#c9a84c; text-align:center; margin-bottom:24px; }
                 input { width:100%; padding:12px; background:#0a0806; border:1px solid #3a2a10; color:#e8d8a0; border-radius:3px; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
-                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:3px; cursor:pointer; border-radius:3px; }
+                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:2px; cursor:pointer; border-radius:3px; }
                 .msg { padding:10px; border-radius:3px; margin-bottom:14px; text-align:center; display:none; }
-                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; display:block; }
-                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; display:block; }
+                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; }
+                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; }
             </style>
         </head>
         <body>
         <div class="box">
             <h2>⚔️ Şifre Sıfırla</h2>
             <div id="msg" class="msg"></div>
-            <input type="password" id="pass1" placeholder="Yeni şifre">
-            <input type="password" id="pass2" placeholder="Tekrar girin">
-            <button onclick="doReset()">🔑 ŞİFREYİ GÜNCELLE</button>
+            <input type="password" id="pass1" placeholder="Yeni şifre" autocomplete="new-password">
+            <input type="password" id="pass2" placeholder="Şifreyi tekrar girin" autocomplete="new-password">
+            <button onclick="doReset()">Şifreyi Güncelle</button>
         </div>
         <script>
-            const resetToken = "${token.replace(/"/g, '\\"')}";
+            const resetToken = "${token.replace(/"/g,'\\"')}";
 
             async function doReset() {
-                const p1 = document.getElementById('pass1').value;
-                const p2 = document.getElementById('pass2').value;
-                const msgEl = document.getElementById('msg');
+                const msg = document.getElementById('msg');
+                const p1 = document.getElementById('pass1').value.trim();
+                const p2 = document.getElementById('pass2').value.trim();
 
-                if (p1 !== p2) {
-                    msgEl.className = 'msg error';
-                    msgEl.textContent = 'Şifreler eşleşmiyor.';
-                    msgEl.style.display = 'block';
-                    return;
+                if (!p1 || !p2) {
+                    msg.className = 'msg error'; msg.textContent = 'Alanlar boş bırakılamaz.'; msg.style.display='block'; return;
                 }
-
+                if (p1 !== p2) {
+                    msg.className = 'msg error'; msg.textContent = 'Şifreler eşleşmiyor.'; msg.style.display='block'; return;
+                }
                 if (p1.length < 6) {
-                    msgEl.className = 'msg error';
-                    msgEl.textContent = 'Şifre en az 6 karakter olmalı.';
-                    msgEl.style.display = 'block';
-                    return;
+                    msg.className = 'msg error'; msg.textContent = 'Şifre en az 6 karakter olmalı.'; msg.style.display='block'; return;
                 }
 
                 try {
                     const res = await fetch('/reset-password', {
                         method: 'POST',
-                        headers: {'Content-Type':'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ token: resetToken, password: p1 })
                     });
 
                     const data = await res.json();
 
                     if (data.success) {
-                        msgEl.className = 'msg success';
-                        msgEl.textContent = 'Şifreniz güncellendi! Yönlendiriliyorsunuz...';
-                        msgEl.style.display = 'block';
-                        setTimeout(() => window.location.href = '/', 1800);
+                        msg.className = 'msg success';
+                        msg.textContent = 'Şifre başarıyla güncellendi!';
+                        msg.style.display = 'block';
+                        setTimeout(() => { window.location.href = '/'; }, 2200);
                     } else {
-                        msgEl.className = 'msg error';
-                        msgEl.textContent = data.error || 'İşlem başarısız.';
-                        msgEl.style.display = 'block';
+                        msg.className = 'msg error';
+                        msg.textContent = data.error || 'Hata oluştu.';
+                        msg.style.display = 'block';
                     }
                 } catch (err) {
-                    msgEl.className = 'msg error';
-                    msgEl.textContent = 'Sunucu hatası oluştu.';
-                    msgEl.style.display = 'block';
+                    msg.className = 'msg error';
+                    msg.textContent = 'Sunucuyla iletişim kurulamadı.';
+                    msg.style.display = 'block';
                 }
             }
         </script>
@@ -409,17 +406,16 @@ app.get('/reset-password', (req, res) => {
     `);
 });
 
-// Şifre sıfırlama işlemi (POST) ── DÜZELTİLEN KISIM
 app.post('/reset-password', (req, res) => {
     const { token, password } = req.body;
 
     if (!token || !password) {
-        return res.json({ success: false, error: 'Eksik bilgi.' });
+        return res.json({ success: false, error: 'Token veya şifre eksik.' });
     }
 
     const resetData = passwordResetTokens[token];
     if (!resetData) {
-        return res.json({ success: false, error: 'Geçersiz token.' });
+        return res.json({ success: false, error: 'Geçersiz veya kullanılmış token.' });
     }
 
     if (Date.now() > resetData.expires) {
@@ -438,9 +434,9 @@ app.post('/reset-password', (req, res) => {
 
         delete passwordResetTokens[token];
         res.json({ success: true });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, error: 'Sunucu hatası.' });
+    } catch (err) {
+        console.error('Şifre güncelleme hatası:', err);
+        res.json({ success: false, error: 'Sunucu tarafında hata oluştu.' });
     }
 });
 
