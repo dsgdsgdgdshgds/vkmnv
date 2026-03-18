@@ -42,14 +42,14 @@ const client = new Client({
 // ────────────────────────────────────────────────
 const dbPath = '/var/data/kanal-ayar.json';
 const cooldownPath = '/var/data/partner-cooldowns.json';
-const playersDataPath = path.join(__dirname, 'players.json'); 
+const playersDataPath = path.join(__dirname, 'players.json');
 
 if (!fs.existsSync('/var/data')) {
     try { fs.mkdirSync('/var/data', { recursive: true }); } catch (e) {}
 }
 
 // ────────────────────────────────────────────────
-// DATABASE YARDIMCI FONKSİYONLARI (Discord)
+// DATABASE YARDIMCI FONKSİYONLARI
 // ────────────────────────────────────────────────
 function dbSet(key, value) {
     let data = {};
@@ -217,12 +217,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ────────────────────────────────────────────────
-// NODEMAILER YAPILANDIRMASI
+// NODEMAILER & EXPRESS YAPILANDIRMASI (DÜZELTİLDİ)
 // ────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'atlaswarfare.com@gmail.com',
+        user: 'atlaswarfare.com@gmail.com', 
         pass: process.env.google
     }
 });
@@ -234,15 +234,16 @@ function sendEmail(to, subject, body) {
         subject: subject,
         text: body
     };
+
     transporter.sendMail(mailOptions, (error, info) => {
-        if (error) console.log('❌ E-posta Hatası:', error);
-        else console.log('📧 E-posta Gönderildi: ' + info.response);
+        if (error) {
+            console.log('❌ E-posta Hatası:', error);
+        } else {
+            console.log('📧 E-posta Gönderildi: ' + info.response);
+        }
     });
 }
 
-// ────────────────────────────────────────────────
-// EXPRESS VE SOCKET.IO KURULUMU
-// ────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -273,12 +274,6 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    socket.on('checkUsername', (username) => {
-        let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
-        socket.emit('usernameAvailable', { available: !allUsers[username] });
-    });
-
     socket.on('register', (data) => {
         const { username, email, password } = data;
         let allUsers = {};
@@ -298,7 +293,8 @@ io.on('connection', (socket) => {
             }
         };
 
-        sendEmail(email, '⚔️ E-posta Doğrulama', `Doğrulama Kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`);
+        sendEmail(email, '⚔️ Survival Evolution - E-posta Doğrulama', `Kahraman ${username}, doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`);
+        
         setTimeout(() => { delete pendingVerifications[username]; }, 10 * 60 * 1000);
         socket.emit('registerSuccess', { username });
     });
@@ -328,16 +324,14 @@ io.on('connection', (socket) => {
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) {}
         let foundUser = allUsers[username] || Object.values(allUsers).find(u => u.email === username);
 
-        if (!foundUser || foundUser.password !== password) return socket.emit('loginError', 'Hatalı giriş bilgileri.');
+        if (!foundUser || foundUser.password !== password) return socket.emit('loginError', 'Hatalı bilgi.');
         if (!foundUser.verified) return socket.emit('loginError', 'E-posta onaylanmamış.');
 
         const token = generateToken();
         sessionTokens[token] = foundUser.username;
         activePlayers[socket.id] = { ...foundUser, id: socket.id };
         socket.emit('loginSuccess', { token, username: foundUser.username });
-        socket.emit('updateInventory', activePlayers[socket.id].inventory);
         socket.emit('currentPlayers', activePlayers);
-        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
     socket.on('forgotPassword', (data) => {
@@ -353,7 +347,7 @@ io.on('connection', (socket) => {
                 expires: Date.now() + 30 * 60 * 1000
             };
             const resetUrl = `http://atlaswarfare.com:3000/reset-password?token=${resetToken}`;
-            sendEmail(email, '⚔️ Şifre Sıfırlama', `Şifrenizi sıfırlamak için tıklayın: ${resetUrl}\n\nBu link 30 dakika geçerlidir.`);
+            sendEmail(email, '⚔️ Şifre Sıfırlama', `Merhaba ${user.username},\n\nŞifrenizi sıfırlamak için bağlantıya tıklayın: ${resetUrl}`);
         }
         socket.emit('forgotPasswordSent');
     });
@@ -368,10 +362,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('collect', (type) => {
+    socket.on('collect', (resourceType) => {
         const p = activePlayers[socket.id];
-        if (p && p.inventory[type] !== undefined) {
-            p.inventory[type] += 1;
+        if (p && (resourceType === 'wood' || resourceType === 'stone')) {
+            p.inventory[resourceType] += 1;
             socket.emit('updateInventory', p.inventory);
         }
     });
@@ -379,8 +373,8 @@ io.on('connection', (socket) => {
     socket.on('craft', (item) => {
         const p = activePlayers[socket.id];
         if (!p) return;
-        const inv = p.inventory;
         let success = false;
+        const inv = p.inventory;
         if (item === 'sword' && inv.wood >= 2 && inv.stone >= 2) { inv.wood -= 2; inv.stone -= 2; inv.sword += 1; success = true; }
         else if (item === 'pickaxe' && inv.wood >= 3 && inv.stone >= 1) { inv.wood -= 3; inv.stone -= 1; inv.pickaxe += 1; success = true; }
         else if (item === 'axe' && inv.wood >= 1 && inv.stone >= 3) { inv.wood -= 1; inv.stone -= 3; inv.axe += 1; success = true; }
@@ -416,7 +410,7 @@ io.on('connection', (socket) => {
 });
 
 // ────────────────────────────────────────────────
-// HTTP YOLLARI (ŞİFRE SIFIRLAMA DÜZELTİLDİ)
+// HTTP YOLLARI
 // ────────────────────────────────────────────────
 app.get('/reset-password', (req, res) => {
     const token = req.query.token;
@@ -426,26 +420,20 @@ app.get('/reset-password', (req, res) => {
     res.send(`
         <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Şifre Sıfırla</title>
         <style>body{background:#0a0806;color:#e8d8a0;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
-        .box{background:#1c1508;padding:40px;border-radius:8px;border:1px solid #3a2a10;width:320px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);}
-        h2{color:#c9a84c;margin-bottom:20px;} input{width:100%;padding:12px;margin-bottom:15px;background:#0a0806;border:1px solid #3a2a10;color:#fff;box-sizing:border-box;}
-        button{width:100%;padding:12px;background:#c9a84c;border:none;color:#1c1508;font-weight:bold;cursor:pointer;} button:hover{background:#e8d8a0;}</style></head>
-        <body><div class="box"><h2>Yeni Şifre</h2>
-        <input type="password" id="p1" placeholder="Yeni Şifre">
-        <input type="password" id="p2" placeholder="Şifre Tekrar">
-        <button onclick="reset()">GÜNCELLE</button><p id="m" style="margin-top:15px;"></p></div>
+        .box{background:#1c1508;padding:40px;border-radius:8px;border:1px solid #3a2a10;width:320px;text-align:center;}
+        input{width:100%;padding:10px;margin-bottom:10px;background:#0a0806;border:1px solid #3a2a10;color:#fff;}
+        button{width:100%;padding:10px;background:#c9a84c;border:none;cursor:pointer;font-weight:bold;}</style></head>
+        <body><div class="box"><h2>Şifre Sıfırla</h2>
+        <input type="password" id="p1" placeholder="Yeni Şifre"><button onclick="reset()">GÜNCELLE</button><p id="m"></p></div>
         <script>async function reset(){
-            const p1 = document.getElementById('p1').value;
-            const p2 = document.getElementById('p2').value;
-            const m = document.getElementById('m');
-            if(p1 !== p2) { m.innerText='Şifreler eşleşmiyor'; return; }
-            if(p1.length < 6) { m.innerText='En az 6 karakter'; return; }
+            const p = document.getElementById('p1').value;
             const res = await fetch('/reset-password', {
                 method:'POST',headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({token:new URLSearchParams(window.location.search).get('token'), password:p1})
+                body:JSON.stringify({token:new URLSearchParams(window.location.search).get('token'), password:p})
             });
             const d = await res.json();
-            if(d.success){ m.style.color='#2ecc71'; m.innerText='Başarılı! Yönlendiriliyorsunuz...'; setTimeout(()=>window.location.href='/',2500); }
-            else{ m.style.color='#e74c3c'; m.innerText=d.error; }
+            if(d.success){ document.getElementById('m').innerText='Başarılı!'; setTimeout(()=>window.location.href='/',2000); }
+            else{ document.getElementById('m').innerText=d.error; }
         }</script></body></html>
     `);
 });
@@ -456,7 +444,6 @@ app.post('/reset-password', (req, res) => {
     if (!resetData || Date.now() > resetData.expires) return res.json({ success: false, error: 'Süre dolmuş.' });
     try {
         let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        if (!allUsers[resetData.username]) return res.json({ success: false, error: 'Kullanıcı bulunamadı.' });
         allUsers[resetData.username].password = password;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         delete passwordResetTokens[token];
@@ -466,8 +453,8 @@ app.post('/reset-password', (req, res) => {
 
 // ── BAŞLATMA ──
 client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
-client.login(process.env.token).catch(e => console.error("Discord Login Hatası:", e));
+client.login(process.env.token);
 
 server.listen(PORT, () => {
-    console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
+    console.log(`[✓] Sunucu Port ${PORT} üzerinde aktif.`);
 });
