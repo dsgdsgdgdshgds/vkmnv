@@ -289,7 +289,144 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ... diğer socket.on kısımları (checkUsername, register, verifyEmail, resendVerifyCode, login, playerMovement, collect, craft, attack, disconnect) tamamen aynı kaldı ...
+    // ── KULLANICI ADI KONTROL ──
+    socket.on('checkUsername', (username) => {
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        socket.emit('usernameAvailable', { available: !allUsers[username] });
+    });
+
+    // ── KAYIT OL ──
+    socket.on('register', (data) => {
+        const { username, email, password } = data;
+        if (!username || username.length < 3 || username.length > 16) {
+            socket.emit('loginError', 'Kahraman adı 3-16 karakter arasında olmalıdır.');
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            socket.emit('loginError', 'Kahraman adında geçersiz karakter var.');
+            return;
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            socket.emit('loginError', 'Geçerli bir e-posta adresi girin.');
+            return;
+        }
+        if (!password || password.length < 6) {
+            socket.emit('loginError', 'Şifre en az 6 karakter olmalıdır.');
+            return;
+        }
+
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        if (allUsers[username]) {
+            socket.emit('loginError', 'Bu kahraman adı zaten alınmış.');
+            return;
+        }
+        const emailUsed = Object.values(allUsers).some(u => u.email === email);
+        if (emailUsed) {
+            socket.emit('loginError', 'Bu e-posta adresi zaten kayıtlı.');
+            return;
+        }
+
+        const code = generateVerifyCode();
+        pendingVerifications[username] = {
+            code, email, password,
+            userData: {
+                username, email, password,
+                x: 0, y: 0, z: 0,
+                color: Math.floor(Math.random() * 16777215),
+                hp: 100,
+                inventory: { wood: 0, stone: 0, sword: 0, pickaxe: 0, axe: 0 },
+                verified: false
+            }
+        };
+
+        sendEmail(
+            email,
+            '⚔️ Survival Evolution - E-posta Doğrulama',
+            `Kahraman ${username}, doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`
+        );
+
+        setTimeout(() => { delete pendingVerifications[username]; }, 10 * 60 * 1000);
+        socket.emit('registerSuccess', { username });
+    });
+
+    // ── E-POSTA DOĞRULAMA ──
+    socket.on('verifyEmail', (data) => {
+        const { username, code } = data;
+        const pending = pendingVerifications[username];
+        if (!pending) {
+            socket.emit('loginError', 'Doğrulama isteği bulunamadı veya süresi doldu.');
+            return;
+        }
+        if (pending.code !== code) {
+            socket.emit('loginError', 'Doğrulama kodu hatalı. Lütfen tekrar deneyin.');
+            return;
+        }
+
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        pending.userData.verified = true;
+        allUsers[username] = pending.userData;
+        fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+        delete pendingVerifications[username];
+
+        const token = generateToken();
+        sessionTokens[token] = username;
+        activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
+        socket.emit('verifySuccess');
+        socket.emit('loginSuccess', { token, username });
+        socket.emit('updateInventory', activePlayers[socket.id].inventory);
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+    });
+
+    // ── KODU TEKRAR GÖNDER ──
+    socket.on('resendVerifyCode', (data) => {
+        const { username } = data;
+        const pending = pendingVerifications[username];
+        if (!pending) {
+            socket.emit('loginError', 'Doğrulama isteği bulunamadı. Lütfen tekrar kayıt olun.');
+            return;
+        }
+        const newCode = generateVerifyCode();
+        pending.code = newCode;
+        sendEmail(
+            pending.email,
+            '⚔️ Survival Evolution - Yeni Doğrulama Kodu',
+            `Yeni doğrulama kodunuz: ${newCode}\n\nBu kod 10 dakika geçerlidir.`
+        );
+        socket.emit('loginError', ''); 
+    });
+
+    // ── GİRİŞ YAP ──
+    socket.on('login', (data) => {
+        const { username, password } = data;
+        let allUsers = {};
+        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
+        let foundUser = allUsers[username] || Object.values(allUsers).find(u => u.email === username);
+
+        if (!foundUser) {
+            socket.emit('loginError', 'Bu kahraman adı veya e-posta kayıtlı değil.');
+            return;
+        }
+        if (foundUser.password !== password) {
+            socket.emit('loginError', 'Şifre hatalı. Lütfen tekrar deneyin.');
+            return;
+        }
+        if (!foundUser.verified) {
+            socket.emit('loginError', 'E-posta adresiniz henüz doğrulanmamış.');
+            return;
+        }
+
+        const token = generateToken();
+        sessionTokens[token] = foundUser.username;
+        activePlayers[socket.id] = { ...foundUser, id: socket.id };
+        socket.emit('loginSuccess', { token, username: foundUser.username });
+        socket.emit('updateInventory', activePlayers[socket.id].inventory);
+        socket.emit('currentPlayers', activePlayers);
+        socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
+    });
 
     // ── ŞİFREMİ UNUTTUM ──
     socket.on('forgotPassword', (data) => {
@@ -314,22 +451,88 @@ io.on('connection', (socket) => {
         );
         socket.emit('forgotPasswordSent');
     });
+
+    // ── OYUNCU HAREKETİ ──
+    socket.on('playerMovement', (data) => {
+        if (activePlayers[socket.id]) {
+            activePlayers[socket.id].x = data.x;
+            activePlayers[socket.id].y = data.y || 0;
+            activePlayers[socket.id].z = data.z;
+            activePlayers[socket.id].rotationY = data.rotationY;
+            socket.broadcast.emit('playerMoved', activePlayers[socket.id]);
+        }
+    });
+
+    // ── KAYNAK TOPLAMA ──
+    socket.on('collect', (resourceType) => {
+        const p = activePlayers[socket.id];
+        if (p && (resourceType === 'wood' || resourceType === 'stone')) {
+            p.inventory[resourceType] += 1;
+            socket.emit('updateInventory', p.inventory);
+        }
+    });
+
+    // ── ÜRETİM (CRAFT) ──
+    socket.on('craft', (item) => {
+        const p = activePlayers[socket.id];
+        if (!p) return;
+        let success = false;
+        const inv = p.inventory;
+        if (item === 'sword' && inv.wood >= 2 && inv.stone >= 2) { inv.wood -= 2; inv.stone -= 2; inv.sword += 1; success = true; }
+        else if (item === 'pickaxe' && inv.wood >= 3 && inv.stone >= 1) { inv.wood -= 3; inv.stone -= 1; inv.pickaxe += 1; success = true; }
+        else if (item === 'axe' && inv.wood >= 1 && inv.stone >= 3) { inv.wood -= 1; inv.stone -= 3; inv.axe += 1; success = true; }
+        if (success) socket.emit('updateInventory', inv);
+    });
+
+    // ── SALDIRI ──
+    socket.on('attack', (targetId) => {
+        const attacker = activePlayers[socket.id];
+        const target = activePlayers[targetId];
+        if (attacker && target) {
+            const dist = Math.sqrt(Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.z - target.z, 2));
+            if (dist < 5) {
+                let damage = attacker.inventory.sword > 0 ? 30 : 10;
+                target.hp -= damage;
+                if (target.hp <= 0) {
+                    target.hp = 100; target.x = 0; target.z = 0;
+                    io.emit('playerMoved', target);
+                }
+                io.emit('hpUpdate', { id: targetId, hp: target.hp });
+            }
+        }
+    });
+
+    // ── BAĞLANTI KESİLDİ ──
+    socket.on('disconnect', () => {
+        if (activePlayers[socket.id]) {
+            try {
+                let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
+                const p = activePlayers[socket.id];
+                allUsers[p.username].inventory = p.inventory;
+                allUsers[p.username].x = p.x || 0;
+                allUsers[p.username].y = p.y || 0;
+                allUsers[p.username].z = p.z || 0;
+                allUsers[p.username].hp = p.hp;
+                fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+            } catch (e) {}
+            for (const [token, username] of Object.entries(sessionTokens)) {
+                if (username === activePlayers[socket.id].username) delete sessionTokens[token];
+            }
+            delete activePlayers[socket.id];
+            io.emit('playerDisconnected', socket.id);
+        }
+    });
 });
 
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// ── DÜZELTİLEN KISIM: Şifre sıfırlama sayfası ──
+// Şifre sıfırlama sayfası (GET) ── DÜZELTİLEN KISIM
 app.get('/reset-password', (req, res) => {
     const { token } = req.query;
-
-    if (!token || !passwordResetTokens[token] || Date.now() > passwordResetTokens[token].expires) {
-        return res.send(`
-            <html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:80px;font-family:sans-serif;">
-                <h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2>
-                <p>Lütfen yeni bir şifre sıfırlama talebi oluşturun.</p>
-            </body></html>
-        `);
+    const resetData = passwordResetTokens[token];
+    if (!resetData || Date.now() > resetData.expires) {
+        return res.send(`<html><body style="background:#0a0806;color:#c9a84c;text-align:center;padding:60px"><h2>⚠️ Bağlantı geçersiz veya süresi dolmuş.</h2></body></html>`);
     }
 
     res.send(`
@@ -337,17 +540,16 @@ app.get('/reset-password', (req, res) => {
         <html lang="tr">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>⚔️ Şifre Sıfırla - Survival Evolution</title>
+            <title>⚔️ Şifre Sıfırla</title>
             <style>
                 body { background:#0a0806; color:#e8d8a0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
-                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; max-width:90%; }
+                .box { background:#1c1508; border:1px solid #3a2a10; border-radius:6px; padding:40px; width:360px; }
                 h2 { color:#c9a84c; text-align:center; margin-bottom:24px; }
                 input { width:100%; padding:12px; background:#0a0806; border:1px solid #3a2a10; color:#e8d8a0; border-radius:3px; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
-                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:2px; cursor:pointer; border-radius:3px; }
+                button { width:100%; padding:13px; background:linear-gradient(180deg,#3a2a0a,#1a1005); border:1px solid #7a5c1e; color:#f0d080; font-size:14px; letter-spacing:3px; cursor:pointer; border-radius:3px; }
                 .msg { padding:10px; border-radius:3px; margin-bottom:14px; text-align:center; display:none; }
-                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; }
-                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; }
+                .msg.error { background:#c0392b22; border:1px solid #c0392b88; color:#e74c3c; display:block; }
+                .msg.success { background:#27ae6022; border:1px solid #27ae6088; color:#2ecc71; display:block; }
             </style>
         </head>
         <body>
@@ -355,31 +557,36 @@ app.get('/reset-password', (req, res) => {
             <h2>⚔️ Şifre Sıfırla</h2>
             <div id="msg" class="msg"></div>
             <input type="password" id="pass1" placeholder="Yeni şifre" autocomplete="new-password">
-            <input type="password" id="pass2" placeholder="Şifreyi tekrar girin" autocomplete="new-password">
-            <button onclick="doReset()">Şifreyi Güncelle</button>
+            <input type="password" id="pass2" placeholder="Tekrar girin" autocomplete="new-password">
+            <button onclick="doReset()">🔑 ŞİFREYİ GÜNCELLE</button>
         </div>
         <script>
-            const resetToken = "${token.replace(/"/g,'\\"')}";
+            // Token güvenli şekilde JavaScript değişkenine aktarılıyor
+            const resetToken = "${token.replace(/"/g, '\\"')}";
 
             async function doReset() {
-                const msg = document.getElementById('msg');
                 const p1 = document.getElementById('pass1').value.trim();
                 const p2 = document.getElementById('pass2').value.trim();
+                const msg = document.getElementById('msg');
 
                 if (!p1 || !p2) {
-                    msg.className = 'msg error'; msg.textContent = 'Alanlar boş bırakılamaz.'; msg.style.display='block'; return;
+                    msg.className = 'msg error';
+                    msg.textContent = 'Şifre alanları boş bırakılamaz.';
+                    msg.style.display = 'block';
+                    return;
                 }
+
                 if (p1 !== p2) {
-                    msg.className = 'msg error'; msg.textContent = 'Şifreler eşleşmiyor.'; msg.style.display='block'; return;
-                }
-                if (p1.length < 6) {
-                    msg.className = 'msg error'; msg.textContent = 'Şifre en az 6 karakter olmalı.'; msg.style.display='block'; return;
+                    msg.className = 'msg error';
+                    msg.textContent = 'Şifreler eşleşmiyor.';
+                    msg.style.display = 'block';
+                    return;
                 }
 
                 try {
                     const res = await fetch('/reset-password', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type':'application/json'},
                         body: JSON.stringify({ token: resetToken, password: p1 })
                     });
 
@@ -387,17 +594,17 @@ app.get('/reset-password', (req, res) => {
 
                     if (data.success) {
                         msg.className = 'msg success';
-                        msg.textContent = 'Şifre başarıyla güncellendi!';
+                        msg.textContent = 'Şifreniz güncellendi! Ana sayfaya yönlendiriliyorsunuz...';
                         msg.style.display = 'block';
-                        setTimeout(() => { window.location.href = '/'; }, 2200);
+                        setTimeout(() => window.location.href = '/', 2200);
                     } else {
                         msg.className = 'msg error';
-                        msg.textContent = data.error || 'Hata oluştu.';
+                        msg.textContent = data.error || 'İşlem başarısız oldu.';
                         msg.style.display = 'block';
                     }
                 } catch (err) {
                     msg.className = 'msg error';
-                    msg.textContent = 'Sunucuyla iletişim kurulamadı.';
+                    msg.textContent = 'Sunucuyla bağlantı kurulamadı.';
                     msg.style.display = 'block';
                 }
             }
@@ -406,43 +613,26 @@ app.get('/reset-password', (req, res) => {
     `);
 });
 
+// Şifre sıfırlama işlemi (POST)
 app.post('/reset-password', (req, res) => {
     const { token, password } = req.body;
-
-    if (!token || !password) {
-        return res.json({ success: false, error: 'Token veya şifre eksik.' });
-    }
-
     const resetData = passwordResetTokens[token];
-    if (!resetData) {
-        return res.json({ success: false, error: 'Geçersiz veya kullanılmış token.' });
-    }
-
-    if (Date.now() > resetData.expires) {
-        delete passwordResetTokens[token];
-        return res.json({ success: false, error: 'Token süresi dolmuş.' });
-    }
-
+    if (!resetData || Date.now() > resetData.expires) return res.json({ success: false, error: 'Süre dolmuş.' });
     try {
         let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        if (!allUsers[resetData.username]) {
-            return res.json({ success: false, error: 'Kullanıcı bulunamadı.' });
-        }
-
+        if (!allUsers[resetData.username]) return res.json({ success: false, error: 'Kullanıcı yok.' });
         allUsers[resetData.username].password = password;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-
         delete passwordResetTokens[token];
         res.json({ success: true });
-    } catch (err) {
-        console.error('Şifre güncelleme hatası:', err);
-        res.json({ success: false, error: 'Sunucu tarafında hata oluştu.' });
-    }
+    } catch (e) { res.json({ success: false, error: 'Sunucu hatası.' }); }
 });
 
 // ── Sunucu ve Discord Başlatma ──
-client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
-client.login(process.env.token);
+if (typeof client !== 'undefined') {
+    client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
+    client.login(process.env.token);
+}
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
