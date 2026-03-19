@@ -681,7 +681,7 @@ function clearSession() {
 }
 
 // ═══════════════════════════════════════════════
-//  SOCKET.IO — EN BAŞTA TANIMLA (tüm fonksiyonlar kullanabilsin)
+//  SOCKET.IO
 // ═══════════════════════════════════════════════
 const socket = io();
 
@@ -724,7 +724,7 @@ function showMsg(id, type, text) {
 }
 function hideMsg(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
 
-// ── Field Validation ──
+// ── Field Validation (Türkçe karakter desteği eklendi) ──
 let usernameCheckTimer = null;
 function checkUsername(input) {
     const val = input.value.trim();
@@ -732,7 +732,13 @@ function checkUsername(input) {
     const status = document.getElementById('reg-user-status');
     input.classList.remove('success','error','checking');
 
-    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; status.textContent = ''; return; }
+    if (!val) { 
+        hint.textContent = ''; 
+        hint.className = 'field-hint'; 
+        status.textContent = ''; 
+        return; 
+    }
+    
     if (val.length < 3) {
         input.classList.add('error');
         hint.textContent = '✖ En az 3 karakter gerekli';
@@ -740,6 +746,7 @@ function checkUsername(input) {
         status.textContent = '✖';
         return;
     }
+    
     if (val.length > 16) {
         input.classList.add('error');
         hint.textContent = '✖ En fazla 16 karakter olabilir';
@@ -747,13 +754,16 @@ function checkUsername(input) {
         status.textContent = '✖';
         return;
     }
-    if (!/^[a-zA-Z0-9_]+$/.test(val)) {
+    
+    // Türkçe karakterlere izin ver (ğ,ü,ş,ı,ö,ç,Ğ,Ü,Ş,İ,Ö,Ç)
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(val)) {
         input.classList.add('error');
-        hint.textContent = '✖ Sadece harf, rakam ve alt çizgi kullanın';
+        hint.textContent = '✖ Sadece harf, rakam, _ ve Türkçe karakterler';
         hint.className = 'field-hint error';
         status.textContent = '✖';
         return;
     }
+    
     input.classList.add('checking');
     hint.textContent = '⏳ Kontrol ediliyor...';
     hint.className = 'field-hint info';
@@ -837,7 +847,7 @@ socket.on('usernameAvailable', (data) => {
     }
 });
 
-// ─ Auto-login from session (sayfa yenilemede otomatik giriş) ─
+// ─ Auto-login from session ─
 const _sess = loadSession();
 if (_sess && _sess.token) {
     socket.emit('loginWithToken', _sess.token);
@@ -863,7 +873,10 @@ function doRegister() {
 
     if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; }
     if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) { showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam ve _ kullanın.'); return; }
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { 
+        showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanın.'); 
+        return; 
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; }
     if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; }
     if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; }
