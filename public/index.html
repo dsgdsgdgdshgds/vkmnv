@@ -466,23 +466,57 @@
                 <button class="btn-enter" onclick="doRegister()">📜 KAHRAMAN OLUŞTUR 📜</button>
             </div>
 
-            <!-- FORGOT PASSWORD -->
+            <!-- FORGOT PASSWORD - Email Entry -->
             <div class="form-panel" id="panel-forgot">
                 <div id="msg-forgot" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
-                    E-posta adresinizi girin. Şifre sıfırlama bağlantısı gönderilecektir.
+                    E-posta adresinizi girin. Size 6 haneli bir doğrulama kodu göndereceğiz.
                 </p>
                 <div class="field-wrap">
                     <label class="field-label">📧 E-Posta</label>
                     <input type="email" id="forgot-email" class="field-input" placeholder="ornek@mail.com...">
                 </div>
-                <button class="btn-enter" onclick="doForgotPassword()">📨 BAĞLANTI GÖNDER</button>
+                <button class="btn-enter" onclick="doForgotPassword()">📨 KOD GÖNDER</button>
                 <div style="text-align:center;margin-top:12px;">
                     <span class="forgot-link" onclick="switchTab('login')">← Giriş ekranına dön</span>
                 </div>
             </div>
 
-            <!-- EMAIL VERIFY -->
+            <!-- RESET CODE VERIFICATION -->
+            <div class="form-panel" id="panel-reset-code">
+                <div id="msg-reset-code" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen girin.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">🔑 Doğrulama Kodu</label>
+                    <input type="text" id="reset-code-input" class="field-input" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;">
+                </div>
+                <button class="btn-enter" onclick="verifyResetCode()">✅ KODU DOĞRULA</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('forgot')">← Geri</span>
+                </div>
+            </div>
+
+            <!-- NEW PASSWORD -->
+            <div class="form-panel" id="panel-new-password">
+                <div id="msg-new-password" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;" id="reset-username-display"></p>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Yeni Şifre</label>
+                    <input type="password" id="new-password1" class="field-input" placeholder="En az 6 karakter...">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Yeni Şifre Tekrar</label>
+                    <input type="password" id="new-password2" class="field-input" placeholder="Şifrenizi tekrar girin...">
+                </div>
+                <button class="btn-enter" onclick="saveNewPassword()">🔑 ŞİFREYİ GÜNCELLE</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('login')">← Giriş ekranına dön</span>
+                </div>
+            </div>
+
+            <!-- EMAIL VERIFY (Registration) -->
             <div class="form-panel" id="panel-verify">
                 <div id="msg-verify" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
@@ -670,6 +704,12 @@ function switchTab(tab) {
     } else if (tab === 'forgot') {
         tabsMain.style.display = 'none';
         document.getElementById('panel-forgot').classList.add('active');
+    } else if (tab === 'reset-code') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-reset-code').classList.add('active');
+    } else if (tab === 'new-password') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-new-password').classList.add('active');
     } else if (tab === 'verify') {
         tabsMain.style.display = 'none';
         document.getElementById('panel-verify').classList.add('active');
@@ -833,7 +873,7 @@ function doRegister() {
     socket.emit('register', { username, email, password });
 }
 
-// ── Forgot Password ──
+// ── Forgot Password (Send Code) ──
 function doForgotPassword() {
     const email = document.getElementById('forgot-email').value.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -846,7 +886,37 @@ function doForgotPassword() {
     socket.emit('forgotPassword', { email });
 }
 
-// ── Email Verify ──
+// ── Verify Reset Code ──
+let resetEmail = '';
+function verifyResetCode() {
+    const code = document.getElementById('reset-code-input').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-reset-code', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-reset-code');
+    socket.emit('verifyResetCode', { email: resetEmail, code });
+}
+
+// ── Save New Password ──
+function saveNewPassword() {
+    const pass1 = document.getElementById('new-password1').value;
+    const pass2 = document.getElementById('new-password2').value;
+    
+    if (!pass1 || pass1.length < 6) {
+        showMsg('msg-new-password', 'error', 'Şifre en az 6 karakter olmalıdır.');
+        return;
+    }
+    if (pass1 !== pass2) {
+        showMsg('msg-new-password', 'error', 'Şifreler eşleşmiyor.');
+        return;
+    }
+    
+    hideMsg('msg-new-password');
+    socket.emit('resetPassword', { email: resetEmail, newPassword: pass1 });
+}
+
+// ── Email Verify (Registration) ──
 let pendingVerifyUser = null;
 function doVerifyCode() {
     const code = document.getElementById('verify-code').value.trim();
@@ -871,6 +941,8 @@ document.addEventListener('keydown', e => {
         if (activePanel.id === 'panel-login') doLogin();
         else if (activePanel.id === 'panel-register') doRegister();
         else if (activePanel.id === 'panel-forgot') doForgotPassword();
+        else if (activePanel.id === 'panel-reset-code') verifyResetCode();
+        else if (activePanel.id === 'panel-new-password') saveNewPassword();
         else if (activePanel.id === 'panel-verify') doVerifyCode();
     }
 });
@@ -889,15 +961,36 @@ socket.on('registerSuccess', (data) => {
 
 socket.on('verifySuccess', () => {
     showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
-    // loginSuccess zaten backend'den gelecek, startLoadingSequence orada tetiklenir
 });
 
-socket.on('forgotPasswordSent', () => {
-    // Backend güvenlik nedeniyle kullanıcı var/yok fark etmeksizin bu eventi gönderiyor
-    showMsg('msg-forgot', 'success', 'Eğer bu e-posta kayıtlıysa, sıfırlama bağlantısı gönderildi. Gelen kutunuzu kontrol edin.');
-    document.getElementById('forgot-email').value = '';
+// Forgot Password Socket Events
+socket.on('forgotPasswordCodeSent', () => {
+    resetEmail = document.getElementById('forgot-email').value.trim();
+    showMsg('msg-forgot', 'success', 'Doğrulama kodu e-posta adresinize gönderildi.');
+    
     const btn = document.querySelector('#panel-forgot .btn-enter');
-    if (btn) { btn.disabled = false; btn.textContent = '📨 BAĞLANTI GÖNDER'; }
+    if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
+    
+    setTimeout(() => switchTab('reset-code'), 1000);
+});
+
+socket.on('resetCodeVerified', (data) => {
+    document.getElementById('reset-username-display').textContent = `Şifre sıfırlanıyor: ${data.username}`;
+    switchTab('new-password');
+});
+
+socket.on('resetPasswordSuccess', () => {
+    showMsg('msg-new-password', 'success', 'Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz.');
+    resetEmail = '';
+    setTimeout(() => switchTab('login'), 2000);
+});
+
+socket.on('resetCodeError', (msg) => {
+    showMsg('msg-reset-code', 'error', msg);
+});
+
+socket.on('resetPasswordError', (msg) => {
+    showMsg('msg-new-password', 'error', msg);
 });
 
 socket.on('loginError', (msg) => {
@@ -909,8 +1002,10 @@ socket.on('loginError', (msg) => {
         else if (activePanel.id === 'panel-forgot') {
             msgId = 'msg-forgot';
             const btn = document.querySelector('#panel-forgot .btn-enter');
-            if (btn) { btn.disabled = false; btn.textContent = '📨 BAĞLANTI GÖNDER'; }
+            if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
         }
+        else if (activePanel.id === 'panel-reset-code') msgId = 'msg-reset-code';
+        else if (activePanel.id === 'panel-new-password') msgId = 'msg-new-password';
     }
     showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
 });
