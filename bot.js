@@ -1,3 +1,6 @@
+NODE-JS
+
+
 const {
     Client,
     GatewayIntentBits,
@@ -39,15 +42,31 @@ const client = new Client({
 });
 
 // ────────────────────────────────────────────────
-// KALICI DİSK YOLLARI
+// KALICI DİSK YOLLARI (Render için /var/data/ kalıcı)
 // ────────────────────────────────────────────────
-const dbPath = '/var/data/kanal-ayar.json';
-const cooldownPath = '/var/data/partner-cooldowns.json';
-const playersDataPath = path.join(__dirname, '/var/data/players.json'); // Oyun verisi
+const DATA_DIR = '/var/data';
+const dbPath = path.join(DATA_DIR, 'kanal-ayar.json');
+const cooldownPath = path.join(DATA_DIR, 'partner-cooldowns.json');
+const playersDataPath = path.join(DATA_DIR, 'players.json');
 
-// Klasör Kontrolü
-if (!fs.existsSync('/var/data')) {
-    try { fs.mkdirSync('/var/data', { recursive: true }); } catch (e) {}
+// Klasör Kontrolü - Her başlatmada kontrol et
+if (!fs.existsSync(DATA_DIR)) {
+    try { 
+        fs.mkdirSync(DATA_DIR, { recursive: true }); 
+        console.log('✅ /var/data klasörü oluşturuldu');
+    } catch (e) {
+        console.log('❌ /var/data oluşturulamadı:', e.message);
+    }
+}
+
+// Eğer players.json yoksa oluştur
+if (!fs.existsSync(playersDataPath)) {
+    try {
+        fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
+        console.log('✅ players.json oluşturuldu');
+    } catch (e) {
+        console.log('❌ players.json oluşturulamadı:', e.message);
+    }
 }
 
 // ────────────────────────────────────────────────
@@ -222,7 +241,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 // ── NODEMAILER YAPILANDIRMASI ──
-// Burayı kendi e-posta adresin ve uygulama şifrenle güncellemen gerekir.
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -249,7 +267,7 @@ function generateVerifyCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-// GERÇEK E-POSTA GÖNDERİCİ (Güncellendi)
+// GERÇEK E-POSTA GÖNDERİCİ
 function sendEmail(to, subject, body) {
     const mailOptions = {
         from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
@@ -293,28 +311,37 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── KULLANICI ADI KONTROL ──
+    // ── KULLANICI ADI KONTROL (Türkçe karakter desteği eklendi)
     socket.on('checkUsername', (username) => {
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        socket.emit('usernameAvailable', { available: !allUsers[username] });
+        
+        // Türkçe karakterleri de içeren regex
+        const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
+        socket.emit('usernameAvailable', { available: !usernameExists });
     });
 
-    // ── KAYIT OL ──
+    // ── KAYIT OL (Türkçe karakter desteği eklendi)
     socket.on('register', (data) => {
         const { username, email, password } = data;
+        
+        // Uzunluk kontrolü
         if (!username || username.length < 3 || username.length > 16) {
             socket.emit('loginError', 'Kahraman adı 3-16 karakter arasında olmalıdır.');
             return;
         }
-        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            socket.emit('loginError', 'Kahraman adında geçersiz karakter var.');
+        
+        // Türkçe karakterlere izin ver (ğ,ü,ş,ı,ö,ç,Ğ,Ü,Ş,İ,Ö,Ç)
+        if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) {
+            socket.emit('loginError', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanılabilir.');
             return;
         }
+        
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             socket.emit('loginError', 'Geçerli bir e-posta adresi girin.');
             return;
         }
+        
         if (!password || password.length < 6) {
             socket.emit('loginError', 'Şifre en az 6 karakter olmalıdır.');
             return;
@@ -322,11 +349,15 @@ io.on('connection', (socket) => {
 
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        if (allUsers[username]) {
+        
+        // Büyük/küçük harf duyarsız kontrol
+        const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
+        if (usernameExists) {
             socket.emit('loginError', 'Bu kahraman adı zaten alınmış.');
             return;
         }
-        const emailUsed = Object.values(allUsers).some(u => u.email === email);
+        
+        const emailUsed = Object.values(allUsers).some(u => u.email.toLowerCase() === email.toLowerCase());
         if (emailUsed) {
             socket.emit('loginError', 'Bu e-posta adresi zaten kayıtlı.');
             return;
@@ -403,12 +434,29 @@ io.on('connection', (socket) => {
         socket.emit('loginError', ''); 
     });
 
-    // ── GİRİŞ YAP ──
+    // ── GİRİŞ YAP (Büyük/küçük harf duyarsız)
     socket.on('login', (data) => {
         const { username, password } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        let foundUser = allUsers[username] || Object.values(allUsers).find(u => u.email === username);
+        
+        // Kullanıcı adı veya e-posta ile ara (büyük/küçük harf duyarsız)
+        let foundUser = null;
+        
+        // Önce tam eşleşme ara
+        if (allUsers[username]) {
+            foundUser = allUsers[username];
+        } else {
+            // Küçük harfe çevirerek ara
+            const usernameLower = username.toLowerCase();
+            const userKey = Object.keys(allUsers).find(u => u.toLowerCase() === usernameLower);
+            if (userKey) foundUser = allUsers[userKey];
+        }
+        
+        // E-posta ile ara
+        if (!foundUser) {
+            foundUser = Object.values(allUsers).find(u => u.email.toLowerCase() === username.toLowerCase());
+        }
 
         if (!foundUser) {
             socket.emit('loginError', 'Bu kahraman adı veya e-posta kayıtlı değil.');
@@ -432,21 +480,24 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── ŞİFREMİ UNUTTUM (KOD GÖNDER) ──
+    // ── ŞİFREMİ UNUTTUM (KOD GÖNDER) - E-posta kayıtlı değilse hata versin
     socket.on('forgotPassword', (data) => {
         const { email } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
         
-        const user = Object.values(allUsers).find(u => u.email === email);
+        // E-posta ile kullanıcıyı bul (büyük/küçük harf duyarsız)
+        const user = Object.values(allUsers).find(u => u.email.toLowerCase() === email.toLowerCase());
+        
+        // E-posta kayıtlı değilse hata gönder
         if (!user) {
-            // Güvenlik için aynı mesajı gönder
-            socket.emit('forgotPasswordCodeSent');
+            socket.emit('loginError', 'Bu e-posta adresi sistemde kayıtlı değil.');
             return;
         }
         
         const code = generateVerifyCode();
-        passwordResetCodes[email] = {
+        
+        passwordResetCodes[email.toLowerCase()] = {
             code: code,
             username: user.username,
             expires: Date.now() + 10 * 60 * 1000 // 10 dakika
@@ -464,7 +515,7 @@ io.on('connection', (socket) => {
     // ── ŞİFRE SIFIRLAMA KODUNU DOĞRULA ──
     socket.on('verifyResetCode', (data) => {
         const { email, code } = data;
-        const resetData = passwordResetCodes[email];
+        const resetData = passwordResetCodes[email.toLowerCase()];
         
         if (!resetData || Date.now() > resetData.expires) {
             socket.emit('resetCodeError', 'Kod süresi dolmuş veya geçersiz.');
@@ -477,7 +528,7 @@ io.on('connection', (socket) => {
         }
         
         // Kodu doğrula ve şifre sıfırlama sayfasına geçiş için onay ver
-        socket.emit('resetCodeVerified', { email, username: resetData.username });
+        socket.emit('resetCodeVerified', { email: email.toLowerCase(), username: resetData.username });
     });
 
     // ── YENİ ŞİFREYİ KAYDET ──
@@ -492,19 +543,23 @@ io.on('connection', (socket) => {
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
         
-        const user = Object.values(allUsers).find(u => u.email === email);
-        if (!user) {
+        // Kullanıcıyı e-posta ile bul
+        const userEntry = Object.entries(allUsers).find(([_, u]) => u.email.toLowerCase() === email.toLowerCase());
+        
+        if (!userEntry) {
             socket.emit('resetPasswordError', 'Kullanıcı bulunamadı.');
             return;
         }
         
+        const [username, user] = userEntry;
+        
         // Şifreyi güncelle
         user.password = newPassword;
-        allUsers[user.username] = user;
+        allUsers[username] = user;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         
         // Kullanılan kodu temizle
-        delete passwordResetCodes[email];
+        delete passwordResetCodes[email.toLowerCase()];
         
         socket.emit('resetPasswordSuccess');
         
@@ -571,13 +626,17 @@ io.on('connection', (socket) => {
             try {
                 let allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
                 const p = activePlayers[socket.id];
-                allUsers[p.username].inventory = p.inventory;
-                allUsers[p.username].x = p.x || 0;
-                allUsers[p.username].y = p.y || 0;
-                allUsers[p.username].z = p.z || 0;
-                allUsers[p.username].hp = p.hp;
-                fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-            } catch (e) {}
+                if (allUsers[p.username]) {
+                    allUsers[p.username].inventory = p.inventory;
+                    allUsers[p.username].x = p.x || 0;
+                    allUsers[p.username].y = p.y || 0;
+                    allUsers[p.username].z = p.z || 0;
+                    allUsers[p.username].hp = p.hp;
+                    fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+                }
+            } catch (e) {
+                console.log('❌ Oyuncu verisi kaydedilemedi:', e.message);
+            }
             for (const [token, username] of Object.entries(sessionTokens)) {
                 if (username === activePlayers[socket.id].username) delete sessionTokens[token];
             }
@@ -598,4 +657,5 @@ if (typeof client !== 'undefined') {
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
-}); 
+    console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
+});
