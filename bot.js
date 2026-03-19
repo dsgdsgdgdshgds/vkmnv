@@ -1,6 +1,3 @@
-NODE-JS
-
-
 const {
     Client,
     GatewayIntentBits,
