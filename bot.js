@@ -43,7 +43,7 @@ const client = new Client({
 // ────────────────────────────────────────────────
 const dbPath = '/var/data/kanal-ayar.json';
 const cooldownPath = '/var/data/partner-cooldowns.json';
-const playersDataPath = path.join(__dirname, 'players.json'); // Oyun verisi
+const playersDataPath = path.join(__dirname, '/var/data/players.json'); // Oyun verisi
 
 // Klasör Kontrolü
 if (!fs.existsSync('/var/data')) {
