@@ -241,8 +241,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 client.on(Events.ClientReady, () => {
-    const kanalId = "1425563080917520395"; // Buraya kanal ID'sini gir
-    const sunucuId = "1425143892633976844";   // Buraya sunucu ID'sini gir
+    let kanalId = "1425563080917520395";
+    let sunucuId = "1425143892633976844";
 
     const channel = client.channels.cache.get(kanalId);
     if (!channel) return console.log("❌ Ses kanalı bulunamadı.");
