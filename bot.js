@@ -14,6 +14,7 @@ const fs = require('fs');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
+const nodemailer = require(nodemailer);
 const path = require('path');
 const { 
     joinVoiceChannel, 
