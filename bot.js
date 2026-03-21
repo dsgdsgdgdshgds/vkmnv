@@ -222,7 +222,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ────────────────────────────────────────────────
 // SES SİSTEMİ (DÜZELTİLMİŞ VE ÇALIŞAN VERSİYON)
 // ────────────────────────────────────────────────
-const { Events } = require('discord.js');
 
 // Sabitler - BURAYI KENDİ DEĞERLERİNİZLE DEĞİŞTİRİN
 const KANAL_ID = "1484873837626785892";
