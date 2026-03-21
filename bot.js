@@ -22,9 +22,10 @@ const {
     createAudioPlayer, 
     createAudioResource, 
     AudioPlayerStatus, 
-    VoiceConnectionStatus 
+    VoiceConnectionStatus,
+    entersState
 } = require('@discordjs/voice');
-
+const { Readable } = require('stream');
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
@@ -217,16 +218,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ────────────────────────────────────────────────
 // SES SİSTEMİ (STREAM İLE - BÜYÜK DOSYALAR İÇİN)
 // ────────────────────────────────────────────────
-const { 
-    joinVoiceChannel, 
-    createAudioPlayer, 
-    createAudioResource, 
-    AudioPlayerStatus, 
-    VoiceConnectionStatus,
-    entersState
-} = require('@discordjs/voice');
-const { Readable } = require('stream');
-const fs = require('fs');
 
 client.on(Events.ClientReady, async () => {
     const kanalId = "1484873837626785892";
