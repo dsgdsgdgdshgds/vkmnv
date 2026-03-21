@@ -9,7 +9,6 @@ const {
     TextInputBuilder,
     TextInputStyle,
     EmbedBuilder,
-    createAudioPlayer, 
     createAudioResource, 
     AudioPlayerStatus
 } = require('discord.js');
