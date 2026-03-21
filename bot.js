@@ -35,7 +35,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates // Ses kanalı için gerekli
+        GatewayIntentBits.GuildVoiceStates 
     ]
 });
 
@@ -125,8 +125,9 @@ function formatRemaining(ms) {
 // ────────────────────────────────────────────────
 // DISCORD BOT OLAYLARI (READY & VOICE)
 // ────────────────────────────────────────────────
+client.on(Events.ClientReady, () => {
+    console.log(`✅ ${client.user.tag} olarak giriş yapıldı!`);
 
-    // Ses Kanalına Giriş
     const kanalId = "1425563080917520395";
     const sunucuId = "1425143892633976844";
 
@@ -140,7 +141,8 @@ function formatRemaining(ms) {
         console.log(`✅ ${channel.name} ses kanalına bağlanıldı.`);
     } else {
         console.log("❌ Ses kanalı bulunamadı, ID'yi kontrol edin.");
-    });
+    }
+});
 
 // ────────────────────────────────────────────────
 // MESAJ VE INTERACTION KOMUTLARI
@@ -165,7 +167,6 @@ client.on(Events.MessageCreate, async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // Partner Ayar Komutları
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
         if (!target) return message.reply('⚠️ Rol etiketle!');
@@ -204,7 +205,6 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply(`✅ ${args} olarak ayarlandı.`);
     }
 
-    // Yetkili Rol Etiketlenince Buton Gönder
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -248,12 +248,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ────────────────────────────────────────────────
-// SERVER BAŞLATMA
+// SERVER BAŞLATMA VE BOT LOGIN
 // ────────────────────────────────────────────────
 server.listen(PORT, () => {
     console.log(`🚀 Sunucu ${PORT} portunda aktif.`);
 });
-
 
 
 
