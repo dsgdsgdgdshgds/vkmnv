@@ -23,6 +23,7 @@ const {
     VoiceConnectionStatus 
 } = require('@discordjs/voice');
 
+
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
