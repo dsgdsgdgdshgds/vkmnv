@@ -23,6 +23,7 @@ const nodemailer = require('nodemailer');
 const { joinVoiceChannel} = require('@discordjs/voice');
 
 
+
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE PORT
 // ────────────────────────────────────────────────
