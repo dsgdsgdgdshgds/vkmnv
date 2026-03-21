@@ -218,50 +218,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-// ────────────────────────────────────────────────
-// SES SİSTEMİ - SON ÇÖZÜM
-// ────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────
+// SES SİSTEMİ (SADECE ÇALMA KISMI DÜZELTİLDİ)
+// ────────────────────────────────────────────────
 client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
     const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) return console.log("❌ Ses kanalı bulunamadı");
+    if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
 
-    if (!fs.existsSync(sesDosyasi)) {
-        console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
-        return;
+    const player = createAudioPlayer();
+
+    function playStream() {
+        if (!fs.existsSync(sesDosyasi)) {
+            console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
+            return;
+        }
+        
+        try {
+            // ReadStream ile oku ve çal
+            const readStream = fs.createReadStream(sesDosyasi);
+            const resource = createAudioResource(readStream, {
+                inlineVolume: true
+            });
+            
+            if (resource.volume) resource.volume.setVolume(1);
+            
+            player.play(resource);
+            console.log("🎵 Ses çalınıyor...");
+        } catch (err) {
+            console.error("❌ Ses çalma hatası:", err.message);
+            setTimeout(playStream, 5000);
+        }
     }
 
-    console.log(`✅ Ses dosyası bulundu: ${sesDosyasi}`);
-
-    // FFmpeg ile dönüştürerek çal
-    const ffmpeg = new prism.FFmpeg({
-        args: [
-            '-i', sesDosyasi,
-            '-analyzeduration', '0',
-            '-loglevel', '0',
-            '-f', 's16le',
-            '-ar', '48000',
-            '-ac', '2',
-        ]
-    });
-
-    const resource = createAudioResource(ffmpeg, {
-        inputType: 'raw',
-        inlineVolume: true
-    });
-    
-    resource.volume?.setVolume(1);
-    
-    const player = createAudioPlayer({
-        behaviors: {
-            noSubscriber: NoSubscriberBehavior.Pause
-        }
-    });
-    
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: sunucuId,
@@ -269,44 +262,39 @@ client.on(Events.ClientReady, () => {
         selfDeaf: true,
         selfMute: false
     });
-    
+
     connection.subscribe(player);
     
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`✅ ${channel.name} kanalına bağlanıldı`);
-        player.play(resource);
-        console.log("🎵 Ses çalıyor...");
+        playStream();
     });
     
     connection.on(VoiceConnectionStatus.Disconnected, () => {
-        console.log("⚠️ Bağlantı koptu");
+        console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
+        setTimeout(() => {
+            const newConnection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: sunucuId,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+                selfDeaf: true,
+                selfMute: false
+            });
+            newConnection.subscribe(player);
+        }, 3000);
     });
-    
+
     player.on(AudioPlayerStatus.Idle, () => {
-        console.log("🔄 Ses bitti, yeniden başlatılıyor...");
-        const newFfmpeg = new prism.FFmpeg({
-            args: [
-                '-i', sesDosyasi,
-                '-analyzeduration', '0',
-                '-loglevel', '0',
-                '-f', 's16le',
-                '-ar', '48000',
-                '-ac', '2',
-            ]
-        });
-        const newResource = createAudioResource(newFfmpeg, {
-            inputType: 'raw',
-            inlineVolume: true
-        });
-        newResource.volume?.setVolume(1);
-        player.play(newResource);
+        console.log("🔄 Ses bitti, tekrar başlatılıyor...");
+        setTimeout(playStream, 1000);
     });
-    
+
     player.on('error', error => {
-        console.error(`❌ Player hatası:`, error);
+        console.error(`⚠️ Player Hatası: ${error.message}`);
+        setTimeout(playStream, 3000);
     });
-    
-    console.log(`🎵 Sonsuz döngü başlatıldı`);
+
+    console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
 });
 
 // ── NODEMAILER YAPILANDIRMASI ──
