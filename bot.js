@@ -1,5 +1,3 @@
-Bu kodu tamamen uyumlu şekilde tekrar yaz kodun devamı var ona göre hatayı düzelt 
-
 const {
     Client,
     GatewayIntentBits,
