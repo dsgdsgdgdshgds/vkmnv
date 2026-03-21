@@ -216,73 +216,39 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.editReply(davet || "✅ Başarılı!");
     }
 });
-
 // ────────────────────────────────────────────────
+// SES SİSTEMİ (SADECE ÇALMA KISMI DÜZELTİLDİ)
 // ────────────────────────────────────────────────
-// SES SİSTEMİ - FFMPEG İLE KESİN ÇÖZÜM
-// ────────────────────────────────────────────────
-
-
 client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3";
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) return console.log("❌ Ses kanalı bulunamadı");
-
-    // Dosya kontrolü
-    if (!fs.existsSync(sesDosyasi)) {
-        console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
-        return;
-    }
-    
-    console.log(`✅ Ses dosyası bulundu: ${sesDosyasi}`);
+    if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
 
     const player = createAudioPlayer();
-    
-    // FFMPEG ile ses çalma (en garantili)
-    function playWithFFmpeg() {
-        try {
-            // FFmpeg stream oluştur
-            const ffmpeg = new prism.FFmpeg({
-                args: [
-                    '-i', sesDosyasi,
-                    '-analyzeduration', '0',
-                    '-loglevel', '0',
-                    '-f', 's16le',
-                    '-ar', '48000',
-                    '-ac', '2',
-                ]
-            });
-            
-            const resource = createAudioResource(ffmpeg, {
-                inputType: StreamType.Raw,
-                inlineVolume: true
-            });
-            
-            resource.volume?.setVolume(1);
-            player.play(resource);
-            console.log("🎵 FFmpeg ile ses çalınıyor...");
-            
-        } catch (err) {
-            console.error("❌ FFmpeg hatası:", err.message);
-            setTimeout(playWithFFmpeg, 5000);
+
+    function playStream() {
+        if (!fs.existsSync(sesDosyasi)) {
+            console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
+            return;
         }
-    }
-    
-    // Alternatif: Opus ile çal
-    function playWithOpus() {
+        
         try {
-            const resource = createAudioResource(sesDosyasi, {
+            // ReadStream ile oku ve çal
+            const readStream = fs.createReadStream(sesDosyasi);
+            const resource = createAudioResource(readStream, {
                 inlineVolume: true
             });
-            resource.volume?.setVolume(1);
+            
+            if (resource.volume) resource.volume.setVolume(1);
+            
             player.play(resource);
-            console.log("🎵 Opus ile ses çalınıyor...");
+            console.log("🎵 Ses çalınıyor...");
         } catch (err) {
-            console.error("❌ Opus hatası:", err);
-            setTimeout(playWithOpus, 5000);
+            console.error("❌ Ses çalma hatası:", err.message);
+            setTimeout(playStream, 5000);
         }
     }
 
@@ -298,8 +264,7 @@ client.on(Events.ClientReady, () => {
     
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`✅ ${channel.name} kanalına bağlanıldı`);
-        // Önce FFmpeg ile dene, olmazsa Opus ile dene
-        playWithFFmpeg();
+        playStream();
     });
     
     connection.on(VoiceConnectionStatus.Disconnected, () => {
@@ -318,17 +283,16 @@ client.on(Events.ClientReady, () => {
 
     player.on(AudioPlayerStatus.Idle, () => {
         console.log("🔄 Ses bitti, tekrar başlatılıyor...");
-        playWithFFmpeg();
+        setTimeout(playStream, 1000);
     });
 
     player.on('error', error => {
         console.error(`⚠️ Player Hatası: ${error.message}`);
-        setTimeout(playWithFFmpeg, 3000);
+        setTimeout(playStream, 3000);
     });
 
-    console.log(`🎵 Sonsuz döngü başlatıldı: ${sesDosyasi}`);
+    console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
 });
-
 // ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
     service: 'gmail',
