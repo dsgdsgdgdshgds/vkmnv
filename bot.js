@@ -8,7 +8,10 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    EmbedBuilder
+    EmbedBuilder,
+    createAudioPlayer, 
+    createAudioResource, 
+    AudioPlayerStatus
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
@@ -17,11 +20,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { joinVoiceChannel, 
-        createAudioPlayer, 
-        createAudioResource, 
-        AudioPlayerStatus 
-} = require('@discordjs/voice');
+const { joinVoiceChannel} = require('@discordjs/voice');
 
 
 // ────────────────────────────────────────────────
@@ -242,8 +241,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-const path = require('path');
+
 
 client.on('ready', () => {
     const kanalId = "1484873837626785892";
