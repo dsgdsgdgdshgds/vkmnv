@@ -273,7 +273,7 @@ client.on(Events.ClientReady, () => {
     });
 
     console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
-})};
+});
 
 
 
