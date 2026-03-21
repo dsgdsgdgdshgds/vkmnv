@@ -125,8 +125,6 @@ function formatRemaining(ms) {
 // ────────────────────────────────────────────────
 // DISCORD BOT OLAYLARI (READY & VOICE)
 // ────────────────────────────────────────────────
-client.on(Events.ClientReady, () => {
-    console.log(`✅ Bot giriş yaptı: ${client.user.tag}`);
 
     // Ses Kanalına Giriş
     const kanalId = "1425563080917520395";
