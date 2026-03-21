@@ -27,7 +27,7 @@ const {
 } = require('@discordjs/voice');
 const { createReadStream } = require('fs');
 const prism = require('prism-media');
-const DATA_DIR2 = '/var/data/public/sounds/'
+const DATA_DIR2 = '/var/data/public/sounds'
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
