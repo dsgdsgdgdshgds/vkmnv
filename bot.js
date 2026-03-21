@@ -246,7 +246,7 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const path = require('path');
 
 client.on('ready', () => {
-    const kanalId = "1425553270218424413";
+    const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
     const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; // Dosya adını kontrol et!
 
