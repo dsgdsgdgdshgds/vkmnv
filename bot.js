@@ -221,7 +221,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
+    const sesDosyasi = path.join(DATA_DIR,'public/sounds/odnogo.mp3'); 
 
     const channel = client.channels.cache.get(kanalId);
     if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
