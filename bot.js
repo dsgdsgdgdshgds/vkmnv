@@ -68,6 +68,7 @@ if (!fs.existsSync(playersDataPath)) {
     }
 }
 
+
 // ────────────────────────────────────────────────
 // DATABASE YARDIMCI FONKSİYONLARI (Discord)
 // ────────────────────────────────────────────────
