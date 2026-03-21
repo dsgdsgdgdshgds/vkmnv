@@ -23,9 +23,11 @@ const {
     createAudioResource, 
     AudioPlayerStatus, 
     VoiceConnectionStatus,
-    entersState
+    entersState,
+    StreamType
 } = require('@discordjs/voice');
-const { Readable } = require('stream');
+const { createReadStream } = require('fs');
+const prism = require('prism-media');
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
@@ -219,17 +221,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ────────────────────────────────────────────────
 // SES SİSTEMİ (KESİN ÇÖZÜM - FFMPEG İLE)
 // ────────────────────────────────────────────────
-const { 
-    joinVoiceChannel, 
-    createAudioPlayer, 
-    createAudioResource, 
-    AudioPlayerStatus, 
-    VoiceConnectionStatus,
-    entersState,
-    StreamType
-} = require('@discordjs/voice');
-const { createReadStream } = require('fs');
-const prism = require('prism-media');
 
 client.on(Events.ClientReady, async () => {
     const kanalId = "1484873837626785892";
