@@ -8,32 +8,29 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    EmbedBuilder,
-    createAudioResource, 
-    AudioPlayerStatus
+    EmbedBuilder
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 const path = require('path');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-const { joinVoiceChannel} = require('@discordjs/voice');
-
-
+const { 
+    joinVoiceChannel, 
+    createAudioPlayer, 
+    createAudioResource, 
+    AudioPlayerStatus, 
+    VoiceConnectionStatus 
+} = require('@discordjs/voice');
 
 // ────────────────────────────────────────────────
-// GENEL AYARLAR VE PORT
+// GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-// ────────────────────────────────────────────────
-// DISCORD BOT BAŞLATMA
-// ────────────────────────────────────────────────
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -43,43 +40,23 @@ const client = new Client({
     ]
 });
 
-// ────────────────────────────────────────────────
-// KALICI DİSK YOLLARI (Render için /var/data/ kalıcı)
-// ────────────────────────────────────────────────
 const DATA_DIR = '/var/data';
 const dbPath = path.join(DATA_DIR, 'kanal-ayar.json');
 const cooldownPath = path.join(DATA_DIR, 'partner-cooldowns.json');
 const playersDataPath = path.join(DATA_DIR, 'players.json');
 
-// Klasör Kontrolü - Her başlatmada kontrol et
-if (!fs.existsSync(DATA_DIR)) {
-    try { 
-        fs.mkdirSync(DATA_DIR, { recursive: true }); 
-        console.log('✅ /var/data klasörü oluşturuldu');
-    } catch (e) {
-        console.log('❌ /var/data oluşturulamadı:', e.message);
-    }
-}
-
-// Eğer players.json yoksa oluştur
-if (!fs.existsSync(playersDataPath)) {
-    try {
-        fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
-        console.log('✅ players.json oluşturuldu');
-    } catch (e) {
-        console.log('❌ players.json oluşturulamadı:', e.message);
-    }
-}
-
+// Klasör ve Dosya Kontrolleri
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
 
 // ────────────────────────────────────────────────
-// DATABASE YARDIMCI FONKSİYONLARI (Discord)
+// YARDIMCI FONKSİYONLAR (DB & Zaman)
 // ────────────────────────────────────────────────
 function dbSet(key, value) {
     let data = {};
     try { data = JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch (err) {}
     data[key] = value;
-    try { fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8'); } catch (err) {}
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
 }
 
 function dbGet(key) {
@@ -94,7 +71,7 @@ function getCooldowns() {
 }
 
 function saveCooldowns(cooldowns) {
-    try { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); } catch (err) {}
+    fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8');
 }
 
 function setUserCooldown(userId, guildId, untilTimestamp) {
@@ -104,8 +81,7 @@ function setUserCooldown(userId, guildId, untilTimestamp) {
 }
 
 function getUserCooldownUntil(userId, guildId) {
-    const cooldowns = getCooldowns();
-    return cooldowns[`${userId}_${guildId}`] || 0;
+    return getCooldowns()[`${userId}_${guildId}`] || 0;
 }
 
 function parseDuration(str) {
@@ -128,12 +104,11 @@ function formatRemaining(ms) {
     if (s < 60) return `${s} saniye`;
     const m = Math.floor(s / 60);
     if (m < 60) return `${m} dk`;
-    const h = Math.floor(m / 60);
-    return `${h} saat`;
+    return `${Math.floor(m / 60)} saat`;
 }
 
 // ────────────────────────────────────────────────
-// DISCORD BOT KOMUTLARI
+// MESAJ VE ETKİLEŞİM KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
@@ -149,46 +124,42 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-sistem #kanal', value: 'Başvuru kanalı', inline: true },
                 { name: '#partner-kanal #kanal', value: 'Reklam kanalı', inline: true },
                 { name: '#partner-log #kanal', value: 'Log kanalı', inline: true },
-                { name: '#partner-mesaj', value: 'Davet metni', inline: false },
+                { name: '#partner-mesaj [mesaj]', value: 'Davet metni', inline: false },
                 { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false }
             );
         return message.channel.send({ embeds: [embed] });
     }
 
+    // Ayar Komutları
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
         if (!target) return message.reply('⚠️ Rol etiketle!');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
-
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
-
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
-
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`logKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
-
     if (prefix === '#partner-mesaj') {
         if (!args.trim()) return message.reply('⚠️ Metin gir!');
         dbSet(`davetMesaji_${message.guild.id}`, args);
         return message.reply('✅ Kaydedildi.');
     }
-
     if (prefix === '#partner-bekleme') {
         if (args === '0') {
             dbSet(`cooldown_${message.guild.id}`, null);
@@ -198,6 +169,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply(`✅ ${args} olarak ayarlandı.`);
     }
 
+    // Partnerlik Buton Gönderme
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -240,49 +212,66 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-
-
-
-client.on('ready', () => {
+// ────────────────────────────────────────────────
+// SES SİSTEMİ (7/24 DÖNGÜ)
+// ────────────────────────────────────────────────
+client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; // Dosya adını kontrol et!
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) return console.log("❌ Ses kanalı bulunamadı.");
+    if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
 
-    // 1. Bağlantıyı Oluştur
-    const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: sunucuId,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-    });
-
-    // 2. Player ve Oynatma Fonksiyonu
     const player = createAudioPlayer();
 
     function playStream() {
+        if (!fs.existsSync(sesDosyasi)) {
+            return console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
+        }
         const resource = createAudioResource(sesDosyasi);
         player.play(resource);
     }
 
-    // 3. Döngü Mantığı: Şarkı bittiğinde (Idle olduğunda) tekrar çal
+    const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: sunucuId,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+        selfDeaf: true,
+        selfMute: false
+    });
+
+    connection.subscribe(player);
+    playStream();
+
+    // Döngü Tetikleyici: Şarkı durduğunda/bittiğinde tekrar çal
     player.on(AudioPlayerStatus.Idle, () => {
         console.log("🔄 Ses bitti, tekrar başlatılıyor...");
         playStream();
     });
 
-    // Hata yönetimi (Botun çökmemesi için önemli)
+    // Hata durumunda (dosya bozuksa vb.) çökme ve 5 saniye sonra dene
     player.on('error', error => {
-        console.error(`X Hata: ${error.message}`);
-        setTimeout(playStream, 5000); // Hata olursa 5 sn sonra tekrar dene
+        console.error(`⚠️ Player Hatası: ${error.message}`);
+        setTimeout(playStream, 5000);
     });
 
-    // 4. Player'ı bağlantıya abone et ve başlat
-    connection.subscribe(player);
-    playStream();
+    // Bağlantı koptuğunda otomatik tekrar bağlanma
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        try {
+            console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
+            const newConn = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: sunucuId,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+            });
+            newConn.subscribe(player);
+        } catch (e) {
+            console.error("❌ Yeniden bağlanma başarısız:", e.message);
+        }
+    });
 
-    console.log(`✅ ${channel.name} kanalında sürekli yayın başladı.`);
+    console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
 });
 
 
