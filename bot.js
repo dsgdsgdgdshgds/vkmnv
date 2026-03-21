@@ -140,8 +140,7 @@ function formatRemaining(ms) {
         console.log(`✅ ${channel.name} ses kanalına bağlanıldı.`);
     } else {
         console.log("❌ Ses kanalı bulunamadı, ID'yi kontrol edin.");
-    }
-}});
+    });
 
 // ────────────────────────────────────────────────
 // MESAJ VE INTERACTION KOMUTLARI
