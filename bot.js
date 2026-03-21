@@ -21,6 +21,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { joinVoiceChannel } = require('@discordjs/voice');
 
 
 // ────────────────────────────────────────────────
@@ -238,8 +239,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-
-const { joinVoiceChannel } = require('@discordjs/voice');
 
 client.on(Events.ClientReady, () => {
     const kanalId = "1425563080917520395"; // Buraya kanal ID'sini gir
