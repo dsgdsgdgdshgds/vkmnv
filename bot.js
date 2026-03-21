@@ -218,201 +218,83 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ────────────────────────────────────────────────
+// SES SİSTEMİ (İLK KOD - SADECE SES ÇALMA DÜZELTİLDİ)
 // ────────────────────────────────────────────────
-// SES SİSTEMİ (KESİN ÇÖZÜM - FFMPEG İLE)
-// ────────────────────────────────────────────────
-
-client.on(Events.ClientReady, async () => {
+client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    
-    // Dosya yolları
-    const possiblePaths = [
-        "./public/sounds/odnogo.mp3",
-        path.join(__dirname, "public", "sounds", "odnogo.mp3"),
-        "/var/data/public/sounds/odnogo.mp3"
-    ];
-    
-    let sesDosyasi = null;
-    
-    for (const yol of possiblePaths) {
-        if (fs.existsSync(yol)) {
-            sesDosyasi = yol;
-            console.log(`✅ Ses dosyası bulundu: ${yol}`);
-            break;
-        }
-    }
-    
-    if (!sesDosyasi) {
-        console.log("❌ Ses dosyası bulunamadı!");
-        return;
-    }
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) {
-        console.log(`❌ Ses kanalı bulunamadı. ID: ${kanalId}`);
-        return;
-    }
+    if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
 
-    let connection = null;
-    let player = null;
-    let isPlaying = false;
+    const player = createAudioPlayer();
 
-    // FFMPEG ile ses çalma (en kararlı yöntem)
-    function playWithFFmpeg() {
-        try {
-            // FFmpeg stream oluştur
-            const ffmpeg = new prism.FFmpeg({
-                args: [
-                    '-i', sesDosyasi,
-                    '-analyzeduration', '0',
-                    '-loglevel', '0',
-                    '-f', 's16le',
-                    '-ar', '48000',
-                    '-ac', '2',
-                ]
-            });
-            
-            const resource = createAudioResource(ffmpeg, {
-                inputType: StreamType.Raw,
-                inlineVolume: true
-            });
-            
-            resource.volume?.setVolume(1);
-            player.play(resource);
-            console.log("🎵 FFmpeg ile ses çalınıyor...");
-            isPlaying = true;
-            
-        } catch (err) {
-            console.error("❌ FFmpeg hatası:", err.message);
-            isPlaying = false;
-            setTimeout(() => playWithFFmpeg(), 5000);
+    function playStream() {
+        if (!fs.existsSync(sesDosyasi)) {
+            return console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
         }
-    }
-
-    // Basit yöntem (dosya direkt)
-    function playDirect() {
+        
         try {
+            // createAudioResource'ı doğru kullanım
             const resource = createAudioResource(sesDosyasi, {
                 inlineVolume: true
             });
             
-            resource.volume?.setVolume(1);
-            player.play(resource);
-            console.log("🎵 Direkt ses çalınıyor...");
-            isPlaying = true;
+            // Ses seviyesini ayarla
+            if (resource.volume) resource.volume.setVolume(1);
             
+            player.play(resource);
+            console.log("🎵 Ses çalınıyor...");
         } catch (err) {
-            console.error("❌ Direkt çalma hatası:", err.message);
-            isPlaying = false;
-            setTimeout(() => playDirect(), 5000);
+            console.error("❌ Ses çalma hatası:", err.message);
+            // Hata olursa 5 saniye sonra tekrar dene
+            setTimeout(playStream, 5000);
         }
     }
 
-    // ReadStream ile çal
-    function playWithStream() {
-        try {
-            const stream = createReadStream(sesDosyasi);
-            const resource = createAudioResource(stream, {
-                inlineVolume: true,
-                inputType: StreamType.Arbitrary
-            });
-            
-            resource.volume?.setVolume(1);
-            player.play(resource);
-            console.log("🎵 Stream ile ses çalınıyor...");
-            isPlaying = true;
-            
-        } catch (err) {
-            console.error("❌ Stream hatası:", err.message);
-            isPlaying = false;
-            setTimeout(() => playWithStream(), 5000);
-        }
-    }
+    const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: sunucuId,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+        selfDeaf: true,
+        selfMute: false
+    });
 
-    // Tüm yöntemleri dene
-    let methodIndex = 0;
-    const methods = [playDirect, playWithStream, playWithFFmpeg];
+    connection.subscribe(player);
     
-    function tryNextMethod() {
-        if (methodIndex < methods.length) {
-            console.log(`🔄 Deneniyor: Yöntem ${methodIndex + 1}/${methods.length}`);
-            methods[methodIndex]();
-            methodIndex++;
-        } else {
-            console.log("❌ Tüm yöntemler başarısız, 30 saniye sonra tekrar deneniyor...");
-            methodIndex = 0;
-            setTimeout(tryNextMethod, 30000);
-        }
-    }
-
-    async function connectAndPlay() {
-        try {
-            // Eski bağlantıyı temizle
-            if (player) {
-                player.stop();
-                player.removeAllListeners();
-            }
-            if (connection) {
-                connection.destroy();
-            }
-            
-            // Yeni bağlantı oluştur
-            connection = joinVoiceChannel({
+    // Bağlantı hazır olunca çalmaya başla
+    connection.on(VoiceConnectionStatus.Ready, () => {
+        console.log(`✅ ${channel.name} kanalına bağlanıldı`);
+        playStream();
+    });
+    
+    connection.on(VoiceConnectionStatus.Disconnected, () => {
+        console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
+        setTimeout(() => {
+            const newConnection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: sunucuId,
                 adapterCreator: channel.guild.voiceAdapterCreator,
                 selfDeaf: true,
                 selfMute: false
             });
-            
-            await entersState(connection, VoiceConnectionStatus.Ready, 15000);
-            console.log(`✅ Ses kanalına bağlanıldı: ${channel.name}`);
-            
-            // Player oluştur
-            player = createAudioPlayer();
-            
-            // Player eventleri
-            player.on(AudioPlayerStatus.Playing, () => {
-                console.log("🎵 Ses aktif");
-                isPlaying = true;
-            });
-            
-            player.on(AudioPlayerStatus.Idle, () => {
-                console.log("🔄 Ses bitti, tekrar başlatılıyor...");
-                isPlaying = false;
-                methodIndex = 0;
-                setTimeout(() => tryNextMethod(), 1000);
-            });
-            
-            player.on('error', (error) => {
-                console.error("❌ Player hatası:", error.message);
-                isPlaying = false;
-                methodIndex++;
-                setTimeout(() => tryNextMethod(), 3000);
-            });
-            
-            // Player'ı bağla
-            connection.subscribe(player);
-            
-            // Ses çalmayı başlat
-            setTimeout(() => tryNextMethod(), 2000);
-            
-            // Bağlantı koparsa yeniden bağlan
-            connection.on(VoiceConnectionStatus.Disconnected, async () => {
-                console.log("⚠️ Bağlantı koptu, 5 saniye sonra yeniden bağlanılıyor...");
-                setTimeout(() => connectAndPlay(), 5000);
-            });
-            
-        } catch (error) {
-            console.error("❌ Bağlantı hatası:", error.message);
-            setTimeout(() => connectAndPlay(), 10000);
-        }
-    }
+            newConnection.subscribe(player);
+        }, 3000);
+    });
 
-    // Başlat
-    console.log("🎵 Ses sistemi başlatılıyor...");
-    setTimeout(() => connectAndPlay(), 3000);
+    // Döngü için: şarkı bitince tekrar çal
+    player.on(AudioPlayerStatus.Idle, () => {
+        console.log("🔄 Ses bitti, tekrar başlatılıyor...");
+        playStream();
+    });
+
+    player.on('error', error => {
+        console.error(`⚠️ Player Hatası: ${error.message}`);
+        setTimeout(playStream, 5000);
+    });
+
+    console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
 });
 
 // ── NODEMAILER YAPILANDIRMASI ──
