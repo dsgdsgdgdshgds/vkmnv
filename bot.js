@@ -8,7 +8,11 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    EmbedBuilder
+    EmbedBuilder,
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
@@ -233,6 +237,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.editReply(davet || "✅ Başarılı!");
     }
 });
+
+
+const { joinVoiceChannel } = require('@discordjs/voice');
+
+client.on(Events.ClientReady, () => {
+    const kanalId = "1425563080917520395"; // Buraya kanal ID'sini gir
+    const sunucuId = "1425143892633976844";   // Buraya sunucu ID'sini gir
+
+    const channel = client.channels.cache.get(kanalId);
+    if (!channel) return console.log("❌ Ses kanalı bulunamadı.");
+
+    joinVoiceChannel({
+        channelId: channel.id,
+        guildId: sunucuId,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+    });
+
+    console.log(`✅ ${channel.name} kanalına giriş yapıldı.`);
+});
+
 
 
 
