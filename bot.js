@@ -27,6 +27,7 @@ const {
 } = require('@discordjs/voice');
 const { createReadStream } = require('fs');
 const prism = require('prism-media');
+const DATA_DIR2 = '/var/data/public/sounds/'
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
@@ -226,7 +227,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // Sabitler - BURAYI KENDİ DEĞERLERİNİZLE DEĞİŞTİRİN
 const KANAL_ID = "1484873837626785892";
 const SUNUCU_ID = "1425143892633976844";
-const SES_DOSYASI = path.join(DATA_DIR, "odnogo.mp3");
+const SES_DOSYASI = path.join(DATA_DIR2,"odnogo.mp3");
 
 client.on(Events.ClientReady, async () => {
     console.log(`✅ ${client.user.tag} olarak giriş yapıldı!`);
