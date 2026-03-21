@@ -237,21 +237,51 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 
-client.on(Events.ClientReady, () => {
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const path = require('path');
+
+client.on('ready', () => {
     let kanalId = "1425553270218424413";
     let sunucuId = "1425143892633976844";
+    let sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; // Dosya adını kontrol et!
 
-    const channel = client.channels.cache.get(kanalId);
+    let channel = client.channels.cache.get(kanalId);
     if (!channel) return console.log("❌ Ses kanalı bulunamadı.");
 
-    joinVoiceChannel({
+    // 1. Bağlantıyı Oluştur
+    const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: sunucuId,
         adapterCreator: channel.guild.voiceAdapterCreator,
     });
 
-    console.log(`✅ ${channel.name} kanalına giriş yapıldı.`);
+    // 2. Player ve Oynatma Fonksiyonu
+    const player = createAudioPlayer();
+
+    function playStream() {
+        const resource = createAudioResource(sesDosyasi);
+        player.play(resource);
+    }
+
+    // 3. Döngü Mantığı: Şarkı bittiğinde (Idle olduğunda) tekrar çal
+    player.on(AudioPlayerStatus.Idle, () => {
+        console.log("🔄 Ses bitti, tekrar başlatılıyor...");
+        playStream();
+    });
+
+    // Hata yönetimi (Botun çökmemesi için önemli)
+    player.on('error', error => {
+        console.error(`X Hata: ${error.message}`);
+        setTimeout(playStream, 5000); // Hata olursa 5 sn sonra tekrar dene
+    });
+
+    // 4. Player'ı bağlantıya abone et ve başlat
+    connection.subscribe(player);
+    playStream();
+
+    console.log(`✅ ${channel.name} kanalında sürekli yayın başladı.`);
 });
+
 
 
 
