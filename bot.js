@@ -8,10 +8,7 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    EmbedBuilder,
-    createAudioPlayer, 
-    createAudioResource, 
-    AudioPlayerStatus
+    EmbedBuilder
 } = require('discord.js');
 const fs = require('fs');
 const http = require('http');
@@ -20,7 +17,11 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { joinVoiceChannel } = require('@discordjs/voice');
+const { joinVoiceChannel, 
+        createAudioPlayer, 
+        createAudioResource, 
+        AudioPlayerStatus 
+} = require('@discordjs/voice');
 
 
 // ────────────────────────────────────────────────
