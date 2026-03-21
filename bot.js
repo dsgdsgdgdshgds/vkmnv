@@ -9,7 +9,6 @@ const {
     TextInputBuilder,
     TextInputStyle,
     EmbedBuilder,
-    joinVoiceChannel, 
     createAudioPlayer, 
     createAudioResource, 
     AudioPlayerStatus
