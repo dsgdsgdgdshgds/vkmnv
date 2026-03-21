@@ -141,7 +141,7 @@ function formatRemaining(ms) {
     } else {
         console.log("❌ Ses kanalı bulunamadı, ID'yi kontrol edin.");
     }
-})};
+};
 
 // ────────────────────────────────────────────────
 // MESAJ VE INTERACTION KOMUTLARI
