@@ -238,7 +238,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 client.on(Events.ClientReady, () => {
-    let kanalId = "1425563080917520395";
+    let kanalId = "1425553270218424413";
     let sunucuId = "1425143892633976844";
 
     const channel = client.channels.cache.get(kanalId);
