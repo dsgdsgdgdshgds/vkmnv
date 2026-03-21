@@ -241,11 +241,11 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const path = require('path');
 
 client.on('ready', () => {
-    let kanalId = "1425553270218424413";
-    let sunucuId = "1425143892633976844";
-    let sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; // Dosya adını kontrol et!
+    const kanalId = "1425553270218424413";
+    const sunucuId = "1425143892633976844";
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; // Dosya adını kontrol et!
 
-    let channel = client.channels.cache.get(kanalId);
+    const channel = client.channels.cache.get(kanalId);
     if (!channel) return console.log("❌ Ses kanalı bulunamadı.");
 
     // 1. Bağlantıyı Oluştur
