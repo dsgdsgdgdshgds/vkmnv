@@ -23,7 +23,7 @@ const {
     createAudioResource, 
     AudioPlayerStatus, 
     VoiceConnectionStatus,
-    StreamType
+    entersState
 } = require('@discordjs/voice');
 const { createReadStream } = require('fs');
 const prism = require('prism-media');
@@ -216,27 +216,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.editReply(davet || "✅ Başarılı!");
     }
 });
-// ────────────────────────────────────────────────
-// ────────────────────────────────────────────────
-// SES SİSTEMİ - SON ÇÖZÜM
-// ────────────────────────────────────────────────
-const { 
-    joinVoiceChannel, 
-    createAudioPlayer, 
-    createAudioResource, 
-    AudioPlayerStatus, 
-    VoiceConnectionStatus,
-    NoSubscriberBehavior
-} = require('@discordjs/voice');
-const prism = require('prism-media');
 
-client.on(Events.ClientReady, () => {
+
+// ────────────────────────────────────────────────
+// SES SİSTEMİ - KESİN ÇÖZÜM
+// ────────────────────────────────────────────────
+client.on(Events.ClientReady, async () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3"; 
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3";
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) return console.log("❌ Ses kanalı bulunamadı");
+    if (!channel) {
+        console.log("❌ Ses kanalı bulunamadı");
+        return;
+    }
 
     if (!fs.existsSync(sesDosyasi)) {
         console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
@@ -245,31 +239,7 @@ client.on(Events.ClientReady, () => {
 
     console.log(`✅ Ses dosyası bulundu: ${sesDosyasi}`);
 
-    // FFmpeg ile dönüştürerek çal
-    const ffmpeg = new prism.FFmpeg({
-        args: [
-            '-i', sesDosyasi,
-            '-analyzeduration', '0',
-            '-loglevel', '0',
-            '-f', 's16le',
-            '-ar', '48000',
-            '-ac', '2',
-        ]
-    });
-
-    const resource = createAudioResource(ffmpeg, {
-        inputType: 'raw',
-        inlineVolume: true
-    });
-    
-    resource.volume?.setVolume(1);
-    
-    const player = createAudioPlayer({
-        behaviors: {
-            noSubscriber: NoSubscriberBehavior.Pause
-        }
-    });
-    
+    // Bağlantıyı oluştur
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: sunucuId,
@@ -277,45 +247,64 @@ client.on(Events.ClientReady, () => {
         selfDeaf: true,
         selfMute: false
     });
-    
+
+    // Bağlantı HAZIR olana kadar bekle
+    await entersState(connection, VoiceConnectionStatus.Ready, 20000);
+    console.log(`✅ ${channel.name} kanalına bağlanıldı`);
+
+    const player = createAudioPlayer();
     connection.subscribe(player);
-    
-    connection.on(VoiceConnectionStatus.Ready, () => {
-        console.log(`✅ ${channel.name} kanalına bağlanıldı`);
-        player.play(resource);
-        console.log("🎵 Ses çalıyor...");
-    });
-    
-    connection.on(VoiceConnectionStatus.Disconnected, () => {
-        console.log("⚠️ Bağlantı koptu");
-    });
-    
-    player.on(AudioPlayerStatus.Idle, () => {
-        console.log("🔄 Ses bitti, yeniden başlatılıyor...");
-        const newFfmpeg = new prism.FFmpeg({
-            args: [
-                '-i', sesDosyasi,
-                '-analyzeduration', '0',
-                '-loglevel', '0',
-                '-f', 's16le',
-                '-ar', '48000',
-                '-ac', '2',
-            ]
-        });
-        const newResource = createAudioResource(newFfmpeg, {
-            inputType: 'raw',
-            inlineVolume: true
-        });
-        newResource.volume?.setVolume(1);
-        player.play(newResource);
-    });
-    
+
+    // Hata yakalama
     player.on('error', error => {
-        console.error(`❌ Player hatası:`, error);
+        console.error('❌ Player hatası:', error.message);
     });
-    
+
+    // Ses çalma fonksiyonu
+    function playAudio() {
+        try {
+            const resource = createAudioResource(sesDosyasi, {
+                inlineVolume: true
+            });
+            resource.volume?.setVolume(1);
+            player.play(resource);
+            console.log("🎵 Ses çalıyor...");
+        } catch (err) {
+            console.error("❌ Ses çalma hatası:", err.message);
+        }
+    }
+
+    // İlk çalma
+    playAudio();
+
+    // Döngü: bitince tekrar çal
+    player.on(AudioPlayerStatus.Idle, () => {
+        console.log("🔄 Ses bitti, tekrar başlatılıyor...");
+        playAudio();
+    });
+
+    // Bağlantı koptuysa yeniden bağlan
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
+        setTimeout(async () => {
+            const newConnection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: sunucuId,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+                selfDeaf: true,
+                selfMute: false
+            });
+            await entersState(newConnection, VoiceConnectionStatus.Ready, 20000);
+            newConnection.subscribe(player);
+            playAudio();
+        }, 3000);
+    });
+
     console.log(`🎵 Sonsuz döngü başlatıldı`);
 });
+
+
+
 // ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
     service: 'gmail',
