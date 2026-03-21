@@ -215,68 +215,119 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ────────────────────────────────────────────────
-// SES SİSTEMİ (7/24 DÖNGÜ)
+// ────────────────────────────────────────────────
+// SES SİSTEMİ (7/24 DÖNGÜ) - DÜZELTİLMİŞ
 // ────────────────────────────────────────────────
 client.on(Events.ClientReady, () => {
     const kanalId = "1484873837626785892";
     const sunucuId = "1425143892633976844";
-    const sesDosyasi = path.join(DATA_DIR,'public/sounds/odnogo.mp3'); 
+    const sesDosyasi = "/var/data/public/sounds/odnogo.mp3";
 
     const channel = client.channels.cache.get(kanalId);
-    if (!channel) return console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
-
-    const player = createAudioPlayer();
-
-    function playStream() {
-        if (!fs.existsSync(sesDosyasi)) {
-            return console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
-        }
-        const resource = createAudioResource(sesDosyasi);
-        player.play(resource);
+    if (!channel) {
+        console.log("❌ Ses kanalı bulunamadı. ID doğru mu?");
+        return;
     }
 
-    const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: sunucuId,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-        selfDeaf: true,
-        selfMute: false
-    });
+    // Dosya kontrolü
+    if (!fs.existsSync(sesDosyasi)) {
+        console.log(`❌ Ses dosyası bulunamadı: ${sesDosyasi}`);
+        return;
+    }
 
-    connection.subscribe(player);
-    playStream();
+    console.log(`✅ Ses dosyası bulundu: ${sesDosyasi}`);
+    
+    const player = createAudioPlayer();
+    let currentConnection = null;
+    let reconnectAttempts = 0;
 
-    // Döngü Tetikleyici: Şarkı durduğunda/bittiğinde tekrar çal
-    player.on(AudioPlayerStatus.Idle, () => {
-        console.log("🔄 Ses bitti, tekrar başlatılıyor...");
-        playStream();
-    });
-
-    // Hata durumunda (dosya bozuksa vb.) çökme ve 5 saniye sonra dene
-    player.on('error', error => {
-        console.error(`⚠️ Player Hatası: ${error.message}`);
-        setTimeout(playStream, 5000);
-    });
-
-    // Bağlantı koptuğunda otomatik tekrar bağlanma
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    function playStream() {
         try {
-            console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
-            const newConn = joinVoiceChannel({
+            // Eski kaynağı temizle
+            if (player.state.status !== AudioPlayerStatus.Idle) {
+                player.stop();
+            }
+            
+            const resource = createAudioResource(sesDosyasi, {
+                inlineVolume: true
+            });
+            
+            resource.volume?.setVolume(1);
+            player.play(resource);
+            console.log("🎵 Ses çalmaya başladı");
+        } catch (error) {
+            console.error("❌ Ses çalma hatası:", error.message);
+            setTimeout(playStream, 5000);
+        }
+    }
+
+    function connectToVoice() {
+        try {
+            if (currentConnection) {
+                try {
+                    currentConnection.destroy();
+                } catch (e) {}
+            }
+            
+            currentConnection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: sunucuId,
                 adapterCreator: channel.guild.voiceAdapterCreator,
+                selfDeaf: true,
+                selfMute: false
             });
-            newConn.subscribe(player);
-        } catch (e) {
-            console.error("❌ Yeniden bağlanma başarısız:", e.message);
+            
+            currentConnection.subscribe(player);
+            
+            currentConnection.on(VoiceConnectionStatus.Ready, () => {
+                console.log(`✅ Ses kanalına bağlanıldı: ${channel.name}`);
+                reconnectAttempts = 0;
+                playStream();
+            });
+            
+            currentConnection.on(VoiceConnectionStatus.Disconnected, async () => {
+                console.log("⚠️ Bağlantı kesildi, yeniden bağlanılıyor...");
+                setTimeout(connectToVoice, 3000);
+            });
+            
+            currentConnection.on(VoiceConnectionStatus.Connecting, () => {
+                console.log("🔄 Bağlanılıyor...");
+            });
+            
+            currentConnection.on('error', (error) => {
+                console.error("🔊 Bağlantı hatası:", error.message);
+            });
+            
+        } catch (error) {
+            console.error("❌ Bağlantı hatası:", error.message);
+            setTimeout(connectToVoice, 5000);
         }
+    }
+
+    // Player eventleri
+    player.on(AudioPlayerStatus.Idle, () => {
+        console.log("🔄 Ses bitti, 1 saniye sonra tekrar çalınıyor...");
+        setTimeout(playStream, 1000);
+    });
+    
+    player.on(AudioPlayerStatus.Playing, () => {
+        console.log("🎵 Ses aktif");
+    });
+    
+    player.on(AudioPlayerStatus.Buffering, () => {
+        console.log("⏳ Ses yükleniyor...");
+    });
+    
+    player.on('error', (error) => {
+        console.error("⚠️ Player hatası:", error.message);
+        setTimeout(playStream, 3000);
     });
 
-    console.log(`✅ ${channel.name} kanalında sonsuz döngü başladı.`);
+    // Bağlantıyı başlat
+    connectToVoice();
+    
+    console.log(`🎵 ${channel.name} kanalında sonsuz döngü başlatılıyor...`);
 });
-
-
 
 
 // ── NODEMAILER YAPILANDIRMASI ──
