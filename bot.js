@@ -222,17 +222,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ────────────────────────────────────────────────
 // SES SİSTEMİ (DÜZELTİLMİŞ VE ÇALIŞAN VERSİYON)
 // ────────────────────────────────────────────────
-const { 
-    createAudioPlayer, 
-    createAudioResource, 
-    joinVoiceChannel,
-    AudioPlayerStatus,
-    VoiceConnectionStatus,
-    NoSubscriberBehavior,
-    entersState
-} = require('@discordjs/voice');
-const fs = require('fs');
-const path = require('path');
 const { Events } = require('discord.js');
 
 // Sabitler - BURAYI KENDİ DEĞERLERİNİZLE DEĞİŞTİRİN
