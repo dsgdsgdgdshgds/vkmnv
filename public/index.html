@@ -578,8 +578,8 @@
                     <div class="inv-item">🪓 <span id="inv-axe">0</span></div>
                 </div>
                 <div class="character-select">
-                    <div class="char-btn" onclick="spawnCharacter('edward')">⚙️ Edward Elric</div>
-                    <div class="char-btn" onclick="spawnCharacter('muichiro')">💨 Muichiro Tokito</div>
+                    <div class="char-btn" onclick="spawnCharacter('edward'); setPlayerCharacter('edward')">⚙️ Edward Elric</div>
+                    <div class="char-btn" onclick="spawnCharacter('muichiro'); setPlayerCharacter('muichiro')">💨 Muichiro Tokito</div>
                 </div>
             </div>
         </div>
@@ -641,33 +641,48 @@
 <div id="crosshair">✛</div>
 
 <script>
-// ========== PARTICLES ==========
+// ═══════════════════════════════════════════════
+//  PARTICLES (Auth Screen) - unchanged
+// ═══════════════════════════════════════════════
 (function () {
     const canvas = document.getElementById('particles-canvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
+
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize); resize();
+
     for (let i = 0; i < 60; i++) {
         particles.push({
-            x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
-            vx: (Math.random() - 0.5) * 0.3, vy: -Math.random() * 0.5 - 0.1,
-            r: Math.random() * 2 + 0.5, a: Math.random(), life: Math.random()
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -Math.random() * 0.5 - 0.1,
+            r: Math.random() * 2 + 0.5,
+            a: Math.random(),
+            life: Math.random()
         });
     }
+
     function animParticles() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         particles.forEach(p => {
             p.x += p.vx; p.y += p.vy; p.life += 0.003;
             if (p.y < -10 || p.life > 1) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; p.life = 0; }
-            ctx.save(); ctx.globalAlpha = Math.sin(p.life * Math.PI) * 0.4; ctx.fillStyle = '#c9a84c';
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            ctx.save();
+            ctx.globalAlpha = Math.sin(p.life * Math.PI) * 0.4;
+            ctx.fillStyle = '#c9a84c';
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
         });
         requestAnimationFrame(animParticles);
     }
     animParticles();
 })();
 
+// ═══════════════════════════════════════════════
+//  CAPTCHA (unchanged)
+// ═══════════════════════════════════════════════
 let currentCaptcha = '';
 function generateCaptcha() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -677,196 +692,1144 @@ function generateCaptcha() {
 function refreshCaptcha() { generateCaptcha(); }
 generateCaptcha();
 
-// Session
+// ═══════════════════════════════════════════════
+//  SESSION (unchanged)
+// ═══════════════════════════════════════════════
 const SESSION_KEY = 'survival_evo_session';
-function saveSession(data) { try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e) {} }
-function loadSession() { try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; } }
-function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(e) {} }
 
+function saveSession(data) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadSession() {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  SOCKET.IO (unchanged)
+// ═══════════════════════════════════════════════
 const socket = io();
 
-// TABS
+// ═══════════════════════════════════════════════
+//  TABS & MESSAGES (unchanged)
+// ═══════════════════════════════════════════════
 function switchTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
     const tabsMain = document.getElementById('auth-tabs-main');
-    if (tab === 'login') { tabsMain.style.display = 'flex'; document.querySelector('#auth-tabs-main .auth-tab:first-child').classList.add('active'); document.getElementById('panel-login').classList.add('active'); }
-    else if (tab === 'register') { tabsMain.style.display = 'flex'; document.querySelector('#auth-tabs-main .auth-tab:last-child').classList.add('active'); document.getElementById('panel-register').classList.add('active'); }
-    else if (tab === 'forgot') { tabsMain.style.display = 'none'; document.getElementById('panel-forgot').classList.add('active'); }
-    else if (tab === 'reset-code') { tabsMain.style.display = 'none'; document.getElementById('panel-reset-code').classList.add('active'); }
-    else if (tab === 'new-password') { tabsMain.style.display = 'none'; document.getElementById('panel-new-password').classList.add('active'); }
-    else if (tab === 'verify') { tabsMain.style.display = 'none'; document.getElementById('panel-verify').classList.add('active'); }
+
+    if (tab === 'login') {
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:first-child').classList.add('active');
+        document.getElementById('panel-login').classList.add('active');
+    } else if (tab === 'register') {
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:last-child').classList.add('active');
+        document.getElementById('panel-register').classList.add('active');
+    } else if (tab === 'forgot') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-forgot').classList.add('active');
+    } else if (tab === 'reset-code') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-reset-code').classList.add('active');
+    } else if (tab === 'new-password') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-new-password').classList.add('active');
+    } else if (tab === 'verify') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-verify').classList.add('active');
+    }
 }
-function showMsg(id, type, text) { const el = document.getElementById(id); el.className = 'msg-box ' + type; el.innerHTML = (type === 'error' ? '⚠&nbsp;&nbsp;' : '✓&nbsp;&nbsp;') + text; el.style.display = 'flex'; }
+
+function showMsg(id, type, text) {
+    const el = document.getElementById(id);
+    el.className = 'msg-box ' + type;
+    el.innerHTML = (type === 'error' ? '⚠&nbsp;&nbsp;' : '✓&nbsp;&nbsp;') + text;
+    el.style.display = 'flex';
+}
 function hideMsg(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
 
+// ── Field Validation (unchanged) ──
 let usernameCheckTimer = null;
-function checkUsername(input) { /* validation same as original, includes Turkish chars */ const val = input.value.trim(); const hint = document.getElementById('reg-user-hint'); const status = document.getElementById('reg-user-status'); input.classList.remove('success','error','checking'); if (!val) { hint.textContent = ''; hint.className = 'field-hint'; status.textContent = ''; return; } if (val.length < 3) { input.classList.add('error'); hint.textContent = '✖ En az 3 karakter gerekli'; hint.className = 'field-hint error'; status.textContent = '✖'; return; } if (val.length > 16) { input.classList.add('error'); hint.textContent = '✖ En fazla 16 karakter olabilir'; hint.className = 'field-hint error'; status.textContent = '✖'; return; } if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(val)) { input.classList.add('error'); hint.textContent = '✖ Sadece harf, rakam, _ ve Türkçe karakterler'; hint.className = 'field-hint error'; status.textContent = '✖'; return; } input.classList.add('checking'); hint.textContent = '⏳ Kontrol ediliyor...'; hint.className = 'field-hint info'; status.textContent = '...'; clearTimeout(usernameCheckTimer); usernameCheckTimer = setTimeout(() => { socket.emit('checkUsername', val); }, 500); }
-function checkEmail(input) { const val = input.value.trim(); const hint = document.getElementById('reg-email-hint'); input.classList.remove('success','error'); if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; } const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); if (ok) { input.classList.add('success'); hint.textContent = '✓ Geçerli e-posta adresi'; hint.className = 'field-hint success'; } else { input.classList.add('error'); hint.textContent = '✖ Geçerli bir e-posta adresi girin'; hint.className = 'field-hint error'; } }
-function checkPassword(input) { const val = input.value; const hint = document.getElementById('reg-pass-hint'); input.classList.remove('success','error'); if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; } if (val.length < 6) { input.classList.add('error'); hint.textContent = '✖ En az 6 karakter gerekli'; hint.className = 'field-hint error'; } else { input.classList.add('success'); hint.textContent = '✓ Şifre yeterince güçlü'; hint.className = 'field-hint success'; } checkPassword2(document.getElementById('reg-pass2')); }
-function checkPassword2(input) { const val = input.value; const hint = document.getElementById('reg-pass2-hint'); const pass1 = document.getElementById('reg-pass').value; input.classList.remove('success','error'); if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; } if (val === pass1) { input.classList.add('success'); hint.textContent = '✓ Şifreler eşleşiyor'; hint.className = 'field-hint success'; } else { input.classList.add('error'); hint.textContent = '✖ Şifreler eşleşmiyor'; hint.className = 'field-hint error'; } }
+function checkUsername(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('success','error','checking');
 
-socket.on('usernameAvailable', (data) => { const input = document.getElementById('reg-user'); const hint = document.getElementById('reg-user-hint'); const status = document.getElementById('reg-user-status'); input.classList.remove('checking'); if (data.available) { input.classList.add('success'); hint.textContent = '✓ Bu kahraman adı kullanılabilir!'; hint.className = 'field-hint success'; status.textContent = '✓'; status.style.color = '#27ae60'; } else { input.classList.add('error'); hint.textContent = '✖ Bu kahraman adı zaten alınmış'; hint.className = 'field-hint error'; status.textContent = '✖'; status.style.color = '#e74c3c'; } });
+    if (!val) { 
+        hint.textContent = ''; 
+        hint.className = 'field-hint'; 
+        status.textContent = ''; 
+        return; 
+    }
+    
+    if (val.length < 3) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 3 karakter gerekli';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    if (val.length > 16) {
+        input.classList.add('error');
+        hint.textContent = '✖ En fazla 16 karakter olabilir';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(val)) {
+        input.classList.add('error');
+        hint.textContent = '✖ Sadece harf, rakam, _ ve Türkçe karakterler';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    input.classList.add('checking');
+    hint.textContent = '⏳ Kontrol ediliyor...';
+    hint.className = 'field-hint info';
+    status.textContent = '...';
 
+    clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(() => {
+        socket.emit('checkUsername', val);
+    }, 500);
+}
+
+function checkEmail(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-email-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    if (ok) {
+        input.classList.add('success');
+        hint.textContent = '✓ Geçerli e-posta adresi';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Geçerli bir e-posta adresi girin';
+        hint.className = 'field-hint error';
+    }
+}
+
+function checkPassword(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val.length < 6) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 6 karakter gerekli';
+        hint.className = 'field-hint error';
+    } else {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifre yeterince güçlü';
+        hint.className = 'field-hint success';
+    }
+    checkPassword2(document.getElementById('reg-pass2'));
+}
+
+function checkPassword2(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass2-hint');
+    const pass1 = document.getElementById('reg-pass').value;
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val === pass1) {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifreler eşleşiyor';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Şifreler eşleşmiyor';
+        hint.className = 'field-hint error';
+    }
+}
+
+// ── Socket: usernameAvailable ──
+socket.on('usernameAvailable', (data) => {
+    const input = document.getElementById('reg-user');
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('checking');
+    if (data.available) {
+        input.classList.add('success');
+        hint.textContent = '✓ Bu kahraman adı kullanılabilir!';
+        hint.className = 'field-hint success';
+        status.textContent = '✓';
+        status.style.color = '#27ae60';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Bu kahraman adı zaten alınmış';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        status.style.color = '#e74c3c';
+    }
+});
+
+// ─ Auto-login from session ─
 const _sess = loadSession();
-if (_sess && _sess.token) { socket.emit('loginWithToken', _sess.token); }
+if (_sess && _sess.token) {
+    socket.emit('loginWithToken', _sess.token);
+}
 
-function doLogin() { const username = document.getElementById('login-user').value.trim(); const password = document.getElementById('login-pass').value; if (!username) { showMsg('msg-login', 'error', 'Kahraman adı veya e-posta boş bırakılamaz.'); return; } if (!password) { showMsg('msg-login', 'error', 'Şifre alanı boş bırakılamaz.'); return; } hideMsg('msg-login'); socket.emit('login', { username, password }); }
-function doRegister() { const username = document.getElementById('reg-user').value.trim(); const email = document.getElementById('reg-email').value.trim(); const password = document.getElementById('reg-pass').value; const password2 = document.getElementById('reg-pass2').value; const captchaInput = document.getElementById('captcha-input').value.toUpperCase(); if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; } if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; } if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var.'); return; } if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; } if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; } if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; } if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı.'); refreshCaptcha(); return; } hideMsg('msg-register'); socket.emit('register', { username, email, password }); }
-function doForgotPassword() { const email = document.getElementById('forgot-email').value.trim(); if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-forgot', 'error', 'Lütfen geçerli bir e-posta adresi girin.'); return; } hideMsg('msg-forgot'); const btn = document.querySelector('#panel-forgot .btn-enter'); if (btn) { btn.disabled = true; btn.textContent = '⏳ GÖNDERİLİYOR...'; } socket.emit('forgotPassword', { email }); }
+// ── Login ──
+function doLogin() {
+    const username = document.getElementById('login-user').value.trim();
+    const password = document.getElementById('login-pass').value;
+    if (!username) { showMsg('msg-login', 'error', 'Kahraman adı veya e-posta boş bırakılamaz.'); return; }
+    if (!password) { showMsg('msg-login', 'error', 'Şifre alanı boş bırakılamaz.'); return; }
+    hideMsg('msg-login');
+    socket.emit('login', { username, password });
+}
+
+// ── Register ──
+function doRegister() {
+    const username = document.getElementById('reg-user').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-pass').value;
+    const password2 = document.getElementById('reg-pass2').value;
+    const captchaInput = document.getElementById('captcha-input').value.toUpperCase();
+
+    if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; }
+    if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; }
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { 
+        showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanın.'); 
+        return; 
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; }
+    if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; }
+    if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; }
+    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı. Lütfen yeniden deneyin.'); refreshCaptcha(); return; }
+
+    hideMsg('msg-register');
+    socket.emit('register', { username, email, password });
+}
+
+// ── Forgot Password (Send Code) ──
+function doForgotPassword() {
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showMsg('msg-forgot', 'error', 'Lütfen geçerli bir e-posta adresi girin.');
+        return;
+    }
+    hideMsg('msg-forgot');
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ GÖNDERİLİYOR...'; }
+    socket.emit('forgotPassword', { email });
+}
+
+// ── Verify Reset Code ──
 let resetEmail = '';
-function verifyResetCode() { const code = document.getElementById('reset-code-input').value.trim(); if (!code || code.length !== 6) { showMsg('msg-reset-code', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.'); return; } hideMsg('msg-reset-code'); socket.emit('verifyResetCode', { email: resetEmail, code }); }
-function saveNewPassword() { const pass1 = document.getElementById('new-password1').value; const pass2 = document.getElementById('new-password2').value; if (!pass1 || pass1.length < 6) { showMsg('msg-new-password', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; } if (pass1 !== pass2) { showMsg('msg-new-password', 'error', 'Şifreler eşleşmiyor.'); return; } hideMsg('msg-new-password'); socket.emit('resetPassword', { email: resetEmail, newPassword: pass1 }); }
-let pendingVerifyUser = null;
-function doVerifyCode() { const code = document.getElementById('verify-code').value.trim(); if (!code || code.length !== 6) { showMsg('msg-verify', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.'); return; } hideMsg('msg-verify'); socket.emit('verifyEmail', { username: pendingVerifyUser, code }); }
-function resendCode() { if (!pendingVerifyUser) return; socket.emit('resendVerifyCode', { username: pendingVerifyUser }); showMsg('msg-verify', 'success', 'Doğrulama kodu tekrar gönderildi.'); }
-document.addEventListener('keydown', e => { if (e.key === 'Enter') { const activePanel = document.querySelector('.form-panel.active'); if (!activePanel) return; if (activePanel.id === 'panel-login') doLogin(); else if (activePanel.id === 'panel-register') doRegister(); else if (activePanel.id === 'panel-forgot') doForgotPassword(); else if (activePanel.id === 'panel-reset-code') verifyResetCode(); else if (activePanel.id === 'panel-new-password') saveNewPassword(); else if (activePanel.id === 'panel-verify') doVerifyCode(); } });
-socket.on('loginSuccess', (data) => { if (data && data.token) saveSession({ token: data.token, username: data.username }); startLoadingSequence(); enterFullscreen(); });
-socket.on('registerSuccess', (data) => { pendingVerifyUser = data.username; showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanıza doğrulama kodu gönderildi.'); setTimeout(() => switchTab('verify'), 1200); });
-socket.on('verifySuccess', () => { showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...'); });
-socket.on('forgotPasswordCodeSent', () => { resetEmail = document.getElementById('forgot-email').value.trim(); showMsg('msg-forgot', 'success', 'Doğrulama kodu e-posta adresinize gönderildi.'); const btn = document.querySelector('#panel-forgot .btn-enter'); if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; } setTimeout(() => switchTab('reset-code'), 1000); });
-socket.on('resetCodeVerified', (data) => { document.getElementById('reset-username-display').textContent = `Şifre sıfırlanıyor: ${data.username}`; switchTab('new-password'); });
-socket.on('resetPasswordSuccess', () => { showMsg('msg-new-password', 'success', 'Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz.'); resetEmail = ''; setTimeout(() => switchTab('login'), 2000); });
-socket.on('resetCodeError', (msg) => { showMsg('msg-reset-code', 'error', msg); });
-socket.on('resetPasswordError', (msg) => { showMsg('msg-new-password', 'error', msg); });
-socket.on('loginError', (msg) => { const activePanel = document.querySelector('.form-panel.active'); let msgId = 'msg-login'; if (activePanel) { if (activePanel.id === 'panel-register') msgId = 'msg-register'; else if (activePanel.id === 'panel-verify') msgId = 'msg-verify'; else if (activePanel.id === 'panel-forgot') { msgId = 'msg-forgot'; const btn = document.querySelector('#panel-forgot .btn-enter'); if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; } } else if (activePanel.id === 'panel-reset-code') msgId = 'msg-reset-code'; else if (activePanel.id === 'panel-new-password') msgId = 'msg-new-password'; } showMsg(msgId, 'error', msg || 'Bir hata oluştu.'); });
+function verifyResetCode() {
+    const code = document.getElementById('reset-code-input').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-reset-code', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-reset-code');
+    socket.emit('verifyResetCode', { email: resetEmail, code });
+}
 
-// LOADING
+// ── Save New Password ──
+function saveNewPassword() {
+    const pass1 = document.getElementById('new-password1').value;
+    const pass2 = document.getElementById('new-password2').value;
+    
+    if (!pass1 || pass1.length < 6) {
+        showMsg('msg-new-password', 'error', 'Şifre en az 6 karakter olmalıdır.');
+        return;
+    }
+    if (pass1 !== pass2) {
+        showMsg('msg-new-password', 'error', 'Şifreler eşleşmiyor.');
+        return;
+    }
+    
+    hideMsg('msg-new-password');
+    socket.emit('resetPassword', { email: resetEmail, newPassword: pass1 });
+}
+
+// ── Email Verify (Registration) ──
+let pendingVerifyUser = null;
+function doVerifyCode() {
+    const code = document.getElementById('verify-code').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-verify', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-verify');
+    socket.emit('verifyEmail', { username: pendingVerifyUser, code });
+}
+function resendCode() {
+    if (!pendingVerifyUser) return;
+    socket.emit('resendVerifyCode', { username: pendingVerifyUser });
+    showMsg('msg-verify', 'success', 'Doğrulama kodu tekrar gönderildi.');
+}
+
+// Enter tuşu desteği
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        const activePanel = document.querySelector('.form-panel.active');
+        if (!activePanel) return;
+        if (activePanel.id === 'panel-login') doLogin();
+        else if (activePanel.id === 'panel-register') doRegister();
+        else if (activePanel.id === 'panel-forgot') doForgotPassword();
+        else if (activePanel.id === 'panel-reset-code') verifyResetCode();
+        else if (activePanel.id === 'panel-new-password') saveNewPassword();
+        else if (activePanel.id === 'panel-verify') doVerifyCode();
+    }
+});
+
+// ── Socket Auth Events ──
+socket.on('loginSuccess', (data) => {
+    if (data && data.token) saveSession({ token: data.token, username: data.username });
+    startLoadingSequence();
+    enterFullscreen();
+});
+
+socket.on('registerSuccess', (data) => {
+    pendingVerifyUser = data.username;
+    showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanıza doğrulama kodu gönderildi.');
+    setTimeout(() => switchTab('verify'), 1200);
+});
+
+socket.on('verifySuccess', () => {
+    showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
+});
+
+// Forgot Password Socket Events
+socket.on('forgotPasswordCodeSent', () => {
+    resetEmail = document.getElementById('forgot-email').value.trim();
+    showMsg('msg-forgot', 'success', 'Doğrulama kodu e-posta adresinize gönderildi.');
+    
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
+    
+    setTimeout(() => switchTab('reset-code'), 1000);
+});
+
+socket.on('resetCodeVerified', (data) => {
+    document.getElementById('reset-username-display').textContent = `Şifre sıfırlanıyor: ${data.username}`;
+    switchTab('new-password');
+});
+
+socket.on('resetPasswordSuccess', () => {
+    showMsg('msg-new-password', 'success', 'Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz.');
+    resetEmail = '';
+    setTimeout(() => switchTab('login'), 2000);
+});
+
+socket.on('resetCodeError', (msg) => {
+    showMsg('msg-reset-code', 'error', msg);
+});
+
+socket.on('resetPasswordError', (msg) => {
+    showMsg('msg-new-password', 'error', msg);
+});
+
+socket.on('loginError', (msg) => {
+    const activePanel = document.querySelector('.form-panel.active');
+    let msgId = 'msg-login';
+    if (activePanel) {
+        if (activePanel.id === 'panel-register') msgId = 'msg-register';
+        else if (activePanel.id === 'panel-verify') msgId = 'msg-verify';
+        else if (activePanel.id === 'panel-forgot') {
+            msgId = 'msg-forgot';
+            const btn = document.querySelector('#panel-forgot .btn-enter');
+            if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
+        }
+        else if (activePanel.id === 'panel-reset-code') msgId = 'msg-reset-code';
+        else if (activePanel.id === 'panel-new-password') msgId = 'msg-new-password';
+    }
+    showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+});
+
+// ═══════════════════════════════════════════════
+//  LOADING SEQUENCE (unchanged)
+// ═══════════════════════════════════════════════
 function startLoadingSequence() {
     document.getElementById('auth-screen').style.display = 'none';
     const overlay = document.getElementById('loading-overlay');
     overlay.style.display = 'flex';
-    const steps = [[20, 'HARITA YÜKLENİYOR...'], [45, 'KAYNAKLAR OLUŞTURULUYOR...'], [70, 'DİĞER KAHRAMANLAR BEKLENIYOR...'], [90, 'SON HAZIRLIKLAR...'], [100, 'GİRİŞ YAPILIYOR!']];
-    let i = 0; const fill = document.getElementById('loading-fill'); const loadText = document.getElementById('loading-text');
-    function nextStep() { if (i >= steps.length) { setTimeout(() => { overlay.style.display = 'none'; enterGame(); }, 300); return; } const [pct, text] = steps[i++]; fill.style.width = pct + '%'; loadText.textContent = text; setTimeout(nextStep, 400 + Math.random() * 300); }
+
+    const steps = [
+        [20, 'HARITA YÜKLENİYOR...'],
+        [45, 'KAYNAKLAR OLUŞTURULUYOR...'],
+        [70, 'DİĞER KAHRAMANLAR BEKLENIYOR...'],
+        [90, 'SON HAZIRLIKLAR...'],
+        [100, 'GİRİŞ YAPILIYOR!']
+    ];
+
+    let i = 0;
+    const fill = document.getElementById('loading-fill');
+    const loadText = document.getElementById('loading-text');
+
+    function nextStep() {
+        if (i >= steps.length) {
+            setTimeout(() => { overlay.style.display = 'none'; enterGame(); }, 300);
+            return;
+        }
+        const [pct, text] = steps[i++];
+        fill.style.width = pct + '%';
+        loadText.textContent = text;
+        setTimeout(nextStep, 400 + Math.random() * 300);
+    }
     nextStep();
 }
 
-// 3D WORLD
+// ═══════════════════════════════════════════════
+//  THREE.JS GAME WORLD (modified for realistic characters)
+// ═══════════════════════════════════════════════
 let scene, camera, renderer, playerMesh;
 let otherPlayerMeshes = {};
 let resourceObjects = [];
 let myPlayer = null;
+let myCharacterType = 'edward'; // default player character
+
 const keys = {};
 let yaw = 0, pitch = 0;
-let velocityY = 0; const GRAVITY = -0.015, JUMP_FORCE = 0.3; let onGround = true;
-const CAM_DISTANCE = 5, CAM_HEIGHT = 2;
-let playerPos = { x: 0, y: 0, z: 0 };
-const joystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
-let spawnedNPCs = {}; let npcIdCounter = 100;
+let velocityY = 0;
+const GRAVITY = -0.015;
+const JUMP_FORCE = 0.3;
+let onGround = true;
 
-// ========== GERÇEKÇİ KARAKTER MODELLERİ (EDWARD & MUİCHİRO) ==========
+const CAM_DISTANCE = 5;
+const CAM_HEIGHT = 2;
+let playerPos = { x: 0, y: 0, z: 0 };
+
+const joystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+
+// ========== NPC KARAKTER SİSTEMİ ==========
+let spawnedNPCs = {};
+let npcIdCounter = 100;
+
+// Karakter yetenekleri (geliştirilmiş efektler)
 const characterSkills = {
-    edward: { name: 'Edward Elric', hp: 150, attackDamage: 18, color: 0xc97e5a, metalColor: 0xaa8866, hairColor: 0xd4af37,
-        skill: { name: 'Alchemy: Spear', cooldown: 3000, effect: (caster, target, scene) => { const dmg = 35; target.hp -= dmg; showNotification(`⚙️ Edward: Alchemy Mızrağı ile ${dmg} hasar!`); const lineMat = new THREE.LineBasicMaterial({ color: 0xff3300 }); const points = [new THREE.Vector3(caster.x, 1, caster.z), new THREE.Vector3(target.x, 1, target.z)]; const geometry = new THREE.BufferGeometry().setFromPoints(points); const line = new THREE.Line(geometry, lineMat); scene.add(line); setTimeout(() => scene.remove(line), 500); return dmg; } } },
-    muichiro: { name: 'Muichiro Tokito', hp: 130, attackDamage: 22, color: 0x88aacc, hairColor: 0x66aacc,
-        skill: { name: 'Mist Breathing: Seventh Form', cooldown: 2800, effect: (caster, target, scene) => { const dmg = 40; target.hp -= dmg; showNotification(`💨 Muichiro: Mist Breathing ile ${dmg} hasar!`); for(let i=0;i<30;i++) { const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1,3,3), new THREE.MeshStandardMaterial({ color: 0xaaffdd, emissive: 0x2266aa })); particle.position.set(target.x + (Math.random()-0.5)*2, target.y+1, target.z + (Math.random()-0.5)*2); scene.add(particle); setTimeout(() => scene.remove(particle), 400); } return dmg; } } }
+    edward: {
+        name: 'Edward Elric',
+        hp: 150,
+        attackDamage: 18,
+        color: 0xc97e5a,
+        skill: {
+            name: 'Alchemy: Spear',
+            cooldown: 3000,
+            effect: (caster, target, scene, camera) => {
+                const dmg = 35;
+                target.hp -= dmg;
+                showNotification(`⚙️ Edward: Alchemy Mızrağı ile ${dmg} hasar!`);
+                // Görsel efekt: Parlak ışın ve şok dalgası
+                const lineMat = new THREE.LineBasicMaterial({ color: 0xff6600 });
+                const points = [];
+                points.push(new THREE.Vector3(caster.mesh.position.x, 1.2, caster.mesh.position.z));
+                points.push(new THREE.Vector3(target.mesh.position.x, 1.2, target.mesh.position.z));
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMat);
+                scene.add(line);
+                setTimeout(() => scene.remove(line), 500);
+                // Ek partiküller
+                for(let i=0;i<40;i++) {
+                    const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1,4,4), new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0x442200 }));
+                    particle.position.set(target.mesh.position.x + (Math.random()-0.5)*1.5, target.mesh.position.y+1, target.mesh.position.z + (Math.random()-0.5)*1.5);
+                    scene.add(particle);
+                    setTimeout(() => scene.remove(particle), 600);
+                }
+                // Kamera sarsıntısı
+                if(camera) camera.position.x += (Math.random()-0.5)*0.2;
+                return dmg;
+            }
+        }
+    },
+    muichiro: {
+        name: 'Muichiro Tokito',
+        hp: 130,
+        attackDamage: 22,
+        color: 0x88aacc,
+        skill: {
+            name: 'Mist Breathing: Seventh Form',
+            cooldown: 2800,
+            effect: (caster, target, scene, camera) => {
+                const dmg = 40;
+                target.hp -= dmg;
+                showNotification(`💨 Muichiro: Mist Breathing ile ${dmg} hasar!`);
+                // Sis efekti
+                const particleCount = 80;
+                for(let i=0;i<particleCount;i++) {
+                    const particle = new THREE.Mesh(new THREE.SphereGeometry(0.08,4,4), new THREE.MeshStandardMaterial({ color: 0xaaddff, emissive: 0x2266aa, transparent: true, opacity: 0.7 }));
+                    particle.position.set(target.mesh.position.x + (Math.random()-0.5)*2.5, target.mesh.position.y+0.5 + Math.random()*2, target.mesh.position.z + (Math.random()-0.5)*2.5);
+                    scene.add(particle);
+                    setTimeout(() => scene.remove(particle), 700);
+                }
+                // Kılıç izi efekti
+                const slashMat = new THREE.LineBasicMaterial({ color: 0xaaffff });
+                const slashPoints = [];
+                for(let ang=0; ang<Math.PI*2; ang+=0.3) {
+                    slashPoints.push(new THREE.Vector3(target.mesh.position.x + Math.cos(ang)*1.2, target.mesh.position.y+0.8, target.mesh.position.z + Math.sin(ang)*1.2));
+                }
+                const slashGeo = new THREE.BufferGeometry().setFromPoints(slashPoints);
+                const slashRing = new THREE.LineLoop(slashGeo, slashMat);
+                scene.add(slashRing);
+                setTimeout(() => scene.remove(slashRing), 400);
+                return dmg;
+            }
+        }
+    }
 };
 
-function createEdwardModel() {
+// Texture oluşturma (yüzler için)
+function createFaceTexture(type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5d0a9';
+    ctx.fillRect(0,0,256,256);
+    ctx.fillStyle = '#2c1a0a';
+    if(type === 'edward') {
+        // Edward'ın gözleri, kaşları
+        ctx.fillRect(80,110,30,12);
+        ctx.fillRect(146,110,30,12);
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(95,130,8,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(161,130,8,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(92,127,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(158,127,3,0,Math.PI*2); ctx.fill();
+        // Saç çizgisi
+        ctx.fillStyle = '#d4af37';
+        ctx.fillRect(60,40,136,40);
+    } else {
+        // Muichiro gözleri daha büyük, mavi ton
+        ctx.fillStyle = '#aaddff';
+        ctx.fillRect(80,110,30,12);
+        ctx.fillRect(146,110,30,12);
+        ctx.fillStyle = '#2266aa';
+        ctx.beginPath(); ctx.arc(95,130,8,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(161,130,8,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(92,127,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(158,127,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#66aacc';
+        ctx.fillRect(60,40,136,40);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+
+// Detaylı karakter modeli oluşturma
+function createDetailedCharacter(type) {
     const group = new THREE.Group();
-    // Gövde (kırmızı ceket)
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0xaa3a2a, roughness: 0.4 }));
-    torso.position.y = 0.7; torso.castShadow = true; group.add(torso);
-    // Pantolon (siyah)
-    const pants = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-    pants.position.y = 0.25; pants.castShadow = true; group.add(pants);
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9, roughness: 0.4, metalness: 0.1 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: type === 'edward' ? 0xd4af37 : 0x66aacc, roughness: 0.3, metalness: 0.2 });
+    const coatMat = new THREE.MeshStandardMaterial({ color: type === 'edward' ? 0xaa3a2a : 0x2a3a5a, roughness: 0.5, metalness: 0.1 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x2a2a1a, roughness: 0.6 });
+    const autoMailMat = new THREE.MeshStandardMaterial({ color: 0xccccaa, metalness: 0.8, roughness: 0.3 });
+    
+    // Gövde
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 1.2, 12), coatMat);
+    torso.position.y = 0.6;
+    torso.castShadow = true;
+    group.add(torso);
+    
     // Baş
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 24), new THREE.MeshStandardMaterial({ color: 0xf5d0a9 }));
-    head.position.y = 1.15; head.castShadow = true; group.add(head);
-    // Saç (altın sarısı, örgü efekti)
-    const hair = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.2, 8), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.3 }));
-    hair.position.y = 1.32; group.add(hair);
-    const braid = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.4, 6), new THREE.MeshStandardMaterial({ color: 0xd4af37 }));
-    braid.position.set(-0.2, 1.05, -0.32); braid.rotation.x = 0.3; group.add(braid);
-    // Otomatik Kol (metal)
-    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 6), new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.8 }));
-    armL.position.set(-0.45, 0.9, 0); armL.castShadow = true; group.add(armL);
-    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 6), new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.8 }));
-    armR.position.set(0.45, 0.9, 0); armR.castShadow = true; group.add(armR);
-    // Kırmızı pelerin
-    const cloak = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0xaa3a2a }));
-    cloak.position.set(0, 0.85, -0.32); group.add(cloak);
-    // Metal el (otomatik el detay)
-    const handL = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 6), new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.9 }));
-    handL.position.set(-0.55, 0.62, 0); group.add(handL);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), skinMat);
+    head.position.y = 1.3;
+    head.castShadow = true;
+    group.add(head);
+    
+    // Yüz dokusu
+    const faceTex = createFaceTexture(type);
+    const faceMat = new THREE.MeshStandardMaterial({ map: faceTex });
+    const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.65), faceMat);
+    facePlane.position.set(0, 1.3, 0.41);
+    facePlane.lookAt(0,1.3,2);
+    group.add(facePlane);
+    
+    // Saç (stilize)
+    const hair = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.3, 12), hairMat);
+    hair.position.y = 1.55;
+    hair.castShadow = true;
+    group.add(hair);
+    
+    if(type === 'edward') {
+        // Otomail kol (sağ kol)
+        const armRight = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.8, 8), autoMailMat);
+        armRight.position.set(0.55, 0.9, 0);
+        armRight.rotation.z = -0.2;
+        armRight.castShadow = true;
+        group.add(armRight);
+        // Pelerin
+        const cape = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.0, 8), new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.7 }));
+        cape.position.set(0, 0.5, -0.4);
+        cape.rotation.x = 0.3;
+        group.add(cape);
+    } else {
+        // Muichiro: Kılıç sırtında
+        const swordHandle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.7 }));
+        swordHandle.position.set(0.45, 0.8, 0.2);
+        swordHandle.rotation.z = 0.2;
+        group.add(swordHandle);
+        const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 0.05), new THREE.MeshStandardMaterial({ color: 0xeeeeff, metalness: 0.9 }));
+        swordBlade.position.set(0.45, 1.05, 0.2);
+        swordBlade.rotation.z = 0.2;
+        group.add(swordBlade);
+        // Saç tokası
+        const hairpin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.05), new THREE.MeshStandardMaterial({ color: 0xaaccff }));
+        hairpin.position.set(0.15, 1.68, 0.38);
+        group.add(hairpin);
+    }
+    
+    // Bacaklar
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.9, 6), pantsMat);
+    legL.position.set(-0.2, 0.1, 0);
+    legL.castShadow = true;
+    group.add(legL);
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.9, 6), pantsMat);
+    legR.position.set(0.2, 0.1, 0);
+    legR.castShadow = true;
+    group.add(legR);
+    
+    group.castShadow = true;
+    group.receiveShadow = false;
     return group;
 }
 
-function createMuichiroModel() {
-    const group = new THREE.Group();
-    // Gövde (mavi tonları)
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.33, 0.85, 8), new THREE.MeshStandardMaterial({ color: 0x3a6ea5, roughness: 0.5 }));
-    torso.position.y = 0.68; torso.castShadow = true; group.add(torso);
-    // Pantolon
-    const pants = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.65, 8), new THREE.MeshStandardMaterial({ color: 0x224466 }));
-    pants.position.y = 0.25; pants.castShadow = true; group.add(pants);
-    // Baş
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 24), new THREE.MeshStandardMaterial({ color: 0xf5d0a9 }));
-    head.position.y = 1.1; head.castShadow = true; group.add(head);
-    // Saç (uzun, turkuaz tonları)
-    const hairBase = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.25, 8), new THREE.MeshStandardMaterial({ color: 0x66aacc, emissive: 0x226688 }));
-    hairBase.position.y = 1.3; group.add(hairBase);
-    const hairBack = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.45, 8), new THREE.MeshStandardMaterial({ color: 0x66aacc }));
-    hairBack.position.set(0, 1.18, -0.28); group.add(hairBack);
-    // Kılıf
-    const scabbard = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.07), new THREE.MeshStandardMaterial({ color: 0xaa8866 }));
-    scabbard.position.set(0.32, 0.65, 0.22); scabbard.rotation.z = 0.2; group.add(scabbard);
-    // Kollar
-    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.55, 6), new THREE.MeshStandardMaterial({ color: 0x3a6ea5 }));
-    armL.position.set(-0.4, 0.85, 0); armL.castShadow = true; group.add(armL);
-    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.55, 6), new THREE.MeshStandardMaterial({ color: 0x3a6ea5 }));
-    armR.position.set(0.4, 0.85, 0); armR.castShadow = true; group.add(armR);
-    // Saç tokası
-    const hairpin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.05), new THREE.MeshStandardMaterial({ color: 0x88aaff }));
-    hairpin.position.set(0.18, 1.32, 0.28); group.add(hairpin);
-    return group;
+// Oyuncu ve NPC modeli oluşturma (tek fonksiyon)
+function createPlayerMesh(type = 'edward') {
+    return createDetailedCharacter(type);
 }
 
+// NPC spawn etme (geliştirilmiş)
 function spawnCharacter(type) {
     const spawnX = playerPos.x + (Math.sin(yaw) * 2.5);
     const spawnZ = playerPos.z + (Math.cos(yaw) * 2.5);
     const npcId = npcIdCounter++;
-    let model;
-    if (type === 'edward') model = createEdwardModel();
-    else model = createMuichiroModel();
+    
+    const model = createDetailedCharacter(type);
     model.position.set(spawnX, 0, spawnZ);
     scene.add(model);
-    const charData = { id: npcId, mesh: model, type: type, hp: characterSkills[type].hp, maxHp: characterSkills[type].hp, attackDamage: characterSkills[type].attackDamage, skill: characterSkills[type].skill, lastAttack: 0, lastSkillUse: 0, target: null, x: spawnX, z: spawnZ, y: 0 };
+    
+    const charData = {
+        id: npcId,
+        mesh: model,
+        type: type,
+        hp: characterSkills[type].hp,
+        maxHp: characterSkills[type].hp,
+        attackDamage: characterSkills[type].attackDamage,
+        skill: characterSkills[type].skill,
+        lastAttack: 0,
+        lastSkillUse: 0,
+        target: null,
+        x: spawnX,
+        z: spawnZ,
+        y: 0
+    };
     spawnedNPCs[npcId] = charData;
+    
     assignTargetsToNPCs();
     showNotification(`${characterSkills[type].name} dünyaya çağrıldı!`);
 }
-function assignTargetsToNPCs() { const ids = Object.keys(spawnedNPCs); if(ids.length < 2) return; const edwardId = ids.find(id => spawnedNPCs[id].type === 'edward'); const muichiroId = ids.find(id => spawnedNPCs[id].type === 'muichiro'); if(edwardId && muichiroId) { spawnedNPCs[edwardId].target = muichiroId; spawnedNPCs[muichiroId].target = edwardId; showNotification(`${characterSkills.edward.name} ve ${characterSkills.muichiro.name} savaşa hazır!`); } }
-function updateNPCCombat() { const now = Date.now(); for(let id in spawnedNPCs) { const npc = spawnedNPCs[id]; if(!npc) continue; if(npc.hp <= 0) { if(npc.mesh) scene.remove(npc.mesh); delete spawnedNPCs[id]; showNotification(`${characterSkills[npc.type].name} savaşta yenildi!`); continue; } let targetNPC = null; if(npc.target && spawnedNPCs[npc.target]) targetNPC = spawnedNPCs[npc.target]; else { for(let otherId in spawnedNPCs) { if(otherId !== id && spawnedNPCs[otherId].type !== npc.type) { npc.target = otherId; targetNPC = spawnedNPCs[otherId]; break; } } } if(!targetNPC) continue; const dx = targetNPC.mesh.position.x - npc.mesh.position.x; const dz = targetNPC.mesh.position.z - npc.mesh.position.z; const distance = Math.sqrt(dx*dx + dz*dz); if(distance > 1.5) { const angle = Math.atan2(dx, dz); const moveSpeed = 0.025; npc.mesh.position.x += Math.sin(angle) * moveSpeed; npc.mesh.position.z += Math.cos(angle) * moveSpeed; npc.mesh.lookAt(targetNPC.mesh.position); npc.x = npc.mesh.position.x; npc.z = npc.mesh.position.z; } else { if(now - (npc.lastAttack || 0) > 1200) { npc.lastAttack = now; targetNPC.hp -= npc.attackDamage; showNotification(`${characterSkills[npc.type].name} ${characterSkills[targetNPC.type].name}'e ${npc.attackDamage} hasar verdi!`); const flash = document.getElementById('damage-flash'); flash.classList.add('flash'); setTimeout(() => flash.classList.remove('flash'), 150); if(npc.skill && (now - (npc.lastSkillUse || 0) > npc.skill.cooldown)) { npc.lastSkillUse = now; npc.skill.effect(npc, targetNPC, scene); } } } npc.mesh.position.x = Math.min(95, Math.max(-95, npc.mesh.position.x)); npc.mesh.position.z = Math.min(95, Math.max(-95, npc.mesh.position.z)); npc.x = npc.mesh.position.x; npc.z = npc.mesh.position.z; } }
-function enterFullscreen() { const elem = document.documentElement; if (elem.requestFullscreen) elem.requestFullscreen(); else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen(); else if (elem.msRequestFullscreen) elem.msRequestFullscreen(); if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(e => console.log(e)); }
 
-function enterGame() { const canvas = document.getElementById('game-canvas'); canvas.style.display = 'block'; document.getElementById('game-ui').style.display = 'block'; document.getElementById('craft-toggle').style.display = 'flex'; document.getElementById('minimap').style.display = 'block'; document.getElementById('online-count').style.display = 'block'; document.getElementById('crosshair').style.display = 'block'; const sess = loadSession(); if (sess && sess.pos) { playerPos = sess.pos; yaw = sess.yaw || 0; } initThree(canvas); buildWorld(); spawnResources(); setupInput(canvas); setupMobileControls(); gameLoop(); }
-function initThree(canvas) { scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a0f05); scene.fog = new THREE.Fog(0x1a0f05, 30, 120); camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200); camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE); renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }); const ambient = new THREE.AmbientLight(0x2a1a05, 1.2); scene.add(ambient); const sun = new THREE.DirectionalLight(0xc9a84c, 1.5); sun.position.set(30, 60, 20); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 200; sun.shadow.camera.left = -80; sun.shadow.camera.right = 80; sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80; scene.add(sun); }
-function buildWorld() { const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 40, 40), new THREE.MeshLambertMaterial({ color: 0x1a1005 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground); const grid = new THREE.GridHelper(200, 50, 0x2a1e08, 0x1a1005); grid.position.y = 0.01; scene.add(grid); const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.5 }); [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => { const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1); const wall = new THREE.Mesh(geo, wallMat); wall.position.set(x, y, z); scene.add(wall); }); for (let i = 0; i < 20; i++) { const r = Math.random() * 0.4 + 0.1; const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 })); mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180); mesh.rotation.set(Math.random(), Math.random(), Math.random()); scene.add(mesh); } }
-function spawnResources() { for (let i = 0; i < 15; i++) { const group = new THREE.Group(); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,2.5,7), new THREE.MeshLambertMaterial({color:0x3a2010})); trunk.position.y = 1.25; trunk.castShadow = true; group.add(trunk); const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.6,3,8), new THREE.MeshLambertMaterial({color:0x1a3a10})); foliage.position.y = 3.8; foliage.castShadow = true; group.add(foliage); const x=(Math.random()-0.5)*160, z=(Math.random()-0.5)*160; group.position.set(x, 0, z); scene.add(group); resourceObjects.push({ mesh: group, type: 'wood', id: i, x, z, radius: 2 }); } for (let i = 0; i < 12; i++) { const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.4,0), new THREE.MeshLambertMaterial({color:0x4a4030})); const x=(Math.random()-0.5)*160, z=(Math.random()-0.5)*160; mesh.position.set(x, 0.7, z); mesh.castShadow = true; scene.add(mesh); resourceObjects.push({ mesh, type: 'stone', id: i+100, x, z, radius: 1.5 }); } }
-function createPlayerMesh() { const group = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.4), new THREE.MeshStandardMaterial({ color: 0x7a5c2a })); body.position.y = 0.5; body.castShadow = true; group.add(body); const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({ color: 0xf5d0a9 })); head.position.y = 1.1; head.castShadow = true; group.add(head); const hair = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.2, 8), new THREE.MeshStandardMaterial({ color: 0x4a2a10 })); hair.position.y = 1.3; group.add(hair); return group; }
+// Oyuncunun kendi karakterini değiştirme
+function setPlayerCharacter(type) {
+    if(!playerMesh) return;
+    myCharacterType = type;
+    const newMesh = createDetailedCharacter(type);
+    newMesh.position.copy(playerMesh.position);
+    newMesh.rotation.copy(playerMesh.rotation);
+    scene.remove(playerMesh);
+    playerMesh = newMesh;
+    scene.add(playerMesh);
+    showNotification(`Karakteriniz ${characterSkills[type].name} olarak değiştirildi.`);
+}
 
-// SOCKET EVENTS & LOOP (SAME AS ORIGINAL)
-socket.on('currentPlayers', (players) => { Object.values(players).forEach(p => { if (p.id === socket.id) { myPlayer = p; document.getElementById('player-name-display').textContent = p.username.toUpperCase(); playerMesh = createPlayerMesh(); playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z); scene.add(playerMesh); } else { const mesh = createPlayerMesh(); mesh.position.set(p.x||0, p.y||0, p.z||0); scene.add(mesh); otherPlayerMeshes[p.id] = mesh; } }); updateOnlineCount(Object.keys(players).length); });
-socket.on('newPlayer', (p) => { if (p.id !== socket.id) { const mesh = createPlayerMesh(); mesh.position.set(p.x||0, p.y||0, p.z||0); scene.add(mesh); otherPlayerMeshes[p.id] = mesh; } updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1); addKillFeed(`⚔ ${p.username} dünyaya katıldı`); });
-socket.on('playerMoved', (p) => { if (p.id === socket.id) return; if (otherPlayerMeshes[p.id]) { otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z); if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY; } });
-socket.on('playerDisconnected', (id) => { if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; } updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1); });
-socket.on('updateInventory', (inv) => { document.getElementById('inv-wood').textContent = inv.wood; document.getElementById('inv-stone').textContent = inv.stone; document.getElementById('inv-sword').textContent = inv.sword; document.getElementById('inv-pickaxe').textContent = inv.pickaxe; document.getElementById('inv-axe').textContent = inv.axe; });
-socket.on('hpUpdate', (data) => { if (data.id === socket.id) { const pct = Math.max(0,data.hp)/100; document.getElementById('hp-fill').style.width = (pct*100)+'%'; document.getElementById('hp-text').textContent = `${Math.max(0,data.hp)}/100`; const flash = document.getElementById('damage-flash'); flash.classList.add('flash'); setTimeout(() => flash.classList.remove('flash'), 200); } });
+// NPC'ler arasında hedef atama
+function assignTargetsToNPCs() {
+    const ids = Object.keys(spawnedNPCs);
+    if(ids.length < 2) return;
+    const edwardId = ids.find(id => spawnedNPCs[id].type === 'edward');
+    const muichiroId = ids.find(id => spawnedNPCs[id].type === 'muichiro');
+    if(edwardId && muichiroId) {
+        spawnedNPCs[edwardId].target = muichiroId;
+        spawnedNPCs[muichiroId].target = edwardId;
+        showNotification(`${characterSkills.edward.name} ve ${characterSkills.muichiro.name} savaşa hazır!`);
+    }
+}
+
+// NPC savaş mantığı (efektler iyileştirildi)
+function updateNPCCombat() {
+    const now = Date.now();
+    for(let id in spawnedNPCs) {
+        const npc = spawnedNPCs[id];
+        if(!npc) continue;
+        
+        if(npc.hp <= 0) {
+            if(npc.mesh) scene.remove(npc.mesh);
+            delete spawnedNPCs[id];
+            showNotification(`${characterSkills[npc.type].name} savaşta yenildi!`);
+            continue;
+        }
+        
+        let targetNPC = null;
+        if(npc.target && spawnedNPCs[npc.target]) {
+            targetNPC = spawnedNPCs[npc.target];
+        } else {
+            for(let otherId in spawnedNPCs) {
+                if(otherId !== id && spawnedNPCs[otherId].type !== npc.type) {
+                    npc.target = otherId;
+                    targetNPC = spawnedNPCs[otherId];
+                    break;
+                }
+            }
+        }
+        
+        if(!targetNPC) continue;
+        
+        const dx = targetNPC.mesh.position.x - npc.mesh.position.x;
+        const dz = targetNPC.mesh.position.z - npc.mesh.position.z;
+        const distance = Math.sqrt(dx*dx + dz*dz);
+        
+        if(distance > 1.5) {
+            const angle = Math.atan2(dx, dz);
+            const moveSpeed = 0.025;
+            npc.mesh.position.x += Math.sin(angle) * moveSpeed;
+            npc.mesh.position.z += Math.cos(angle) * moveSpeed;
+            npc.mesh.lookAt(targetNPC.mesh.position);
+            npc.x = npc.mesh.position.x;
+            npc.z = npc.mesh.position.z;
+        } else {
+            if(now - (npc.lastAttack || 0) > 1200) {
+                npc.lastAttack = now;
+                targetNPC.hp -= npc.attackDamage;
+                showNotification(`${characterSkills[npc.type].name} ${characterSkills[targetNPC.type].name}'e ${npc.attackDamage} hasar verdi!`);
+                const flash = document.getElementById('damage-flash');
+                flash.classList.add('flash');
+                setTimeout(() => flash.classList.remove('flash'), 150);
+                if(npc.skill && (now - (npc.lastSkillUse || 0) > npc.skill.cooldown)) {
+                    npc.lastSkillUse = now;
+                    npc.skill.effect(npc, targetNPC, scene, camera);
+                }
+            }
+        }
+        npc.mesh.position.x = Math.min(95, Math.max(-95, npc.mesh.position.x));
+        npc.mesh.position.z = Math.min(95, Math.max(-95, npc.mesh.position.z));
+        npc.x = npc.mesh.position.x;
+        npc.z = npc.mesh.position.z;
+    }
+}
+
+// Tam ekran ve yatay yönlendirme
+function enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+    if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed', e));
+    }
+}
+
+function enterGame() {
+    const canvas = document.getElementById('game-canvas');
+    canvas.style.display = 'block';
+    document.getElementById('game-ui').style.display = 'block';
+    document.getElementById('craft-toggle').style.display = 'flex';
+    document.getElementById('minimap').style.display = 'block';
+    document.getElementById('online-count').style.display = 'block';
+    document.getElementById('crosshair').style.display = 'block';
+
+    const sess = loadSession();
+    if (sess && sess.pos) { playerPos = sess.pos; yaw = sess.yaw || 0; }
+
+    initThree(canvas);
+    buildWorld();
+    spawnResources();
+    setupInput(canvas);
+    setupMobileControls();
+    gameLoop();
+}
+
+function initThree(canvas) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a0f05);
+    scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
+
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
+
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const ambient = new THREE.AmbientLight(0x2a1a05, 1.2);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xc9a84c, 1.5);
+    sun.position.set(30, 60, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
+    sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
+    scene.add(sun);
+
+    [[5,1,5],[-5,1,-5],[10,1,-8],[-8,1,12]].forEach(([x,y,z]) => {
+        const pt = new THREE.PointLight(0xe67e22, 1.5, 12);
+        pt.position.set(x, y, z); scene.add(pt);
+    });
+}
+
+function buildWorld() {
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 40, 40), new THREE.MeshLambertMaterial({ color: 0x1a1005 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    const grid = new THREE.GridHelper(200, 50, 0x2a1e08, 0x1a1005);
+    grid.position.y = 0.01; scene.add(grid);
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.5 });
+    [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => {
+        const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1);
+        const wall = new THREE.Mesh(geo, wallMat);
+        wall.position.set(x, y, z); scene.add(wall);
+    });
+    for (let i = 0; i < 20; i++) {
+        const r = Math.random() * 0.4 + 0.1;
+        const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 }));
+        mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180);
+        mesh.rotation.set(Math.random(), Math.random(), Math.random());
+        scene.add(mesh);
+    }
+}
+
+function spawnResources() {
+    for (let i = 0; i < 15; i++) createTree((Math.random()-0.5)*160, (Math.random()-0.5)*160, i);
+    for (let i = 0; i < 12; i++) createRock((Math.random()-0.5)*160, (Math.random()-0.5)*160, i+100);
+}
+
+function createTree(x, z, id) {
+    const group = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,2.5,7), new THREE.MeshLambertMaterial({color:0x3a2010}));
+    trunk.position.y = 1.25; trunk.castShadow = true; group.add(trunk);
+    const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.6,3,8), new THREE.MeshLambertMaterial({color:0x1a3a10}));
+    foliage.position.y = 3.8; foliage.castShadow = true; group.add(foliage);
+    group.position.set(x, 0, z); scene.add(group);
+    resourceObjects.push({ mesh: group, type: 'wood', id, x, z, radius: 2 });
+}
+
+function createRock(x, z, id) {
+    const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.4,0), new THREE.MeshLambertMaterial({color:0x4a4030}));
+    mesh.position.set(x, 0.7, z); mesh.rotation.set(Math.random(),Math.random(),Math.random()); mesh.castShadow = true;
+    scene.add(mesh);
+    resourceObjects.push({ mesh, type: 'stone', id, x, z, radius: 1.5 });
+}
+
+// ── Socket: Game Events (oyuncu modeli artık detaylı) ──
+socket.on('currentPlayers', (players) => {
+    Object.values(players).forEach(p => {
+        if (p.id === socket.id) {
+            myPlayer = p;
+            document.getElementById('player-name-display').textContent = p.username.toUpperCase();
+            playerMesh = createDetailedCharacter(myCharacterType);
+            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+            scene.add(playerMesh);
+        } else { addOtherPlayer(p); }
+    });
+    updateOnlineCount(Object.keys(players).length);
+});
+
+socket.on('newPlayer', (p) => {
+    if (p.id !== socket.id) addOtherPlayer(p);
+    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
+    addKillFeed(`⚔ ${p.username} dünyaya katıldı`);
+});
+
+socket.on('playerMoved', (p) => {
+    if (p.id === socket.id) return;
+    if (otherPlayerMeshes[p.id]) {
+        otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z);
+        if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY;
+    }
+});
+
+socket.on('playerDisconnected', (id) => {
+    if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; }
+    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
+});
+
+socket.on('updateInventory', (inv) => {
+    document.getElementById('inv-wood').textContent = inv.wood;
+    document.getElementById('inv-stone').textContent = inv.stone;
+    document.getElementById('inv-sword').textContent = inv.sword;
+    document.getElementById('inv-pickaxe').textContent = inv.pickaxe;
+    document.getElementById('inv-axe').textContent = inv.axe;
+});
+
+socket.on('hpUpdate', (data) => {
+    if (data.id === socket.id) {
+        updateHP(data.hp);
+        const flash = document.getElementById('damage-flash');
+        flash.classList.add('flash');
+        setTimeout(() => flash.classList.remove('flash'), 200);
+    }
+});
+
+function addOtherPlayer(p) {
+    const mesh = createDetailedCharacter('edward'); // diğer oyuncular genel model, istenirse random
+    mesh.position.set(p.x||0, p.y||0, p.z||0);
+    scene.add(mesh); otherPlayerMeshes[p.id] = mesh;
+}
+function updateHP(hp) {
+    const pct = Math.max(0,hp)/100;
+    document.getElementById('hp-fill').style.width = (pct*100)+'%';
+    document.getElementById('hp-text').textContent = `${Math.max(0,hp)}/100`;
+}
 function updateOnlineCount(n) { document.getElementById('online-num').textContent = n; }
-function setupInput(canvas) { let mouseDown = false, lastMouseX = 0, lastMouseY = 0; canvas.addEventListener('mousedown', (e) => { if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; } if (e.button === 0) doAttackNearest(); }); document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; }); document.addEventListener('mousemove', (e) => { if (!mouseDown) return; yaw -= (e.clientX - lastMouseX) * 0.004; pitch -= (e.clientY - lastMouseY) * 0.003; pitch = Math.max(-0.6, Math.min(0.8, pitch)); lastMouseX = e.clientX; lastMouseY = e.clientY; }); document.addEventListener('contextmenu', e => e.preventDefault()); document.addEventListener('keydown', e => { keys[e.code] = true; }); document.addEventListener('keyup', e => { keys[e.code] = false; }); document.addEventListener('keydown', e => { if (e.code === 'KeyE') tryCollect(); if (e.code === 'KeyF') doAttackNearest(); if (e.code === 'Space') tryJump(); }); canvas.addEventListener('wheel', () => {}, { passive: true }); }
+
+// ═══════════════════════════════════════════════
+//  INPUT (unchanged except attack effect added)
+// ═══════════════════════════════════════════════
+function setupInput(canvas) {
+    let mouseDown = false, lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
+        if (e.button === 0) doAttackNearest();
+    });
+    document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; });
+    document.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        yaw -= (e.clientX - lastMouseX) * 0.004;
+        pitch -= (e.clientY - lastMouseY) * 0.003;
+        pitch = Math.max(-0.6, Math.min(0.8, pitch));
+        lastMouseX = e.clientX; lastMouseY = e.clientY;
+    });
+
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => { keys[e.code] = true; });
+    document.addEventListener('keyup', e => { keys[e.code] = false; });
+    document.addEventListener('keydown', e => {
+        if (e.code === 'KeyE') tryCollect();
+        if (e.code === 'KeyF') doAttackNearest();
+        if (e.code === 'Space') tryJump();
+    });
+    canvas.addEventListener('wheel', () => {}, { passive: true });
+}
+
 function tryJump() { if (onGround) { velocityY = JUMP_FORCE; onGround = false; } }
-function setupMobileControls() { if (!('ontouchstart' in window)) return; document.getElementById('mobile-controls').style.display = 'block'; document.getElementById('crosshair').style.display = 'none'; const jc = document.getElementById('joystick-container'); const knob = document.getElementById('joystick-knob'); const maxR = 38; jc.addEventListener('touchstart', e => { const rect = jc.getBoundingClientRect(); joystick.startX = rect.left + rect.width/2; joystick.startY = rect.top + rect.height/2; joystick.active = true; }, { passive: true }); jc.addEventListener('touchmove', e => { if (!joystick.active) return; const t = e.touches[0]; let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY; const dist = Math.sqrt(dx*dx+dy*dy); if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; } joystick.dx = dx/maxR; joystick.dy = dy/maxR; knob.style.transform = `translate(${dx}px,${dy}px)`; }, { passive: true }); const resetJoystick = () => { joystick.active=false; joystick.dx=0; joystick.dy=0; knob.style.transform=''; }; jc.addEventListener('touchend', resetJoystick); jc.addEventListener('touchcancel', resetJoystick); let lastTX=0, lastTY=0; document.addEventListener('touchstart', e => { const t = e.touches[0]; if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; } }, { passive: true }); document.addEventListener('touchmove', e => { for (let t of e.touches) { if (t.clientX > window.innerWidth/2) { yaw -= (t.clientX-lastTX)*0.005; pitch -= (t.clientY-lastTY)*0.005; pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch)); lastTX=t.clientX; lastTY=t.clientY; } } }, { passive: true }); document.getElementById('jump-btn').addEventListener('touchstart', tryJump, { passive: true }); }
-function tryCollect() { resourceObjects.forEach(r => { if (!r.mesh) return; const dx=playerPos.x-r.x, dz=playerPos.z-r.z; if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) { socket.emit('collect', r.type); showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`); } }); }
-function doAttackNearest() { let nearest=null, nearDist=5; Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => { const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z; const d=Math.sqrt(dx*dx+dz*dz); if (d<nearDist) { nearDist=d; nearest=id; } }); if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); } }
-function toggleCraft() { document.getElementById('craft-panel').classList.toggle('open'); }
-function doCraft(item) { socket.emit('craft', item); showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`); }
-function drawMinimap() { const canvas = document.getElementById('minimap-canvas'); const ctx = canvas.getContext('2d'); const W=100, H=100, scale=100/200; ctx.fillStyle='#0a0806'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#1a1005'; ctx.lineWidth=0.5; for (let i=0;i<=W;i+=10) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); } for (let i=0;i<=H;i+=10) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); } resourceObjects.forEach(r => { const mx=(r.x+100)*scale, my=(r.z+100)*scale; ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030'; ctx.fillRect(mx-1,my-1,3,3); }); Object.values(otherPlayerMeshes).forEach(mesh => { const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale; ctx.fillStyle='#e74c3c'; ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill(); }); for(let id in spawnedNPCs) { const npc = spawnedNPCs[id]; const mx = (npc.x+100)*scale, my = (npc.z+100)*scale; ctx.fillStyle = npc.type === 'edward' ? '#c97e5a' : '#88aacc'; ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'white'; ctx.font = 'bold 8px monospace'; ctx.fillText(npc.type === 'edward' ? 'E' : 'M', mx-3, my-3); } const sx=(playerPos.x+100)*scale, sy=(playerPos.z+100)*scale; ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke(); }
+
+// ═══════════════════════════════════════════════
+//  MOBILE CONTROLS (unchanged)
+// ═══════════════════════════════════════════════
+function setupMobileControls() {
+    if (!('ontouchstart' in window)) return;
+    document.getElementById('mobile-controls').style.display = 'block';
+    document.getElementById('crosshair').style.display = 'none';
+
+    const jc = document.getElementById('joystick-container');
+    const knob = document.getElementById('joystick-knob');
+    const maxR = 38;
+
+    jc.addEventListener('touchstart', e => {
+        const rect = jc.getBoundingClientRect();
+        joystick.startX = rect.left + rect.width/2;
+        joystick.startY = rect.top + rect.height/2;
+        joystick.active = true;
+    }, { passive: true });
+
+    jc.addEventListener('touchmove', e => {
+        if (!joystick.active) return;
+        const t = e.touches[0];
+        let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; }
+        joystick.dx = dx/maxR; joystick.dy = dy/maxR;
+        knob.style.transform = `translate(${dx}px,${dy}px)`;
+    }, { passive: true });
+
+    const resetJoystick = () => { joystick.active=false; joystick.dx=0; joystick.dy=0; knob.style.transform=''; };
+    jc.addEventListener('touchend', resetJoystick);
+    jc.addEventListener('touchcancel', resetJoystick);
+
+    let lastTX=0, lastTY=0;
+    document.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; }
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        for (let t of e.touches) {
+            if (t.clientX > window.innerWidth/2) {
+                yaw -= (t.clientX-lastTX)*0.005;
+                pitch -= (t.clientY-lastTY)*0.005;
+                pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
+                lastTX=t.clientX; lastTY=t.clientY;
+            }
+        }
+    }, { passive: true });
+
+    document.getElementById('jump-btn').addEventListener('touchstart', tryJump, { passive: true });
+}
+
+// ═══════════════════════════════════════════════
+//  GAME LOOP (unchanged but includes NPC combat)
+// ═══════════════════════════════════════════════
 let lastSent = 0, sessionSaveTimer = 0;
-function gameLoop() { requestAnimationFrame(gameLoop); if (!scene) return; updateNPCCombat(); const speed = 0.12; const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)); const move = new THREE.Vector3(); if (keys['KeyW']||keys['ArrowUp']) move.addScaledVector(forward, speed); if (keys['KeyS']||keys['ArrowDown']) move.addScaledVector(forward, -speed); if (keys['KeyA']||keys['ArrowLeft']) move.addScaledVector(right, -speed); if (keys['KeyD']||keys['ArrowRight']) move.addScaledVector(right, speed); if (joystick.active) { move.addScaledVector(forward, -joystick.dy*speed); move.addScaledVector(right, joystick.dx*speed); } playerPos.x += move.x; playerPos.z += move.z; velocityY += GRAVITY; playerPos.y += velocityY; if (playerPos.y < 0) { playerPos.y=0; velocityY=0; onGround=true; } playerPos.x = Math.max(-98, Math.min(98, playerPos.x)); playerPos.z = Math.max(-98, Math.min(98, playerPos.z)); if (playerMesh) { playerMesh.position.set(playerPos.x,playerPos.y,playerPos.z); playerMesh.rotation.y = yaw+Math.PI; } const camOffX = -Math.sin(yaw)*CAM_DISTANCE, camOffZ = -Math.cos(yaw)*CAM_DISTANCE; camera.position.x += (playerPos.x-camOffX - camera.position.x)*0.15; camera.position.y += (playerPos.y+CAM_HEIGHT+pitch*2 - camera.position.y)*0.15; camera.position.z += (playerPos.z-camOffZ - camera.position.z)*0.15; camera.lookAt(playerPos.x, playerPos.y+1, playerPos.z); const now = Date.now(); if (now - lastSent > 50) { lastSent = now; socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw }); } sessionSaveTimer++; if (sessionSaveTimer > 300) { sessionSaveTimer = 0; const sess = loadSession(); if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); } } resourceObjects.forEach(r => { if (r.mesh) r.mesh.rotation.y += 0.003; }); drawMinimap(); renderer.render(scene, camera); }
-let notifTimer = null; function showNotification(text) { const el = document.getElementById('notification'); el.textContent = text; el.classList.add('show'); clearTimeout(notifTimer); notifTimer = setTimeout(() => el.classList.remove('show'), 2000); }
-function addKillFeed(text) { const feed = document.getElementById('killfeed'); const div = document.createElement('div'); div.className = 'kill-entry'; div.textContent = text; feed.appendChild(div); setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500); }
+
+function gameLoop() {
+    requestAnimationFrame(gameLoop);
+    if (!scene) return;
+    
+    updateNPCCombat();
+
+    const speed = 0.12;
+    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const move = new THREE.Vector3();
+
+    if (keys['KeyW']||keys['ArrowUp']) move.addScaledVector(forward, speed);
+    if (keys['KeyS']||keys['ArrowDown']) move.addScaledVector(forward, -speed);
+    if (keys['KeyA']||keys['ArrowLeft']) move.addScaledVector(right, -speed);
+    if (keys['KeyD']||keys['ArrowRight']) move.addScaledVector(right, speed);
+    if (keys['Space']) tryJump();
+
+    if (joystick.active) {
+        move.addScaledVector(forward, -joystick.dy*speed);
+        move.addScaledVector(right, joystick.dx*speed);
+    }
+
+    playerPos.x += move.x; playerPos.z += move.z;
+    velocityY += GRAVITY; playerPos.y += velocityY;
+    if (playerPos.y < 0) { playerPos.y=0; velocityY=0; onGround=true; }
+    playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
+    playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
+
+    if (playerMesh) { playerMesh.position.set(playerPos.x,playerPos.y,playerPos.z); playerMesh.rotation.y = yaw+Math.PI; }
+
+    const camOffX = -Math.sin(yaw)*CAM_DISTANCE, camOffZ = -Math.cos(yaw)*CAM_DISTANCE;
+    camera.position.x += (playerPos.x-camOffX - camera.position.x)*0.15;
+    camera.position.y += (playerPos.y+CAM_HEIGHT+pitch*2 - camera.position.y)*0.15;
+    camera.position.z += (playerPos.z-camOffZ - camera.position.z)*0.15;
+    camera.lookAt(playerPos.x, playerPos.y+1, playerPos.z);
+
+    const now = Date.now();
+    if (now - lastSent > 50) {
+        lastSent = now;
+        socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw });
+    }
+
+    sessionSaveTimer++;
+    if (sessionSaveTimer > 300) {
+        sessionSaveTimer = 0;
+        const sess = loadSession();
+        if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); }
+    }
+
+    resourceObjects.forEach(r => { if (r.mesh) r.mesh.rotation.y += 0.003; });
+    drawMinimap();
+    renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════
+//  COLLECT / ATTACK / CRAFT (unchanged)
+// ═══════════════════════════════════════════════
+function tryCollect() {
+    resourceObjects.forEach(r => {
+        if (!r.mesh) return;
+        const dx=playerPos.x-r.x, dz=playerPos.z-r.z;
+        if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) {
+            socket.emit('collect', r.type);
+            showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`);
+        }
+    });
+}
+
+function doAttackNearest() {
+    let nearest=null, nearDist=5;
+    Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => {
+        const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z;
+        const d=Math.sqrt(dx*dx+dz*dz);
+        if (d<nearDist) { nearDist=d; nearest=id; }
+    });
+    if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); }
+}
+
+function toggleCraft() { document.getElementById('craft-panel').classList.toggle('open'); }
+function doCraft(item) {
+    socket.emit('craft', item);
+    showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`);
+}
+
+// ═══════════════════════════════════════════════
+//  MINIMAP (NPC'ler eklendi)
+// ═══════════════════════════════════════════════
+function drawMinimap() {
+    const canvas = document.getElementById('minimap-canvas');
+    const ctx = canvas.getContext('2d');
+    const W=100, H=100, scale=100/200;
+
+    ctx.fillStyle='#0a0806'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1a1005'; ctx.lineWidth=0.5;
+    for (let i=0;i<=W;i+=10) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for (let i=0;i<=H;i+=10) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+
+    resourceObjects.forEach(r => {
+        const mx=(r.x+100)*scale, my=(r.z+100)*scale;
+        ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030';
+        ctx.fillRect(mx-1,my-1,3,3);
+    });
+    
+    Object.values(otherPlayerMeshes).forEach(mesh => {
+        const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale;
+        ctx.fillStyle='#e74c3c';
+        ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill();
+    });
+    
+    for(let id in spawnedNPCs) {
+        const npc = spawnedNPCs[id];
+        const mx = (npc.x+100)*scale, my = (npc.z+100)*scale;
+        ctx.fillStyle = npc.type === 'edward' ? '#c97e5a' : '#88aacc';
+        ctx.beginPath();
+        ctx.arc(mx, my, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 8px monospace';
+        ctx.fillText(npc.type === 'edward' ? 'E' : 'M', mx-3, my-3);
+    }
+
+    const sx=(playerPos.x+100)*scale, sy=(playerPos.z+100)*scale;
+    ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS (unchanged)
+// ═══════════════════════════════════════════════
+let notifTimer = null;
+function showNotification(text) {
+    const el = document.getElementById('notification');
+    el.textContent = text; el.classList.add('show');
+    clearTimeout(notifTimer);
+    notifTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function addKillFeed(text) {
+    const feed = document.getElementById('killfeed');
+    const div = document.createElement('div');
+    div.className = 'kill-entry'; div.textContent = text;
+    feed.appendChild(div);
+    setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500);
+}
 </script>
 </body>
 </html>
