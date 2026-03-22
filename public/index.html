@@ -1,1144 +1,2434 @@
-html_content = '''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anime Craft 3D</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>⚔️ Survival Evolution RPG</title>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M10 0v20M0 10h20" stroke="white" stroke-width="2"/></svg>');
-            background-size: cover;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 10;
+        :root {
+            --gold: #c9a84c;
+            --gold-light: #f0d080;
+            --gold-dark: #7a5c1e;
+            --dark: #0a0806;
+            --dark2: #12100d;
+            --dark3: #1c1710;
+            --red: #c0392b;
+            --green: #27ae60;
+            --ember: #e67e22;
         }
-        #ui-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            z-index: 10;
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--dark);
+            font-family: 'Crimson Text', serif;
+            overflow: hidden;
+            touch-action: none;
+            cursor: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><text y='16' font-size='16'>⚔️</text></svg>") 10 10, auto;
         }
-        #hotbar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 10;
+
+        #particles-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+        /* ═══════════════════ AUTH SCREEN ═══════════════════ */
+        #auth-screen {
+            position: fixed; inset: 0; z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at 30% 40%, #2a1a05 0%, #0a0806 60%);
+            overflow: hidden;
         }
-        .hotbar-slot {
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            transition: transform 0.1s;
+
+        .bg-rune {
+            position: absolute; font-size: 120px; opacity: 0.03;
+            animation: runeFloat 8s ease-in-out infinite;
+            pointer-events: none; color: var(--gold); user-select: none;
         }
-        .hotbar-slot.active {
-            border-color: #ffff00;
-            transform: scale(1.1);
+        @keyframes runeFloat { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
+
+        .auth-container { position: relative; z-index: 10; width: 420px; max-width: 95vw; }
+
+        .auth-title-wrap { text-align: center; margin-bottom: 8px; }
+        .auth-title {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: clamp(20px, 5vw, 32px);
+            color: var(--gold-light);
+            text-shadow: 0 0 30px #c9a84c88, 0 0 60px #c9a84c44;
+            letter-spacing: 4px;
+            animation: titleGlow 2s ease-in-out infinite alternate;
         }
-        #block-menu {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            z-index: 20;
+        @keyframes titleGlow {
+            from { text-shadow: 0 0 20px #c9a84c88; }
+            to { text-shadow: 0 0 40px #f0d08099, 0 2px 4px #000; }
         }
-        .block-option {
-            width: 60px;
-            height: 60px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.2s;
+        .auth-subtitle {
+            font-family: 'Cinzel', serif;
+            color: #8a6a2a; font-size: 11px; letter-spacing: 8px;
+            text-transform: uppercase; margin-top: 4px;
         }
-        .block-option:hover {
-            border-color: white;
-            transform: scale(1.1);
+
+        .panel-frame {
+            background: linear-gradient(160deg, #1c1508 0%, #0e0b05 60%, #1a1206 100%);
+            border: 1px solid #3a2a10;
+            border-radius: 4px;
+            padding: 32px 28px;
+            position: relative;
+            box-shadow: 0 0 60px #00000099, inset 0 1px 0 #3a2a10, inset 0 -1px 0 #1a0f05;
         }
-        #loading {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
+        .panel-frame::before {
+            content: ''; position: absolute; inset: 6px;
+            border: 1px solid #2a1e08; border-radius: 2px; pointer-events: none;
+        }
+
+        .corner { position: absolute; width: 20px; height: 20px; color: var(--gold-dark); font-size: 14px; }
+        .corner.tl { top: 4px; left: 4px; }
+        .corner.tr { top: 4px; right: 4px; transform: scaleX(-1); }
+        .corner.bl { bottom: 4px; left: 4px; transform: scaleY(-1); }
+        .corner.br { bottom: 4px; right: 4px; transform: scale(-1); }
+
+        .auth-tabs { display: flex; margin-bottom: 24px; border-bottom: 1px solid #2a1e08; }
+        .auth-tab {
+            flex: 1; padding: 10px; text-align: center;
+            font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 2px;
+            color: #5a4820; cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s; text-transform: uppercase;
+        }
+        .auth-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+        .auth-tab:hover { color: var(--gold); }
+
+        .form-panel { display: none; }
+        .form-panel.active { display: block; }
+
+        .field-wrap { margin-bottom: 14px; position: relative; }
+        .field-label {
+            display: block; font-family: 'Cinzel', serif;
+            font-size: 10px; letter-spacing: 3px;
+            color: var(--gold-dark); margin-bottom: 6px; text-transform: uppercase;
+        }
+        .field-input {
+            width: 100%; padding: 12px 16px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #2a1e08; border-radius: 2px;
+            color: #e8d8a0;
+            font-family: 'Crimson Text', serif; font-size: 15px;
+            outline: none; transition: all 0.3s;
+            box-shadow: inset 0 2px 8px #00000066;
+        }
+        .field-input:focus { border-color: var(--gold-dark); box-shadow: inset 0 2px 8px #00000066, 0 0 12px #c9a84c22; }
+        .field-input::placeholder { color: #3a2a10; }
+        .field-input.error { border-color: #c0392b88; box-shadow: 0 0 8px #c0392b44; }
+        .field-input.success { border-color: #27ae6088; box-shadow: 0 0 8px #27ae6044; }
+        .field-input.checking { border-color: #c9a84c88; }
+
+        .field-hint {
+            font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 1px;
+            margin-top: 4px; min-height: 14px; transition: all 0.2s;
+        }
+        .field-hint.error { color: #e74c3c; }
+        .field-hint.success { color: #27ae60; }
+        .field-hint.info { color: #c9a84c; }
+
+        .field-status {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            font-size: 16px; pointer-events: none;
+        }
+
+        .forgot-link {
+            font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 2px;
+            color: var(--gold-dark); cursor: pointer; transition: color 0.2s;
+            text-decoration: underline; text-underline-offset: 3px;
+        }
+        .forgot-link:hover { color: var(--gold); }
+
+        .captcha-box {
+            background: #0a0806; border: 1px solid #2a1e08; border-radius: 2px;
+            padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+        }
+        .captcha-img {
+            background: linear-gradient(135deg, #1a1206, #0e0b05);
+            border: 1px solid #3a2a10; border-radius: 2px; padding: 8px 16px;
+            font-family: 'Cinzel Decorative', serif; font-size: 18px; letter-spacing: 6px;
+            color: var(--gold-light); text-shadow: 2px 2px 4px #000;
+            user-select: none; position: relative; overflow: hidden;
+            min-width: 120px; text-align: center;
+        }
+        .captcha-img::after {
+            content: ''; position: absolute; inset: 0;
+            background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
+        }
+        .captcha-line { position: absolute; width: 100%; height: 1px; background: #c9a84c44; transform: rotate(-8deg); top: 50%; }
+        .captcha-refresh {
+            background: none; border: 1px solid #2a1e08;
+            color: var(--gold-dark); cursor: pointer;
+            padding: 6px 10px; border-radius: 2px; font-size: 16px; transition: all 0.2s;
+        }
+        .captcha-refresh:hover { border-color: var(--gold-dark); color: var(--gold); }
+
+        .msg-box {
+            padding: 10px 14px; border-radius: 2px; font-size: 13px; margin-bottom: 14px;
+            display: none; align-items: center; gap: 8px;
+            font-family: 'Cinzel', serif; letter-spacing: 1px;
+        }
+        .msg-box.error { background: #c0392b22; border: 1px solid #c0392b88; color: #e74c3c; display: flex; }
+        .msg-box.success { background: #27ae6022; border: 1px solid #27ae6088; color: #2ecc71; display: flex; }
+
+        .btn-enter {
+            width: 100%; padding: 14px;
+            background: linear-gradient(180deg, #3a2a0a 0%, #1a1005 50%, #2a1e08 100%);
+            border: 1px solid var(--gold-dark);
+            color: var(--gold-light);
+            font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 4px;
+            text-transform: uppercase; cursor: pointer; border-radius: 2px;
+            transition: all 0.3s; position: relative; overflow: hidden;
+            box-shadow: 0 4px 20px #00000088;
+        }
+        .btn-enter::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(201,168,76,0.1) 100%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .btn-enter:hover::before { opacity: 1; }
+        .btn-enter:hover { border-color: var(--gold); color: #fff; box-shadow: 0 4px 30px #c9a84c44; }
+        .btn-enter:active { transform: translateY(1px); }
+
+        /* ═══════════════════ LOADING ═══════════════════ */
+        #loading-overlay {
+            position: fixed; inset: 0; z-index: 3000;
+            background: #0a0806; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .loading-title {
+            font-family: 'Cinzel Decorative', serif; font-size: 24px;
+            color: var(--gold-light); margin-bottom: 30px; text-shadow: 0 0 30px var(--gold);
+        }
+        .loading-bar-wrap {
+            width: 300px; height: 4px; background: #1a1206;
+            border: 1px solid #3a2a10; border-radius: 2px; overflow: hidden;
+        }
+        .loading-bar-fill {
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+            width: 0%; transition: width 0.3s; box-shadow: 0 0 8px var(--gold);
+        }
+        .loading-text { font-family: 'Cinzel', serif; color: #5a4820; font-size: 11px; letter-spacing: 4px; margin-top: 12px; }
+
+        /* ═══════════════════ GAME CANVAS ═══════════════════ */
+        #game-canvas {
+            position: fixed; inset: 0; z-index: 1;
+            display: none;
+        }
+
+        /* ═══════════════════ GAME UI ═══════════════════ */
+        #game-ui { display: none; }
+
+        #ui-overlay {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 1000; pointer-events: none; padding: 16px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+        }
+        .player-hud { display: flex; align-items: center; gap: 12px; }
+        .avatar-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #1c1508, #2a1e08);
+            border: 2px solid var(--gold-dark); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 22px;
+        }
+        .player-info { flex: 1; }
+        #player-name-display { font-family: 'Cinzel', serif; color: var(--gold-light); font-size: 13px; letter-spacing: 2px; }
+        .hp-bar-wrap { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .hp-icon { font-size: 12px; }
+        #hp-bar-ui { width: 150px; height: 8px; background: rgba(0,0,0,0.6); border: 1px solid #3a1010; border-radius: 2px; overflow: hidden; }
+        #hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c); transition: 0.3s; box-shadow: 0 0 6px #e74c3c88; }
+        .hp-text { font-family: 'Cinzel', serif; font-size: 10px; color: #c0392b; }
+        .inv-bar { display: flex; gap: 8px; margin-top: 8px; }
+        .inv-item {
+            background: rgba(0,0,0,0.6); border: 1px solid #2a1e08; border-radius: 3px;
+            padding: 4px 10px; font-family: 'Cinzel', serif; font-size: 11px; color: #c9a84c; letter-spacing: 1px;
+        }
+
+        /* Karakter Spawn Butonları */
+        .character-select {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            color: white;
+            gap: 8px;
+            margin-top: 10px;
         }
-        .loader {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .char-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #c9a84c;
+            color: #c9a84c;
+            font-family: 'Cinzel', serif;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+            pointer-events: auto;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        /* Anime UI Elements */
-        .anime-panel {
-            background: linear-gradient(135deg, rgba(255, 182, 193, 0.9) 0%, rgba(147, 112, 219, 0.9) 100%);
-            border: 3px solid #fff;
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(255, 105, 180, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.2);
+        .char-btn:hover {
+            background: rgba(201,168,76,0.2);
+            box-shadow: 0 0 6px #c9a84c;
         }
-        
-        .anime-text {
-            font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', sans-serif;
-            text-shadow: 2px 2px 0px #ff69b4, -1px -1px 0px #fff;
-            letter-spacing: 1px;
+
+        /* ═══════════════════ CRAFT ═══════════════════ */
+        #craft-toggle {
+            position: fixed; top: 80px; right: 16px;
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #1c1508, #0e0b05);
+            border: 2px solid var(--gold-dark); border-radius: 6px;
+            color: var(--gold); font-size: 22px;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 1600;
+            box-shadow: 0 4px 12px #00000088; transition: all 0.2s;
+        }
+        #craft-toggle:hover { border-color: var(--gold); box-shadow: 0 0 16px var(--gold-dark); }
+
+        #craft-panel {
+            position: fixed; top: 60px; right: -280px; width: 260px;
+            background: linear-gradient(160deg, #1c1508, #0e0b05);
+            border: 1px solid #3a2a10; border-right: none; border-radius: 8px 0 0 8px;
+            padding: 20px 16px;
+            transition: right 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1500; color: white;
+        }
+        #craft-panel.open { right: 0; }
+        .craft-title {
+            font-family: 'Cinzel', serif; color: var(--gold-light); font-size: 13px;
+            letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 1px solid #2a1e08;
+        }
+        .craft-option {
+            background: rgba(0,0,0,0.4); border: 1px solid #2a1e08; border-radius: 4px;
+            padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .craft-option:hover { border-color: var(--gold-dark); background: rgba(201,168,76,0.1); }
+        .craft-option .icon { font-size: 22px; }
+        .craft-option .info { flex: 1; }
+        .craft-option .name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold-light); }
+        .craft-option .cost { font-size: 11px; color: #5a4820; margin-top: 2px; }
+
+        /* ═══════════════════ MOBILE CONTROLS ═══════════════════ */
+        #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 900; display: none; }
+
+        #joystick-container {
+            position: absolute; bottom: 28px; left: 28px;
+            width: 120px; height: 120px;
+            background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, rgba(0,0,0,0.3) 100%);
+            border: 2px solid rgba(201,168,76,0.3); border-radius: 50%;
+            pointer-events: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #joystick-inner { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 40px; height: 40px; border: 1px solid rgba(201,168,76,0.4); border-radius: 50%; }
+        #joystick-knob {
+            position: absolute; width: 44px; height: 44px;
+            background: radial-gradient(circle, rgba(201,168,76,0.6) 0%, rgba(100,70,20,0.8) 100%);
+            border: 2px solid rgba(201,168,76,0.5); border-radius: 50%;
+            top: 38px; left: 38px; pointer-events: none;
+            box-shadow: 0 2px 8px #00000088; transition: transform 0.05s;
+        }
+
+        #jump-btn {
+            position: absolute; bottom: 28px; right: 140px;
+            width: 64px; height: 64px;
+            background: rgba(0,0,0,0.6); border: 2px solid rgba(201,168,76,0.4); border-radius: 50%;
+            color: var(--gold); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 1px;
+            pointer-events: auto; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 2px;
+        }
+        #jump-btn .j-icon { font-size: 20px; }
+
+        #attack-btn {
+            position: absolute; bottom: 28px; right: 28px;
+            width: 100px; height: 100px;
+            background: radial-gradient(circle, rgba(192,57,43,0.5) 0%, rgba(100,20,10,0.7) 100%);
+            border: 3px solid rgba(192,57,43,0.6); border-radius: 50%;
+            font-size: 32px; pointer-events: auto;
+            box-shadow: 0 0 20px rgba(192,57,43,0.3); transition: all 0.1s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #attack-btn:active { transform: scale(0.92); box-shadow: 0 0 30px rgba(192,57,43,0.6); }
+
+        /* ═══════════════════ MINIMAP ═══════════════════ */
+        #minimap {
+            position: fixed; top: 16px; right: 16px;
+            width: 100px; height: 100px;
+            background: rgba(0,0,0,0.7); border: 1px solid #3a2a10;
+            border-radius: 4px; overflow: hidden; z-index: 1000; display: none;
+        }
+        #minimap-canvas { width: 100%; height: 100%; }
+
+        /* ═══════════════════ FX ═══════════════════ */
+        #damage-flash { position: fixed; inset: 0; z-index: 999; background: rgba(192,57,43,0); pointer-events: none; transition: background 0.1s; }
+        #damage-flash.flash { background: rgba(192,57,43,0.25); }
+
+        #killfeed { position: fixed; top: 130px; right: 16px; z-index: 1000; pointer-events: none; width: 220px; }
+        .kill-entry {
+            background: rgba(0,0,0,0.7); border-left: 2px solid var(--gold-dark);
+            padding: 4px 10px; font-family: 'Cinzel', serif; font-size: 10px;
+            color: #c9a84c; letter-spacing: 1px; margin-bottom: 4px;
+            animation: killFade 4s forwards;
+        }
+        @keyframes killFade { 0% { opacity:1; } 80% { opacity:1; } 100% { opacity:0; } }
+
+        #notification {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            z-index: 1500; font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 3px;
+            color: var(--gold-light); background: rgba(0,0,0,0.85); border: 1px solid var(--gold-dark);
+            padding: 10px 24px; border-radius: 4px; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        #notification.show { opacity: 1; }
+
+        #online-count {
+            position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+            font-family: 'Cinzel', serif; font-size: 10px;
+            color: rgba(201,168,76,0.4); letter-spacing: 3px;
+            z-index: 1000; pointer-events: none; display: none;
+        }
+
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            z-index: 1000; pointer-events: none; color: rgba(255,255,255,0.5);
+            font-size: 18px; display: none;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container { width: 95vw; }
+            .panel-frame { padding: 24px 16px; }
+            .auth-title { font-size: 18px; }
         }
     </style>
 </head>
 <body>
-    <div id="loading">
-        <div class="loader"></div>
-        <p style="margin-top: 20px; font-size: 18px;">Anime Craft 3D Yükleniyor...</p>
-    </div>
-    
-    <div id="crosshair"></div>
-    
-    <div id="ui-container">
-        <h1 class="text-2xl font-bold anime-text">Anime Craft 3D</h1>
-        <p class="text-sm mt-2">WASD: Hareket | SPACE: Zıpla | MOUSE: Bakış</p>
-        <p class="text-sm">LEFT CLICK: Blok Kır | RIGHT CLICK: Blok Koy</p>
-        <p class="text-sm">E: Envanter | 1-9: Blok Seç</p>
-        <div class="mt-4">
-            <p>Koordinat: <span id="coords">0, 0, 0</span></p>
-            <p>Seçili Blok: <span id="selected-block">Grass</span></p>
-            <p>Aktif Karakter: <span id="active-character" class="text-yellow-300">Anime Girl</span></p>
+
+<canvas id="particles-canvas"></canvas>
+<canvas id="game-canvas"></canvas>
+
+<!-- ══════════════════ LOADING ══════════════════ -->
+<div id="loading-overlay">
+    <div class="loading-title">⚔️ SURVIVAL EVOLUTION</div>
+    <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-fill"></div></div>
+    <div class="loading-text" id="loading-text">DÜNYA YÜKLENİYOR...</div>
+</div>
+
+<!-- ══════════════════ AUTH SCREEN ══════════════════ -->
+<div id="auth-screen">
+    <div class="bg-rune" style="top:10%; left:5%; animation-delay:0s;">⚔</div>
+    <div class="bg-rune" style="top:60%; right:8%; animation-delay:2s; font-size:80px;">🛡</div>
+    <div class="bg-rune" style="bottom:15%; left:15%; animation-delay:4s; font-size:60px;">⛏</div>
+    <div class="bg-rune" style="top:30%; right:20%; animation-delay:1s; font-size:50px;">🗡</div>
+
+    <div class="auth-container">
+        <div class="auth-title-wrap">
+            <div class="auth-title">⚔️ SURVIVAL<br>EVOLUTION</div>
+            <div class="auth-subtitle">Çok Oyunculu Hayatta Kalma RPG</div>
+        </div>
+        <br>
+        <div class="panel-frame">
+            <div class="corner tl">◆</div>
+            <div class="corner tr">◆</div>
+            <div class="corner bl">◆</div>
+            <div class="corner br">◆</div>
+
+            <div class="auth-tabs" id="auth-tabs-main">
+                <div class="auth-tab active" onclick="switchTab('login')">⚔ Giriş Yap</div>
+                <div class="auth-tab" onclick="switchTab('register')">📜 Kayıt Ol</div>
+            </div>
+
+            <!-- LOGIN -->
+            <div class="form-panel active" id="panel-login">
+                <div id="msg-login" class="msg-box"></div>
+                <div class="field-wrap">
+                    <label class="field-label">⚔ Kahraman Adı veya E-Posta</label>
+                    <input type="text" id="login-user" class="field-input" placeholder="Kullanıcı adı veya e-posta..." autocomplete="username">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre</label>
+                    <input type="password" id="login-pass" class="field-input" placeholder="Şifreniz..." autocomplete="current-password">
+                </div>
+                <div style="text-align:right; margin-bottom:14px; margin-top:-8px;">
+                    <span class="forgot-link" onclick="switchTab('forgot')">🔑 Şifremi Unuttum</span>
+                </div>
+                <button class="btn-enter" onclick="doLogin()">⚔ DÜNYAYA GİR ⚔</button>
+            </div>
+
+            <!-- REGISTER -->
+            <div class="form-panel" id="panel-register">
+                <div id="msg-register" class="msg-box"></div>
+                <div class="field-wrap">
+                    <label class="field-label">⚔ Kahraman Adı</label>
+                    <div style="position:relative;">
+                        <input type="text" id="reg-user" class="field-input" placeholder="3-16 karakter, harf ve rakam..." autocomplete="username" oninput="checkUsername(this)">
+                        <span class="field-status" id="reg-user-status"></span>
+                    </div>
+                    <div class="field-hint" id="reg-user-hint"></div>
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">📧 E-Posta</label>
+                    <input type="email" id="reg-email" class="field-input" placeholder="ornek@mail.com..." autocomplete="email" oninput="checkEmail(this)">
+                    <div class="field-hint" id="reg-email-hint"></div>
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre</label>
+                    <input type="password" id="reg-pass" class="field-input" placeholder="En az 6 karakter..." autocomplete="new-password" oninput="checkPassword(this)">
+                    <div class="field-hint" id="reg-pass-hint"></div>
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Şifre Tekrar</label>
+                    <input type="password" id="reg-pass2" class="field-input" placeholder="Şifrenizi tekrar girin..." autocomplete="new-password" oninput="checkPassword2(this)">
+                    <div class="field-hint" id="reg-pass2-hint"></div>
+                </div>
+                <div class="captcha-box">
+                    <div class="captcha-img" id="captcha-display">
+                        <div class="captcha-line"></div>
+                        <span id="captcha-text">A4X9</span>
+                    </div>
+                    <button class="captcha-refresh" onclick="refreshCaptcha()" title="Yenile">↻</button>
+                    <input type="text" id="captcha-input" class="field-input" placeholder="Kodu girin..." style="flex:1">
+                </div>
+                <button class="btn-enter" onclick="doRegister()">📜 KAHRAMAN OLUŞTUR 📜</button>
+            </div>
+
+            <!-- FORGOT PASSWORD - Email Entry -->
+            <div class="form-panel" id="panel-forgot">
+                <div id="msg-forgot" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinizi girin. Size 6 haneli bir doğrulama kodu göndereceğiz.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">📧 E-Posta</label>
+                    <input type="email" id="forgot-email" class="field-input" placeholder="ornek@mail.com...">
+                </div>
+                <button class="btn-enter" onclick="doForgotPassword()">📨 KOD GÖNDER</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('login')">← Giriş ekranına dön</span>
+                </div>
+            </div>
+
+            <!-- RESET CODE VERIFICATION -->
+            <div class="form-panel" id="panel-reset-code">
+                <div id="msg-reset-code" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen girin.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">🔑 Doğrulama Kodu</label>
+                    <input type="text" id="reset-code-input" class="field-input" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;">
+                </div>
+                <button class="btn-enter" onclick="verifyResetCode()">✅ KODU DOĞRULA</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('forgot')">← Geri</span>
+                </div>
+            </div>
+
+            <!-- NEW PASSWORD -->
+            <div class="form-panel" id="panel-new-password">
+                <div id="msg-new-password" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;" id="reset-username-display"></p>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Yeni Şifre</label>
+                    <input type="password" id="new-password1" class="field-input" placeholder="En az 6 karakter...">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">🔒 Yeni Şifre Tekrar</label>
+                    <input type="password" id="new-password2" class="field-input" placeholder="Şifrenizi tekrar girin...">
+                </div>
+                <button class="btn-enter" onclick="saveNewPassword()">🔑 ŞİFREYİ GÜNCELLE</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="switchTab('login')">← Giriş ekranına dön</span>
+                </div>
+            </div>
+
+            <!-- EMAIL VERIFY (Registration) -->
+            <div class="form-panel" id="panel-verify">
+                <div id="msg-verify" class="msg-box"></div>
+                <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen kontrol edin.
+                </p>
+                <div class="field-wrap">
+                    <label class="field-label">🔑 Doğrulama Kodu</label>
+                    <input type="text" id="verify-code" class="field-input" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;">
+                </div>
+                <button class="btn-enter" onclick="doVerifyCode()">✅ DOĞRULA VE GİRİŞ YAP</button>
+                <div style="text-align:center;margin-top:12px;">
+                    <span class="forgot-link" onclick="resendCode()">↻ Kodu tekrar gönder</span>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div id="hotbar">
-        <div class="hotbar-slot active" data-block="grass" style="background: #5d8c3a;">🌿</div>
-        <div class="hotbar-slot" data-block="dirt" style="background: #8b7355;">🟫</div>
-        <div class="hotbar-slot" data-block="stone" style="background: #808080;">🪨</div>
-        <div class="hotbar-slot" data-block="wood" style="background: #8b4513;">🪵</div>
-        <div class="hotbar-slot" data-block="leaves" style="background: #228b22;">🍃</div>
-        <div class="hotbar-slot" data-block="sand" style="background: #f4e4c1;">🏖️</div>
-        <div class="hotbar-slot" data-block="water" style="background: #4fa4b8;">💧</div>
-        <div class="hotbar-slot" data-block="lava" style="background: #ff4500;">🌋</div>
-        <div class="hotbar-slot" data-block="diamond" style="background: #00ffff;">💎</div>
-    </div>
-    
-    <div id="block-menu" class="anime-panel">
-        <div class="block-option" data-block="grass" style="background: #5d8c3a;" title="Grass"></div>
-        <div class="block-option" data-block="dirt" style="background: #8b7355;" title="Dirt"></div>
-        <div class="block-option" data-block="stone" style="background: #808080;" title="Stone"></div>
-        <div class="block-option" data-block="wood" style="background: #8b4513;" title="Wood"></div>
-        <div class="block-option" data-block="leaves" style="background: #228b22;" title="Leaves"></div>
-        <div class="block-option" data-block="sand" style="background: #f4e4c1;" title="Sand"></div>
-        <div class="block-option" data-block="water" style="background: #4fa4b8;" title="Water"></div>
-        <div class="block-option" data-block="lava" style="background: #ff4500;" title="Lava"></div>
-        <div class="block-option" data-block="diamond" style="background: #00ffff;" title="Diamond"></div>
-        <div class="block-option" data-block="gold" style="background: #ffd700;" title="Gold"></div>
-        <div class="block-option" data-block="iron" style="background: #b87333;" title="Iron"></div>
-        <div class="block-option" data-block="coal" style="background: #2f2f2f;" title="Coal"></div>
-        <div class="block-option" data-block="redstone" style="background: #ff0000;" title="Redstone"></div>
-        <div class="block-option" data-block="lapis" style="background: #0000cd;" title="Lapis"></div>
-        <div class="block-option" data-block="emerald" style="background: #50c878;" title="Emerald"></div>
-        <div class="block-option" data-block="obsidian" style="background: #2d004d;" title="Obsidian"></div>
+</div>
+
+<!-- ══════════════════ GAME UI ══════════════════ -->
+<div id="game-ui">
+    <div id="ui-overlay">
+        <div class="player-hud">
+            <div class="avatar-icon">⚔️</div>
+            <div class="player-info">
+                <div id="player-name-display">KAHRAMAN</div>
+                <div class="hp-bar-wrap">
+                    <span class="hp-icon">❤️</span>
+                    <div id="hp-bar-ui"><div id="hp-fill"></div></div>
+                    <span class="hp-text" id="hp-text">100/100</span>
+                </div>
+                <div class="inv-bar">
+                    <div class="inv-item">🪵 <span id="inv-wood">0</span></div>
+                    <div class="inv-item">🪨 <span id="inv-stone">0</span></div>
+                    <div class="inv-item">⚔️ <span id="inv-sword">0</span></div>
+                    <div class="inv-item">⛏️ <span id="inv-pickaxe">0</span></div>
+                    <div class="inv-item">🪓 <span id="inv-axe">0</span></div>
+                </div>
+                <div class="character-select">
+                    <div class="char-btn" onclick="spawnCharacter('edward')">⚙️ Edward Elric</div>
+                    <div class="char-btn" onclick="spawnCharacter('muichiro')">💨 Muichiro Tokito</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script>
-        // Three.js Scene Setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 10, 100);
+    <!-- Craft Toggle -->
+    <div id="craft-toggle" onclick="toggleCraft()">🔨</div>
+
+    <!-- Craft Panel -->
+    <div id="craft-panel">
+        <div class="craft-title">⚒ ÜRETIM TEZGAHI</div>
+        <div class="craft-option" onclick="doCraft('sword')">
+            <span class="icon">⚔️</span>
+            <div class="info">
+                <div class="name">Kılıç</div>
+                <div class="cost">🪵×2 + 🪨×2</div>
+            </div>
+        </div>
+        <div class="craft-option" onclick="doCraft('pickaxe')">
+            <span class="icon">⛏️</span>
+            <div class="info">
+                <div class="name">Kazma</div>
+                <div class="cost">🪵×3 + 🪨×1</div>
+            </div>
+        </div>
+        <div class="craft-option" onclick="doCraft('axe')">
+            <span class="icon">🪓</span>
+            <div class="info">
+                <div class="name">Balta</div>
+                <div class="cost">🪵×1 + 🪨×3</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div id="joystick-container">
+            <div id="joystick-inner"></div>
+            <div id="joystick-knob"></div>
+        </div>
+        <button id="jump-btn">
+            <span class="j-icon">↑</span>
+            <span>ZIPLA</span>
+        </button>
+        <button id="attack-btn" onclick="doAttackNearest()">⚔️</button>
+    </div>
+
+    <!-- Minimap -->
+    <div id="minimap"><canvas id="minimap-canvas" width="100" height="100"></canvas></div>
+
+    <!-- Online Count -->
+    <div id="online-count">🟢 <span id="online-num">1</span> KAHRAMAN ÇEVRIMIÇI</div>
+</div>
+
+<!-- FX -->
+<div id="damage-flash"></div>
+<div id="killfeed"></div>
+<div id="notification"></div>
+<div id="crosshair">✛</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  PARTICLES (Auth Screen)
+// ═══════════════════════════════════════════════
+(function () {
+    const canvas = document.getElementById('particles-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    for (let i = 0; i < 60; i++) {
+        particles.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -Math.random() * 0.5 - 0.1,
+            r: Math.random() * 2 + 0.5,
+            a: Math.random(),
+            life: Math.random()
+        });
+    }
+
+    function animParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.life += 0.003;
+            if (p.y < -10 || p.life > 1) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; p.life = 0; }
+            ctx.save();
+            ctx.globalAlpha = Math.sin(p.life * Math.PI) * 0.4;
+            ctx.fillStyle = '#c9a84c';
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
+        requestAnimationFrame(animParticles);
+    }
+    animParticles();
+})();
+
+// ═══════════════════════════════════════════════
+//  CAPTCHA
+// ═══════════════════════════════════════════════
+let currentCaptcha = '';
+function generateCaptcha() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    currentCaptcha = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    document.getElementById('captcha-text').textContent = currentCaptcha;
+}
+function refreshCaptcha() { generateCaptcha(); }
+generateCaptcha();
+
+// ═══════════════════════════════════════════════
+//  SESSION
+// ═══════════════════════════════════════════════
+const SESSION_KEY = 'survival_evo_session';
+
+function saveSession(data) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadSession() {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  SOCKET.IO
+// ═══════════════════════════════════════════════
+const socket = io();
+
+// ═══════════════════════════════════════════════
+//  TABS & MESSAGES
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+    const tabsMain = document.getElementById('auth-tabs-main');
+
+    if (tab === 'login') {
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:first-child').classList.add('active');
+        document.getElementById('panel-login').classList.add('active');
+    } else if (tab === 'register') {
+        tabsMain.style.display = 'flex';
+        document.querySelector('#auth-tabs-main .auth-tab:last-child').classList.add('active');
+        document.getElementById('panel-register').classList.add('active');
+    } else if (tab === 'forgot') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-forgot').classList.add('active');
+    } else if (tab === 'reset-code') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-reset-code').classList.add('active');
+    } else if (tab === 'new-password') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-new-password').classList.add('active');
+    } else if (tab === 'verify') {
+        tabsMain.style.display = 'none';
+        document.getElementById('panel-verify').classList.add('active');
+    }
+}
+
+function showMsg(id, type, text) {
+    const el = document.getElementById(id);
+    el.className = 'msg-box ' + type;
+    el.innerHTML = (type === 'error' ? '⚠&nbsp;&nbsp;' : '✓&nbsp;&nbsp;') + text;
+    el.style.display = 'flex';
+}
+function hideMsg(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
+
+// ── Field Validation (Türkçe karakter desteği eklendi) ──
+let usernameCheckTimer = null;
+function checkUsername(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('success','error','checking');
+
+    if (!val) { 
+        hint.textContent = ''; 
+        hint.className = 'field-hint'; 
+        status.textContent = ''; 
+        return; 
+    }
+    
+    if (val.length < 3) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 3 karakter gerekli';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    if (val.length > 16) {
+        input.classList.add('error');
+        hint.textContent = '✖ En fazla 16 karakter olabilir';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(val)) {
+        input.classList.add('error');
+        hint.textContent = '✖ Sadece harf, rakam, _ ve Türkçe karakterler';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        return;
+    }
+    
+    input.classList.add('checking');
+    hint.textContent = '⏳ Kontrol ediliyor...';
+    hint.className = 'field-hint info';
+    status.textContent = '...';
+
+    clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(() => {
+        socket.emit('checkUsername', val);
+    }, 500);
+}
+
+function checkEmail(input) {
+    const val = input.value.trim();
+    const hint = document.getElementById('reg-email-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    if (ok) {
+        input.classList.add('success');
+        hint.textContent = '✓ Geçerli e-posta adresi';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Geçerli bir e-posta adresi girin';
+        hint.className = 'field-hint error';
+    }
+}
+
+function checkPassword(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass-hint');
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val.length < 6) {
+        input.classList.add('error');
+        hint.textContent = '✖ En az 6 karakter gerekli';
+        hint.className = 'field-hint error';
+    } else {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifre yeterince güçlü';
+        hint.className = 'field-hint success';
+    }
+    checkPassword2(document.getElementById('reg-pass2'));
+}
+
+function checkPassword2(input) {
+    const val = input.value;
+    const hint = document.getElementById('reg-pass2-hint');
+    const pass1 = document.getElementById('reg-pass').value;
+    input.classList.remove('success','error');
+    if (!val) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+    if (val === pass1) {
+        input.classList.add('success');
+        hint.textContent = '✓ Şifreler eşleşiyor';
+        hint.className = 'field-hint success';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Şifreler eşleşmiyor';
+        hint.className = 'field-hint error';
+    }
+}
+
+// ── Socket: usernameAvailable ──
+socket.on('usernameAvailable', (data) => {
+    const input = document.getElementById('reg-user');
+    const hint = document.getElementById('reg-user-hint');
+    const status = document.getElementById('reg-user-status');
+    input.classList.remove('checking');
+    if (data.available) {
+        input.classList.add('success');
+        hint.textContent = '✓ Bu kahraman adı kullanılabilir!';
+        hint.className = 'field-hint success';
+        status.textContent = '✓';
+        status.style.color = '#27ae60';
+    } else {
+        input.classList.add('error');
+        hint.textContent = '✖ Bu kahraman adı zaten alınmış';
+        hint.className = 'field-hint error';
+        status.textContent = '✖';
+        status.style.color = '#e74c3c';
+    }
+});
+
+// ─ Auto-login from session ─
+const _sess = loadSession();
+if (_sess && _sess.token) {
+    socket.emit('loginWithToken', _sess.token);
+}
+
+// ── Login ──
+function doLogin() {
+    const username = document.getElementById('login-user').value.trim();
+    const password = document.getElementById('login-pass').value;
+    if (!username) { showMsg('msg-login', 'error', 'Kahraman adı veya e-posta boş bırakılamaz.'); return; }
+    if (!password) { showMsg('msg-login', 'error', 'Şifre alanı boş bırakılamaz.'); return; }
+    hideMsg('msg-login');
+    socket.emit('login', { username, password });
+}
+
+// ── Register ──
+function doRegister() {
+    const username = document.getElementById('reg-user').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-pass').value;
+    const password2 = document.getElementById('reg-pass2').value;
+    const captchaInput = document.getElementById('captcha-input').value.toUpperCase();
+
+    if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; }
+    if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; }
+    if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { 
+        showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanın.'); 
+        return; 
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; }
+    if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; }
+    if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; }
+    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı. Lütfen yeniden deneyin.'); refreshCaptcha(); return; }
+
+    hideMsg('msg-register');
+    socket.emit('register', { username, email, password });
+}
+
+// ── Forgot Password (Send Code) ──
+function doForgotPassword() {
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showMsg('msg-forgot', 'error', 'Lütfen geçerli bir e-posta adresi girin.');
+        return;
+    }
+    hideMsg('msg-forgot');
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ GÖNDERİLİYOR...'; }
+    socket.emit('forgotPassword', { email });
+}
+
+// ── Verify Reset Code ──
+let resetEmail = '';
+function verifyResetCode() {
+    const code = document.getElementById('reset-code-input').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-reset-code', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-reset-code');
+    socket.emit('verifyResetCode', { email: resetEmail, code });
+}
+
+// ── Save New Password ──
+function saveNewPassword() {
+    const pass1 = document.getElementById('new-password1').value;
+    const pass2 = document.getElementById('new-password2').value;
+    
+    if (!pass1 || pass1.length < 6) {
+        showMsg('msg-new-password', 'error', 'Şifre en az 6 karakter olmalıdır.');
+        return;
+    }
+    if (pass1 !== pass2) {
+        showMsg('msg-new-password', 'error', 'Şifreler eşleşmiyor.');
+        return;
+    }
+    
+    hideMsg('msg-new-password');
+    socket.emit('resetPassword', { email: resetEmail, newPassword: pass1 });
+}
+
+// ── Email Verify (Registration) ──
+let pendingVerifyUser = null;
+function doVerifyCode() {
+    const code = document.getElementById('verify-code').value.trim();
+    if (!code || code.length !== 6) {
+        showMsg('msg-verify', 'error', 'Lütfen 6 haneli doğrulama kodunu girin.');
+        return;
+    }
+    hideMsg('msg-verify');
+    socket.emit('verifyEmail', { username: pendingVerifyUser, code });
+}
+function resendCode() {
+    if (!pendingVerifyUser) return;
+    socket.emit('resendVerifyCode', { username: pendingVerifyUser });
+    showMsg('msg-verify', 'success', 'Doğrulama kodu tekrar gönderildi.');
+}
+
+// Enter tuşu desteği
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        const activePanel = document.querySelector('.form-panel.active');
+        if (!activePanel) return;
+        if (activePanel.id === 'panel-login') doLogin();
+        else if (activePanel.id === 'panel-register') doRegister();
+        else if (activePanel.id === 'panel-forgot') doForgotPassword();
+        else if (activePanel.id === 'panel-reset-code') verifyResetCode();
+        else if (activePanel.id === 'panel-new-password') saveNewPassword();
+        else if (activePanel.id === 'panel-verify') doVerifyCode();
+    }
+});
+
+// ── Socket Auth Events ──
+socket.on('loginSuccess', (data) => {
+    if (data && data.token) saveSession({ token: data.token, username: data.username });
+    startLoadingSequence();
+    // Tam ekran ve yatay yönlendirme
+    enterFullscreen();
+});
+
+socket.on('registerSuccess', (data) => {
+    pendingVerifyUser = data.username;
+    showMsg('msg-register', 'success', 'Hesap oluşturuldu! E-postanıza doğrulama kodu gönderildi.');
+    setTimeout(() => switchTab('verify'), 1200);
+});
+
+socket.on('verifySuccess', () => {
+    showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
+});
+
+// Forgot Password Socket Events
+socket.on('forgotPasswordCodeSent', () => {
+    resetEmail = document.getElementById('forgot-email').value.trim();
+    showMsg('msg-forgot', 'success', 'Doğrulama kodu e-posta adresinize gönderildi.');
+    
+    const btn = document.querySelector('#panel-forgot .btn-enter');
+    if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
+    
+    setTimeout(() => switchTab('reset-code'), 1000);
+});
+
+socket.on('resetCodeVerified', (data) => {
+    document.getElementById('reset-username-display').textContent = `Şifre sıfırlanıyor: ${data.username}`;
+    switchTab('new-password');
+});
+
+socket.on('resetPasswordSuccess', () => {
+    showMsg('msg-new-password', 'success', 'Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz.');
+    resetEmail = '';
+    setTimeout(() => switchTab('login'), 2000);
+});
+
+socket.on('resetCodeError', (msg) => {
+    showMsg('msg-reset-code', 'error', msg);
+});
+
+socket.on('resetPasswordError', (msg) => {
+    showMsg('msg-new-password', 'error', msg);
+});
+
+socket.on('loginError', (msg) => {
+    const activePanel = document.querySelector('.form-panel.active');
+    let msgId = 'msg-login';
+    if (activePanel) {
+        if (activePanel.id === 'panel-register') msgId = 'msg-register';
+        else if (activePanel.id === 'panel-verify') msgId = 'msg-verify';
+        else if (activePanel.id === 'panel-forgot') {
+            msgId = 'msg-forgot';
+            const btn = document.querySelector('#panel-forgot .btn-enter');
+            if (btn) { btn.disabled = false; btn.textContent = '📨 KOD GÖNDER'; }
+        }
+        else if (activePanel.id === 'panel-reset-code') msgId = 'msg-reset-code';
+        else if (activePanel.id === 'panel-new-password') msgId = 'msg-new-password';
+    }
+    showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+});
+
+// ═══════════════════════════════════════════════
+//  LOADING SEQUENCE
+// ═══════════════════════════════════════════════
+function startLoadingSequence() {
+    document.getElementById('auth-screen').style.display = 'none';
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.display = 'flex';
+
+    const steps = [
+        [20, 'HARITA YÜKLENİYOR...'],
+        [45, 'KAYNAKLAR OLUŞTURULUYOR...'],
+        [70, 'DİĞER KAHRAMANLAR BEKLENIYOR...'],
+        [90, 'SON HAZIRLIKLAR...'],
+        [100, 'GİRİŞ YAPILIYOR!']
+    ];
+
+    let i = 0;
+    const fill = document.getElementById('loading-fill');
+    const loadText = document.getElementById('loading-text');
+
+    function nextStep() {
+        if (i >= steps.length) {
+            setTimeout(() => { overlay.style.display = 'none'; enterGame(); }, 300);
+            return;
+        }
+        const [pct, text] = steps[i++];
+        fill.style.width = pct + '%';
+        loadText.textContent = text;
+        setTimeout(nextStep, 400 + Math.random() * 300);
+    }
+    nextStep();
+}
+
+// ═══════════════════════════════════════════════
+//  THREE.JS GAME WORLD
+// ═══════════════════════════════════════════════
+let scene, camera, renderer, playerMesh;
+let otherPlayerMeshes = {};
+let resourceObjects = [];
+let myPlayer = null;
+
+const keys = {};
+let yaw = 0, pitch = 0;
+let velocityY = 0;
+const GRAVITY = -0.015;
+const JUMP_FORCE = 0.3;
+let onGround = true;
+
+const CAM_DISTANCE = 5;
+const CAM_HEIGHT = 2;
+let playerPos = { x: 0, y: 0, z: 0 };
+
+const joystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+
+// ========== NPC KARAKTER SİSTEMİ ==========
+let spawnedNPCs = {}; // Spawn edilen karakterler { id: { mesh, type, hp, lastAttack, target, skills, lastSkillUse } }
+let npcIdCounter = 100;
+
+// Karakter yetenekleri
+const characterSkills = {
+    edward: {
+        name: 'Edward Elric',
+        hp: 150,
+        attackDamage: 18,
+        color: 0xc97e5a,
+        skill: {
+            name: 'Alchemy: Spear',
+            cooldown: 3000,
+            effect: (caster, target, scene) => {
+                const dmg = 35;
+                target.hp -= dmg;
+                showNotification(`⚙️ Edward: Alchemy Mızrağı ile ${dmg} hasar!`);
+                // Görsel efekt: Kırmızı ışın
+                const lineMat = new THREE.LineBasicMaterial({ color: 0xff3300 });
+                const points = [];
+                points.push(new THREE.Vector3(caster.x, 1, caster.z));
+                points.push(new THREE.Vector3(target.x, 1, target.z));
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMat);
+                scene.add(line);
+                setTimeout(() => scene.remove(line), 500);
+                return dmg;
+            }
+        }
+    },
+    muichiro: {
+        name: 'Muichiro Tokito',
+        hp: 130,
+        attackDamage: 22,
+        color: 0x88aacc,
+        skill: {
+            name: 'Mist Breathing: Seventh Form',
+            cooldown: 2800,
+            effect: (caster, target, scene) => {
+                const dmg = 40;
+                target.hp -= dmg;
+                showNotification(`💨 Muichiro: Mist Breathing ile ${dmg} hasar!`);
+                // Görsel efekt: Sis efekti
+                const particleCount = 30;
+                for(let i=0;i<particleCount;i++) {
+                    const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1,3,3), new THREE.MeshStandardMaterial({ color: 0xaaffdd, emissive: 0x2266aa }));
+                    particle.position.set(target.x + (Math.random()-0.5)*2, target.y+1, target.z + (Math.random()-0.5)*2);
+                    scene.add(particle);
+                    setTimeout(() => scene.remove(particle), 400);
+                }
+                return dmg;
+            }
+        }
+    }
+};
+
+// ========== GERÇEKÇİ ANİME KARAKTER MODELLERİ ==========
+
+// Edward Elric Modeli - Fullmetal Alchemist
+function createEdwardModel() {
+    const group = new THREE.Group();
+    
+    // Materyaller
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9 }); // Ten rengi
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3 }); // Sarı saç
+    const coatMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.6 }); // Kırmızı ceket
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); // Siyah pantolon/ayakkabı
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 }); // Automail
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.3 }); // Kemer tokası
+    
+    // === BAŞ ===
+    const headGroup = new THREE.Group();
+    
+    // Yüz
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), skinMat);
+    head.scale.set(1, 1.1, 0.9);
+    head.position.y = 1.65;
+    head.castShadow = true;
+    headGroup.add(head);
+    
+    // Sarı saç - ön perçemler
+    const bangs1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.4, 0.05), hairMat);
+    bangs1.position.set(-0.12, 1.85, 0.32);
+    bangs1.rotation.z = 0.2;
+    headGroup.add(bangs1);
+    
+    const bangs2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.45, 0.05), hairMat);
+    bangs2.position.set(0.12, 1.88, 0.32);
+    bangs2.rotation.z = -0.15;
+    headGroup.add(bangs2);
+    
+    const bangs3 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.05), hairMat);
+    bangs3.position.set(0, 1.9, 0.33);
+    headGroup.add(bangs3);
+    
+    // Saç - yanlar
+    const sideHairL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.15), hairMat);
+    sideHairL.position.set(-0.32, 1.7, 0);
+    headGroup.add(sideHairL);
+    
+    const sideHairR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.15), hairMat);
+    sideHairR.position.set(0.32, 1.7, 0);
+    headGroup.add(sideHairR);
+    
+    // Örgü (arka)
+    const braidGroup = new THREE.Group();
+    braidGroup.position.set(0, 1.6, -0.35);
+    
+    for(let i=0; i<6; i++) {
+        const braidSegment = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), hairMat);
+        braidSegment.position.set(0, -i*0.18, 0);
+        braidSegment.scale.set(0.9, 0.8, 0.9);
+        braidGroup.add(braidSegment);
+    }
+    // Örgü ucu
+    const braidEnd = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.15, 6), hairMat);
+    braidEnd.position.set(0, -1.1, 0);
+    braidGroup.add(braidEnd);
+    
+    headGroup.add(braidGroup);
+    group.add(headGroup);
+    
+    // === GÖVDE ===
+    const bodyGroup = new THREE.Group();
+    
+    // Kırmızı ceket - üst gövde
+    const coatUpper = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.5, 0.35), coatMat);
+    coatUpper.position.y = 1.25;
+    coatUpper.castShadow = true;
+    bodyGroup.add(coatUpper);
+    
+    // Siyah gömlek (görünen kısım)
+    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.25), blackMat);
+    shirt.position.set(0, 1.25, 0.18);
+    bodyGroup.add(shirt);
+    
+    // Ceket kolları
+    const coatArmL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.25), coatMat);
+    coatArmL.position.set(-0.4, 1.15, 0);
+    bodyGroup.add(coatArmL);
+    
+    const coatArmR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.25), coatMat);
+    coatArmR.position.set(0.4, 1.15, 0);
+    bodyGroup.add(coatArmR);
+    
+    // Ceket etekleri (uzun ceket)
+    const coatSkirtL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.7, 0.3), coatMat);
+    coatSkirtL.position.set(-0.2, 0.65, 0);
+    bodyGroup.add(coatSkirtL);
+    
+    const coatSkirtR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.7, 0.3), coatMat);
+    coatSkirtR.position.set(0.2, 0.65, 0);
+    bodyGroup.add(coatSkirtR);
+    
+    // Kemer
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.08, 0.38), new THREE.MeshStandardMaterial({ color: 0x4a3728 }));
+    belt.position.y = 0.95;
+    bodyGroup.add(belt);
+    
+    const beltBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.05), goldMat);
+    beltBuckle.position.set(0, 0.95, 0.2);
+    bodyGroup.add(beltBuckle);
+    
+    group.add(bodyGroup);
+    
+    // === SOL KOL (NORMAL) ===
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-0.55, 1.35, 0);
+    
+    const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.35, 8), coatMat);
+    leftUpperArm.position.y = -0.15;
+    leftArmGroup.add(leftUpperArm);
+    
+    const leftElbow = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), coatMat);
+    leftElbow.position.y = -0.35;
+    leftArmGroup.add(leftElbow);
+    
+    const leftForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.35, 8), coatMat);
+    leftForearm.position.y = -0.55;
+    leftArmGroup.add(leftForearm);
+    
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.1), skinMat);
+    leftHand.position.y = -0.75;
+    leftArmGroup.add(leftHand);
+    
+    group.add(leftArmGroup);
+    
+    // === SAĞ KOL (AUTOMAIL - MEKANİK) ===
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(0.55, 1.35, 0);
+    
+    // Omuz zırhı
+    const shoulderArmor = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), metalMat);
+    shoulderArmor.position.y = 0.05;
+    rightArmGroup.add(shoulderArmor);
+    
+    // Üst kol - segmentli metal
+    for(let i=0; i<3; i++) {
+        const segment = new THREE.Mesh(new THREE.CylinderGeometry(0.11-i*0.01, 0.12-i*0.01, 0.12, 6), metalMat);
+        segment.position.y = -0.1 - i*0.13;
+        rightArmGroup.add(segment);
         
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        // Segment arası bağlantı
+        if(i < 2) {
+            const joint = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 4, 8), metalMat);
+            joint.rotation.x = Math.PI/2;
+            joint.position.y = -0.16 - i*0.13;
+            rightArmGroup.add(joint);
+        }
+    }
+    
+    // Dirsek
+    const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), metalMat);
+    elbowJoint.position.y = -0.45;
+    rightArmGroup.add(elbowJoint);
+    
+    // Ön kol - daha detaylı
+    for(let i=0; i<4; i++) {
+        const segment = new THREE.Mesh(new THREE.CylinderGeometry(0.1-i*0.015, 0.11-i*0.015, 0.1, 6), metalMat);
+        segment.position.y = -0.55 - i*0.11;
+        rightArmGroup.add(segment);
+    }
+    
+    // El - mekanik parmaklar
+    const mechanicalHand = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.12), metalMat);
+    mechanicalHand.position.y = -1.0;
+    rightArmGroup.add(mechanicalHand);
+    
+    // Parmaklar
+    for(let i=0; i<4; i++) {
+        const finger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.03), metalMat);
+        finger.position.set(-0.06+i*0.04, -1.12, 0.06);
+        rightArmGroup.add(finger);
+    }
+    
+    group.add(rightArmGroup);
+    
+    // === BACAKLAR ===
+    const legsGroup = new THREE.Group();
+    
+    // Sol bacak
+    const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.45, 8), blackMat);
+    leftThigh.position.set(-0.15, 0.45, 0);
+    legsGroup.add(leftThigh);
+    
+    const leftKnee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), blackMat);
+    leftKnee.position.set(-0.15, 0.2, 0);
+    legsGroup.add(leftKnee);
+    
+    const leftShin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.4, 8), blackMat);
+    leftShin.position.set(-0.15, -0.05, 0);
+    legsGroup.add(leftShin);
+    
+    // Sağ bacak (Automail bacak - kısa)
+    const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.4, 8), blackMat);
+    rightThigh.position.set(0.15, 0.48, 0);
+    legsGroup.add(rightThigh);
+    
+    const rightKnee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), metalMat);
+    rightKnee.position.set(0.15, 0.25, 0);
+    legsGroup.add(rightKnee);
+    
+    const rightShin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.35, 8), metalMat);
+    rightShin.position.set(0.15, 0.0, 0);
+    legsGroup.add(rightShin);
+    
+    // Ayakkabılar
+    const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.25), new THREE.MeshStandardMaterial({ color: 0x3d2817 }));
+    leftBoot.position.set(-0.15, -0.28, 0.05);
+    legsGroup.add(leftBoot);
+    
+    const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.25), new THREE.MeshStandardMaterial({ color: 0x3d2817 }));
+    rightBoot.position.set(0.15, -0.23, 0.05);
+    legsGroup.add(rightBoot);
+    
+    group.add(legsGroup);
+    
+    group.castShadow = true;
+    return group;
+}
+
+// Muichiro Tokito Modeli - Demon Slayer
+function createMuichiroModel() {
+    const group = new THREE.Group();
+    
+    // Materyaller
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9 }); // Ten rengi
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.4 }); // Siyah saç
+    const hairTipMat = new THREE.MeshStandardMaterial({ color: 0x00ced1, emissive: 0x004444, roughness: 0.3 }); // Turkuaz uçlar
+    const uniformMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 }); // Siyah üniforma
+    const beltMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // Beyaz kemer
+    const buttonMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8 }); // Altın düğmeler
+    const swordMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, metalness: 0.9, roughness: 0.2 }); // Nichirin kılıcı
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x00ced1 }); // Turkuaz sap
+    
+    // === BAŞ ===
+    const headGroup = new THREE.Group();
+    
+    // Yüz
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 16), skinMat);
+    head.scale.set(1, 1.15, 0.9);
+    head.position.y = 1.6;
+    head.castShadow = true;
+    headGroup.add(head);
+    
+    // Siyah saç - uzun ve düz
+    const hairMain = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16, 0, Math.PI*2, 0, Math.PI/2), hairMat);
+    hairMain.position.y = 1.65;
+    hairMain.scale.set(1, 0.8, 1);
+    headGroup.add(hairMain);
+    
+    // Saç perçemleri
+    const bangs1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.05), hairMat);
+    bangs1.position.set(-0.15, 1.75, 0.3);
+    bangs1.rotation.z = 0.1;
+    headGroup.add(bangs1);
+    
+    const bangs2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.05), hairMat);
+    bangs2.position.set(0.15, 1.78, 0.3);
+    bangs2.rotation.z = -0.1;
+    headGroup.add(bangs2);
+    
+    const bangs3 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.05), hairMat);
+    bangs3.position.set(0, 1.8, 0.32);
+    headGroup.add(bangs3);
+    
+    // Uzun saç - arkada
+    const longHairGroup = new THREE.Group();
+    longHairGroup.position.set(0, 1.6, -0.35);
+    
+    // Ana saç kütlesi
+    for(let i=0; i<8; i++) {
+        const hairStrand = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.08), hairMat);
+        hairStrand.position.set((i-3.5)*0.12, -0.4, 0);
+        hairStrand.rotation.z = (i-3.5)*0.05;
+        longHairGroup.add(hairStrand);
         
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        scene.add(directionalLight);
-        
-        // Anime-style lighting - rim light for characters
-        const rimLight = new THREE.DirectionalLight(0xffc0cb, 0.5);
-        rimLight.position.set(-50, 50, -50);
-        scene.add(rimLight);
-        
-        // Block Types
-        const blockTypes = {
-            grass: { color: 0x5d8c3a, name: 'Grass' },
-            dirt: { color: 0x8b7355, name: 'Dirt' },
-            stone: { color: 0x808080, name: 'Stone' },
-            wood: { color: 0x8b4513, name: 'Wood' },
-            leaves: { color: 0x228b22, name: 'Leaves' },
-            sand: { color: 0xf4e4c1, name: 'Sand' },
-            water: { color: 0x4fa4b8, name: 'Water', transparent: true, opacity: 0.7 },
-            lava: { color: 0xff4500, name: 'Lava', emissive: 0xff2200 },
-            diamond: { color: 0x00ffff, name: 'Diamond' },
-            gold: { color: 0xffd700, name: 'Gold' },
-            iron: { color: 0xb87333, name: 'Iron' },
-            coal: { color: 0x2f2f2f, name: 'Coal' },
-            redstone: { color: 0xff0000, name: 'Redstone' },
-            lapis: { color: 0x0000cd, name: 'Lapis' },
-            emerald: { color: 0x50c878, name: 'Emerald' },
-            obsidian: { color: 0x2d004d, name: 'Obsidian' },
-            farmland: { color: 0x5c4033, name: 'Farmland' }
+        // Turkuaz uçlar
+        const hairTip = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.08), hairTipMat);
+        hairTip.position.set((i-3.5)*0.12, -0.9, 0);
+        hairTip.rotation.z = (i-3.5)*0.05;
+        longHairGroup.add(hairTip);
+    }
+    
+    headGroup.add(longHairGroup);
+    
+    // Saç tokası (Hashira işareti)
+    const hairPin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.25), new THREE.MeshStandardMaterial({ color: 0x00ced1 }));
+    hairPin.position.set(0.25, 1.85, 0.2);
+    headGroup.add(hairPin);
+    
+    group.add(headGroup);
+    
+    // === GÖVDE (Demon Slayer Üniforması) ===
+    const bodyGroup = new THREE.Group();
+    
+    // Siyah ceket/gömlek
+    const jacket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.3), uniformMat);
+    jacket.position.y = 1.15;
+    jacket.castShadow = true;
+    bodyGroup.add(jacket);
+    
+    // Beyaz yaka
+    const collar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.05), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    collar.position.set(0, 1.4, 0.16);
+    bodyGroup.add(collar);
+    
+    // Altın düğmeler
+    for(let i=0; i<3; i++) {
+        const button = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), buttonMat);
+        button.position.set(0, 1.3-i*0.15, 0.16);
+        bodyGroup.add(button);
+    }
+    
+    // Demon Slayer kanji sembolü (basitleştirilmiş)
+    const kanji = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.02), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    kanji.position.set(0.18, 1.35, 0.16);
+    bodyGroup.add(kanji);
+    
+    // Kollar (geniş kollu üniforma)
+    const leftSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.25), uniformMat);
+    leftSleeve.position.set(-0.38, 1.1, 0);
+    bodyGroup.add(leftSleeve);
+    
+    const rightSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.25), uniformMat);
+    rightSleeve.position.set(0.38, 1.1, 0);
+    bodyGroup.add(rightSleeve);
+    
+    // Beyaz kemer
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.08, 0.32), beltMat);
+    belt.position.y = 0.85;
+    bodyGroup.add(belt);
+    
+    // Altın kemer tokası
+    const beltBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.05), buttonMat);
+    beltBuckle.position.set(0, 0.85, 0.17);
+    bodyGroup.add(beltBuckle);
+    
+    // Etek (hakama tarzı)
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.5, 0.35), uniformMat);
+    skirt.position.y = 0.55;
+    bodyGroup.add(skirt);
+    
+    group.add(bodyGroup);
+    
+    // === KOLLAR ===
+    // Sol kol
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-0.55, 1.25, 0);
+    
+    const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.35, 8), skinMat);
+    leftUpperArm.position.y = -0.15;
+    leftArmGroup.add(leftUpperArm);
+    
+    const leftForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.35, 8), skinMat);
+    leftForearm.position.y = -0.5;
+    leftArmGroup.add(leftForearm);
+    
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
+    leftHand.position.y = -0.72;
+    leftArmGroup.add(leftHand);
+    
+    group.add(leftArmGroup);
+    
+    // Sağ kol
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(0.55, 1.25, 0);
+    
+    const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.35, 8), skinMat);
+    rightUpperArm.position.y = -0.15;
+    rightArmGroup.add(rightUpperArm);
+    
+    const rightForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.35, 8), skinMat);
+    rightForearm.position.y = -0.5;
+    rightArmGroup.add(rightForearm);
+    
+    const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
+    rightHand.position.y = -0.72;
+    rightArmGroup.add(rightHand);
+    
+    group.add(rightArmGroup);
+    
+    // === NICHIRIN KILICI ===
+    const swordGroup = new THREE.Group();
+    swordGroup.position.set(0.3, 1.0, 0.2);
+    swordGroup.rotation.z = -0.3;
+    swordGroup.rotation.x = 0.2;
+    
+    // Kılıç kını
+    const scabbard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+    scabbard.position.y = -0.2;
+    swordGroup.add(scabbard);
+    
+    // Kılıç sapı
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 8), handleMat);
+    handle.position.y = 0.35;
+    swordGroup.add(handle);
+    
+    // Guard (kare şeklinde - Muichiro'nun kare koruyucusu)
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.03), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9 }));
+    guard.position.y = 0.22;
+    swordGroup.add(guard);
+    
+    // Kılıç ağzı (görünen kısım)
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.02), swordMat);
+    blade.position.y = 0.05;
+    swordGroup.add(blade);
+    
+    group.add(swordGroup);
+    
+    // === BACAKLAR (Hakama pantolon) ===
+    const legsGroup = new THREE.Group();
+    
+    // Sol bacak - bol pantolon
+    const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.5, 8), uniformMat);
+    leftThigh.position.set(-0.15, 0.3, 0);
+    legsGroup.add(leftThigh);
+    
+    const leftShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.4, 8), uniformMat);
+    leftShin.position.set(-0.15, -0.15, 0);
+    legsGroup.add(leftShin);
+    
+    // Sağ bacak
+    const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.5, 8), uniformMat);
+    rightThigh.position.set(0.15, 0.3, 0);
+    legsGroup.add(rightThigh);
+    
+    const rightShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.4, 8), uniformMat);
+    rightShin.position.set(0.15, -0.15, 0);
+    legsGroup.add(rightShin);
+    
+    // Sandalet tarzı ayakkabılar
+    const leftSandal = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.22), new THREE.MeshStandardMaterial({ color: 0x2c3e50 }));
+    leftSandal.position.set(-0.15, -0.38, 0.05);
+    legsGroup.add(leftSandal);
+    
+    const rightSandal = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.22), new THREE.MeshStandardMaterial({ color: 0x2c3e50 }));
+    rightSandal.position.set(0.15, -0.38, 0.05);
+    legsGroup.add(rightSandal);
+    
+    // Beyaz çoraplar
+    const leftSock = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    leftSock.position.set(-0.15, -0.28, 0);
+    legsGroup.add(leftSock);
+    
+    const rightSock = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+    rightSock.position.set(0.15, -0.28, 0);
+    legsGroup.add(rightSock);
+    
+    group.add(legsGroup);
+    
+    group.castShadow = true;
+    return group;
+}
+
+// Karakter modeli oluşturma (ana fonksiyon)
+function createCharacterModel(type) {
+    if(type === 'edward') {
+        return createEdwardModel();
+    } else if(type === 'muichiro') {
+        return createMuichiroModel();
+    }
+    // Varsayılan
+    return createEdwardModel();
+}
+
+// ========== GELİŞMİŞ EFEKT SİSTEMİ ==========
+
+// Alchemy Transmutation Circle Efekti (Edward)
+function createAlchemyEffect(position, scene) {
+    const group = new THREE.Group();
+    group.position.copy(position);
+    group.position.y = 0.05;
+    
+    // Ana transmutation dairesi
+    const circleGeo = new THREE.RingGeometry(0.8, 1.0, 32);
+    const circleMat = new THREE.MeshBasicMaterial({ 
+        color: 0x00ffff, 
+        transparent: true, 
+        opacity: 0.8,
+        side: THREE.DoubleSide
+    });
+    const circle = new THREE.Mesh(circleGeo, circleMat);
+    circle.rotation.x = -Math.PI/2;
+    group.add(circle);
+    
+    // İç geometrik desenler
+    const innerGeo = new THREE.RingGeometry(0.4, 0.6, 6);
+    const innerMat = new THREE.MeshBasicMaterial({ 
+        color: 0x00ffff, 
+        transparent: true, 
+        opacity: 0.6,
+        side: THREE.DoubleSide
+    });
+    const inner = new THREE.Mesh(innerGeo, innerMat);
+    inner.rotation.x = -Math.PI/2;
+    group.add(inner);
+    
+    // Işınlar
+    for(let i=0; i<8; i++) {
+        const rayGeo = new THREE.BoxGeometry(0.02, 1.2, 0.02);
+        const rayMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 });
+        const ray = new THREE.Mesh(rayGeo, rayMat);
+        ray.rotation.z = i * (Math.PI/4);
+        ray.rotation.x = -Math.PI/2;
+        group.add(ray);
+    }
+    
+    // Parçacıklar
+    const particles = [];
+    for(let i=0; i<20; i++) {
+        const p = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05, 4, 4),
+            new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 })
+        );
+        p.position.set(
+            (Math.random()-0.5)*2,
+            Math.random()*0.5,
+            (Math.random()-0.5)*2
+        );
+        p.userData = {
+            velocity: new THREE.Vector3((Math.random()-0.5)*0.02, Math.random()*0.03, (Math.random()-0.5)*0.02),
+            life: 1.0
         };
+        group.add(p);
+        particles.push(p);
+    }
+    
+    scene.add(group);
+    
+    // Animasyon
+    let time = 0;
+    const animate = () => {
+        time += 0.05;
+        circle.rotation.z += 0.02;
+        inner.rotation.z -= 0.03;
         
-        let selectedBlock = 'grass';
-        const blocks = new Map();
-        const blockSize = 1;
-        
-        // Texture Loader
-        const textureLoader = new THREE.TextureLoader();
-        
-        // Create block geometry
-        const boxGeometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
-        
-        function createBlock(x, y, z, type) {
-            const blockInfo = blockTypes[type];
-            const material = new THREE.MeshLambertMaterial({
-                color: blockInfo.color,
-                transparent: blockInfo.transparent || false,
-                opacity: blockInfo.opacity || 1,
-                emissive: blockInfo.emissive || 0x000000
-            });
-            
-            const block = new THREE.Mesh(boxGeometry, material);
-            block.position.set(x, y, z);
-            block.castShadow = true;
-            block.receiveShadow = true;
-            block.userData = { type: type };
-            
-            scene.add(block);
-            blocks.set(`${x},${y},${z}`, block);
-            return block;
-        }
-        
-        function removeBlock(x, y, z) {
-            const key = `${x},${y},${z}`;
-            const block = blocks.get(key);
-            if (block) {
-                scene.remove(block);
-                blocks.delete(key);
-                
-                // Particle effect for breaking block
-                createBreakParticles(x, y, z, block.userData.type);
-            }
-        }
-        
-        // Particle System for Block Breaking
-        function createBreakParticles(x, y, z, type) {
-            const particleCount = 8;
-            const color = blockTypes[type].color;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const particle = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.1, 0.1, 0.1),
-                    new THREE.MeshBasicMaterial({ color: color })
-                );
-                particle.position.set(
-                    x + (Math.random() - 0.5) * 0.8,
-                    y + (Math.random() - 0.5) * 0.8,
-                    z + (Math.random() - 0.5) * 0.8
-                );
-                particle.userData = {
-                    velocity: new THREE.Vector3(
-                        (Math.random() - 0.5) * 0.2,
-                        Math.random() * 0.3,
-                        (Math.random() - 0.5) * 0.2
-                    ),
-                    life: 1.0
-                };
-                scene.add(particle);
-                particles.push(particle);
-            }
-        }
-        
-        const particles = [];
-        
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.position.add(p.userData.velocity);
-                p.userData.velocity.y -= 0.01; // Gravity
-                p.userData.life -= 0.02;
-                p.scale.setScalar(p.userData.life);
-                
-                if (p.userData.life <= 0) {
-                    scene.remove(p);
-                    particles.splice(i, 1);
-                }
-            }
-        }
-        
-        // Generate World
-        function generateWorld() {
-            const size = 20;
-            for (let x = -size; x < size; x++) {
-                for (let z = -size; z < size; z++) {
-                    // Simple terrain generation
-                    const height = Math.floor(Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3);
-                    
-                    for (let y = -5; y <= height; y++) {
-                        let type = 'stone';
-                        if (y === height) type = 'grass';
-                        else if (y >= height - 2) type = 'dirt';
-                        
-                        createBlock(x, y, z, type);
-                    }
-                    
-                    // Add trees randomly
-                    if (Math.random() < 0.02 && height > -2) {
-                        createTree(x, height + 1, z);
-                    }
-                }
-            }
-        }
-        
-        function createTree(x, y, z) {
-            // Trunk
-            for (let i = 0; i < 4; i++) {
-                createBlock(x, y + i, z, 'wood');
-            }
-            // Leaves
-            for (let lx = -2; lx <= 2; lx++) {
-                for (let lz = -2; lz <= 2; lz++) {
-                    for (let ly = 0; ly < 2; ly++) {
-                        if (Math.abs(lx) + Math.abs(lz) + ly < 4) {
-                            createBlock(x + lx, y + 3 + ly, z + lz, 'leaves');
-                        }
-                    }
-                }
-            }
-        }
-        
-        generateWorld();
-        
-        // Player
-        const player = {
-            position: new THREE.Vector3(0, 10, 0),
-            velocity: new THREE.Vector3(0, 0, 0),
-            rotation: new THREE.Euler(0, 0, 0),
-            height: 1.8,
-            radius: 0.3,
-            onGround: false
-        };
-        
-        camera.position.copy(player.position);
-        
-        // Controls
-        const keys = {};
-        let isPointerLocked = false;
-        
-        document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-            
-            if (e.code === 'KeyE') {
-                const menu = document.getElementById('block-menu');
-                menu.style.display = menu.style.display === 'grid' ? 'none' : 'grid';
-            }
-            
-            if (e.code >= 'Digit1' && e.code <= 'Digit9') {
-                const index = parseInt(e.code.slice(-1)) - 1;
-                selectHotbarSlot(index);
-            }
+        // Parçacıkları güncelle
+        particles.forEach(p => {
+            p.position.add(p.userData.velocity);
+            p.userData.life -= 0.02;
+            p.material.opacity = p.userData.life;
+            p.scale.setScalar(p.userData.life);
         });
         
-        document.addEventListener('keyup', (e) => {
-            keys[e.code] = false;
-        });
-        
-        document.addEventListener('click', () => {
-            if (!isPointerLocked) {
-                document.body.requestPointerLock();
-            }
-        });
-        
-        document.addEventListener('pointerlockchange', () => {
-            isPointerLocked = document.pointerLockElement === document.body;
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (isPointerLocked) {
-                player.rotation.y -= e.movementX * 0.002;
-                player.rotation.x -= e.movementY * 0.002;
-                player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
-            }
-        });
-        
-        document.addEventListener('mousedown', (e) => {
-            if (!isPointerLocked) return;
-            
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            
-            const intersects = raycaster.intersectObjects(Array.from(blocks.values()));
-            
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                const pos = intersect.object.position;
-                
-                if (e.button === 0) { // Left click - break
-                    removeBlock(pos.x, pos.y, pos.z);
-                    playBreakSound();
-                } else if (e.button === 2) { // Right click - place
-                    const normal = intersect.face.normal;
-                    const newX = pos.x + normal.x;
-                    const newY = pos.y + normal.y;
-                    const newZ = pos.z + normal.z;
-                    
-                    // Check if player is not in the way
-                    const playerPos = player.position;
-                    if (Math.abs(newX - playerPos.x) > 0.5 || 
-                        Math.abs(newY - playerPos.y) > 0.5 || 
-                        Math.abs(newZ - playerPos.z) > 0.5) {
-                        createBlock(newX, newY, newZ, selectedBlock);
-                        playPlaceSound();
-                    }
-                }
-            }
-        });
-        
-        // Hotbar
-        function selectHotbarSlot(index) {
-            const slots = document.querySelectorAll('.hotbar-slot');
-            slots.forEach((slot, i) => {
-                slot.classList.toggle('active', i === index);
-                if (i === index) {
-                    selectedBlock = slot.dataset.block;
-                    document.getElementById('selected-block').textContent = blockTypes[selectedBlock].name;
-                }
-            });
-        }
-        
-        document.querySelectorAll('.hotbar-slot').forEach((slot, index) => {
-            slot.addEventListener('click', () => selectHotbarSlot(index));
-        });
-        
-        document.querySelectorAll('.block-option').forEach(option => {
-            option.addEventListener('click', () => {
-                selectedBlock = option.dataset.block;
-                document.getElementById('selected-block').textContent = blockTypes[selectedBlock].name;
-                document.getElementById('block-menu').style.display = 'none';
-            });
-        });
-        
-        // Collision Detection
-        function checkCollision(x, y, z) {
-            const key = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
-            return blocks.has(key);
-        }
-        
-        function updatePlayer() {
-            // Movement
-            const speed = 0.1;
-            const moveVector = new THREE.Vector3();
-            
-            if (keys['KeyW']) moveVector.z -= 1;
-            if (keys['KeyS']) moveVector.z += 1;
-            if (keys['KeyA']) moveVector.x -= 1;
-            if (keys['KeyD']) moveVector.x += 1;
-            
-            moveVector.normalize().multiplyScalar(speed);
-            moveVector.applyEuler(new THREE.Euler(0, player.rotation.y, 0));
-            
-            // Apply movement with collision
-            const newX = player.position.x + moveVector.x;
-            const newZ = player.position.z + moveVector.z;
-            
-            if (!checkCollision(newX, player.position.y, player.position.z) &&
-                !checkCollision(newX, player.position.y - 1, player.position.z)) {
-                player.position.x = newX;
-            }
-            
-            if (!checkCollision(player.position.x, player.position.y, newZ) &&
-                !checkCollision(player.position.x, player.position.y - 1, newZ)) {
-                player.position.z = newZ;
-            }
-            
-            // Gravity
-            player.velocity.y -= 0.02;
-            
-            // Jump
-            if (keys['Space'] && player.onGround) {
-                player.velocity.y = 0.3;
-                player.onGround = false;
-            }
-            
-            // Apply vertical velocity
-            const newY = player.position.y + player.velocity.y;
-            
-            // Ground collision
-            if (checkCollision(player.position.x, newY - player.height / 2, player.position.z)) {
-                player.velocity.y = 0;
-                player.onGround = true;
-            } else {
-                player.position.y = newY;
-                player.onGround = false;
-            }
-            
-            // Update camera
-            camera.position.copy(player.position);
-            camera.rotation.copy(player.rotation);
-            
-            // Update UI
-            document.getElementById('coords').textContent = 
-                `${Math.round(player.position.x)}, ${Math.round(player.position.y)}, ${Math.round(player.position.z)}`;
-        }
-        
-        // Sound Effects
-        function playBreakSound() {
-            const synth = new Tone.MembraneSynth().toDestination();
-            synth.triggerAttackRelease("C2", "8n");
-        }
-        
-        function playPlaceSound() {
-            const synth = new Tone.MembraneSynth().toDestination();
-            synth.triggerAttackRelease("G2", "8n");
-        }
-        
-        // =============================================================================
-        // ANIME CHARACTER SYSTEM - Gerçekçi Anime Karakterler
-        // =============================================================================
-        
-        class AnimeCharacter {
-            constructor(scene, x, y, z, type = 'girl') {
-                this.scene = scene;
-                this.position = new THREE.Vector3(x, y, z);
-                this.type = type;
-                this.group = new THREE.Group();
-                this.group.position.copy(this.position);
-                
-                // Animasyon değişkenleri
-                this.time = 0;
-                this.isWalking = false;
-                this.walkSpeed = 0.05;
-                this.targetPosition = null;
-                
-                // Anime materyalleri - Cel-shading efekti
-                this.materials = this.createAnimeMaterials(type);
-                
-                // Karakteri oluştur
-                this.createCharacter();
-                
-                scene.add(this.group);
-            }
-            
-            createAnimeMaterials(type) {
-                const colors = type === 'girl' ? {
-                    skin: 0xffe4d6,
-                    hair: 0xff69b4, // Pembe saç
-                    hairHighlight: 0xffb6c1,
-                    eye: 0x4169e1, // Mavi göz
-                    eyeHighlight: 0x87ceeb,
-                    clothes: 0xffc0cb, // Pembe elbise
-                    clothesDark: 0xff69b4,
-                    shoes: 0x8b4513
-                } : {
-                    skin: 0xffe4d6,
-                    hair: 0x4169e1, // Mavi saç
-                    hairHighlight: 0x87ceeb,
-                    eye: 0x32cd32, // Yeşil göz
-                    eyeHighlight: 0x90ee90,
-                    clothes: 0x4169e1, // Mavi kıyafet
-                    clothesDark: 0x0000cd,
-                    shoes: 0x2f2f2f
-                };
-                
-                return {
-                    skin: new THREE.MeshToonMaterial({ 
-                        color: colors.skin,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    hair: new THREE.MeshToonMaterial({ 
-                        color: colors.hair,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    hairHighlight: new THREE.MeshToonMaterial({ 
-                        color: colors.hairHighlight,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    eye: new THREE.MeshToonMaterial({ 
-                        color: colors.eye,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    eyeHighlight: new THREE.MeshBasicMaterial({ 
-                        color: colors.eyeHighlight 
-                    }),
-                    clothes: new THREE.MeshToonMaterial({ 
-                        color: colors.clothes,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    clothesDark: new THREE.MeshToonMaterial({ 
-                        color: colors.clothesDark,
-                        gradientMap: this.createToonGradient()
-                    }),
-                    shoes: new THREE.MeshToonMaterial({ 
-                        color: colors.shoes,
-                        gradientMap: this.createToonGradient()
-                    })
-                };
-            }
-            
-            createToonGradient() {
-                // Cel-shading için gradient texture
-                const canvas = document.createElement('canvas');
-                canvas.width = 4;
-                canvas.height = 1;
-                const context = canvas.getContext('2d');
-                const gradient = context.createLinearGradient(0, 0, 4, 0);
-                gradient.addColorStop(0, '#444');
-                gradient.addColorStop(0.5, '#888');
-                gradient.addColorStop(1, '#fff');
-                context.fillStyle = gradient;
-                context.fillRect(0, 0, 4, 1);
-                
-                const texture = new THREE.CanvasTexture(canvas);
-                texture.magFilter = THREE.NearestFilter;
-                texture.minFilter = THREE.NearestFilter;
-                return texture;
-            }
-            
-            createCharacter() {
-                // Anime karakter oranları - Chibi/Anime stili
-                const headSize = 0.6;
-                const bodyHeight = 0.7;
-                const limbWidth = 0.15;
-                
-                // ==================== BAŞ (HEAD) ====================
-                this.head = new THREE.Group();
-                
-                // Yüz - Yuvarlatılmış kutu
-                const faceGeo = new THREE.BoxGeometry(headSize, headSize * 0.9, headSize * 0.8);
-                const face = new THREE.Mesh(faceGeo, this.materials.skin);
-                face.position.y = headSize * 0.45;
-                face.castShadow = true;
-                this.head.add(face);
-                
-                // Yanaklar (blush)
-                const cheekGeo = new THREE.CircleGeometry(0.08, 16);
-                const cheekMat = new THREE.MeshBasicMaterial({ 
-                    color: 0xffa0a0, 
-                    transparent: true, 
-                    opacity: 0.6 
-                });
-                
-                const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
-                leftCheek.position.set(-0.18, 0.25, 0.25);
-                leftCheek.rotation.y = -0.3;
-                this.head.add(leftCheek);
-                
-                const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
-                rightCheek.position.set(0.18, 0.25, 0.25);
-                rightCheek.rotation.y = 0.3;
-                this.head.add(rightCheek);
-                
-                // ==================== ANİME GÖZLER ====================
-                // Anime gözleri - Büyük ve ifadeli
-                this.createAnimeEyes();
-                
-                // ==================== ANİME SAÇLAR ====================
-                // Anime saçları - Yerçekimine meydan okuyan
-                this.createAnimeHair(headSize);
-                
-                this.head.position.y = bodyHeight + headSize * 0.4;
-                this.group.add(this.head);
-                
-                // ==================== VÜCUT (BODY) ====================
-                this.body = new THREE.Group();
-                
-                // Gövde
-                const torsoGeo = new THREE.BoxGeometry(0.4, bodyHeight * 0.6, 0.25);
-                const torso = new THREE.Mesh(torsoGeo, this.materials.clothes);
-                torso.position.y = bodyHeight * 0.3;
-                torso.castShadow = true;
-                this.body.add(torso);
-                
-                // Etek/Şort
-                const skirtGeo = new THREE.ConeGeometry(0.35, 0.4, 8);
-                const skirt = new THREE.Mesh(skirtGeo, this.materials.clothesDark);
-                skirt.position.y = bodyHeight * 0.1;
-                skirt.castShadow = true;
-                this.body.add(skirt);
-                
-                this.group.add(this.body);
-                
-                // ==================== KOLLAR ====================
-                this.leftArm = this.createLimb(
-                    -0.25, bodyHeight * 0.5, 0,
-                    limbWidth, bodyHeight * 0.4, limbWidth,
-                    this.materials.skin, this.materials.clothes
-                );
-                this.group.add(this.leftArm);
-                
-                this.rightArm = this.createLimb(
-                    0.25, bodyHeight * 0.5, 0,
-                    limbWidth, bodyHeight * 0.4, limbWidth,
-                    this.materials.skin, this.materials.clothes
-                );
-                this.group.add(this.rightArm);
-                
-                // ==================== BACAKLAR ====================
-                this.leftLeg = this.createLimb(
-                    -0.12, bodyHeight * 0.2, 0,
-                    limbWidth, bodyHeight * 0.4, limbWidth,
-                    this.materials.skin, this.materials.shoes
-                );
-                this.group.add(this.leftLeg);
-                
-                this.rightLeg = this.createLimb(
-                    0.12, bodyHeight * 0.2, 0,
-                    limbWidth, bodyHeight * 0.4, limbWidth,
-                    this.materials.skin, this.materials.shoes
-                );
-                this.group.add(this.rightLeg);
-                
-                // Gölge
-                const shadowGeo = new THREE.CircleGeometry(0.4, 32);
-                const shadowMat = new THREE.MeshBasicMaterial({ 
-                    color: 0x000000, 
-                    transparent: true, 
-                    opacity: 0.3 
-                });
-                this.shadow = new THREE.Mesh(shadowGeo, shadowMat);
-                this.shadow.rotation.x = -Math.PI / 2;
-                this.shadow.position.y = 0.01;
-                this.group.add(this.shadow);
-            }
-            
-            createAnimeEyes() {
-                // Anime göz geometrisi - Büyük ve ifadeli
-                const eyeGroup = new THREE.Group();
-                
-                // Göz beyazı (sclera)
-                const scleraGeo = new THREE.CapsuleGeometry(0.12, 0.15, 4, 8);
-                const scleraMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                
-                // Sol göz
-                const leftSclera = new THREE.Mesh(scleraGeo, scleraMat);
-                leftSclera.position.set(-0.15, 0.35, 0.22);
-                leftSclera.rotation.z = 0.1;
-                eyeGroup.add(leftSclera);
-                
-                // Sağ göz
-                const rightSclera = new THREE.Mesh(scleraGeo, scleraMat);
-                rightSclera.position.set(0.15, 0.35, 0.22);
-                rightSclera.rotation.z = -0.1;
-                eyeGroup.add(rightSclera);
-                
-                // İris
-                const irisGeo = new THREE.CircleGeometry(0.08, 16);
-                
-                const leftIris = new THREE.Mesh(irisGeo, this.materials.eye);
-                leftIris.position.set(-0.15, 0.35, 0.23);
-                eyeGroup.add(leftIris);
-                
-                const rightIris = new THREE.Mesh(irisGeo, this.materials.eye);
-                rightIris.position.set(0.15, 0.35, 0.23);
-                eyeGroup.add(rightIris);
-                
-                // Göz parlaması (highlight) - Anime efekti
-                const highlightGeo = new THREE.CircleGeometry(0.03, 8);
-                
-                const leftHighlight = new THREE.Mesh(highlightGeo, this.materials.eyeHighlight);
-                leftHighlight.position.set(-0.12, 0.4, 0.24);
-                eyeGroup.add(leftHighlight);
-                
-                const rightHighlight = new THREE.Mesh(highlightGeo, this.materials.eyeHighlight);
-                rightHighlight.position.set(0.18, 0.4, 0.24);
-                eyeGroup.add(rightHighlight);
-                
-                // Ek parlama noktası
-                const smallHighlightGeo = new THREE.CircleGeometry(0.015, 6);
-                const leftSmall = new THREE.Mesh(smallHighlightGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
-                leftSmall.position.set(-0.18, 0.32, 0.24);
-                eyeGroup.add(leftSmall);
-                
-                const rightSmall = new THREE.Mesh(smallHighlightGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
-                rightSmall.position.set(0.12, 0.32, 0.24);
-                eyeGroup.add(rightSmall);
-                
-                this.head.add(eyeGroup);
-                this.eyes = eyeGroup;
-            }
-            
-            createAnimeHair(headSize) {
-                // Anime saçları - Yerçekimine meydan okuyan, hacimli
-                const hairGroup = new THREE.Group();
-                
-                // Ana saç hacmi
-                const mainHairGeo = new THREE.SphereGeometry(headSize * 0.55, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
-                const mainHair = new THREE.Mesh(mainHairGeo, this.materials.hair);
-                mainHair.position.y = headSize * 0.5;
-                mainHair.castShadow = true;
-                hairGroup.add(mainHair);
-                
-                // Saç tutamları - Anime stili
-                const strandCount = 12;
-                for (let i = 0; i < strandCount; i++) {
-                    const angle = (i / strandCount) * Math.PI * 2;
-                    const strandHeight = 0.3 + Math.random() * 0.3;
-                    const strandGeo = new THREE.ConeGeometry(0.06, strandHeight, 6);
-                    const strand = new THREE.Mesh(strandGeo, this.materials.hair);
-                    
-                    strand.position.set(
-                        Math.cos(angle) * headSize * 0.45,
-                        headSize * 0.6,
-                        Math.sin(angle) * headSize * 0.45
-                    );
-                    
-                    // Anime saçları dışarı doğru
-                    strand.rotation.x = Math.sin(angle) * 0.5;
-                    strand.rotation.z = -Math.cos(angle) * 0.5;
-                    strand.rotation.y = angle;
-                    
-                    strand.castShadow = true;
-                    hairGroup.add(strand);
-                    
-                    // Saç uçları - Highlight
-                    const tipGeo = new THREE.ConeGeometry(0.04, strandHeight * 0.3, 6);
-                    const tip = new THREE.Mesh(tipGeo, this.materials.hairHighlight);
-                    tip.position.copy(strand.position);
-                    tip.position.y += strandHeight * 0.35;
-                    tip.rotation.copy(strand.rotation);
-                    hairGroup.add(tip);
-                }
-                
-                // Ön perçemler (bangs)
-                for (let i = -2; i <= 2; i++) {
-                    const bangGeo = new THREE.BoxGeometry(0.08, 0.25, 0.02);
-                    const bang = new THREE.Mesh(bangGeo, this.materials.hair);
-                    bang.position.set(i * 0.1, headSize * 0.7, headSize * 0.35);
-                    bang.rotation.x = -0.3;
-                    bang.rotation.z = i * 0.1;
-                    hairGroup.add(bang);
-                }
-                
-                // Ponytail veya twin tails
-                if (this.type === 'girl') {
-                    // Twin tails
-                    this.createTwinTails(hairGroup, headSize);
-                } else {
-                    // Spiky hair
-                    this.createSpikyHair(hairGroup, headSize);
-                }
-                
-                this.head.add(hairGroup);
-                this.hair = hairGroup;
-            }
-            
-            createTwinTails(parent, headSize) {
-                // Anime twin tails - İki yanda uzun saçlar
-                const tailLength = 0.8;
-                const tailGeo = new THREE.ConeGeometry(0.1, tailLength, 8);
-                
-                // Sol tail
-                const leftTail = new THREE.Mesh(tailGeo, this.materials.hair);
-                leftTail.position.set(-headSize * 0.5, headSize * 0.3, -0.1);
-                leftTail.rotation.z = 0.5;
-                leftTail.rotation.x = 0.3;
-                parent.add(leftTail);
-                
-                // Sağ tail
-                const rightTail = new THREE.Mesh(tailGeo, this.materials.hair);
-                rightTail.position.set(headSize * 0.5, headSize * 0.3, -0.1);
-                rightTail.rotation.z = -0.5;
-                rightTail.rotation.x = 0.3;
-                parent.add(rightTail);
-                
-                // Tail hareketi için referans
-                this.twinTails = [leftTail, rightTail];
-            }
-            
-            createSpikyHair(parent, headSize) {
-                // Erkek anime saçı - Dik ve sivri
-                for (let i = 0; i < 8; i++) {
-                    const spikeGeo = new THREE.ConeGeometry(0.05, 0.4, 4);
-                    const spike = new THREE.Mesh(spikeGeo, this.materials.hair);
-                    
-                    const angle = (i / 8) * Math.PI * 2;
-                    spike.position.set(
-                        Math.cos(angle) * 0.2,
-                        headSize * 0.6,
-                        Math.sin(angle) * 0.2
-                    );
-                    spike.rotation.x = Math.random() * 0.5 - 0.25;
-                    spike.rotation.z = Math.random() * 0.5 - 0.25;
-                    
-                    parent.add(spike);
-                }
-            }
-            
-            createLimb(x, y, z, width, height, depth, skinMat, clothesMat) {
-                const limb = new THREE.Group();
-                limb.position.set(x, y, z);
-                
-                // Üst kısım (giysi)
-                const upperGeo = new THREE.BoxGeometry(width * 1.2, height * 0.3, depth * 1.2);
-                const upper = new THREE.Mesh(upperGeo, clothesMat);
-                upper.position.y = height * 0.35;
-                upper.castShadow = true;
-                limb.add(upper);
-                
-                // Alt kısım (deri)
-                const lowerGeo = new THREE.BoxGeometry(width, height * 0.7, depth);
-                const lower = new THREE.Mesh(lowerGeo, skinMat);
-                lower.position.y = -height * 0.15;
-                lower.castShadow = true;
-                limb.add(lower);
-                
-                return limb;
-            }
-            
-            update(delta, time) {
-                this.time += delta;
-                
-                // Nefes alma animasyonu
-                const breath = Math.sin(time * 2) * 0.02;
-                this.body.scale.set(1 + breath * 0.5, 1 + breath, 1 + breath * 0.5);
-                
-                // Saç sallanması
-                if (this.hair) {
-                    this.hair.rotation.z = Math.sin(time * 3) * 0.05;
-                }
-                
-                // Twin tail sallanması
-                if (this.twinTails) {
-                    this.twinTails[0].rotation.z = 0.5 + Math.sin(time * 4) * 0.1;
-                    this.twinTails[1].rotation.z = -0.5 - Math.sin(time * 4) * 0.1;
-                }
-                
-                // Yürüme animasyonu
-                if (this.isWalking) {
-                    const walkCycle = time * 10;
-                    this.leftLeg.rotation.x = Math.sin(walkCycle) * 0.5;
-                    this.rightLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.5;
-                    this.leftArm.rotation.x = Math.sin(walkCycle + Math.PI) * 0.5;
-                    this.rightArm.rotation.x = Math.sin(walkCycle) * 0.5;
-                    
-                    // Zıplama efekti
-                    this.group.position.y = this.position.y + Math.abs(Math.sin(walkCycle)) * 0.05;
-                } else {
-                    // Idle animasyonu
-                    this.leftLeg.rotation.x = 0;
-                    this.rightLeg.rotation.x = 0;
-                    this.leftArm.rotation.x = Math.sin(time) * 0.1;
-                    this.rightArm.rotation.x = -Math.sin(time) * 0.1;
-                    this.group.position.y = this.position.y;
-                }
-                
-                // Hedefe doğru dönme
-                if (this.targetPosition) {
-                    const direction = new THREE.Vector3().subVectors(this.targetPosition, this.group.position);
-                    direction.y = 0;
-                    
-                    if (direction.length() > 0.1) {
-                        direction.normalize();
-                        const targetRotation = Math.atan2(direction.x, direction.z);
-                        this.group.rotation.y = targetRotation;
-                        
-                        // Hedefe doğru hareket
-                        this.group.position.x += direction.x * this.walkSpeed;
-                        this.group.position.z += direction.z * this.walkSpeed;
-                        this.isWalking = true;
-                    } else {
-                        this.isWalking = false;
-                        this.targetPosition = null;
-                    }
-                }
-                
-                // Gölge güncelleme
-                if (this.shadow) {
-                    this.shadow.scale.setScalar(1 - (this.group.position.y - this.position.y) * 2);
-                }
-            }
-            
-            walkTo(x, z) {
-                this.targetPosition = new THREE.Vector3(x, this.position.y, z);
-            }
-            
-            playAnimation(animName) {
-                // Farklı animasyonlar eklenebilir
-                switch(animName) {
-                    case 'wave':
-                        this.waveAnimation();
-                        break;
-                    case 'jump':
-                        this.jumpAnimation();
-                        break;
-                    case 'dance':
-                        this.danceAnimation();
-                        break;
-                }
-            }
-            
-            waveAnimation() {
-                const startRot = this.rightArm.rotation.z;
-                let progress = 0;
-                
-                const wave = () => {
-                    progress += 0.1;
-                    this.rightArm.rotation.z = startRot + Math.sin(progress) * 2;
-                    
-                    if (progress < Math.PI * 4) {
-                        requestAnimationFrame(wave);
-                    } else {
-                        this.rightArm.rotation.z = startRot;
-                    }
-                };
-                wave();
-            }
-            
-            jumpAnimation() {
-                let progress = 0;
-                const jump = () => {
-                    progress += 0.1;
-                    this.group.position.y = this.position.y + Math.sin(progress) * 0.5;
-                    
-                    if (progress < Math.PI) {
-                        requestAnimationFrame(jump);
-                    } else {
-                        this.group.position.y = this.position.y;
-                    }
-                };
-                jump();
-            }
-            
-            danceAnimation() {
-                let progress = 0;
-                const dance = () => {
-                    progress += 0.15;
-                    this.group.rotation.y = Math.sin(progress) * 0.5;
-                    this.leftArm.rotation.z = Math.sin(progress * 2) * 1;
-                    this.rightArm.rotation.z = -Math.sin(progress * 2) * 1;
-                    
-                    if (progress < Math.PI * 8) {
-                        requestAnimationFrame(dance);
-                    } else {
-                        this.group.rotation.y = 0;
-                        this.leftArm.rotation.z = 0;
-                        this.rightArm.rotation.z = 0;
-                    }
-                };
-                dance();
-            }
-        }
-        
-        // Anime karakterleri oluştur
-        const characters = [];
-        
-        // Ana karakter - Anime Girl
-        const mainCharacter = new AnimeCharacter(scene, 2, 1.4, 2, 'girl');
-        characters.push(mainCharacter);
-        
-        // İkinci karakter - Anime Boy
-        const secondCharacter = new AnimeCharacter(scene, -2, 1.4, -2, 'boy');
-        characters.push(secondCharacter);
-        
-        // Üçüncü karakter - Anime Girl (farklı pozisyon)
-        const thirdCharacter = new AnimeCharacter(scene, 3, 1.4, -3, 'girl');
-        characters.push(thirdCharacter);
-        
-        // Karakter kontrolleri
-        let activeCharacterIndex = 0;
-        
-        function switchCharacter() {
-            activeCharacterIndex = (activeCharacterIndex + 1) % characters.length;
-            const charTypes = ['Anime Girl', 'Anime Boy', 'Anime Girl 2'];
-            document.getElementById('active-character').textContent = charTypes[activeCharacterIndex];
-        }
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyC') {
-                switchCharacter();
-            }
-            
-            if (e.code === 'KeyV') {
-                const char = characters[activeCharacterIndex];
-                char.walkTo(player.position.x, player.position.z);
-            }
-            
-            if (e.code === 'KeyB') {
-                const char = characters[activeCharacterIndex];
-                char.playAnimation('wave');
-            }
-            
-            if (e.code === 'KeyN') {
-                const char = characters[activeCharacterIndex];
-                char.playAnimation('dance');
-            }
-        });
-        
-        // Animation Loop
-        const clock = new THREE.Clock();
-        
-        function animate() {
+        if(time < 2) {
             requestAnimationFrame(animate);
+        } else {
+            scene.remove(group);
+        }
+    };
+    animate();
+    
+    return group;
+}
+
+// Mist Breathing Efekti (Muichiro)
+function createMistEffect(position, scene) {
+    const group = new THREE.Group();
+    group.position.copy(position);
+    
+    // Sis bulutları
+    const mistClouds = [];
+    for(let i=0; i<15; i++) {
+        const cloud = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3 + Math.random()*0.3, 8, 8),
+            new THREE.MeshBasicMaterial({ 
+                color: 0xaaddff, 
+                transparent: true, 
+                opacity: 0.3 + Math.random()*0.3
+            })
+        );
+        cloud.position.set(
+            (Math.random()-0.5)*3,
+            Math.random()*1.5,
+            (Math.random()-0.5)*3
+        );
+        cloud.scale.set(1 + Math.random(), 0.5 + Math.random()*0.5, 1 + Math.random());
+        cloud.userData = {
+            velocity: new THREE.Vector3((Math.random()-0.5)*0.03, Math.random()*0.02, (Math.random()-0.5)*0.03),
+            rotSpeed: (Math.random()-0.5)*0.02
+        };
+        group.add(cloud);
+        mistClouds.push(cloud);
+    }
+    
+    // Işık parlaması
+    const light = new THREE.PointLight(0xaaddff, 2, 5);
+    light.position.y = 1;
+    group.add(light);
+    
+    // Kılıç ışık izleri
+    const trails = [];
+    for(let i=0; i<5; i++) {
+        const trail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.02, 0.05, 2, 4),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })
+        );
+        trail.position.set((Math.random()-0.5)*2, 1, (Math.random()-0.5)*2);
+        trail.rotation.z = Math.random()*Math.PI;
+        trail.rotation.x = Math.random()*Math.PI;
+        group.add(trail);
+        trails.push(trail);
+    }
+    
+    scene.add(group);
+    
+    // Animasyon
+    let time = 0;
+    const animate = () => {
+        time += 0.03;
+        
+        mistClouds.forEach(cloud => {
+            cloud.position.add(cloud.userData.velocity);
+            cloud.rotation.y += cloud.userData.rotSpeed;
+            cloud.material.opacity *= 0.98;
+        });
+        
+        trails.forEach((trail, i) => {
+            trail.rotation.z += 0.1;
+            trail.material.opacity *= 0.95;
+        });
+        
+        light.intensity *= 0.98;
+        
+        if(time < 1.5) {
+            requestAnimationFrame(animate);
+        } else {
+            scene.remove(group);
+        }
+    };
+    animate();
+}
+
+// Karakter spawn etme (geliştirilmiş)
+function spawnCharacter(type) {
+    const spawnX = playerPos.x + (Math.sin(yaw) * 3);
+    const spawnZ = playerPos.z + (Math.cos(yaw) * 3);
+    const npcId = npcIdCounter++;
+    
+    const model = createCharacterModel(type);
+    model.position.set(spawnX, 0, spawnZ);
+    
+    // Spawn efekti
+    if(type === 'edward') {
+        createAlchemyEffect(new THREE.Vector3(spawnX, 0, spawnZ), scene);
+    } else {
+        createMistEffect(new THREE.Vector3(spawnX, 0, spawnZ), scene);
+    }
+    
+    scene.add(model);
+    
+    const charData = {
+        id: npcId,
+        mesh: model,
+        type: type,
+        hp: characterSkills[type].hp,
+        maxHp: characterSkills[type].hp,
+        attackDamage: characterSkills[type].attackDamage,
+        skill: characterSkills[type].skill,
+        lastAttack: 0,
+        lastSkillUse: 0,
+        target: null,
+        x: spawnX,
+        z: spawnZ,
+        y: 0
+    };
+    spawnedNPCs[npcId] = charData;
+    
+    assignTargetsToNPCs();
+    showNotification(`${characterSkills[type].name} dünyaya çağrıldı!`);
+}
+
+// NPC savaş mantığı (geliştirilmiş efektlerle)
+function updateNPCCombat() {
+    const now = Date.now();
+    for(let id in spawnedNPCs) {
+        const npc = spawnedNPCs[id];
+        if(!npc) continue;
+        
+        if(npc.hp <= 0) {
+            // Ölüm efekti
+            if(npc.type === 'edward') {
+                createAlchemyEffect(npc.mesh.position, scene);
+            } else {
+                createMistEffect(npc.mesh.position, scene);
+            }
             
-            const delta = clock.getDelta();
-            const time = clock.getElapsedTime();
-            
-            updatePlayer();
-            updateParticles();
-            
-            // Anime karakterleri güncelle
-            characters.forEach(char => char.update(delta, time));
-            
-            renderer.render(scene, camera);
+            if(npc.mesh) scene.remove(npc.mesh);
+            delete spawnedNPCs[id];
+            showNotification(`${characterSkills[npc.type].name} savaşta yenildi!`);
+            continue;
         }
         
-        // Hide loading screen
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('loading').style.display = 'none';
-            }, 1000);
-        });
+        let targetNPC = null;
+        if(npc.target && spawnedNPCs[npc.target]) {
+            targetNPC = spawnedNPCs[npc.target];
+        } else {
+            for(let otherId in spawnedNPCs) {
+                if(otherId !== id && spawnedNPCs[otherId].type !== npc.type) {
+                    npc.target = otherId;
+                    targetNPC = spawnedNPCs[otherId];
+                    break;
+                }
+            }
+        }
         
-        // Resize handler
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        if(!targetNPC) continue;
         
-        animate();
-    </script>
-</body>
-</html>'''
+        const dx = targetNPC.mesh.position.x - npc.mesh.position.x;
+        const dz = targetNPC.mesh.position.z - npc.mesh.position.z;
+        const distance = Math.sqrt(dx*dx + dz*dz);
+        
+        // Hareket: hedefe doğru yürü
+        if(distance > 1.8) {
+            const angle = Math.atan2(dx, dz);
+            const moveSpeed = 0.03;
+            npc.mesh.position.x += Math.sin(angle) * moveSpeed;
+            npc.mesh.position.z += Math.cos(angle) * moveSpeed;
+            npc.mesh.lookAt(targetNPC.mesh.position);
+            npc.x = npc.mesh.position.x;
+            npc.z = npc.mesh.position.z;
+        } else {
+            // Saldırı
+            if(now - (npc.lastAttack || 0) > 1200) {
+                npc.lastAttack = now;
+                targetNPC.hp -= npc.attackDamage;
+                
+                // Saldırı efekti
+                if(npc.type === 'edward') {
+                    // Alchemy spear efekti
+                    const spearGeo = new THREE.CylinderGeometry(0.05, 0.1, 1.5, 6);
+                    const spearMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+                    const spear = new THREE.Mesh(spearGeo, spearMat);
+                    
+                    const midX = (npc.mesh.position.x + targetNPC.mesh.position.x) / 2;
+                    const midZ = (npc.mesh.position.z + targetNPC.mesh.position.z) / 2;
+                    spear.position.set(midX, 1, midZ);
+                    spear.lookAt(targetNPC.mesh.position.x, 1, targetNPC.mesh.position.z);
+                    spear.rotateX(Math.PI/2);
+                    
+                    scene.add(spear);
+                    setTimeout(() => scene.remove(spear), 300);
+                } else {
+                    // Mist slash efekti
+                    const slashGeo = new THREE.RingGeometry(0.3, 0.5, 3, 1, 0, Math.PI);
+                    const slashMat = new THREE.MeshBasicMaterial({ 
+                        color: 0xaaddff, 
+                        transparent: true, 
+                        opacity: 0.8,
+                        side: THREE.DoubleSide
+                    });
+                    const slash = new THREE.Mesh(slashGeo, slashMat);
+                    slash.position.copy(targetNPC.mesh.position);
+                    slash.position.y = 1;
+                    slash.lookAt(npc.mesh.position.x, 1, npc.mesh.position.z);
+                    
+                    scene.add(slash);
+                    
+                    // Animasyonlu kaybolma
+                    let opacity = 0.8;
+                    const fade = () => {
+                        opacity -= 0.1;
+                        slash.material.opacity = opacity;
+                        slash.scale.multiplyScalar(1.1);
+                        if(opacity > 0) requestAnimationFrame(fade);
+                        else scene.remove(slash);
+                    };
+                    fade();
+                }
+                
+                showNotification(`${characterSkills[npc.type].name} ${characterSkills[targetNPC.type].name}'e ${npc.attackDamage} hasar verdi!`);
+                
+                const flash = document.getElementById('damage-flash');
+                flash.classList.add('flash');
+                setTimeout(() => flash.classList.remove('flash'), 150);
+                
+                // Özel yetenek kullanımı
+                if(npc.skill && (now - (npc.lastSkillUse || 0) > npc.skill.cooldown)) {
+                    npc.lastSkillUse = now;
+                    
+                    // Yetenek efekti
+                    if(npc.type === 'edward') {
+                        createAlchemyEffect(targetNPC.mesh.position, scene);
+                    } else {
+                        createMistEffect(targetNPC.mesh.position, scene);
+                    }
+                    
+                    npc.skill.effect(npc, targetNPC, scene);
+                }
+            }
+        }
+        
+        npc.mesh.position.x = Math.min(95, Math.max(-95, npc.mesh.position.x));
+        npc.mesh.position.z = Math.min(95, Math.max(-95, npc.mesh.position.z));
+        npc.x = npc.mesh.position.x;
+        npc.z = npc.mesh.position.z;
+    }
+}
 
-print(html_content[:2000])
+// Tam ekran ve yatay yönlendirme
+function enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+    
+    if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed', e));
+    }
+}
+
+function enterGame() {
+    const canvas = document.getElementById('game-canvas');
+    canvas.style.display = 'block';
+    document.getElementById('game-ui').style.display = 'block';
+    document.getElementById('craft-toggle').style.display = 'flex';
+    document.getElementById('minimap').style.display = 'block';
+    document.getElementById('online-count').style.display = 'block';
+    document.getElementById('crosshair').style.display = 'block';
+
+    const sess = loadSession();
+    if (sess && sess.pos) { playerPos = sess.pos; yaw = sess.yaw || 0; }
+
+    initThree(canvas);
+    buildWorld();
+    spawnResources();
+    setupInput(canvas);
+    setupMobileControls();
+    gameLoop();
+}
+
+function initThree(canvas) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a0f05);
+    scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
+
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
+
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const ambient = new THREE.AmbientLight(0x2a1a05, 1.2);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xc9a84c, 1.5);
+    sun.position.set(30, 60, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
+    sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
+    scene.add(sun);
+
+    [[5,1,5],[-5,1,-5],[10,1,-8],[-8,1,12]].forEach(([x,y,z]) => {
+        const pt = new THREE.PointLight(0xe67e22, 1.5, 12);
+        pt.position.set(x, y, z); scene.add(pt);
+    });
+}
+
+function buildWorld() {
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 40, 40), new THREE.MeshLambertMaterial({ color: 0x1a1005 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+    const grid = new THREE.GridHelper(200, 50, 0x2a1e08, 0x1a1005);
+    grid.position.y = 0.01; scene.add(grid);
+
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.5 });
+    [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => {
+        const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1);
+        const wall = new THREE.Mesh(geo, wallMat);
+        wall.position.set(x, y, z); scene.add(wall);
+    });
+
+    for (let i = 0; i < 20; i++) {
+        const r = Math.random() * 0.4 + 0.1;
+        const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 }));
+        mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180);
+        mesh.rotation.set(Math.random(), Math.random(), Math.random());
+        scene.add(mesh);
+    }
+}
+
+function spawnResources() {
+    for (let i = 0; i < 15; i++) createTree((Math.random()-0.5)*160, (Math.random()-0.5)*160, i);
+    for (let i = 0; i < 12; i++) createRock((Math.random()-0.5)*160, (Math.random()-0.5)*160, i+100);
+}
+
+function createTree(x, z, id) {
+    const group = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,2.5,7), new THREE.MeshLambertMaterial({color:0x3a2010}));
+    trunk.position.y = 1.25; trunk.castShadow = true; group.add(trunk);
+    const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.6,3,8), new THREE.MeshLambertMaterial({color:0x1a3a10}));
+    foliage.position.y = 3.8; foliage.castShadow = true; group.add(foliage);
+    group.position.set(x, 0, z); scene.add(group);
+    resourceObjects.push({ mesh: group, type: 'wood', id, x, z, radius: 2 });
+}
+
+function createRock(x, z, id) {
+    const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.4,0), new THREE.MeshLambertMaterial({color:0x4a4030}));
+    mesh.position.set(x, 0.7, z); mesh.rotation.set(Math.random(),Math.random(),Math.random()); mesh.castShadow = true;
+    scene.add(mesh);
+    resourceObjects.push({ mesh, type: 'stone', id, x, z, radius: 1.5 });
+}
+
+function createPlayerMesh(color) {
+    const group = new THREE.Group();
+    const skinColor = color || 0xc9a84c;
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
+    const armorMat = new THREE.MeshLambertMaterial({ color: skinColor });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x1a1206 });
+    const beltMat = new THREE.MeshLambertMaterial({ color: 0x3a2010 });
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.46,0.42), skinMat);
+    head.position.y = 1.72; head.castShadow = true; group.add(head);
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44,0.14,0.44), darkMat);
+    hair.position.y = 1.99; group.add(hair);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.12,6), skinMat);
+    neck.position.y = 1.44; group.add(neck);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56,0.42,0.28), armorMat);
+    chest.position.y = 1.18; chest.castShadow = true; group.add(chest);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.3,0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
+    plate.position.set(0,1.18,0.17); group.add(plate);
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.2,0.24), armorMat);
+    waist.position.y = 0.88; group.add(waist);
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48,0.08,0.26), beltMat);
+    belt.position.y = 0.78; group.add(belt);
+
+    [-0.32, 0.32].forEach(ox => {
+        const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.34,0.18), armorMat);
+        ua.position.set(ox,1.08,0); ua.castShadow = true; group.add(ua);
+        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4), armorMat);
+        elbow.position.set(ox,0.88,0); group.add(elbow);
+        const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,0.15), skinMat);
+        fa.position.set(ox,0.68,0); fa.castShadow = true; group.add(fa);
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.12), skinMat);
+        hand.position.set(ox,0.5,0); group.add(hand);
+    });
+
+    [-0.14, 0.14].forEach(ox => {
+        const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.38,0.22), armorMat);
+        ul.position.set(ox,0.45,0); ul.castShadow = true; group.add(ul);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4), armorMat);
+        knee.position.set(ox,0.25,0); group.add(knee);
+        const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19,0.38,0.19), darkMat);
+        ll.position.set(ox,0.04,0); ll.castShadow = true; group.add(ll);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.1,0.28), darkMat);
+        boot.position.set(ox,-0.17,0.04); group.add(boot);
+    });
+
+    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.55,0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
+    swordBlade.position.set(0.28,0.95,-0.18); swordBlade.rotation.z = 0.2; group.add(swordBlade);
+
+    return group;
+}
+
+// ── Socket: Game Events ──
+socket.on('currentPlayers', (players) => {
+    Object.values(players).forEach(p => {
+        if (p.id === socket.id) {
+            myPlayer = p;
+            document.getElementById('player-name-display').textContent = p.username.toUpperCase();
+            playerMesh = createPlayerMesh(p.color);
+            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+            scene.add(playerMesh);
+        } else { addOtherPlayer(p); }
+    });
+    updateOnlineCount(Object.keys(players).length);
+});
+
+socket.on('newPlayer', (p) => {
+    if (p.id !== socket.id) addOtherPlayer(p);
+    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
+    addKillFeed(`⚔ ${p.username} dünyaya katıldı`);
+});
+
+socket.on('playerMoved', (p) => {
+    if (p.id === socket.id) return;
+    if (otherPlayerMeshes[p.id]) {
+        otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z);
+        if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY;
+    }
+});
+
+socket.on('playerDisconnected', (id) => {
+    if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; }
+    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
+});
+
+socket.on('updateInventory', (inv) => {
+    document.getElementById('inv-wood').textContent = inv.wood;
+    document.getElementById('inv-stone').textContent = inv.stone;
+    document.getElementById('inv-sword').textContent = inv.sword;
+    document.getElementById('inv-pickaxe').textContent = inv.pickaxe;
+    document.getElementById('inv-axe').textContent = inv.axe;
+});
+
+socket.on('hpUpdate', (data) => {
+    if (data.id === socket.id) {
+        updateHP(data.hp);
+        const flash = document.getElementById('damage-flash');
+        flash.classList.add('flash');
+        setTimeout(() => flash.classList.remove('flash'), 200);
+    }
+});
+
+function addOtherPlayer(p) {
+    const mesh = createPlayerMesh(p.color);
+    mesh.position.set(p.x||0, p.y||0, p.z||0);
+    scene.add(mesh); otherPlayerMeshes[p.id] = mesh;
+}
+function updateHP(hp) {
+    const pct = Math.max(0,hp)/100;
+    document.getElementById('hp-fill').style.width = (pct*100)+'%';
+    document.getElementById('hp-text').textContent = `${Math.max(0,hp)}/100`;
+}
+function updateOnlineCount(n) { document.getElementById('online-num').textContent = n; }
+
+// ═══════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════
+function setupInput(canvas) {
+    let mouseDown = false, lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
+        if (e.button === 0) doAttackNearest();
+    });
+    document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; });
+    document.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        yaw -= (e.clientX - lastMouseX) * 0.004;
+        pitch -= (e.clientY - lastMouseY) * 0.003;
+        pitch = Math.max(-0.6, Math.min(0.8, pitch));
+        lastMouseX = e.clientX; lastMouseY = e.clientY;
+    });
+
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => { keys[e.code] = true; });
+    document.addEventListener('keyup', e => { keys[e.code] = false; });
+    document.addEventListener('keydown', e => {
+        if (e.code === 'KeyE') tryCollect();
+        if (e.code === 'KeyF') doAttackNearest();
+        if (e.code === 'Space') tryJump();
+    });
+    canvas.addEventListener('wheel', () => {}, { passive: true });
+}
+
+function tryJump() { if (onGround) { velocityY = JUMP_FORCE; onGround = false; } }
+
+// ═══════════════════════════════════════════════
+//  MOBILE CONTROLS
+// ═══════════════════════════════════════════════
+function setupMobileControls() {
+    if (!('ontouchstart' in window)) return;
+    document.getElementById('mobile-controls').style.display = 'block';
+    document.getElementById('crosshair').style.display = 'none';
+
+    const jc = document.getElementById('joystick-container');
+    const knob = document.getElementById('joystick-knob');
+    const maxR = 38;
+
+    jc.addEventListener('touchstart', e => {
+        const rect = jc.getBoundingClientRect();
+        joystick.startX = rect.left + rect.width/2;
+        joystick.startY = rect.top + rect.height/2;
+        joystick.active = true;
+    }, { passive: true });
+
+    jc.addEventListener('touchmove', e => {
+        if (!joystick.active) return;
+        const t = e.touches[0];
+        let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; }
+        joystick.dx = dx/maxR; joystick.dy = dy/maxR;
+        knob.style.transform = `translate(${dx}px,${dy}px)`;
+    }, { passive: true });
+
+    const resetJoystick = () => { joystick.active=false; joystick.dx=0; joystick.dy=0; knob.style.transform=''; };
+    jc.addEventListener('touchend', resetJoystick);
+    jc.addEventListener('touchcancel', resetJoystick);
+
+    let lastTX=0, lastTY=0;
+    document.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; }
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        for (let t of e.touches) {
+            if (t.clientX > window.innerWidth/2) {
+                yaw -= (t.clientX-lastTX)*0.005;
+                pitch -= (t.clientY-lastTY)*0.005;
+                pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
+                lastTX=t.clientX; lastTY=t.clientY;
+            }
+        }
+    }, { passive: true });
+
+    document.getElementById('jump-btn').addEventListener('touchstart', tryJump, { passive: true });
+}
+
+// ═══════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════
+let lastSent = 0, sessionSaveTimer = 0;
+
+function gameLoop() {
+    requestAnimationFrame(gameLoop);
+    if (!scene) return;
+    
+    // NPC savaş güncellemesi
+    updateNPCCombat();
+
+    const speed = 0.12;
+    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const move = new THREE.Vector3();
+
+    if (keys['KeyW']||keys['ArrowUp']) move.addScaledVector(forward, speed);
+    if (keys['KeyS']||keys['ArrowDown']) move.addScaledVector(forward, -speed);
+    if (keys['KeyA']||keys['ArrowLeft']) move.addScaledVector(right, -speed);
+    if (keys['KeyD']||keys['ArrowRight']) move.addScaledVector(right, speed);
+    if (keys['Space']) tryJump();
+
+    if (joystick.active) {
+        move.addScaledVector(forward, -joystick.dy*speed);
+        move.addScaledVector(right, joystick.dx*speed);
+    }
+
+    playerPos.x += move.x; playerPos.z += move.z;
+    velocityY += GRAVITY; playerPos.y += velocityY;
+    if (playerPos.y < 0) { playerPos.y=0; velocityY=0; onGround=true; }
+    playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
+    playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
+
+    if (playerMesh) { playerMesh.position.set(playerPos.x,playerPos.y,playerPos.z); playerMesh.rotation.y = yaw+Math.PI; }
+
+    const camOffX = -Math.sin(yaw)*CAM_DISTANCE, camOffZ = -Math.cos(yaw)*CAM_DISTANCE;
+    camera.position.x += (playerPos.x-camOffX - camera.position.x)*0.15;
+    camera.position.y += (playerPos.y+CAM_HEIGHT+pitch*2 - camera.position.y)*0.15;
+    camera.position.z += (playerPos.z-camOffZ - camera.position.z)*0.15;
+    camera.lookAt(playerPos.x, playerPos.y+1, playerPos.z);
+
+    const now = Date.now();
+    if (now - lastSent > 50) {
+        lastSent = now;
+        socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw });
+    }
+
+    sessionSaveTimer++;
+    if (sessionSaveTimer > 300) {
+        sessionSaveTimer = 0;
+        const sess = loadSession();
+        if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); }
+    }
+
+    resourceObjects.forEach(r => { if (r.mesh) r.mesh.rotation.y += 0.003; });
+    drawMinimap();
+    renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════
+//  COLLECT / ATTACK / CRAFT
+// ═══════════════════════════════════════════════
+function tryCollect() {
+    resourceObjects.forEach(r => {
+        if (!r.mesh) return;
+        const dx=playerPos.x-r.x, dz=playerPos.z-r.z;
+        if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) {
+            socket.emit('collect', r.type);
+            showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`);
+        }
+    });
+}
+
+function doAttackNearest() {
+    let nearest=null, nearDist=5;
+    Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => {
+        const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z;
+        const d=Math.sqrt(dx*dx+dz*dz);
+        if (d<nearDist) { nearDist=d; nearest=id; }
+    });
+    if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); }
+}
+
+function toggleCraft() { document.getElementById('craft-panel').classList.toggle('open'); }
+function doCraft(item) {
+    socket.emit('craft', item);
+    showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`);
+}
+
+// ═══════════════════════════════════════════════
+//  MINIMAP (NPC'ler eklendi)
+// ═══════════════════════════════════════════════
+function drawMinimap() {
+    const canvas = document.getElementById('minimap-canvas');
+    const ctx = canvas.getContext('2d');
+    const W=100, H=100, scale=100/200;
+
+    ctx.fillStyle='#0a0806'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1a1005'; ctx.lineWidth=0.5;
+    for (let i=0;i<=W;i+=10) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for (let i=0;i<=H;i+=10) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+
+    resourceObjects.forEach(r => {
+        const mx=(r.x+100)*scale, my=(r.z+100)*scale;
+        ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030';
+        ctx.fillRect(mx-1,my-1,3,3);
+    });
+    
+    Object.values(otherPlayerMeshes).forEach(mesh => {
+        const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale;
+        ctx.fillStyle='#e74c3c';
+        ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill();
+    });
+    
+    // NPC'leri minimap'e ekle
+    for(let id in spawnedNPCs) {
+        const npc = spawnedNPCs[id];
+        const mx = (npc.x+100)*scale, my = (npc.z+100)*scale;
+        ctx.fillStyle = npc.type === 'edward' ? '#ff6600' : '#00ced1';
+        ctx.beginPath();
+        ctx.arc(mx, my, 3.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 8px monospace';
+        ctx.fillText(npc.type === 'edward' ? 'E' : 'M', mx-3, my-3);
+    }
+
+    const sx=(playerPos.x+100)*scale, sy=(playerPos.z+100)*scale;
+    ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════
+let notifTimer = null;
+function showNotification(text) {
+    const el = document.getElementById('notification');
+    el.textContent = text; el.classList.add('show');
+    clearTimeout(notifTimer);
+    notifTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function addKillFeed(text) {
+    const feed = document.getElementById('killfeed');
+    const div = document.createElement('div');
+    div.className = 'kill-entry'; div.textContent = text;
+    feed.appendChild(div);
+    setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500);
+}
+</script>
+</body>
+</html>
