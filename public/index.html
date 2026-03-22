@@ -489,7 +489,7 @@
                 <button class="btn-enter" onclick="doRegister()">📜 KAHRAMAN OLUŞTUR 📜</button>
             </div>
 
-            <!-- FORGOT PASSWORD -->
+            <!-- FORGOT PASSWORD - Email Entry -->
             <div class="form-panel" id="panel-forgot">
                 <div id="msg-forgot" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
@@ -505,10 +505,11 @@
                 </div>
             </div>
 
+            <!-- RESET CODE VERIFICATION -->
             <div class="form-panel" id="panel-reset-code">
                 <div id="msg-reset-code" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
-                    E-posta adresinize 6 haneli doğrulama kodu gönderildi.
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen girin.
                 </p>
                 <div class="field-wrap">
                     <label class="field-label">🔑 Doğrulama Kodu</label>
@@ -520,6 +521,7 @@
                 </div>
             </div>
 
+            <!-- NEW PASSWORD -->
             <div class="form-panel" id="panel-new-password">
                 <div id="msg-new-password" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;" id="reset-username-display"></p>
@@ -537,10 +539,11 @@
                 </div>
             </div>
 
+            <!-- EMAIL VERIFY (Registration) -->
             <div class="form-panel" id="panel-verify">
                 <div id="msg-verify" class="msg-box"></div>
                 <p style="font-family:'Cinzel',serif;font-size:11px;color:#8a6a2a;letter-spacing:1px;margin-bottom:16px;line-height:1.6;">
-                    E-posta adresinize 6 haneli doğrulama kodu gönderildi.
+                    E-posta adresinize 6 haneli doğrulama kodu gönderildi. Lütfen kontrol edin.
                 </p>
                 <div class="field-wrap">
                     <label class="field-label">🔑 Doğrulama Kodu</label>
@@ -582,8 +585,10 @@
         </div>
     </div>
 
+    <!-- Craft Toggle -->
     <div id="craft-toggle" onclick="toggleCraft()">🔨</div>
 
+    <!-- Craft Panel -->
     <div id="craft-panel">
         <div class="craft-title">⚒ ÜRETIM TEZGAHI</div>
         <div class="craft-option" onclick="doCraft('sword')">
@@ -609,6 +614,7 @@
         </div>
     </div>
 
+    <!-- Mobile Controls -->
     <div id="mobile-controls">
         <div id="joystick-container">
             <div id="joystick-inner"></div>
@@ -621,10 +627,14 @@
         <button id="attack-btn" onclick="doAttackNearest()">⚔️</button>
     </div>
 
+    <!-- Minimap -->
     <div id="minimap"><canvas id="minimap-canvas" width="100" height="100"></canvas></div>
+
+    <!-- Online Count -->
     <div id="online-count">🟢 <span id="online-num">1</span> KAHRAMAN ÇEVRIMIÇI</div>
 </div>
 
+<!-- FX -->
 <div id="damage-flash"></div>
 <div id="killfeed"></div>
 <div id="notification"></div>
@@ -741,6 +751,7 @@ function showMsg(id, type, text) {
 }
 function hideMsg(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
 
+// ── Field Validation (Türkçe karakter desteği eklendi) ──
 let usernameCheckTimer = null;
 function checkUsername(input) {
     const val = input.value.trim();
@@ -841,6 +852,7 @@ function checkPassword2(input) {
     }
 }
 
+// ── Socket: usernameAvailable ──
 socket.on('usernameAvailable', (data) => {
     const input = document.getElementById('reg-user');
     const hint = document.getElementById('reg-user-hint');
@@ -861,11 +873,13 @@ socket.on('usernameAvailable', (data) => {
     }
 });
 
+// ─ Auto-login from session ─
 const _sess = loadSession();
 if (_sess && _sess.token) {
     socket.emit('loginWithToken', _sess.token);
 }
 
+// ── Login ──
 function doLogin() {
     const username = document.getElementById('login-user').value.trim();
     const password = document.getElementById('login-pass').value;
@@ -875,6 +889,7 @@ function doLogin() {
     socket.emit('login', { username, password });
 }
 
+// ── Register ──
 function doRegister() {
     const username = document.getElementById('reg-user').value.trim();
     const email = document.getElementById('reg-email').value.trim();
@@ -885,18 +900,19 @@ function doRegister() {
     if (!username) { showMsg('msg-register', 'error', 'Kahraman adı boş bırakılamaz.'); return; }
     if (username.length < 3) { showMsg('msg-register', 'error', 'Kahraman adı en az 3 karakter olmalıdır.'); return; }
     if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { 
-        showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var.'); 
+        showMsg('msg-register', 'error', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanın.'); 
         return; 
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('msg-register', 'error', 'Geçerli bir e-posta adresi girin.'); return; }
     if (!password || password.length < 6) { showMsg('msg-register', 'error', 'Şifre en az 6 karakter olmalıdır.'); return; }
     if (password !== password2) { showMsg('msg-register', 'error', 'Şifreler birbiriyle eşleşmiyor.'); return; }
-    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı.'); refreshCaptcha(); return; }
+    if (captchaInput !== currentCaptcha) { showMsg('msg-register', 'error', 'Güvenlik kodu hatalı. Lütfen yeniden deneyin.'); refreshCaptcha(); return; }
 
     hideMsg('msg-register');
     socket.emit('register', { username, email, password });
 }
 
+// ── Forgot Password (Send Code) ──
 function doForgotPassword() {
     const email = document.getElementById('forgot-email').value.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -909,6 +925,7 @@ function doForgotPassword() {
     socket.emit('forgotPassword', { email });
 }
 
+// ── Verify Reset Code ──
 let resetEmail = '';
 function verifyResetCode() {
     const code = document.getElementById('reset-code-input').value.trim();
@@ -920,6 +937,7 @@ function verifyResetCode() {
     socket.emit('verifyResetCode', { email: resetEmail, code });
 }
 
+// ── Save New Password ──
 function saveNewPassword() {
     const pass1 = document.getElementById('new-password1').value;
     const pass2 = document.getElementById('new-password2').value;
@@ -937,6 +955,7 @@ function saveNewPassword() {
     socket.emit('resetPassword', { email: resetEmail, newPassword: pass1 });
 }
 
+// ── Email Verify (Registration) ──
 let pendingVerifyUser = null;
 function doVerifyCode() {
     const code = document.getElementById('verify-code').value.trim();
@@ -953,6 +972,7 @@ function resendCode() {
     showMsg('msg-verify', 'success', 'Doğrulama kodu tekrar gönderildi.');
 }
 
+// Enter tuşu desteği
 document.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
         const activePanel = document.querySelector('.form-panel.active');
@@ -966,9 +986,11 @@ document.addEventListener('keydown', e => {
     }
 });
 
+// ── Socket Auth Events ──
 socket.on('loginSuccess', (data) => {
     if (data && data.token) saveSession({ token: data.token, username: data.username });
     startLoadingSequence();
+    // Tam ekran ve yatay yönlendirme
     enterFullscreen();
 });
 
@@ -982,6 +1004,7 @@ socket.on('verifySuccess', () => {
     showMsg('msg-verify', 'success', 'E-posta doğrulandı! Giriş yapılıyor...');
 });
 
+// Forgot Password Socket Events
 socket.on('forgotPasswordCodeSent', () => {
     resetEmail = document.getElementById('forgot-email').value.trim();
     showMsg('msg-forgot', 'success', 'Doğrulama kodu e-posta adresinize gönderildi.');
@@ -1025,9 +1048,12 @@ socket.on('loginError', (msg) => {
         else if (activePanel.id === 'panel-reset-code') msgId = 'msg-reset-code';
         else if (activePanel.id === 'panel-new-password') msgId = 'msg-new-password';
     }
-    showMsg(msgId, 'error', msg || 'Bir hata oluştu.');
+    showMsg(msgId, 'error', msg || 'Bir hata oluştu. Lütfen tekrar deneyin.');
 });
 
+// ═══════════════════════════════════════════════
+//  LOADING SEQUENCE
+// ═══════════════════════════════════════════════
 function startLoadingSequence() {
     document.getElementById('auth-screen').style.display = 'none';
     const overlay = document.getElementById('loading-overlay');
@@ -1079,20 +1105,18 @@ let playerPos = { x: 0, y: 0, z: 0 };
 
 const joystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
 
-// ========== GERÇEKÇİ NPC KARAKTER SİSTEMİ (ANİME MODELLERİ) ==========
+// ========== YENİ GERÇEKÇİ KARAKTER MODELLERİ (Animeden Esinlenerek) ==========
 let spawnedNPCs = {};
 let npcIdCounter = 100;
 
-// Karakter yetenekleri ve görsel özellikler
 const characterSkills = {
     edward: {
         name: 'Edward Elric',
         hp: 150,
-        maxHp: 150,
         attackDamage: 18,
         color: 0xc97e5a,
         hairColor: 0xd4af37,
-        outfitColor: 0xaa3a2a,
+        skinColor: 0xf5d0a9,
         skill: {
             name: 'Alchemy: Spear',
             cooldown: 3000,
@@ -1100,7 +1124,12 @@ const characterSkills = {
                 const dmg = 35;
                 target.hp -= dmg;
                 showNotification(`⚙️ Edward: Alchemy Mızrağı ile ${dmg} hasar!`);
-                createEnhancedEffect('edward', caster, target, scene);
+                const lineMat = new THREE.LineBasicMaterial({ color: 0xff3300 });
+                const points = [new THREE.Vector3(caster.x, 1, caster.z), new THREE.Vector3(target.x, 1, target.z)];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, lineMat);
+                scene.add(line);
+                setTimeout(() => scene.remove(line), 500);
                 return dmg;
             }
         }
@@ -1108,11 +1137,10 @@ const characterSkills = {
     muichiro: {
         name: 'Muichiro Tokito',
         hp: 130,
-        maxHp: 130,
         attackDamage: 22,
         color: 0x88aacc,
         hairColor: 0x66aacc,
-        outfitColor: 0x2c3e50,
+        skinColor: 0xf0e0c0,
         skill: {
             name: 'Mist Breathing: Seventh Form',
             cooldown: 2800,
@@ -1120,220 +1148,143 @@ const characterSkills = {
                 const dmg = 40;
                 target.hp -= dmg;
                 showNotification(`💨 Muichiro: Mist Breathing ile ${dmg} hasar!`);
-                createEnhancedEffect('muichiro', caster, target, scene);
+                for(let i=0;i<30;i++) {
+                    const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1,3,3), new THREE.MeshStandardMaterial({ color: 0xaaffdd, emissive: 0x2266aa }));
+                    particle.position.set(target.x + (Math.random()-0.5)*2, target.y+1, target.z + (Math.random()-0.5)*2);
+                    scene.add(particle);
+                    setTimeout(() => scene.remove(particle), 400);
+                }
                 return dmg;
             }
         }
     }
 };
 
-// Gelişmiş görsel efektler
-function createEnhancedEffect(type, caster, target, scene) {
-    const startPos = new THREE.Vector3(caster.x, 1.2, caster.z);
-    const endPos = new THREE.Vector3(target.x, 1.2, target.z);
-    
-    if (type === 'edward') {
-        // Alchemy mızrağı efekti - kırmızı-turuncu ışın
-        const points = [];
-        for (let i = 0; i <= 15; i++) {
-            const t = i / 15;
-            const x = startPos.x + (endPos.x - startPos.x) * t;
-            const z = startPos.z + (endPos.z - startPos.z) * t;
-            points.push(new THREE.Vector3(x, 1.2 + Math.sin(t * Math.PI) * 0.4, z));
-        }
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xff5500 });
-        const line = new THREE.Line(lineGeometry, lineMat);
-        scene.add(line);
-        
-        // Toprak patlaması partikülleri
-        for (let i = 0; i < 30; i++) {
-            const particle = new THREE.Mesh(
-                new THREE.SphereGeometry(0.1, 4, 4),
-                new THREE.MeshStandardMaterial({ color: 0xaa6644, emissive: 0x442200 })
-            );
-            particle.position.set(
-                target.x + (Math.random() - 0.5) * 2,
-                target.y + 0.5 + Math.random() * 1.5,
-                target.z + (Math.random() - 0.5) * 2
-            );
-            scene.add(particle);
-            setTimeout(() => scene.remove(particle), 500);
-        }
-        setTimeout(() => scene.remove(line), 300);
-        
-    } else if (type === 'muichiro') {
-        // Mist Breathing - sis ve ışık efekti
-        const particleCount = 60;
-        for (let i = 0; i < particleCount; i++) {
-            const particle = new THREE.Mesh(
-                new THREE.SphereGeometry(0.12, 6, 6),
-                new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2266aa, transparent: true, opacity: 0.8 })
-            );
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 2;
-            particle.position.set(
-                target.x + Math.cos(angle) * radius,
-                target.y + 0.8 + Math.random() * 1.2,
-                target.z + Math.sin(angle) * radius
-            );
-            scene.add(particle);
-            
-            let step = 0;
-            const interval = setInterval(() => {
-                if (step > 20) {
-                    clearInterval(interval);
-                    scene.remove(particle);
-                } else {
-                    particle.position.y += 0.04;
-                    particle.material.opacity -= 0.04;
-                    step++;
-                }
-            }, 25);
-        }
-        
-        // Keskin ışık çizgisi
-        const slashGeometry = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
-        const slashMat = new THREE.LineBasicMaterial({ color: 0x44aaff });
-        const slash = new THREE.Line(slashGeometry, slashMat);
-        scene.add(slash);
-        setTimeout(() => scene.remove(slash), 200);
-    }
-}
-
-// Detaylı anime karakter modeli oluşturma
-function createAnimeCharacterModel(type) {
+function createCharacterModel(type) {
     const group = new THREE.Group();
-    const skills = characterSkills[type];
+    const skinMat = new THREE.MeshStandardMaterial({ color: characterSkills[type].skinColor, roughness: 0.4, metalness: 0.1 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: characterSkills[type].hairColor, roughness: 0.6 });
+    const clothesMat = new THREE.MeshStandardMaterial({ color: characterSkills[type].color, roughness: 0.5, metalness: 0.2 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xaa8866, metalness: 0.7, roughness: 0.3 });
     
-    // Ana renkler
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9, roughness: 0.3, metalness: 0.1 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: skills.hairColor, roughness: 0.4 });
-    const outfitMat = new THREE.MeshStandardMaterial({ color: skills.outfitColor, roughness: 0.5, metalness: 0.2 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: skills.color, metalness: 0.6, roughness: 0.3 });
-    
-    // Gövde
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.9, 12), outfitMat);
-    body.position.y = 0.55;
+    // Gövde (ince ve dinamik)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 1.0, 8), clothesMat);
+    body.position.y = 0.5;
     body.castShadow = true;
     group.add(body);
     
-    // Omuz zırhı
-    const leftShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), accentMat);
-    leftShoulder.position.set(-0.32, 0.92, 0);
-    leftShoulder.castShadow = true;
-    group.add(leftShoulder);
+    // Göğüs plakası
+    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.38, 0.22), metalMat);
+    chestPlate.position.set(0, 0.68, 0.16);
+    chestPlate.castShadow = true;
+    group.add(chestPlate);
     
-    const rightShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), accentMat);
-    rightShoulder.position.set(0.32, 0.92, 0);
-    rightShoulder.castShadow = true;
-    group.add(rightShoulder);
+    // Baş (daha yuvarlak)
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 24), skinMat);
+    head.position.y = 1.05;
+    head.castShadow = true;
+    group.add(head);
     
-    // Kollar
-    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.55, 6), skinMat);
-    leftArm.position.set(-0.38, 0.68, 0);
+    // Saç (stilize anime)
+    const hairBase = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.22, 12), hairMat);
+    hairBase.position.y = 1.22;
+    hairBase.castShadow = true;
+    group.add(hairBase);
+    
+    if(type === 'edward') {
+        // Edward'ın ünlü örgüsü ve anten saç
+        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.32, 6), hairMat);
+        antenna.position.set(0.2, 1.36, 0.22);
+        antenna.rotation.z = 0.3;
+        group.add(antenna);
+        
+        const braid = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.48, 6), hairMat);
+        braid.position.set(-0.22, 1.12, -0.28);
+        braid.rotation.x = 0.2;
+        group.add(braid);
+        
+        // Kolluk (otomatail)
+        const armlet = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.2, 8), metalMat);
+        armlet.position.set(0.35, 0.85, 0.02);
+        group.add(armlet);
+        
+        // Pelerin hissi
+        const cape = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.7, 0.06), new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.7 }));
+        cape.position.set(0, 0.65, -0.28);
+        cape.castShadow = true;
+        group.add(cape);
+    } else {
+        // Muichiro: Uzun saç ve hafif eğimli
+        const longHairBack = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.48, 8), hairMat);
+        longHairBack.position.set(0, 1.05, -0.3);
+        longHairBack.castShadow = true;
+        group.add(longHairBack);
+        
+        const hairSideL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.36, 6), hairMat);
+        hairSideL.position.set(-0.28, 1.15, 0.05);
+        hairSideL.rotation.z = -0.2;
+        group.add(hairSideL);
+        
+        const hairSideR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.36, 6), hairMat);
+        hairSideR.position.set(0.28, 1.15, 0.05);
+        hairSideR.rotation.z = 0.2;
+        group.add(hairSideR);
+        
+        // Kılıç sırtında
+        const katanaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.05), new THREE.MeshStandardMaterial({ color: 0xccddff, metalness: 0.9 }));
+        katanaBlade.position.set(0.28, 0.78, 0.18);
+        katanaBlade.rotation.z = 0.15;
+        group.add(katanaBlade);
+        
+        const katanaHandle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.08), new THREE.MeshStandardMaterial({ color: 0x664422 }));
+        katanaHandle.position.set(0.28, 1.04, 0.18);
+        group.add(katanaHandle);
+    }
+    
+    // Kollar (eklemli)
+    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.62, 6), clothesMat);
+    leftArm.position.set(-0.42, 0.82, 0);
     leftArm.rotation.z = 0.2;
     leftArm.castShadow = true;
     group.add(leftArm);
     
-    const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.55, 6), skinMat);
-    rightArm.position.set(0.38, 0.68, 0);
+    const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.62, 6), clothesMat);
+    rightArm.position.set(0.42, 0.82, 0);
     rightArm.rotation.z = -0.2;
     rightArm.castShadow = true;
     group.add(rightArm);
     
-    // Baş
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 24), skinMat);
-    head.position.y = 1.08;
-    head.castShadow = true;
-    group.add(head);
+    // Bacaklar
+    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.68, 6), clothesMat);
+    leftLeg.position.set(-0.2, 0.24, 0);
+    leftLeg.castShadow = true;
+    group.add(leftLeg);
     
-    // Saç
-    const hairBase = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16), hairMat);
-    hairBase.position.y = 1.22;
-    hairBase.scale.set(1, 0.5, 1);
-    group.add(hairBase);
+    const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.68, 6), clothesMat);
+    rightLeg.position.set(0.2, 0.24, 0);
+    rightLeg.castShadow = true;
+    group.add(rightLeg);
     
-    const hairTop = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.35, 8), hairMat);
-    hairTop.position.y = 1.45;
-    group.add(hairTop);
-    
-    // Karaktere özel aksesuarlar
-    if (type === 'edward') {
-        // Edward'ın metal kolu
-        const metalArm = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.13, 0.55, 8), new THREE.MeshStandardMaterial({ color: 0xaa8866, metalness: 0.8 }));
-        metalArm.position.set(0.38, 0.68, 0);
-        metalArm.rotation.z = -0.2;
-        group.remove(rightArm);
-        group.add(metalArm);
-        
-        // Kırmızı palto
-        const cloak = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.75, 0.22), new THREE.MeshStandardMaterial({ color: 0xaa3a2a }));
-        cloak.position.set(0, 0.65, -0.28);
-        cloak.castShadow = true;
-        group.add(cloak);
-        
-        // Altın saç örgü
-        const braid = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.4, 4), hairMat);
-        braid.position.set(-0.22, 0.98, -0.32);
-        braid.rotation.x = 0.3;
-        group.add(braid);
-        
-    } else if (type === 'muichiro') {
-        // Muichiro'nun sırtındaki kılıç
-        const katana = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.08), new THREE.MeshStandardMaterial({ color: 0xccddff, metalness: 0.7 }));
-        katana.position.set(0.28, 0.72, 0.22);
-        katana.rotation.z = 0.15;
-        group.add(katana);
-        
-        const katanaHandle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.1), new THREE.MeshStandardMaterial({ color: 0xaa8866 }));
-        katanaHandle.position.set(0.28, 1.02, 0.22);
-        group.add(katanaHandle);
-        
-        // Saç tokası
-        const hairpin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.04), new THREE.MeshStandardMaterial({ color: 0x88aaff }));
-        hairpin.position.set(0.18, 1.35, 0.28);
-        group.add(hairpin);
-        
-        // Mavi omuz bandı
-        const shoulderBand = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0x66aacc }));
-        shoulderBand.position.set(0, 0.92, 0);
-        shoulderBand.rotation.x = Math.PI / 2;
-        group.add(shoulderBand);
-    }
-    
-    // Gözler (basit ama etkili)
-    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
-    
-    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), eyeWhiteMat);
-    leftEye.position.set(-0.12, 1.18, 0.34);
-    group.add(leftEye);
-    
-    const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), eyeWhiteMat);
-    rightEye.position.set(0.12, 1.18, 0.34);
-    group.add(rightEye);
-    
-    const leftPupil = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), eyePupilMat);
-    leftPupil.position.set(-0.12, 1.17, 0.41);
-    group.add(leftPupil);
-    
-    const rightPupil = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), eyePupilMat);
-    rightPupil.position.set(0.12, 1.17, 0.41);
-    group.add(rightPupil);
+    // Botlar
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x4a2a1a });
+    const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.28), bootMat);
+    leftBoot.position.set(-0.2, -0.02, 0.04);
+    group.add(leftBoot);
+    const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.28), bootMat);
+    rightBoot.position.set(0.2, -0.02, 0.04);
+    group.add(rightBoot);
     
     group.castShadow = true;
     group.receiveShadow = false;
     return group;
 }
 
-// Karakter spawn etme
 function spawnCharacter(type) {
     const spawnX = playerPos.x + (Math.sin(yaw) * 2.5);
     const spawnZ = playerPos.z + (Math.cos(yaw) * 2.5);
     const npcId = npcIdCounter++;
     
-    const model = createAnimeCharacterModel(type);
+    const model = createCharacterModel(type);
     model.position.set(spawnX, 0, spawnZ);
     scene.add(model);
     
@@ -1350,23 +1301,18 @@ function spawnCharacter(type) {
         target: null,
         x: spawnX,
         z: spawnZ,
-        y: 0,
-        animTime: 0
+        y: 0
     };
     spawnedNPCs[npcId] = charData;
-    
     assignTargetsToNPCs();
     showNotification(`${characterSkills[type].name} dünyaya çağrıldı!`);
 }
 
-// NPC'ler arasında hedef atama
 function assignTargetsToNPCs() {
     const ids = Object.keys(spawnedNPCs);
     if(ids.length < 2) return;
-    
     const edwardId = ids.find(id => spawnedNPCs[id].type === 'edward');
     const muichiroId = ids.find(id => spawnedNPCs[id].type === 'muichiro');
-    
     if(edwardId && muichiroId) {
         spawnedNPCs[edwardId].target = muichiroId;
         spawnedNPCs[muichiroId].target = edwardId;
@@ -1374,24 +1320,20 @@ function assignTargetsToNPCs() {
     }
 }
 
-// NPC savaş mantığı
 function updateNPCCombat() {
     const now = Date.now();
     for(let id in spawnedNPCs) {
         const npc = spawnedNPCs[id];
         if(!npc) continue;
-        
         if(npc.hp <= 0) {
             if(npc.mesh) scene.remove(npc.mesh);
             delete spawnedNPCs[id];
             showNotification(`${characterSkills[npc.type].name} savaşta yenildi!`);
             continue;
         }
-        
         let targetNPC = null;
-        if(npc.target && spawnedNPCs[npc.target]) {
-            targetNPC = spawnedNPCs[npc.target];
-        } else {
+        if(npc.target && spawnedNPCs[npc.target]) targetNPC = spawnedNPCs[npc.target];
+        else {
             for(let otherId in spawnedNPCs) {
                 if(otherId !== id && spawnedNPCs[otherId].type !== npc.type) {
                     npc.target = otherId;
@@ -1400,17 +1342,10 @@ function updateNPCCombat() {
                 }
             }
         }
-        
         if(!targetNPC) continue;
-        
         const dx = targetNPC.mesh.position.x - npc.mesh.position.x;
         const dz = targetNPC.mesh.position.z - npc.mesh.position.z;
         const distance = Math.sqrt(dx*dx + dz*dz);
-        
-        // Idle animasyonu
-        npc.animTime = (npc.animTime || 0) + 0.05;
-        npc.mesh.position.y = 0 + Math.sin(npc.animTime) * 0.02;
-        
         if(distance > 1.5) {
             const angle = Math.atan2(dx, dz);
             const moveSpeed = 0.025;
@@ -1424,18 +1359,15 @@ function updateNPCCombat() {
                 npc.lastAttack = now;
                 targetNPC.hp -= npc.attackDamage;
                 showNotification(`${characterSkills[npc.type].name} ${characterSkills[targetNPC.type].name}'e ${npc.attackDamage} hasar verdi!`);
-                
                 const flash = document.getElementById('damage-flash');
                 flash.classList.add('flash');
                 setTimeout(() => flash.classList.remove('flash'), 150);
-                
                 if(npc.skill && (now - (npc.lastSkillUse || 0) > npc.skill.cooldown)) {
                     npc.lastSkillUse = now;
                     npc.skill.effect(npc, targetNPC, scene);
                 }
             }
         }
-        
         npc.mesh.position.x = Math.min(95, Math.max(-95, npc.mesh.position.x));
         npc.mesh.position.z = Math.min(95, Math.max(-95, npc.mesh.position.z));
         npc.x = npc.mesh.position.x;
@@ -1443,15 +1375,13 @@ function updateNPCCombat() {
     }
 }
 
+// Tam ekran ve yatay yönlendirme
 function enterFullscreen() {
     const elem = document.documentElement;
     if (elem.requestFullscreen) elem.requestFullscreen();
     else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
     else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-    
-    if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed', e));
-    }
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed', e));
 }
 
 function enterGame() {
@@ -1478,24 +1408,15 @@ function initThree(canvas) {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a0f05);
     scene.fog = new THREE.Fog(0x1a0f05, 30, 120);
-
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
     camera.position.set(playerPos.x, playerPos.y + CAM_HEIGHT + 1, playerPos.z + CAM_DISTANCE);
-
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     const ambient = new THREE.AmbientLight(0x2a1a05, 1.2);
     scene.add(ambient);
-
     const sun = new THREE.DirectionalLight(0xc9a84c, 1.5);
     sun.position.set(30, 60, 20);
     sun.castShadow = true;
@@ -1504,41 +1425,23 @@ function initThree(canvas) {
     sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
     sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
     scene.add(sun);
-
-    [[5,1,5],[-5,1,-5],[10,1,-8],[-8,1,12]].forEach(([x,y,z]) => {
-        const pt = new THREE.PointLight(0xe67e22, 1.5, 12);
-        pt.position.set(x, y, z); scene.add(pt);
-    });
+    [[5,1,5],[-5,1,-5],[10,1,-8],[-8,1,12]].forEach(([x,y,z]) => { const pt = new THREE.PointLight(0xe67e22, 1.5, 12); pt.position.set(x, y, z); scene.add(pt); });
 }
 
 function buildWorld() {
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 40, 40), new THREE.MeshLambertMaterial({ color: 0x1a1005 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-
     const grid = new THREE.GridHelper(200, 50, 0x2a1e08, 0x1a1005);
     grid.position.y = 0.01; scene.add(grid);
-
     const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10, transparent: true, opacity: 0.5 });
-    [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => {
-        const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1);
-        const wall = new THREE.Mesh(geo, wallMat);
-        wall.position.set(x, y, z); scene.add(wall);
-    });
-
-    for (let i = 0; i < 20; i++) {
-        const r = Math.random() * 0.4 + 0.1;
-        const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 }));
-        mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180);
-        mesh.rotation.set(Math.random(), Math.random(), Math.random());
-        scene.add(mesh);
-    }
+    [[0,2,100],[0,2,-100],[100,2,0],[-100,2,0]].forEach(([x,y,z]) => { const geo = z === 0 ? new THREE.BoxGeometry(1,4,200) : new THREE.BoxGeometry(200,4,1); const wall = new THREE.Mesh(geo, wallMat); wall.position.set(x, y, z); scene.add(wall); });
+    for (let i = 0; i < 20; i++) { const r = Math.random() * 0.4 + 0.1; const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), new THREE.MeshLambertMaterial({ color: 0x2a2216 })); mesh.position.set((Math.random()-0.5)*180, r, (Math.random()-0.5)*180); mesh.rotation.set(Math.random(), Math.random(), Math.random()); scene.add(mesh); }
 }
 
 function spawnResources() {
     for (let i = 0; i < 15; i++) createTree((Math.random()-0.5)*160, (Math.random()-0.5)*160, i);
     for (let i = 0; i < 12; i++) createRock((Math.random()-0.5)*160, (Math.random()-0.5)*160, i+100);
 }
-
 function createTree(x, z, id) {
     const group = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.35,2.5,7), new THREE.MeshLambertMaterial({color:0x3a2010}));
@@ -1548,65 +1451,32 @@ function createTree(x, z, id) {
     group.position.set(x, 0, z); scene.add(group);
     resourceObjects.push({ mesh: group, type: 'wood', id, x, z, radius: 2 });
 }
-
 function createRock(x, z, id) {
     const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.4,0), new THREE.MeshLambertMaterial({color:0x4a4030}));
     mesh.position.set(x, 0.7, z); mesh.rotation.set(Math.random(),Math.random(),Math.random()); mesh.castShadow = true;
     scene.add(mesh);
     resourceObjects.push({ mesh, type: 'stone', id, x, z, radius: 1.5 });
 }
-
 function createPlayerMesh(color) {
     const group = new THREE.Group();
-    const skinColor = color || 0xc9a84c;
     const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
-    const armorMat = new THREE.MeshLambertMaterial({ color: skinColor });
+    const armorMat = new THREE.MeshLambertMaterial({ color: color || 0xc9a84c });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x1a1206 });
     const beltMat = new THREE.MeshLambertMaterial({ color: 0x3a2010 });
-
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.46,0.42), skinMat);
-    head.position.y = 1.72; head.castShadow = true; group.add(head);
-    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44,0.14,0.44), darkMat);
-    hair.position.y = 1.99; group.add(hair);
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.12,6), skinMat);
-    neck.position.y = 1.44; group.add(neck);
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56,0.42,0.28), armorMat);
-    chest.position.y = 1.18; chest.castShadow = true; group.add(chest);
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.3,0.06), new THREE.MeshLambertMaterial({color:0xc9a84c}));
-    plate.position.set(0,1.18,0.17); group.add(plate);
-    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.2,0.24), armorMat);
-    waist.position.y = 0.88; group.add(waist);
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48,0.08,0.26), beltMat);
-    belt.position.y = 0.78; group.add(belt);
-
-    [-0.32, 0.32].forEach(ox => {
-        const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.34,0.18), armorMat);
-        ua.position.set(ox,1.08,0); ua.castShadow = true; group.add(ua);
-        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4), armorMat);
-        elbow.position.set(ox,0.88,0); group.add(elbow);
-        const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,0.15), skinMat);
-        fa.position.set(ox,0.68,0); fa.castShadow = true; group.add(fa);
-        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.12), skinMat);
-        hand.position.set(ox,0.5,0); group.add(hand);
-    });
-
-    [-0.14, 0.14].forEach(ox => {
-        const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.38,0.22), armorMat);
-        ul.position.set(ox,0.45,0); ul.castShadow = true; group.add(ul);
-        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4), armorMat);
-        knee.position.set(ox,0.25,0); group.add(knee);
-        const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19,0.38,0.19), darkMat);
-        ll.position.set(ox,0.04,0); ll.castShadow = true; group.add(ll);
-        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.1,0.28), darkMat);
-        boot.position.set(ox,-0.17,0.04); group.add(boot);
-    });
-
-    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.55,0.04), new THREE.MeshLambertMaterial({color:0xaaaacc}));
-    swordBlade.position.set(0.28,0.95,-0.18); swordBlade.rotation.z = 0.2; group.add(swordBlade);
-
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.46,0.42), skinMat); head.position.y = 1.72; head.castShadow = true; group.add(head);
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.44,0.14,0.44), darkMat); hair.position.y = 1.99; group.add(hair);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.12,6), skinMat); neck.position.y = 1.44; group.add(neck);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.56,0.42,0.28), armorMat); chest.position.y = 1.18; chest.castShadow = true; group.add(chest);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.3,0.06), new THREE.MeshLambertMaterial({color:0xc9a84c})); plate.position.set(0,1.18,0.17); group.add(plate);
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.2,0.24), armorMat); waist.position.y = 0.88; group.add(waist);
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.48,0.08,0.26), beltMat); belt.position.y = 0.78; group.add(belt);
+    [-0.32, 0.32].forEach(ox => { const ua = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.34,0.18), armorMat); ua.position.set(ox,1.08,0); ua.castShadow = true; group.add(ua); const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4), armorMat); elbow.position.set(ox,0.88,0); group.add(elbow); const fa = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,0.15), skinMat); fa.position.set(ox,0.68,0); fa.castShadow = true; group.add(fa); const hand = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.12), skinMat); hand.position.set(ox,0.5,0); group.add(hand); });
+    [-0.14, 0.14].forEach(ox => { const ul = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.38,0.22), armorMat); ul.position.set(ox,0.45,0); ul.castShadow = true; group.add(ul); const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4), armorMat); knee.position.set(ox,0.25,0); group.add(knee); const ll = new THREE.Mesh(new THREE.BoxGeometry(0.19,0.38,0.19), darkMat); ll.position.set(ox,0.04,0); ll.castShadow = true; group.add(ll); const boot = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.1,0.28), darkMat); boot.position.set(ox,-0.17,0.04); group.add(boot); });
+    const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.55,0.04), new THREE.MeshLambertMaterial({color:0xaaaacc})); swordBlade.position.set(0.28,0.95,-0.18); swordBlade.rotation.z = 0.2; group.add(swordBlade);
     return group;
 }
 
+// Socket Events...
 socket.on('currentPlayers', (players) => {
     Object.values(players).forEach(p => {
         if (p.id === socket.id) {
@@ -1619,271 +1489,100 @@ socket.on('currentPlayers', (players) => {
     });
     updateOnlineCount(Object.keys(players).length);
 });
-
-socket.on('newPlayer', (p) => {
-    if (p.id !== socket.id) addOtherPlayer(p);
-    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
-    addKillFeed(`⚔ ${p.username} dünyaya katıldı`);
-});
-
-socket.on('playerMoved', (p) => {
-    if (p.id === socket.id) return;
-    if (otherPlayerMeshes[p.id]) {
-        otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z);
-        if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY;
-    }
-});
-
-socket.on('playerDisconnected', (id) => {
-    if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; }
-    updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1);
-});
-
-socket.on('updateInventory', (inv) => {
-    document.getElementById('inv-wood').textContent = inv.wood;
-    document.getElementById('inv-stone').textContent = inv.stone;
-    document.getElementById('inv-sword').textContent = inv.sword;
-    document.getElementById('inv-pickaxe').textContent = inv.pickaxe;
-    document.getElementById('inv-axe').textContent = inv.axe;
-});
-
-socket.on('hpUpdate', (data) => {
-    if (data.id === socket.id) {
-        updateHP(data.hp);
-        const flash = document.getElementById('damage-flash');
-        flash.classList.add('flash');
-        setTimeout(() => flash.classList.remove('flash'), 200);
-    }
-});
-
-function addOtherPlayer(p) {
-    const mesh = createPlayerMesh(p.color);
-    mesh.position.set(p.x||0, p.y||0, p.z||0);
-    scene.add(mesh); otherPlayerMeshes[p.id] = mesh;
-}
-function updateHP(hp) {
-    const pct = Math.max(0,hp)/100;
-    document.getElementById('hp-fill').style.width = (pct*100)+'%';
-    document.getElementById('hp-text').textContent = `${Math.max(0,hp)}/100`;
-}
+socket.on('newPlayer', (p) => { if (p.id !== socket.id) addOtherPlayer(p); updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1); addKillFeed(`⚔ ${p.username} dünyaya katıldı`); });
+socket.on('playerMoved', (p) => { if (p.id === socket.id) return; if (otherPlayerMeshes[p.id]) { otherPlayerMeshes[p.id].position.set(p.x, p.y || 0, p.z); if (p.rotationY !== undefined) otherPlayerMeshes[p.id].rotation.y = p.rotationY; } });
+socket.on('playerDisconnected', (id) => { if (otherPlayerMeshes[id]) { scene.remove(otherPlayerMeshes[id]); delete otherPlayerMeshes[id]; } updateOnlineCount(Object.keys(otherPlayerMeshes).length + 1); });
+socket.on('updateInventory', (inv) => { document.getElementById('inv-wood').textContent = inv.wood; document.getElementById('inv-stone').textContent = inv.stone; document.getElementById('inv-sword').textContent = inv.sword; document.getElementById('inv-pickaxe').textContent = inv.pickaxe; document.getElementById('inv-axe').textContent = inv.axe; });
+socket.on('hpUpdate', (data) => { if (data.id === socket.id) { updateHP(data.hp); const flash = document.getElementById('damage-flash'); flash.classList.add('flash'); setTimeout(() => flash.classList.remove('flash'), 200); } });
+function addOtherPlayer(p) { const mesh = createPlayerMesh(p.color); mesh.position.set(p.x||0, p.y||0, p.z||0); scene.add(mesh); otherPlayerMeshes[p.id] = mesh; }
+function updateHP(hp) { const pct = Math.max(0,hp)/100; document.getElementById('hp-fill').style.width = (pct*100)+'%'; document.getElementById('hp-text').textContent = `${Math.max(0,hp)}/100`; }
 function updateOnlineCount(n) { document.getElementById('online-num').textContent = n; }
 
 function setupInput(canvas) {
     let mouseDown = false, lastMouseX = 0, lastMouseY = 0;
-
-    canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
-        if (e.button === 0) doAttackNearest();
-    });
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 2) { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; } if (e.button === 0) doAttackNearest(); });
     document.addEventListener('mouseup', (e) => { if (e.button === 2) mouseDown = false; });
-    document.addEventListener('mousemove', (e) => {
-        if (!mouseDown) return;
-        yaw -= (e.clientX - lastMouseX) * 0.004;
-        pitch -= (e.clientY - lastMouseY) * 0.003;
-        pitch = Math.max(-0.6, Math.min(0.8, pitch));
-        lastMouseX = e.clientX; lastMouseY = e.clientY;
-    });
-
+    document.addEventListener('mousemove', (e) => { if (!mouseDown) return; yaw -= (e.clientX - lastMouseX) * 0.004; pitch -= (e.clientY - lastMouseY) * 0.003; pitch = Math.max(-0.6, Math.min(0.8, pitch)); lastMouseX = e.clientX; lastMouseY = e.clientY; });
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('keydown', e => { keys[e.code] = true; });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
-    document.addEventListener('keydown', e => {
-        if (e.code === 'KeyE') tryCollect();
-        if (e.code === 'KeyF') doAttackNearest();
-        if (e.code === 'Space') tryJump();
-    });
+    document.addEventListener('keydown', e => { if (e.code === 'KeyE') tryCollect(); if (e.code === 'KeyF') doAttackNearest(); if (e.code === 'Space') tryJump(); });
     canvas.addEventListener('wheel', () => {}, { passive: true });
 }
-
 function tryJump() { if (onGround) { velocityY = JUMP_FORCE; onGround = false; } }
-
 function setupMobileControls() {
     if (!('ontouchstart' in window)) return;
     document.getElementById('mobile-controls').style.display = 'block';
     document.getElementById('crosshair').style.display = 'none';
-
     const jc = document.getElementById('joystick-container');
     const knob = document.getElementById('joystick-knob');
     const maxR = 38;
-
-    jc.addEventListener('touchstart', e => {
-        const rect = jc.getBoundingClientRect();
-        joystick.startX = rect.left + rect.width/2;
-        joystick.startY = rect.top + rect.height/2;
-        joystick.active = true;
-    }, { passive: true });
-
-    jc.addEventListener('touchmove', e => {
-        if (!joystick.active) return;
-        const t = e.touches[0];
-        let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY;
-        const dist = Math.sqrt(dx*dx+dy*dy);
-        if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; }
-        joystick.dx = dx/maxR; joystick.dy = dy/maxR;
-        knob.style.transform = `translate(${dx}px,${dy}px)`;
-    }, { passive: true });
-
+    jc.addEventListener('touchstart', e => { const rect = jc.getBoundingClientRect(); joystick.startX = rect.left + rect.width/2; joystick.startY = rect.top + rect.height/2; joystick.active = true; }, { passive: true });
+    jc.addEventListener('touchmove', e => { if (!joystick.active) return; const t = e.touches[0]; let dx = t.clientX - joystick.startX, dy = t.clientY - joystick.startY; const dist = Math.sqrt(dx*dx+dy*dy); if (dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; } joystick.dx = dx/maxR; joystick.dy = dy/maxR; knob.style.transform = `translate(${dx}px,${dy}px)`; }, { passive: true });
     const resetJoystick = () => { joystick.active=false; joystick.dx=0; joystick.dy=0; knob.style.transform=''; };
     jc.addEventListener('touchend', resetJoystick);
     jc.addEventListener('touchcancel', resetJoystick);
-
     let lastTX=0, lastTY=0;
-    document.addEventListener('touchstart', e => {
-        const t = e.touches[0];
-        if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; }
-    }, { passive: true });
-    document.addEventListener('touchmove', e => {
-        for (let t of e.touches) {
-            if (t.clientX > window.innerWidth/2) {
-                yaw -= (t.clientX-lastTX)*0.005;
-                pitch -= (t.clientY-lastTY)*0.005;
-                pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
-                lastTX=t.clientX; lastTY=t.clientY;
-            }
-        }
-    }, { passive: true });
-
+    document.addEventListener('touchstart', e => { const t = e.touches[0]; if (t.clientX > window.innerWidth/2) { lastTX=t.clientX; lastTY=t.clientY; } }, { passive: true });
+    document.addEventListener('touchmove', e => { for (let t of e.touches) { if (t.clientX > window.innerWidth/2) { yaw -= (t.clientX-lastTX)*0.005; pitch -= (t.clientY-lastTY)*0.005; pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch)); lastTX=t.clientX; lastTY=t.clientY; } } }, { passive: true });
     document.getElementById('jump-btn').addEventListener('touchstart', tryJump, { passive: true });
 }
-
 let lastSent = 0, sessionSaveTimer = 0;
-
 function gameLoop() {
     requestAnimationFrame(gameLoop);
     if (!scene) return;
-    
     updateNPCCombat();
-
     const speed = 0.12;
     const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     const move = new THREE.Vector3();
-
     if (keys['KeyW']||keys['ArrowUp']) move.addScaledVector(forward, speed);
     if (keys['KeyS']||keys['ArrowDown']) move.addScaledVector(forward, -speed);
     if (keys['KeyA']||keys['ArrowLeft']) move.addScaledVector(right, -speed);
     if (keys['KeyD']||keys['ArrowRight']) move.addScaledVector(right, speed);
     if (keys['Space']) tryJump();
-
-    if (joystick.active) {
-        move.addScaledVector(forward, -joystick.dy*speed);
-        move.addScaledVector(right, joystick.dx*speed);
-    }
-
+    if (joystick.active) { move.addScaledVector(forward, -joystick.dy*speed); move.addScaledVector(right, joystick.dx*speed); }
     playerPos.x += move.x; playerPos.z += move.z;
     velocityY += GRAVITY; playerPos.y += velocityY;
     if (playerPos.y < 0) { playerPos.y=0; velocityY=0; onGround=true; }
     playerPos.x = Math.max(-98, Math.min(98, playerPos.x));
     playerPos.z = Math.max(-98, Math.min(98, playerPos.z));
-
     if (playerMesh) { playerMesh.position.set(playerPos.x,playerPos.y,playerPos.z); playerMesh.rotation.y = yaw+Math.PI; }
-
     const camOffX = -Math.sin(yaw)*CAM_DISTANCE, camOffZ = -Math.cos(yaw)*CAM_DISTANCE;
     camera.position.x += (playerPos.x-camOffX - camera.position.x)*0.15;
     camera.position.y += (playerPos.y+CAM_HEIGHT+pitch*2 - camera.position.y)*0.15;
     camera.position.z += (playerPos.z-camOffZ - camera.position.z)*0.15;
     camera.lookAt(playerPos.x, playerPos.y+1, playerPos.z);
-
     const now = Date.now();
-    if (now - lastSent > 50) {
-        lastSent = now;
-        socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw });
-    }
-
+    if (now - lastSent > 50) { lastSent = now; socket.emit('playerMovement', { x: playerPos.x, y: playerPos.y, z: playerPos.z, rotationY: yaw }); }
     sessionSaveTimer++;
-    if (sessionSaveTimer > 300) {
-        sessionSaveTimer = 0;
-        const sess = loadSession();
-        if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); }
-    }
-
+    if (sessionSaveTimer > 300) { sessionSaveTimer = 0; const sess = loadSession(); if (sess) { sess.pos={x:playerPos.x,y:playerPos.y,z:playerPos.z}; sess.yaw=yaw; saveSession(sess); } }
     resourceObjects.forEach(r => { if (r.mesh) r.mesh.rotation.y += 0.003; });
     drawMinimap();
     renderer.render(scene, camera);
 }
-
-function tryCollect() {
-    resourceObjects.forEach(r => {
-        if (!r.mesh) return;
-        const dx=playerPos.x-r.x, dz=playerPos.z-r.z;
-        if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) {
-            socket.emit('collect', r.type);
-            showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`);
-        }
-    });
-}
-
-function doAttackNearest() {
-    let nearest=null, nearDist=5;
-    Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => {
-        const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z;
-        const d=Math.sqrt(dx*dx+dz*dz);
-        if (d<nearDist) { nearDist=d; nearest=id; }
-    });
-    if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); }
-}
-
+function tryCollect() { resourceObjects.forEach(r => { if (!r.mesh) return; const dx=playerPos.x-r.x, dz=playerPos.z-r.z; if (Math.sqrt(dx*dx+dz*dz) < r.radius+2) { socket.emit('collect', r.type); showNotification(`${r.type==='wood'?'🪵 Ahşap':'🪨 Taş'} toplandı!`); } }); }
+function doAttackNearest() { let nearest=null, nearDist=5; Object.entries(otherPlayerMeshes).forEach(([id,mesh]) => { const dx=playerPos.x-mesh.position.x, dz=playerPos.z-mesh.position.z; const d=Math.sqrt(dx*dx+dz*dz); if (d<nearDist) { nearDist=d; nearest=id; } }); if (nearest) { socket.emit('attack', nearest); showNotification('⚔️ Saldırı!'); } }
 function toggleCraft() { document.getElementById('craft-panel').classList.toggle('open'); }
-function doCraft(item) {
-    socket.emit('craft', item);
-    showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`);
-}
-
+function doCraft(item) { socket.emit('craft', item); showNotification(`${({sword:'⚔️ Kılıç',pickaxe:'⛏️ Kazma',axe:'🪓 Balta'}[item]||item)} üretildi!`); }
 function drawMinimap() {
     const canvas = document.getElementById('minimap-canvas');
     const ctx = canvas.getContext('2d');
     const W=100, H=100, scale=100/200;
-
     ctx.fillStyle='#0a0806'; ctx.fillRect(0,0,W,H);
     ctx.strokeStyle='#1a1005'; ctx.lineWidth=0.5;
     for (let i=0;i<=W;i+=10) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
     for (let i=0;i<=H;i+=10) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
-
-    resourceObjects.forEach(r => {
-        const mx=(r.x+100)*scale, my=(r.z+100)*scale;
-        ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030';
-        ctx.fillRect(mx-1,my-1,3,3);
-    });
-    
-    Object.values(otherPlayerMeshes).forEach(mesh => {
-        const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale;
-        ctx.fillStyle='#e74c3c';
-        ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill();
-    });
-    
-    for(let id in spawnedNPCs) {
-        const npc = spawnedNPCs[id];
-        const mx = (npc.x+100)*scale, my = (npc.z+100)*scale;
-        ctx.fillStyle = npc.type === 'edward' ? '#c97e5a' : '#88aacc';
-        ctx.beginPath();
-        ctx.arc(mx, my, 3, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 8px monospace';
-        ctx.fillText(npc.type === 'edward' ? 'E' : 'M', mx-3, my-3);
-    }
-
+    resourceObjects.forEach(r => { const mx=(r.x+100)*scale, my=(r.z+100)*scale; ctx.fillStyle=r.type==='wood'?'#1a3a10':'#4a4030'; ctx.fillRect(mx-1,my-1,3,3); });
+    Object.values(otherPlayerMeshes).forEach(mesh => { const mx=(mesh.position.x+100)*scale, my=(mesh.position.z+100)*scale; ctx.fillStyle='#e74c3c'; ctx.beginPath(); ctx.arc(mx,my,2.5,0,Math.PI*2); ctx.fill(); });
+    for(let id in spawnedNPCs) { const npc = spawnedNPCs[id]; const mx = (npc.x+100)*scale, my = (npc.z+100)*scale; ctx.fillStyle = npc.type === 'edward' ? '#c97e5a' : '#88aacc'; ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'white'; ctx.font = 'bold 8px monospace'; ctx.fillText(npc.type === 'edward' ? 'E' : 'M', mx-3, my-3); }
     const sx=(playerPos.x+100)*scale, sy=(playerPos.z+100)*scale;
     ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke();
+    ctx.strokeStyle='#c9a84c'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-Math.sin(yaw)*6,sy-Math.cos(yaw)*6); ctx.stroke();
 }
-
 let notifTimer = null;
-function showNotification(text) {
-    const el = document.getElementById('notification');
-    el.textContent = text; el.classList.add('show');
-    clearTimeout(notifTimer);
-    notifTimer = setTimeout(() => el.classList.remove('show'), 2000);
-}
-
-function addKillFeed(text) {
-    const feed = document.getElementById('killfeed');
-    const div = document.createElement('div');
-    div.className = 'kill-entry'; div.textContent = text;
-    feed.appendChild(div);
-    setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500);
-}
+function showNotification(text) { const el = document.getElementById('notification'); el.textContent = text; el.classList.add('show'); clearTimeout(notifTimer); notifTimer = setTimeout(() => el.classList.remove('show'), 2000); }
+function addKillFeed(text) { const feed = document.getElementById('killfeed'); const div = document.createElement('div'); div.className = 'kill-entry'; div.textContent = text; feed.appendChild(div); setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4500); }
 </script>
 </body>
 </html>
