@@ -1123,15 +1123,26 @@ const characterSkills = {
                 const dmg = 35;
                 target.hp -= dmg;
                 showNotification(`⚙️ Edward: Alchemy Mızrağı ile ${dmg} hasar!`);
-                // Görsel efekt: Kırmızı ışın
-                const lineMat = new THREE.LineBasicMaterial({ color: 0xff3300 });
-                const points = [];
-                points.push(new THREE.Vector3(caster.x, 1, caster.z));
-                points.push(new THREE.Vector3(target.x, 1, target.z));
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                const line = new THREE.Line(geometry, lineMat);
-                scene.add(line);
-                setTimeout(() => scene.remove(line), 500);
+                // Gerçek FMA skill efekti: büyük transmutation dairesi + taş duvar
+                createAlchemyEffect(new THREE.Vector3(target.x, 0, target.z), scene);
+                // Mavi enerji hattı (caster'dan hedef'e doğru akım)
+                const pts = [];
+                const steps = 16;
+                for(let i = 0; i <= steps; i++) {
+                    const t2 = i / steps;
+                    pts.push(new THREE.Vector3(
+                        caster.x + (target.x - caster.x) * t2 + (Math.random()-0.5) * 0.2 * Math.sin(t2 * Math.PI),
+                        1.0 + Math.sin(t2 * Math.PI) * 0.4,
+                        caster.z + (target.z - caster.z) * t2 + (Math.random()-0.5) * 0.2 * Math.sin(t2 * Math.PI)
+                    ));
+                }
+                const boltGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                const boltMat = new THREE.LineBasicMaterial({ color: 0x00e8ff, transparent: true, opacity: 1.0 });
+                const bolt = new THREE.Line(boltGeo, boltMat);
+                scene.add(bolt);
+                let bf = 0;
+                const animBolt = () => { bf++; bolt.material.opacity -= 0.08; if(bf < 13) requestAnimationFrame(animBolt); else scene.remove(bolt); };
+                animBolt();
                 return dmg;
             }
         }
@@ -1147,14 +1158,25 @@ const characterSkills = {
             effect: (caster, target, scene) => {
                 const dmg = 40;
                 target.hp -= dmg;
-                showNotification(`💨 Muichiro: Mist Breathing ile ${dmg} hasar!`);
-                // Görsel efekt: Sis efekti
-                const particleCount = 30;
-                for(let i=0;i<particleCount;i++) {
-                    const particle = new THREE.Mesh(new THREE.SphereGeometry(0.1,3,3), new THREE.MeshStandardMaterial({ color: 0xaaffdd, emissive: 0x2266aa }));
-                    particle.position.set(target.x + (Math.random()-0.5)*2, target.y+1, target.z + (Math.random()-0.5)*2);
-                    scene.add(particle);
-                    setTimeout(() => scene.remove(particle), 400);
+                showNotification(`💨 Muichiro: Mist Breathing 7. Form ile ${dmg} hasar!`);
+                // Gerçek Demon Slayer: Yedinci Form - Obscuring Clouds
+                // Muichiro'nun etrafını sis sarar, sonra birden hedefin yanında belirir
+                createMistEffect(new THREE.Vector3(target.x, 0, target.z), scene);
+                // Caster'dan hedef'e sis izi
+                const trailCount = 12;
+                for(let i = 0; i < trailCount; i++) {
+                    const t2 = i / trailCount;
+                    const tx = caster.x + (target.x - caster.x) * t2;
+                    const tz = caster.z + (target.z - caster.z) * t2;
+                    const pMat = new THREE.MeshBasicMaterial({ color: 0x00d4d4, transparent: true, opacity: 0.8 });
+                    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.12 + Math.random()*0.1, 5, 5), pMat);
+                    puff.scale.set(1.5, 0.4, 1.2);
+                    puff.position.set(tx + (Math.random()-0.5)*0.3, 0.3 + Math.random()*0.6, tz + (Math.random()-0.5)*0.3);
+                    scene.add(puff);
+                    const delay = i * 18;
+                    let pf = 0;
+                    const fadeP = () => { pf++; puff.material.opacity -= 0.045; if(pf < 18) requestAnimationFrame(fadeP); else scene.remove(puff); };
+                    setTimeout(fadeP, delay);
                 }
                 return dmg;
             }
@@ -1164,461 +1186,710 @@ const characterSkills = {
 
 // ========== GERÇEKÇİ ANİME KARAKTER MODELLERİ ==========
 
-// Edward Elric Modeli - Fullmetal Alchemist (Anime-Accurate)
+// Edward Elric Modeli - Fullmetal Alchemist (Anime-accurate)
 function createEdwardModel() {
     const group = new THREE.Group();
 
-    // === MATERYALLER - Animedeki gerçek renkler ===
-    const skinMat    = new THREE.MeshStandardMaterial({ color: 0xfce5c0, roughness: 0.55 });
-    const hairMat    = new THREE.MeshStandardMaterial({ color: 0xf5c200, roughness: 0.2, emissive: 0x3a2600, emissiveIntensity: 0.12 });
-    const redCoat    = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.55 });
-    const blackMat   = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-    const metalMat   = new THREE.MeshStandardMaterial({ color: 0xd8d8e2, metalness: 0.95, roughness: 0.1 });
-    const darkMetal  = new THREE.MeshStandardMaterial({ color: 0x7a7a90, metalness: 0.9,  roughness: 0.2 });
-    const goldMat    = new THREE.MeshStandardMaterial({ color: 0xf5c200, metalness: 0.9,  roughness: 0.12 });
-    const bootMat    = new THREE.MeshStandardMaterial({ color: 0x2a1a08, roughness: 0.9 });
+    // === MATERYALLER (FMA anime renkleri) ===
+    const skinMat    = new THREE.MeshStandardMaterial({ color: 0xffe0c0, roughness: 0.6 });
+    const hairMat    = new THREE.MeshStandardMaterial({ color: 0xf5c400, roughness: 0.3, metalness: 0.1 }); // parlak altın sarısı
+    const hairDarkMat= new THREE.MeshStandardMaterial({ color: 0xd4a800, roughness: 0.4 }); // örgü koyu sarı
+    const redCoatMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.5 }); // ikonik kırmızı ceket
+    const blackMat   = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7 }); // siyah iç giysi & pantolon
+    const metalMat   = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 1.0, roughness: 0.15 }); // parlak automail
+    const metalDarkMat= new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.9, roughness: 0.3 }); // automail koyu kısım
+    const goldMat    = new THREE.MeshStandardMaterial({ color: 0xf1c40f, metalness: 0.9, roughness: 0.1 });
+    const whiteMat   = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+    const bootMat    = new THREE.MeshStandardMaterial({ color: 0x2c1a0e, roughness: 0.8 });
 
-    // === BAŞ ===
+    // === BAŞ (Yuvarlak anime yüzü) ===
     const headGroup = new THREE.Group();
 
-    // Yüz
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 20), skinMat);
-    head.scale.set(1.0, 1.12, 0.88);
-    head.position.y = 1.67;
+    // Yüz - anime tarzı biraz daha yuvarlak
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.33, 20, 16), skinMat);
+    head.scale.set(1.0, 1.08, 0.88);
+    head.position.y = 1.68;
     head.castShadow = true;
     headGroup.add(head);
 
-    // Saç tabanı - parlak altın
-    const hairBase = new THREE.Mesh(
-        new THREE.SphereGeometry(0.375, 16, 16, 0, Math.PI*2, 0, Math.PI*0.55),
-        hairMat
-    );
-    hairBase.position.y = 1.72;
-    hairBase.scale.set(1.06, 0.72, 1.06);
-    headGroup.add(hairBase);
+    // Çene alt kısmı - hafif sivri
+    const chin = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), skinMat);
+    chin.scale.set(0.9, 0.6, 0.7);
+    chin.position.set(0, 1.38, 0.08);
+    headGroup.add(chin);
 
-    // Ön sivri perçemler (Ed'in ikonik saçı)
-    [
-        { x:-0.19, y:1.88, z:0.28, rz: 0.38, w:0.10, h:0.52 },
-        { x:-0.06, y:1.92, z:0.30, rz: 0.10, w:0.09, h:0.57 },
-        { x: 0.07, y:1.91, z:0.31, rz:-0.12, w:0.09, h:0.54 },
-        { x: 0.20, y:1.87, z:0.28, rz:-0.40, w:0.10, h:0.50 },
-    ].forEach(b => {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, 0.06), hairMat);
-        m.position.set(b.x, b.y, b.z); m.rotation.z = b.rz;
-        headGroup.add(m);
+    // Gözler (animedeki gibi büyük sarı gözler - Edward'ın ayırt edici özelliği)
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const eyeGoldMat  = new THREE.MeshStandardMaterial({ color: 0xf39c12, emissive: 0x5a3000 }); // altın göz rengi
+    const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x1a0a00 });
+
+    [-0.11, 0.11].forEach((xPos, i) => {
+        const white = new THREE.Mesh(new THREE.SphereGeometry(0.072, 10, 8), eyeWhiteMat);
+        white.scale.set(1, 0.85, 0.5);
+        white.position.set(xPos, 1.72, 0.3);
+        headGroup.add(white);
+
+        const iris = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 8), eyeGoldMat);
+        iris.scale.set(1, 0.85, 0.4);
+        iris.position.set(xPos, 1.72, 0.32);
+        headGroup.add(iris);
+
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyePupilMat);
+        pupil.scale.set(1, 0.85, 0.3);
+        pupil.position.set(xPos, 1.72, 0.335);
+        headGroup.add(pupil);
     });
 
-    // Yan saç levhaları
-    [-1,1].forEach(side => {
-        const s = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.66, 0.18), hairMat);
-        s.position.set(side*0.34, 1.68, 0);
-        s.rotation.z = side * 0.08;
-        headGroup.add(s);
+    // Kaşlar (ifadeli - Edward kızgın bakış)
+    const browMat = new THREE.MeshStandardMaterial({ color: 0xd4a800 });
+    [-0.11, 0.11].forEach((xPos, i) => {
+        const brow = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.018, 0.02), browMat);
+        brow.position.set(xPos, 1.80, 0.31);
+        brow.rotation.z = i === 0 ? 0.18 : -0.18; // hafif çatık
+        headGroup.add(brow);
     });
 
-    // Örgü - arkada uzun, segmentli
-    const braidG = new THREE.Group();
-    braidG.position.set(0, 1.56, -0.33);
-    for(let i=0;i<7;i++){
-        const seg = new THREE.Mesh(new THREE.SphereGeometry(0.114-i*0.007,8,8), hairMat);
-        seg.position.y = -i*0.19;
-        seg.scale.set(1,0.78,0.88);
-        braidG.add(seg);
-        if(i<6){
-            const gr = new THREE.Mesh(new THREE.TorusGeometry(0.09,0.018,4,10), hairMat);
-            gr.rotation.x = Math.PI/2; gr.position.y = -i*0.19-0.09;
-            braidG.add(gr);
+    // Burun
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), skinMat);
+    nose.position.set(0, 1.63, 0.34);
+    headGroup.add(nose);
+
+    // Ağız
+    const mouthMat = new THREE.MeshStandardMaterial({ color: 0xc8724a });
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.018, 0.02), mouthMat);
+    mouth.position.set(0, 1.55, 0.33);
+    headGroup.add(mouth);
+
+    // === SAÇ (Uzun sarı örgü - Edward'ın ikonik saçı) ===
+    // Saç ana kitlesi (üst/arka)
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12, 0, Math.PI*2, 0, Math.PI*0.55), hairMat);
+    hairTop.position.y = 1.72;
+    headGroup.add(hairTop);
+
+    // Yan saç - sol
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.18), hairMat);
+    sideL.position.set(-0.32, 1.62, 0.0);
+    sideL.rotation.z = 0.05;
+    headGroup.add(sideL);
+
+    // Yan saç - sağ
+    const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.18), hairMat);
+    sideR.position.set(0.32, 1.62, 0.0);
+    sideR.rotation.z = -0.05;
+    headGroup.add(sideR);
+
+    // Ön perçemler - soldan sağa 3 adet
+    const bangData = [[-0.14,1.88,0.31, 0.3],[-0.04,1.92,0.32, 0.05],[0.13,1.86,0.31,-0.2]];
+    bangData.forEach(([x,y,z,rz]) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.42, 0.06), hairMat);
+        b.position.set(x,y,z); b.rotation.z=rz;
+        headGroup.add(b);
+    });
+
+    // Arkada uzun örgü saç (Edward'ın karakteristik özelliği)
+    const braidGroup = new THREE.Group();
+    braidGroup.position.set(0, 1.65, -0.34);
+
+    // Örgü bağı (kırmızı kurdele)
+    const ribbonMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const ribbon = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), ribbonMat);
+    ribbon.scale.set(1.4, 0.5, 1.4);
+    braidGroup.add(ribbon);
+
+    // Örgü segmentleri - doğal sarkma eğrisiyle
+    for(let i=0; i<9; i++) {
+        const t = i / 8;
+        const sw = new THREE.Mesh(
+            new THREE.SphereGeometry(0.085 - i*0.006, 10, 8), hairDarkMat
+        );
+        sw.position.set(Math.sin(t*0.3)*0.05, -0.12 - i*0.18, Math.sin(t*0.8)*0.03);
+        sw.scale.set(1.1, 0.7, 1.0);
+        braidGroup.add(sw);
+
+        // Örgü arası boğum
+        if(i < 8) {
+            const knot = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.06, 6), hairMat);
+            knot.position.set(Math.sin(t*0.3)*0.05, -0.195 - i*0.18, Math.sin(t*0.8)*0.03);
+            braidGroup.add(knot);
         }
     }
-    // Kırmızı örgü bağı
-    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.04,0.04),
-        new THREE.MeshStandardMaterial({ color:0xcc2200 }));
-    tie.position.y = -1.38; braidG.add(tie);
-    headGroup.add(braidG);
 
-    // Gözler - altın sarısı
-    const eyeM = new THREE.MeshStandardMaterial({ color:0xe8a000, emissive:0x4a2800, emissiveIntensity:0.5 });
-    [-0.13,0.13].forEach(x => {
-        const e = new THREE.Mesh(new THREE.SphereGeometry(0.056,10,10), eyeM);
-        e.position.set(x, 1.67, 0.31); e.scale.z = 0.38;
-        headGroup.add(e);
-    });
+    // Örgü ucu
+    const braidTip = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 6), hairDarkMat);
+    braidTip.position.set(0, -1.8, 0);
+    braidGroup.add(braidTip);
 
+    headGroup.add(braidGroup);
     group.add(headGroup);
 
-    // === GÖVDE ===
-    const bodyG = new THREE.Group();
+    // === BOYUN ===
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.16, 8), skinMat);
+    neck.position.y = 1.46;
+    group.add(neck);
 
-    // Siyah iç giysi
-    const inner = new THREE.Mesh(new THREE.BoxGeometry(0.48,0.55,0.28), blackMat);
-    inner.position.y = 1.20; bodyG.add(inner);
+    // === GÖVDE (Kırmızı ceket + siyah iç giysi) ===
+    const bodyGroup = new THREE.Group();
 
-    // Kırmızı ceket gövdesi
-    const coat = new THREE.Mesh(new THREE.BoxGeometry(0.57,0.53,0.34), redCoat);
-    coat.position.y = 1.22; coat.castShadow=true; bodyG.add(coat);
+    // Siyah iç gömlek
+    const innerShirt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.55, 0.28), blackMat);
+    innerShirt.position.y = 1.18;
+    bodyGroup.add(innerShirt);
 
-    // Ceket önü siyah şerit
-    const front = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.50,0.04), blackMat);
-    front.position.set(0,1.20,0.19); bodyG.add(front);
+    // Kırmızı ceket (klasik Elric kırmızı kıyafeti) - omuzlar daha geniş
+    const coatBack = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.56, 0.3), redCoatMat);
+    coatBack.position.y = 1.18;
+    coatBack.castShadow = true;
+    bodyGroup.add(coatBack);
 
-    // Yaka
-    [-0.09,0.09].forEach((x,i) => {
-        const col = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.18,0.06), redCoat);
-        col.position.set(x,1.50,0.16); col.rotation.z = (i===0?1:-1)*0.2;
-        bodyG.add(col);
+    // Ceket yaka (siyah)
+    const collar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.14, 0.06), blackMat);
+    collar.position.set(0, 1.45, 0.16);
+    bodyGroup.add(collar);
+
+    // Ceket ön açıklık (V-yaka)
+    const vNeck = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.38, 0.07), blackMat);
+    vNeck.position.set(0, 1.28, 0.17);
+    bodyGroup.add(vNeck);
+
+    // Ceket alt kısmı (uzun etekler - L kısmı)
+    const skirtFL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.8, 0.28), redCoatMat);
+    skirtFL.position.set(-0.19, 0.6, 0);
+    bodyGroup.add(skirtFL);
+
+    const skirtFR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.8, 0.28), redCoatMat);
+    skirtFR.position.set(0.19, 0.6, 0);
+    bodyGroup.add(skirtFR);
+
+    // Kemer (siyah)
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.09, 0.32), blackMat);
+    belt.position.y = 0.96;
+    bodyGroup.add(belt);
+
+    // Kemer tokası (altın - FMA sembolü)
+    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.11, 0.05), goldMat);
+    buckle.position.set(0, 0.96, 0.18);
+    bodyGroup.add(buckle);
+    // Ouroboros / desen için çarpı çizgi
+    const buckleH = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.015, 0.015), blackMat);
+    buckleH.position.set(0, 0.96, 0.21);
+    bodyGroup.add(buckleH);
+    const buckleV = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.07, 0.015), blackMat);
+    buckleV.position.set(0, 0.96, 0.21);
+    bodyGroup.add(buckleV);
+
+    group.add(bodyGroup);
+
+    // === SOL KOL (normal insan kolu - kırmızı ceket kollu) ===
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-0.57, 1.38, 0);
+
+    const lShoulderPad = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), redCoatMat);
+    lShoulderPad.scale.set(1.1, 0.8, 1.0);
+    lShoulderPad.position.y = 0.05;
+    leftArmGroup.add(lShoulderPad);
+
+    const lUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.105, 0.38, 8), redCoatMat);
+    lUpperArm.position.y = -0.18;
+    leftArmGroup.add(lUpperArm);
+
+    const lElbow = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), redCoatMat);
+    lElbow.position.y = -0.38;
+    leftArmGroup.add(lElbow);
+
+    const lForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.36, 8), blackMat);
+    lForearm.position.y = -0.58;
+    leftArmGroup.add(lForearm);
+
+    // El (sol - normal)
+    const lHand = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.14, 0.1), skinMat);
+    lHand.position.y = -0.78;
+    leftArmGroup.add(lHand);
+    // Parmaklar
+    for(let i=0;i<4;i++){
+        const f = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.1, 0.025), skinMat);
+        f.position.set(-0.045+i*0.03, -0.88, 0.04);
+        leftArmGroup.add(f);
+    }
+
+    group.add(leftArmGroup);
+
+    // === SAĞ KOL (AUTOMAIL - Edward'ın mekanik kolu!) ===
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(0.57, 1.38, 0);
+
+    // Omuz zırhı - büyük ve detaylı
+    const rShoulderBase = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), metalMat);
+    rShoulderBase.scale.set(1.2, 1.0, 1.1);
+    rShoulderBase.position.y = 0.06;
+    rightArmGroup.add(rShoulderBase);
+
+    // Omuz plakası detayları
+    const shoulderPlate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.2), metalDarkMat);
+    shoulderPlate.position.set(0, 0.15, 0);
+    rightArmGroup.add(shoulderPlate);
+
+    // Üst kol - segmentli metal borular
+    const armSegData = [[0.1,-0.08],[0.095,-0.22],[0.09,-0.35]];
+    armSegData.forEach(([r, y]) => {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r+0.005, 0.14, 8), metalMat);
+        seg.position.y = y;
+        rightArmGroup.add(seg);
+        // Her segment arası halka
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r+0.01, 0.018, 5, 10), metalDarkMat);
+        ring.rotation.x = Math.PI/2;
+        ring.position.y = y - 0.07;
+        rightArmGroup.add(ring);
     });
 
-    // Uzun ceket etekleri (diz altı)
-    [-0.18,0.18].forEach(x => {
-        const t = new THREE.Mesh(new THREE.BoxGeometry(0.24,0.76,0.28), redCoat);
-        t.position.set(x,0.64,0.02); bodyG.add(t);
+    // Dirsek birleşim noktası
+    const elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), metalMat);
+    elbowBall.position.y = -0.47;
+    rightArmGroup.add(elbowBall);
+    // Dirsek kanat plakası
+    const elbowPlate = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.2), metalDarkMat);
+    elbowPlate.position.set(0, -0.47, -0.1);
+    rightArmGroup.add(elbowPlate);
+
+    // Ön kol - daha ince segmentler
+    const forearmSegs = [[0.085,-0.57],[0.082,-0.67],[0.078,-0.77],[0.074,-0.86]];
+    forearmSegs.forEach(([r, y], i) => {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r+0.003, 0.1, 7), i%2===0 ? metalMat : metalDarkMat);
+        seg.position.y = y;
+        rightArmGroup.add(seg);
     });
 
-    // Kemer + altın toka
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.58,0.075,0.36), blackMat);
-    belt.position.y = 0.97; bodyG.add(belt);
-    const bkl = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.11,0.05), goldMat);
-    bkl.position.set(0,0.97,0.20); bodyG.add(bkl);
-    const bklIn = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.065,0.04), blackMat);
-    bklIn.position.set(0,0.97,0.225); bodyG.add(bklIn);
+    // Bilek
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.075, 0.08, 8), metalDarkMat);
+    wrist.position.y = -0.96;
+    rightArmGroup.add(wrist);
 
-    // Transmutation sembol (cekette siyah desen)
-    const sym = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.18,0.02),
-        new THREE.MeshStandardMaterial({ color:0x000000 }));
-    sym.position.set(0,1.25,0.20); bodyG.add(sym);
+    // Metal el gövdesi
+    const rHandBody = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.13, 0.1), metalMat);
+    rHandBody.position.y = -1.06;
+    rightArmGroup.add(rHandBody);
 
-    group.add(bodyG);
-
-    // === SOL KOL (normal et, kırmızı ceket) ===
-    const lArm = new THREE.Group();
-    lArm.position.set(-0.58,1.38,0);
-    const lUA = new THREE.Mesh(new THREE.CylinderGeometry(0.115,0.105,0.37,10), redCoat);
-    lUA.position.y=-0.19; lArm.add(lUA);
-    const lElb = new THREE.Mesh(new THREE.SphereGeometry(0.106,8,8), redCoat);
-    lElb.position.y=-0.38; lArm.add(lElb);
-    const lFA = new THREE.Mesh(new THREE.CylinderGeometry(0.096,0.088,0.34,10), blackMat);
-    lFA.position.y=-0.57; lArm.add(lFA);
-    const lHand = new THREE.Mesh(new THREE.BoxGeometry(0.116,0.13,0.095), skinMat);
-    lHand.position.y=-0.77; lArm.add(lHand);
-    for(let i=0;i<4;i++){
-        const f=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.09,0.025),skinMat);
-        f.position.set(-0.04+i*0.026,-0.86,0.03); lArm.add(f);
+    // Metal parmaklar - 4 adet, her biri 2 segment
+    for(let f=0; f<4; f++) {
+        const fx = -0.052 + f*0.035;
+        const fp1 = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.065, 0.024), metalMat);
+        fp1.position.set(fx, -1.145, 0.04);
+        rightArmGroup.add(fp1);
+        const fp2 = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.055, 0.022), metalDarkMat);
+        fp2.position.set(fx, -1.22, 0.04);
+        rightArmGroup.add(fp2);
+        // Parmak eklemi halkası
+        const jr = new THREE.Mesh(new THREE.TorusGeometry(0.013, 0.006, 4, 6), metalDarkMat);
+        jr.rotation.z = Math.PI/2;
+        jr.position.set(fx, -1.145, 0.04);
+        rightArmGroup.add(jr);
     }
-    group.add(lArm);
+    // Başparmak
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.08, 0.025), metalMat);
+    thumb.position.set(-0.09, -1.1, 0.02);
+    thumb.rotation.z = 0.4;
+    rightArmGroup.add(thumb);
 
-    // === SAĞ KOL - AUTOMAIL (gümüş mekanik) ===
-    const rArm = new THREE.Group();
-    rArm.position.set(0.58,1.38,0);
-
-    // Omuz zırh plakası
-    const shPlate = new THREE.Mesh(new THREE.BoxGeometry(0.33,0.08,0.33), metalMat);
-    shPlate.position.y=0.06; rArm.add(shPlate);
-    const shDome = new THREE.Mesh(
-        new THREE.SphereGeometry(0.17,10,10,0,Math.PI*2,0,Math.PI*0.5),
-        metalMat
-    );
-    shDome.position.y=0.06; shDome.rotation.x=Math.PI; rArm.add(shDome);
-
-    // Üst kol segmentleri
-    for(let i=0;i<4;i++){
-        const s=new THREE.Mesh(
-            new THREE.CylinderGeometry(0.108-i*0.006,0.112-i*0.006,0.1,8),
-            i%2===0?metalMat:darkMetal
-        );
-        s.position.y=-0.10-i*0.105; rArm.add(s);
-    }
-    // Dirsek
-    const elb=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,10),metalMat);
-    elb.position.y=-0.47; rArm.add(elb);
-    const elbR=new THREE.Mesh(new THREE.TorusGeometry(0.10,0.015,6,12),darkMetal);
-    elbR.rotation.x=Math.PI/2; elbR.position.y=-0.47; rArm.add(elbR);
-
-    // Ön kol segmentleri
-    for(let i=0;i<5;i++){
-        const s=new THREE.Mesh(
-            new THREE.CylinderGeometry(0.095-i*0.008,0.10-i*0.008,0.09,8),
-            i%2===0?metalMat:darkMetal
-        );
-        s.position.y=-0.57-i*0.095; rArm.add(s);
-    }
-    // Bilek halkası
-    const wR=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.02,6,12),darkMetal);
-    wR.rotation.x=Math.PI/2; wR.position.y=-1.03; rArm.add(wR);
-    // Mekanik el
-    const palm=new THREE.Mesh(new THREE.BoxGeometry(0.155,0.12,0.105),metalMat);
-    palm.position.y=-1.12; rArm.add(palm);
-    const hPlate=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.04,0.10),darkMetal);
-    hPlate.position.set(0,-1.08,0.01); rArm.add(hPlate);
-    // Segmentli parmaklar
-    for(let i=0;i<4;i++){
-        for(let j=0;j<2;j++){
-            const ps=new THREE.Mesh(new THREE.BoxGeometry(0.028,0.055,0.028),j===0?metalMat:darkMetal);
-            ps.position.set(-0.055+i*0.038,-1.20-j*0.055,0.03); rArm.add(ps);
-        }
-        const pt=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.014,0.03,6),metalMat);
-        pt.position.set(-0.055+i*0.038,-1.325,0.03); rArm.add(pt);
-    }
-    const thumb=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.07,0.025),metalMat);
-    thumb.position.set(-0.10,-1.16,0.02); thumb.rotation.z=0.5; rArm.add(thumb);
-    group.add(rArm);
+    group.add(rightArmGroup);
 
     // === BACAKLAR ===
-    const legsG = new THREE.Group();
+    const legsGroup = new THREE.Group();
 
-    // Sol bacak - siyah pantolon + uzun çizme
-    const lTh=new THREE.Mesh(new THREE.CylinderGeometry(0.126,0.11,0.48,10),blackMat);
-    lTh.position.set(-0.155,0.44,0); legsG.add(lTh);
-    const lKn=new THREE.Mesh(new THREE.SphereGeometry(0.112,8,8),blackMat);
-    lKn.position.set(-0.155,0.19,0); legsG.add(lKn);
-    const lSh=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.088,0.42,10),blackMat);
-    lSh.position.set(-0.155,-0.07,0); legsG.add(lSh);
-    const lBoot=new THREE.Mesh(new THREE.BoxGeometry(0.155,0.24,0.24),bootMat);
-    lBoot.position.set(-0.155,-0.34,0.02); legsG.add(lBoot);
-    const lSole=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.27),
-        new THREE.MeshStandardMaterial({color:0x1a1008}));
-    lSole.position.set(-0.155,-0.465,0.02); legsG.add(lSole);
+    // Sol bacak (normal - siyah pantolon)
+    const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.115, 0.48, 8), blackMat);
+    lThigh.position.set(-0.14, 0.49, 0);
+    legsGroup.add(lThigh);
 
-    // Sağ bacak - Automail (metal diz + metal bacak)
-    const rTh=new THREE.Mesh(new THREE.CylinderGeometry(0.126,0.11,0.48,10),blackMat);
-    rTh.position.set(0.155,0.44,0); legsG.add(rTh);
-    const rKnP=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,10),metalMat);
-    rKnP.position.set(0.155,0.19,0); legsG.add(rKnP);
-    const rKnR=new THREE.Mesh(new THREE.TorusGeometry(0.10,0.018,6,12),darkMetal);
-    rKnR.rotation.x=Math.PI/2; rKnR.position.set(0.155,0.19,0); legsG.add(rKnR);
-    for(let i=0;i<3;i++){
-        const s=new THREE.Mesh(
-            new THREE.CylinderGeometry(0.10-i*0.008,0.105-i*0.008,0.135,8),
-            i%2===0?metalMat:darkMetal
-        );
-        s.position.set(0.155,0.06-i*0.145,0); legsG.add(s);
+    const lKneeCap = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), blackMat);
+    lKneeCap.position.set(-0.14, 0.22, 0.02);
+    legsGroup.add(lKneeCap);
+
+    const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.42, 8), blackMat);
+    lShin.position.set(-0.14, -0.02, 0);
+    legsGroup.add(lShin);
+
+    // Sol bot (deri)
+    const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.26), bootMat);
+    lBoot.position.set(-0.14, -0.29, 0.04);
+    legsGroup.add(lBoot);
+    const lBootToe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.12), bootMat);
+    lBootToe.position.set(-0.14, -0.35, 0.17);
+    legsGroup.add(lBootToe);
+
+    // Sağ bacak (AUTOMAIL - metal bacak!)
+    const rThighBlack = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.12, 0.3, 8), blackMat);
+    rThighBlack.position.set(0.14, 0.6, 0);
+    legsGroup.add(rThighBlack);
+
+    // Metal uyluk segmentleri
+    for(let i=0; i<3; i++) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.115-i*0.005, 0.12-i*0.005, 0.1, 7), i%2===0 ? metalMat : metalDarkMat);
+        seg.position.set(0.14, 0.42-i*0.12, 0);
+        legsGroup.add(seg);
     }
-    const rFoot=new THREE.Mesh(new THREE.BoxGeometry(0.155,0.10,0.27),metalMat);
-    rFoot.position.set(0.155,-0.375,0.04); legsG.add(rFoot);
-    const rSole=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.04,0.28),
-        new THREE.MeshStandardMaterial({color:0x9a9aaa,metalness:0.8}));
-    rSole.position.set(0.155,-0.430,0.04); legsG.add(rSole);
 
-    group.add(legsG);
+    // Metal diz
+    const rKnee = new THREE.Mesh(new THREE.SphereGeometry(0.115, 8, 8), metalMat);
+    rKnee.position.set(0.14, 0.08, 0);
+    legsGroup.add(rKnee);
+    const rKneePlate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.15), metalDarkMat);
+    rKneePlate.position.set(0.14, 0.08, 0.06);
+    legsGroup.add(rKneePlate);
+
+    // Metal baldır
+    for(let i=0; i<4; i++) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.1-i*0.005, 0.105-i*0.005, 0.1, 7), i%2===0 ? metalMat : metalDarkMat);
+        seg.position.set(0.14, -0.08-i*0.1, 0);
+        legsGroup.add(seg);
+    }
+
+    // Metal ayak/bot
+    const rFoot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.28), metalMat);
+    rFoot.position.set(0.14, -0.51, 0.04);
+    legsGroup.add(rFoot);
+    const rFootToe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.1), metalDarkMat);
+    rFootToe.position.set(0.14, -0.54, 0.19);
+    legsGroup.add(rFootToe);
+
+    group.add(legsGroup);
+
+    // === KIRMIZI PELERIN (Edward'ın sırt pelerini) ===
+    // Omuz kısmı
+    const capeShoulders = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.12, 0.32), redCoatMat);
+    capeShoulders.position.set(0, 1.42, -0.02);
+    group.add(capeShoulders);
+
     group.castShadow = true;
     return group;
 }
 
-// Muichiro Tokito Modeli - Demon Slayer (Anime-Accurate)
+// Muichiro Tokito Modeli - Demon Slayer (Anime-accurate)
 function createMuichiroModel() {
     const group = new THREE.Group();
 
-    // === MATERYALLER - Animedeki gerçek renkler ===
-    const skinMat     = new THREE.MeshStandardMaterial({ color:0xfce8d5, roughness:0.55 });
-    const hairMat     = new THREE.MeshStandardMaterial({ color:0x0d0d18, roughness:0.4 });
-    const hairTipMat  = new THREE.MeshStandardMaterial({ color:0x00d4cc, emissive:0x005555, emissiveIntensity:0.45, roughness:0.25 });
-    const uniformMat  = new THREE.MeshStandardMaterial({ color:0x101018, roughness:0.75 });
-    const uniformL    = new THREE.MeshStandardMaterial({ color:0x1c1c2e, roughness:0.70 });
-    const beltMat     = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.5 });
-    const btnMat      = new THREE.MeshStandardMaterial({ color:0xf5c518, metalness:0.85, roughness:0.15 });
-    const bladeMat    = new THREE.MeshStandardMaterial({ color:0xc8d8e8, metalness:0.95, roughness:0.08 });
-    const bladeGlowM  = new THREE.MeshStandardMaterial({ color:0x00eeee, emissive:0x00aaaa, emissiveIntensity:0.8, transparent:true, opacity:0.85 });
-    const handleMat   = new THREE.MeshStandardMaterial({ color:0x006666, roughness:0.5 });
-    const scabbardMat = new THREE.MeshStandardMaterial({ color:0x1a2a2a, roughness:0.8 });
-    const shoeMat     = new THREE.MeshStandardMaterial({ color:0x2a1e10, roughness:0.85 });
-    const toeMat      = new THREE.MeshStandardMaterial({ color:0xf5c518, roughness:0.3 });
+    // === MATERYALLER (Demon Slayer anime renkleri) ===
+    const skinMat     = new THREE.MeshStandardMaterial({ color: 0xfce8d0, roughness: 0.5 }); // açık ten
+    const hairBlackMat= new THREE.MeshStandardMaterial({ color: 0x0a0a18, roughness: 0.4 }); // simsiyah saç kökü
+    const hairTealMat = new THREE.MeshStandardMaterial({ color: 0x00c8c8, emissive: 0x003838, roughness: 0.2, metalness: 0.1 }); // parlak turkuaz uçlar
+    const uniformMat  = new THREE.MeshStandardMaterial({ color: 0x0f0f12, roughness: 0.75 }); // Demon Slayer siyah üniforma
+    const uniformLineMat = new THREE.MeshStandardMaterial({ color: 0x1a3a3a }); // üniforma desenleri
+    const whiteMat    = new THREE.MeshStandardMaterial({ color: 0xf8f8f0, roughness: 0.5 }); // beyaz kemer/yaka
+    const tealMat     = new THREE.MeshStandardMaterial({ color: 0x00b8b8, emissive: 0x002222, metalness: 0.2 }); // turkuaz detaylar
+    const goldMat     = new THREE.MeshStandardMaterial({ color: 0xe8c020, metalness: 0.85, roughness: 0.1 });
+    const swordBladeMat= new THREE.MeshStandardMaterial({ color: 0xe8f0ff, metalness: 1.0, roughness: 0.05, emissive: 0x112244 }); // Nichirin - başta beyaz/şeffaf
+    const swordHandleMat= new THREE.MeshStandardMaterial({ color: 0x006666, roughness: 0.4 }); // koyu turkuaz sap
+    const guardMat    = new THREE.MeshStandardMaterial({ color: 0xd4af20, metalness: 0.9, roughness: 0.1 }); // altın tsuba
 
-    // === BAŞ ===
-    const headG = new THREE.Group();
+    // === BAŞ (Anime tarzı - ince yüz) ===
+    const headGroup = new THREE.Group();
 
-    // Yüz - genç, oval anime
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32,20,20), skinMat);
-    head.scale.set(0.98,1.18,0.88);
-    head.position.y=1.62; head.castShadow=true;
-    headG.add(head);
+    // Yüz - ince ve uzun (Muichiro genç/ince yüzlü)
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 16), skinMat);
+    head.scale.set(0.95, 1.15, 0.85);
+    head.position.y = 1.66;
+    head.castShadow = true;
+    headGroup.add(head);
 
-    // Saç tabanı - siyah
-    const hBase = new THREE.Mesh(
-        new THREE.SphereGeometry(0.355,18,18,0,Math.PI*2,0,Math.PI*0.58),
-        hairMat
-    );
-    hBase.position.y=1.67; hBase.scale.set(1.05,0.72,1.05);
-    headG.add(hBase);
+    // Çene sivri
+    const chin = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), skinMat);
+    chin.scale.set(0.8, 0.55, 0.7);
+    chin.position.set(0, 1.38, 0.07);
+    headGroup.add(chin);
 
-    const hBack = new THREE.Mesh(
-        new THREE.SphereGeometry(0.34,14,14,0,Math.PI*2,Math.PI*0.35,Math.PI*0.55),
-        hairMat
-    );
-    hBack.position.y=1.62; hBack.scale.set(1.05,0.88,1.10);
-    headG.add(hBack);
+    // Gözler - Muichiro'nun karakteristik uzak/derin bakışlı turkuaz-yeşil gözleri
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const eyeIrisMat  = new THREE.MeshStandardMaterial({ color: 0x00a8a0, emissive: 0x003030 });
+    const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x050510 });
+    const eyeShine    = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x888888 });
 
-    // Düz perçemler
-    [
-        {x:-0.20,y:1.83,z:0.26,rz:0.18,w:0.09,h:0.55},
-        {x:-0.08,y:1.87,z:0.28,rz:0.05,w:0.08,h:0.60},
-        {x: 0.04,y:1.88,z:0.29,rz:-0.03,w:0.08,h:0.62},
-        {x: 0.16,y:1.85,z:0.27,rz:-0.15,w:0.09,h:0.57},
-    ].forEach(b=>{
-        const m=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,0.055),hairMat);
-        m.position.set(b.x,b.y,b.z); m.rotation.z=b.rz; headG.add(m);
+    [-0.1, 0.1].forEach((xPos) => {
+        const white = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 8), eyeWhiteMat);
+        white.scale.set(1, 0.9, 0.45);
+        white.position.set(xPos, 1.70, 0.27);
+        headGroup.add(white);
+
+        const iris = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), eyeIrisMat);
+        iris.scale.set(1, 0.9, 0.35);
+        iris.position.set(xPos, 1.70, 0.29);
+        headGroup.add(iris);
+
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyePupilMat);
+        pupil.scale.set(1, 0.9, 0.3);
+        pupil.position.set(xPos, 1.70, 0.30);
+        headGroup.add(pupil);
+
+        // Göz parıltısı
+        const shine = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), eyeShine);
+        shine.position.set(xPos - 0.016, 1.715, 0.308);
+        headGroup.add(shine);
     });
 
-    // Yan saç
-    [-0.32,0.32].forEach(x=>{
-        const s=new THREE.Mesh(new THREE.BoxGeometry(0.065,0.72,0.16),hairMat);
-        s.position.set(x,1.60,0.01); headG.add(s);
+    // Kaşlar (düz/sakin - Muichiro boş bakışlı)
+    const browMat = new THREE.MeshStandardMaterial({ color: 0x0a0a18 });
+    [-0.1, 0.1].forEach(xPos => {
+        const brow = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.015, 0.015), browMat);
+        brow.position.set(xPos, 1.775, 0.28);
+        headGroup.add(brow);
     });
 
-    // Uzun saç - siyah üst + turkuaz uçlar
-    const longHG = new THREE.Group();
-    longHG.position.set(0,1.58,-0.32);
-    for(let i=0;i<9;i++){
-        const st=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.90,0.07),hairMat);
-        st.position.set((i-4)*0.115,-0.45,0);
-        st.rotation.z=(i-4)*0.04; longHG.add(st);
-        const tp=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.35,0.07),hairTipMat);
-        tp.position.set((i-4)*0.115,-1.05,0);
-        tp.rotation.z=(i-4)*0.04; longHG.add(tp);
-        const te=new THREE.Mesh(new THREE.CylinderGeometry(0.0,0.06,0.15,6),hairTipMat);
-        te.position.set((i-4)*0.115,-1.30,0);
-        te.rotation.z=(i-4)*0.04; longHG.add(te);
-    }
-    headG.add(longHG);
+    // Burun (küçük ve ince)
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), skinMat);
+    nose.scale.set(0.7, 0.8, 1.0);
+    nose.position.set(0, 1.615, 0.30);
+    headGroup.add(nose);
 
-    // Saç tokası
-    const pin=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.30,8),
-        new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.7}));
-    pin.rotation.z=Math.PI/2; pin.position.set(0,1.84,0.18); headG.add(pin);
+    // Ağız (küçük ve düz)
+    const mouthMat = new THREE.MeshStandardMaterial({ color: 0xd08060 });
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.015, 0.015), mouthMat);
+    mouth.position.set(0, 1.558, 0.29);
+    headGroup.add(mouth);
 
-    // Gözler - deniz mavisi-yeşil
-    const eyeM=new THREE.MeshStandardMaterial({color:0x00a8a0,emissive:0x003a38,emissiveIntensity:0.6});
-    [-0.12,0.12].forEach(x=>{
-        const e=new THREE.Mesh(new THREE.SphereGeometry(0.06,12,12),eyeM);
-        e.position.set(x,1.65,0.29); e.scale.z=0.38; headG.add(e);
+    // === SAÇ (Muichiro - uzun, siyah dip turkuaz uç) ===
+    // Saç ana gövdesi (siyah)
+    const hairDome = new THREE.Mesh(new THREE.SphereGeometry(0.335, 18, 12, 0, Math.PI*2, 0, Math.PI*0.52), hairBlackMat);
+    hairDome.position.y = 1.70;
+    headGroup.add(hairDome);
+
+    // Alın perçemleri
+    const bangData = [[-0.16, 1.78, 0.28, 0.12], [-0.05, 1.82, 0.29, 0.04], [0.12, 1.80, 0.28, -0.1]];
+    bangData.forEach(([x,y,z,rz]) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.48, 0.055), hairBlackMat);
+        b.position.set(x,y,z); b.rotation.z = rz;
+        headGroup.add(b);
     });
 
-    // Kaşlar
-    [-0.12,0.12].forEach(x=>{
-        const b=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.028,0.028),hairMat);
-        b.position.set(x,1.73,0.30); headG.add(b);
+    // Yan saç kesimleri (uzun, yüzü çerçeveler)
+    [-1,1].forEach(side => {
+        const sideStrand1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.14), hairBlackMat);
+        sideStrand1.position.set(side*0.31, 1.58, 0.04);
+        sideStrand1.rotation.z = side * -0.06;
+        headGroup.add(sideStrand1);
+
+        // Yüz yanına sarkan uzun tel
+        const faceFringe = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.04), hairBlackMat);
+        faceFringe.position.set(side*0.28, 1.45, 0.16);
+        headGroup.add(faceFringe);
     });
 
-    // Küpe (Hashira küpesi)
-    const erMat=new THREE.MeshStandardMaterial({color:0x00ced1,emissive:0x005555,emissiveIntensity:0.5,metalness:0.6});
-    const er=new THREE.Mesh(new THREE.TorusGeometry(0.025,0.008,6,12),erMat);
-    er.position.set(-0.34,1.60,0.10); headG.add(er);
-    const dangle=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.06,0.02),erMat);
-    dangle.position.set(-0.34,1.55,0.10); headG.add(dangle);
+    // Arkada uzun saç - siyah kök, turkuaz uç (Muichiro'nun en ayırt edici özelliği)
+    const longHairGroup = new THREE.Group();
+    longHairGroup.position.set(0, 1.65, -0.33);
 
-    group.add(headG);
+    // Saç tutamları - 10 adet, giderek turkuaz renk alıyor
+    for(let i=0; i<10; i++) {
+        const xOffset = (i - 4.5) * 0.1;
+        const hairColor = i < 5 ? hairBlackMat : hairTealMat; // Alt yarısı turkuaz
 
-    // === GÖVDE - Demon Slayer Üniforması ===
-    const bodyG = new THREE.Group();
+        // Üst (siyah) kısım
+        const upperStrand = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.85, 0.07), hairBlackMat);
+        upperStrand.position.set(xOffset, -0.42, 0);
+        upperStrand.rotation.z = xOffset * 0.08;
+        longHairGroup.add(upperStrand);
 
-    // Siyah ceket
-    const jacket=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.65,0.32),uniformMat);
-    jacket.position.y=1.17; jacket.castShadow=true; bodyG.add(jacket);
+        // Alt (turkuaz) kısım
+        const lowerStrand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.75, 0.07), hairTealMat);
+        lowerStrand.position.set(xOffset, -1.22, 0);
+        lowerStrand.rotation.z = xOffset * 0.1;
+        longHairGroup.add(lowerStrand);
 
-    // Beyaz V-yaka
-    [-0.07,0.07].forEach((x,i)=>{
-        const c=new THREE.Mesh(new THREE.BoxGeometry(0.065,0.28,0.04),
-            new THREE.MeshStandardMaterial({color:0xffffff}));
-        c.position.set(x,1.42,0.17); c.rotation.z=(i===0?1:-1)*0.22; bodyG.add(c);
-    });
-
-    // Altın düğmeler
-    for(let i=0;i<4;i++){
-        const b=new THREE.Mesh(new THREE.SphereGeometry(0.038,10,10),btnMat);
-        b.position.set(0,1.38-i*0.14,0.17); bodyG.add(b);
-    }
-
-    // Hakama (bol alt)
-    const hak=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.55,0.34),uniformMat);
-    hak.position.y=0.58; bodyG.add(hak);
-    const hakP=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.55,0.36),uniformL);
-    hakP.position.y=0.58; bodyG.add(hakP);
-
-    // Beyaz kuşak
-    const obi=new THREE.Mesh(new THREE.BoxGeometry(0.54,0.12,0.36),beltMat);
-    obi.position.y=0.87; bodyG.add(obi);
-    const obiB=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.10,0.05),btnMat);
-    obiB.position.set(0,0.87,0.19); bodyG.add(obiB);
-
-    group.add(bodyG);
-
-    // === KOLLAR ===
-    [-1,1].forEach(side=>{
-        const ag=new THREE.Group();
-        ag.position.set(side*0.58,1.28,0);
-        const ua=new THREE.Mesh(new THREE.CylinderGeometry(0.115,0.105,0.38,10),uniformMat);
-        ua.position.y=-0.19; ag.add(ua);
-        const elb=new THREE.Mesh(new THREE.SphereGeometry(0.105,8,8),uniformMat);
-        elb.position.y=-0.39; ag.add(elb);
-        const fa=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.092,0.35,10),uniformMat);
-        fa.position.y=-0.58; ag.add(fa);
-        const hand=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.13,0.09),skinMat);
-        hand.position.y=-0.78; ag.add(hand);
-        group.add(ag);
-    });
-
-    // === NİCHİRİN KILICI (turkuaz, parlak) ===
-    const swG=new THREE.Group();
-    swG.position.set(-0.30,0.95,0.22);
-    swG.rotation.z=0.15; swG.rotation.x=0.12;
-
-    // Kın
-    const sca=new THREE.Mesh(new THREE.BoxGeometry(0.075,1.05,0.065),scabbardMat);
-    sca.position.y=-0.35; swG.add(sca);
-    const scaTip=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.0,0.08,6),scabbardMat);
-    scaTip.position.y=-0.90; swG.add(scaTip);
-
-    // Sap + sarma
-    const hnd=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.045,0.28,10),handleMat);
-    hnd.position.y=0.34; swG.add(hnd);
-    for(let i=0;i<6;i++){
-        const wr=new THREE.Mesh(new THREE.TorusGeometry(0.042,0.008,6,12),
-            new THREE.MeshStandardMaterial({color:0x004444}));
-        wr.rotation.x=Math.PI/2; wr.position.y=0.22+i*0.038; swG.add(wr);
+        // En alt sivri uç
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 5), hairTealMat);
+        tip.position.set(xOffset, -1.7, 0);
+        longHairGroup.add(tip);
     }
 
-    // Kare tsuba (Muichiro'nun karakteristik tsubası)
-    const tsuba=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.04,0.22),
-        new THREE.MeshStandardMaterial({color:0xf5c518,metalness:0.9,roughness:0.1}));
-    tsuba.position.y=0.19; swG.add(tsuba);
-    [[−0.09,0.09],[0.09,0.09],[−0.09,-0.09],[0.09,-0.09]].forEach(([cx,cz])=>{
-        const co=new THREE.Mesh(new THREE.SphereGeometry(0.025,6,6),btnMat);
-        co.position.set(cx,0.20,cz); swG.add(co);
+    headGroup.add(longHairGroup);
+
+    // Saç tokası (üst kısım) - turkuaz
+    const hairPin = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.55, 6), tealMat);
+    hairPin.rotation.z = Math.PI/2;
+    hairPin.position.set(0, 1.96, -0.05);
+    headGroup.add(hairPin);
+
+    group.add(headGroup);
+
+    // === BOYUN ===
+    const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.105, 0.14, 8), skinMat);
+    neckMesh.position.y = 1.44;
+    group.add(neckMesh);
+
+    // === GÖVDE (Demon Slayer Üniforma - Siyah Gakuran tarzı) ===
+    const bodyGroup = new THREE.Group();
+
+    // Ana üniforma gövde
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.62, 0.28), uniformMat);
+    torso.position.y = 1.15;
+    torso.castShadow = true;
+    bodyGroup.add(torso);
+
+    // Yaka (beyaz yaka - çok belirgin)
+    const collar = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.06), whiteMat);
+    collar.position.set(0, 1.44, 0.15);
+    bodyGroup.add(collar);
+
+    // Yaka V-açıklık giysi
+    const collarV = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.3, 0.065), whiteMat);
+    collarV.position.set(0, 1.30, 0.155);
+    bodyGroup.add(collarV);
+
+    // Üniforma altın düğmeler (ortada dikey sıra)
+    for(let i=0; i<4; i++) {
+        const btn = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), goldMat);
+        btn.position.set(0, 1.38 - i*0.12, 0.15);
+        bodyGroup.add(btn);
+    }
+
+    // Üniforma üzerindeki çizgi deseni (siyah/yeşil yatay çizgiler - DSlayer üniforma)
+    for(let i=0; i<5; i++) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.022, 0.04), uniformLineMat);
+        stripe.position.set(0, 1.38 - i*0.1, 0.15);
+        bodyGroup.add(stripe);
+    }
+
+    // Kol deliği (uniform omuz)
+    [-1, 1].forEach(side => {
+        const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.28), uniformMat);
+        shoulder.position.set(side * 0.34, 1.44, 0);
+        bodyGroup.add(shoulder);
     });
 
-    // Kılıç ağzı - berrak turkuaz
-    const blade=new THREE.Mesh(new THREE.BoxGeometry(0.038,0.42,0.018),bladeMat);
-    blade.position.y=0.52; swG.add(blade);
-    const bladeG=new THREE.Mesh(new THREE.BoxGeometry(0.034,0.40,0.014),bladeGlowM);
-    bladeG.position.y=0.52; swG.add(bladeG);
-    const bTip=new THREE.Mesh(new THREE.CylinderGeometry(0.0,0.019,0.12,6),bladeMat);
-    bTip.position.y=0.78; swG.add(bTip);
+    // Alt üniforma (hakama tarzı geniş pantolon kısmı)
+    const hakama = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.55, 0.3), uniformMat);
+    hakama.position.y = 0.68;
+    bodyGroup.add(hakama);
 
-    group.add(swG);
+    // Beyaz kemer (obi)
+    const obi = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.1, 0.32), whiteMat);
+    obi.position.y = 0.9;
+    bodyGroup.add(obi);
 
-    // === BACAKLAR (Hakama + zori sandalet) ===
-    const legsG=new THREE.Group();
-    [-0.155,0.155].forEach(x=>{
-        const th=new THREE.Mesh(new THREE.CylinderGeometry(0.158,0.138,0.52,10),uniformMat);
-        th.position.set(x,0.32,0); legsG.add(th);
-        const kn=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,8),uniformMat);
-        kn.position.set(x,0.05,0); legsG.add(kn);
-        const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.10,0.42,10),uniformMat);
-        sh.position.set(x,-0.18,0); legsG.add(sh);
-        // Beyaz çorap
-        const sock=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.095,0.18,10),
-            new THREE.MeshStandardMaterial({color:0xfafafa}));
-        sock.position.set(x,-0.42,0); legsG.add(sock);
-        // Zori sandalet
-        const sand=new THREE.Mesh(new THREE.BoxGeometry(0.145,0.07,0.26),shoeMat);
-        sand.position.set(x,-0.535,0.02); legsG.add(sand);
-        const sole=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.04,0.27),
-            new THREE.MeshStandardMaterial({color:0x1a1008}));
-        sole.position.set(x,-0.575,0.02); legsG.add(sole);
-        // Altın parmak bağı
-        const toe=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.07,0.04),toeMat);
-        toe.position.set(x,-0.510,0.13); legsG.add(toe);
+    // Kemer üzeri turkuaz şerit
+    const obiTeal = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.03, 0.33), tealMat);
+    obiTeal.position.y = 0.93;
+    bodyGroup.add(obiTeal);
+
+    group.add(bodyGroup);
+
+    // === KOLLAR (Demon Slayer geniş kollu üniforma) ===
+    [-1, 1].forEach(side => {
+        const armGroup = new THREE.Group();
+        armGroup.position.set(side * 0.53, 1.36, 0);
+
+        const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.4, 8), uniformMat);
+        upperArm.position.y = -0.18;
+        armGroup.add(upperArm);
+
+        const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), uniformMat);
+        elbow.position.y = -0.39;
+        armGroup.add(elbow);
+
+        // Ön kol (geniş kollu)
+        const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.095, 0.38, 8), uniformMat);
+        forearm.position.y = -0.59;
+        armGroup.add(forearm);
+
+        // El
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.09), skinMat);
+        hand.position.y = -0.8;
+        armGroup.add(hand);
+
+        // Parmaklar (ince ve uzun - anime tarzı)
+        for(let f=0; f<4; f++) {
+            const finger = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.02), skinMat);
+            finger.position.set(-0.038+f*0.026, -0.9, 0.03);
+            armGroup.add(finger);
+        }
+
+        group.add(armGroup);
     });
-    group.add(legsG);
+
+    // === BACAKLAR (Hakama - bol pantolon) ===
+    const legsGroup = new THREE.Group();
+
+    [-1, 1].forEach(side => {
+        // Uyluk (bol hakama)
+        const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.52, 8), uniformMat);
+        thigh.position.set(side*0.14, 0.35, 0);
+        legsGroup.add(thigh);
+
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), uniformMat);
+        knee.position.set(side*0.14, 0.06, 0.01);
+        legsGroup.add(knee);
+
+        const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.42, 8), uniformMat);
+        shin.position.set(side*0.14, -0.18, 0);
+        legsGroup.add(shin);
+
+        // Beyaz tabi çorap (Demon Slayer karakteristik beyaz tabi)
+        const tabi = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.092, 0.18, 8), whiteMat);
+        tabi.position.set(side*0.14, -0.44, 0);
+        legsGroup.add(tabi);
+
+        // Zori sandalet (koyu renk)
+        const sandalMat = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.8 });
+        const sandal = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.26), sandalMat);
+        sandal.position.set(side*0.14, -0.55, 0.04);
+        legsGroup.add(sandal);
+
+        // Sandal parmak ayırıcı
+        const thong = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.06, 0.015), new THREE.MeshStandardMaterial({ color: 0x002020 }));
+        thong.position.set(side*0.14, -0.53, 0.14);
+        legsGroup.add(thong);
+    });
+
+    group.add(legsGroup);
+
+    // === NİCHİRİN KILICI (Muichiro'nun kılıcı - başta renksiz, kana bulandıkça renk alır) ===
+    const swordGroup = new THREE.Group();
+    swordGroup.position.set(0.28, 0.95, 0.18);
+    swordGroup.rotation.z = -0.25;
+    swordGroup.rotation.x = 0.15;
+
+    // Kın (siyah)
+    const scabbardMat = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.7 });
+    const scabbard = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.88, 0.065), scabbardMat);
+    scabbard.position.y = -0.25;
+    swordGroup.add(scabbard);
+
+    // Sap (turkuaz sarmalı)
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.28, 10), swordHandleMat);
+    handle.position.y = 0.38;
+    swordGroup.add(handle);
+
+    // Sap sarmalı (açık renk şerit)
+    for(let i=0; i<5; i++) {
+        const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.01, 4, 10), whiteMat);
+        wrap.rotation.x = Math.PI/2;
+        wrap.position.y = 0.28 + i*0.046;
+        swordGroup.add(wrap);
+    }
+
+    // Tsuba (kare guard - Muichiro'nun karesine kare guard'ı)
+    const tsuba = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.028), guardMat);
+    tsuba.position.y = 0.24;
+    swordGroup.add(tsuba);
+
+    // Tsuba ortası kesik (karakteristik)
+    const tsubaHole = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.035), scabbardMat);
+    tsubaHole.position.y = 0.24;
+    swordGroup.add(tsubaHole);
+
+    // Kılıç ağzı (Nichirin - başlangıçta renksiz/gümüş, savaşta turkuaza döner)
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.88, 0.015), swordBladeMat);
+    blade.position.y = 0.68;
+    swordGroup.add(blade);
+
+    // Kılıç sırtı şeridi
+    const spineStripe = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.88, 0.014), new THREE.MeshStandardMaterial({ color: 0xccccdd, metalness: 0.9 }));
+    spineStripe.position.set(-0.017, 0.68, 0);
+    swordGroup.add(spineStripe);
+
+    // Kılıç ucu (sivri)
+    const tip2 = new THREE.Mesh(new THREE.ConeGeometry(0.019, 0.14, 4), swordBladeMat);
+    tip2.position.y = 1.13;
+    tip2.rotation.y = Math.PI/4;
+    swordGroup.add(tip2);
+
+    group.add(swordGroup);
 
     group.castShadow = true;
     return group;
@@ -1637,260 +1908,445 @@ function createCharacterModel(type) {
 
 // ========== GELİŞMİŞ EFEKT SİSTEMİ ==========
 
-// Alchemy Transmutation Circle Efekti (Edward) - FMA Anime
+// ═══════════════════════════════════════════════════════════════
+// EDWARD ELRIC - FMA TRANSMUTATION CIRCLE EFEKTİ (Anime-accurate)
+// Gerçek Fullmetal Alchemist Ouroboros/Transmutation dairesi
+// ═══════════════════════════════════════════════════════════════
 function createAlchemyEffect(position, scene) {
     const group = new THREE.Group();
     group.position.copy(position);
-    group.position.y = 0.02;
+    group.position.y = 0.04;
 
-    // Zemin parlak mavi ışıma
-    const glow = new THREE.Mesh(
-        new THREE.CircleGeometry(2.2,48),
-        new THREE.MeshBasicMaterial({color:0x0044ff,transparent:true,opacity:0.16,side:THREE.DoubleSide})
-    );
-    glow.rotation.x=-Math.PI/2; group.add(glow);
+    const cyanBlue = 0x00e8ff;
+    const cyanGlow = 0x0088aa;
+    const electricWhite = 0xe0ffff;
 
-    // Dış ana halka
-    const r1 = new THREE.Mesh(
-        new THREE.RingGeometry(1.55,1.75,64),
-        new THREE.MeshBasicMaterial({color:0x00aaff,transparent:true,opacity:0.95,side:THREE.DoubleSide})
-    );
-    r1.rotation.x=-Math.PI/2; group.add(r1);
-
-    // İkinci halka
-    const r2 = new THREE.Mesh(
-        new THREE.RingGeometry(1.15,1.28,64),
-        new THREE.MeshBasicMaterial({color:0x4488ff,transparent:true,opacity:0.85,side:THREE.DoubleSide})
-    );
-    r2.rotation.x=-Math.PI/2; group.add(r2);
-
-    // İç üçgen (FMA simgesi)
-    [0, Math.PI].forEach(offset=>{
-        const s = new THREE.Shape();
-        const R = 1.45;
-        for(let i=0;i<3;i++){
-            const a=(i/3)*Math.PI*2 + offset - Math.PI/2;
-            if(i===0) s.moveTo(Math.cos(a)*R, Math.sin(a)*R);
-            else s.lineTo(Math.cos(a)*R, Math.sin(a)*R);
-        }
-        s.closePath();
-        const m=new THREE.Mesh(new THREE.ShapeGeometry(s),
-            new THREE.MeshBasicMaterial({color:0x0066cc,transparent:true,opacity:0.32,side:THREE.DoubleSide}));
-        m.rotation.x=-Math.PI/2; group.add(m);
+    // == ZEMİN PARLAMA (Mavi enerji yayılımı) ==
+    const groundGlowMat = new THREE.MeshBasicMaterial({
+        color: 0x002244, transparent: true, opacity: 0.85, side: THREE.DoubleSide
     });
+    const groundGlow = new THREE.Mesh(new THREE.CircleGeometry(2.2, 48), groundGlowMat);
+    groundGlow.rotation.x = -Math.PI / 2;
+    group.add(groundGlow);
 
-    // Hexagon iç halka
-    const hex=new THREE.Mesh(
-        new THREE.RingGeometry(0.62,0.74,6),
-        new THREE.MeshBasicMaterial({color:0x00ccff,transparent:true,opacity:0.90,side:THREE.DoubleSide})
-    );
-    hex.rotation.x=-Math.PI/2; group.add(hex);
+    // == DIŞ BÜYÜK DAİRE ==
+    const outerRingMat = new THREE.MeshBasicMaterial({ color: cyanBlue, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+    const outerRing = new THREE.Mesh(new THREE.RingGeometry(1.55, 1.75, 64), outerRingMat);
+    outerRing.rotation.x = -Math.PI / 2;
+    group.add(outerRing);
 
-    // Merkez beyaz nokta
-    const dot=new THREE.Mesh(
-        new THREE.CircleGeometry(0.28,24),
-        new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.70,side:THREE.DoubleSide})
-    );
-    dot.rotation.x=-Math.PI/2; group.add(dot);
+    // == İKİNCİ DAİRE ==
+    const ring2Mat = new THREE.MeshBasicMaterial({ color: cyanBlue, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+    const ring2 = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.38, 64), ring2Mat);
+    ring2.rotation.x = -Math.PI / 2;
+    group.add(ring2);
 
-    // 18 radyal çizgi
-    for(let i=0;i<18;i++){
-        const a=(i/18)*Math.PI*2;
-        const ray=new THREE.Mesh(
-            new THREE.PlaneGeometry(0.025,0.35),
-            new THREE.MeshBasicMaterial({color:0x00bbff,transparent:true,opacity:0.70,side:THREE.DoubleSide})
-        );
-        ray.rotation.x=-Math.PI/2; ray.rotation.z=a;
-        ray.position.set(Math.cos(a)*1.9,0,Math.sin(a)*1.9);
-        group.add(ray);
+    // == İÇ KÜÇÜK DAİRE ==
+    const innerRingMat = new THREE.MeshBasicMaterial({ color: electricWhite, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+    const innerRing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.65, 40), innerRingMat);
+    innerRing.rotation.x = -Math.PI / 2;
+    group.add(innerRing);
+
+    // == TRANSMUTATION DAİRESİNİN ÜÇGENLERİ (Davut Yıldızı / FMA hexagram) ==
+    // İki ters üçgen (altı köşeli yıldız)
+    function createTriangleOnGround(radius, angle, mat) {
+        const pts = [];
+        for(let i = 0; i < 3; i++) {
+            const a = angle + (i * Math.PI * 2 / 3);
+            pts.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
+        }
+        const geom = new THREE.BufferGeometry();
+        const verts = new Float32Array([
+            pts[0].x,pts[0].y,pts[0].z,
+            pts[1].x,pts[1].y,pts[1].z,
+            pts[1].x,pts[1].y,pts[1].z,
+            pts[2].x,pts[2].y,pts[2].z,
+            pts[2].x,pts[2].y,pts[2].z,
+            pts[0].x,pts[0].y,pts[0].z
+        ]);
+        geom.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        return new THREE.LineSegments(geom, mat);
     }
 
-    // 8 yükselen enerji sütunu
-    const pillars=[];
-    for(let i=0;i<8;i++){
-        const a=(i/8)*Math.PI*2;
-        const p=new THREE.Mesh(
-            new THREE.CylinderGeometry(0.025,0.06,0.001,8),
-            new THREE.MeshBasicMaterial({color:0x44aaff,transparent:true,opacity:0.88})
-        );
-        p.position.set(Math.cos(a)*1.6,0,Math.sin(a)*1.6);
-        p.userData={ maxH:1.8+Math.random()*1.2 };
-        group.add(p); pillars.push(p);
+    const triMat = new THREE.LineBasicMaterial({ color: cyanBlue, transparent: true, opacity: 0.95, linewidth: 2 });
+    const tri1 = createTriangleOnGround(1.4, 0, triMat);
+    group.add(tri1);
+    const tri2 = createTriangleOnGround(1.4, Math.PI, triMat);
+    group.add(tri2);
+
+    // == ALTIGEN (hexagram içi çizgi) ==
+    const hexMat = new THREE.LineBasicMaterial({ color: electricWhite, transparent: true, opacity: 0.8 });
+    const hexPts = [];
+    for(let i = 0; i <= 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        hexPts.push(new THREE.Vector3(Math.cos(a) * 0.72, 0, Math.sin(a) * 0.72));
+    }
+    const hexGeo = new THREE.BufferGeometry().setFromPoints(hexPts);
+    const hexLine = new THREE.Line(hexGeo, hexMat);
+    group.add(hexLine);
+
+    // == MERKEZ YILDIZ NOKTASI ==
+    const centerMat = new THREE.MeshBasicMaterial({ color: electricWhite, transparent: true, opacity: 1.0 });
+    const center = new THREE.Mesh(new THREE.CircleGeometry(0.18, 20), centerMat);
+    center.rotation.x = -Math.PI / 2;
+    center.position.y = 0.01;
+    group.add(center);
+
+    // == 8 RADYAL IŞIN ==
+    for(let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const pts = [
+            new THREE.Vector3(Math.cos(a) * 0.2, 0.01, Math.sin(a) * 0.2),
+            new THREE.Vector3(Math.cos(a) * 1.5, 0.01, Math.sin(a) * 1.5)
+        ];
+        const rayGeo = new THREE.BufferGeometry().setFromPoints(pts);
+        const rayMat = new THREE.LineBasicMaterial({ color: cyanBlue, transparent: true, opacity: 0.7 });
+        group.add(new THREE.Line(rayGeo, rayMat));
     }
 
-    // Mavi-beyaz kıvılcımlar
-    const sparks=[];
-    for(let i=0;i<40;i++){
-        const sp=new THREE.Mesh(
-            new THREE.SphereGeometry(0.04+Math.random()*0.04,4,4),
-            new THREE.MeshBasicMaterial({color:i<20?0x00ddff:0xffffff,transparent:true,opacity:0.95})
-        );
-        const a=Math.random()*Math.PI*2, d=0.3+Math.random()*1.7;
-        sp.position.set(Math.cos(a)*d,0,Math.sin(a)*d);
-        sp.userData={
-            vx:(Math.random()-0.5)*0.04, vy:0.04+Math.random()*0.08, vz:(Math.random()-0.5)*0.04,
-            life:1.0, decay:0.018+Math.random()*0.018
+    // == RUNE HARFLERI (dış çemberin etrafında 12 nokta/sembol) ==
+    for(let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const runeTickMat = new THREE.MeshBasicMaterial({ color: electricWhite, transparent: true, opacity: 0.8 });
+        const runeTick = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.005, 0.1), runeTickMat);
+        runeTick.position.set(Math.cos(a) * 1.63, 0.005, Math.sin(a) * 1.63);
+        runeTick.rotation.y = a;
+        group.add(runeTick);
+    }
+
+    // == YÜKSELEBİLİR ENERJİ SÜTUNU (merkez) ==
+    const pillarMat = new THREE.MeshBasicMaterial({ color: electricWhite, transparent: true, opacity: 0.5 });
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.25, 0.01, 16), pillarMat);
+    pillar.position.y = 0.01;
+    group.add(pillar);
+
+    // == ENERJİ PARTİKÜLLERİ (mavi-beyaz elektrik kıvılcımları) ==
+    const sparks = [];
+    for(let i = 0; i < 40; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 0.3 + Math.random() * 1.5;
+        const sparkMat = new THREE.MeshBasicMaterial({
+            color: Math.random() > 0.5 ? cyanBlue : electricWhite,
+            transparent: true, opacity: 0.9
+        });
+        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.025 + Math.random() * 0.04, 4, 4), sparkMat);
+        spark.position.set(Math.cos(angle) * radius, 0.05 + Math.random() * 0.6, Math.sin(angle) * radius);
+        spark.userData = {
+            vx: (Math.random() - 0.5) * 0.025,
+            vy: 0.015 + Math.random() * 0.04,
+            vz: (Math.random() - 0.5) * 0.025,
+            life: 1.0,
+            decay: 0.018 + Math.random() * 0.025
         };
-        group.add(sp); sparks.push(sp);
+        group.add(spark);
+        sparks.push(spark);
     }
 
-    // Mavi ışık
-    const light=new THREE.PointLight(0x0088ff,8,6);
-    light.position.y=0.5; group.add(light);
+    // == ELEKTRİK ARK EFEKTİ (zemin üstü) ==
+    const arcSparks = [];
+    for(let i = 0; i < 8; i++) {
+        const a1 = (i / 8) * Math.PI * 2;
+        const a2 = a1 + 0.3 + Math.random() * 0.4;
+        const r1 = 0.7 + Math.random() * 0.3;
+        const r2 = 1.1 + Math.random() * 0.3;
+        const arcPts = [];
+        const steps = 8;
+        for(let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            const ra = a1 + (a2 - a1) * t;
+            const rr = r1 + (r2 - r1) * t + (Math.random() - 0.5) * 0.2;
+            arcPts.push(new THREE.Vector3(Math.cos(ra) * rr, 0.02 + Math.random() * 0.15, Math.sin(ra) * rr));
+        }
+        const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts);
+        const arcMat = new THREE.LineBasicMaterial({ color: electricWhite, transparent: true, opacity: 0.9 });
+        const arc = new THREE.Line(arcGeo, arcMat);
+        arc.userData = { life: 1.0 };
+        group.add(arc);
+        arcSparks.push(arc);
+    }
+
+    // == IŞIK KAYNAĞ ==
+    const light = new THREE.PointLight(0x00aaff, 4, 8);
+    light.position.y = 0.5;
+    group.add(light);
 
     scene.add(group);
 
-    let t=0;
-    const totalTime=3.0;
-    const animate=()=>{
-        t+=0.035;
-        r1.rotation.z+=0.025; r2.rotation.z-=0.035; hex.rotation.z+=0.05;
-        pillars.forEach(p=>{
-            const h=Math.min(p.userData.maxH,(t/0.6)*p.userData.maxH);
-            p.geometry.dispose();
-            p.geometry=new THREE.CylinderGeometry(0.02,0.055,h,8);
-            p.position.y=h/2;
+    // == ANİMASYON ==
+    let t = 0;
+    const totalDuration = 120; // frame sayısı
+
+    const animate = () => {
+        t++;
+
+        // Dairelerin dönmesi
+        const spinRate = t < 20 ? t * 0.008 : 0.12;
+        tri1.rotation.y += spinRate;
+        tri2.rotation.y -= spinRate * 0.7;
+        innerRing.rotation.z += 0.05;
+        ring2.rotation.z -= 0.03;
+
+        // Kıvılcımlar
+        sparks.forEach(s => {
+            s.position.x += s.userData.vx;
+            s.position.y += s.userData.vy;
+            s.position.z += s.userData.vz;
+            s.userData.vy *= 0.96;
+            s.userData.life -= s.userData.decay;
+            s.material.opacity = Math.max(0, s.userData.life);
+            s.scale.setScalar(Math.max(0.01, s.userData.life));
         });
-        sparks.forEach(s=>{
-            s.position.x+=s.userData.vx; s.position.y+=s.userData.vy; s.position.z+=s.userData.vz;
-            s.userData.vy-=0.001; s.userData.life-=s.userData.decay;
-            s.material.opacity=Math.max(0,s.userData.life);
-            s.scale.setScalar(Math.max(0.01,s.userData.life));
+
+        // Elektrik arklarının titremesi
+        arcSparks.forEach(arc => {
+            arc.userData.life -= 0.04;
+            arc.material.opacity = Math.max(0, arc.userData.life * 0.9);
         });
-        light.intensity=7+Math.sin(t*12)*2;
-        if(t>totalTime){scene.remove(group);}
-        else requestAnimationFrame(animate);
+
+        // Sütun genişleme efekti
+        if(t < 30) {
+            pillar.scale.set(1 + t * 0.5, 1 + t * 2, 1 + t * 0.5);
+            pillar.material.opacity = 0.5 - t * 0.012;
+        }
+
+        // Işık nabzı
+        light.intensity = 4 * (0.7 + 0.3 * Math.sin(t * 0.3));
+
+        // Yavaş yavaş kaybolma (son 30 frame)
+        if(t > totalDuration - 30) {
+            const fade = (totalDuration - t) / 30;
+            outerRing.material.opacity = fade * 0.95;
+            ring2.material.opacity = fade * 0.85;
+            innerRing.material.opacity = fade * 0.9;
+            hexLine.material.opacity = fade * 0.8;
+            triMat.opacity = fade * 0.95;
+            hexMat.opacity = fade * 0.8;
+            groundGlowMat.opacity = fade * 0.85;
+            light.intensity = fade * 4;
+        }
+
+        if(t < totalDuration) {
+            requestAnimationFrame(animate);
+        } else {
+            scene.remove(group);
+        }
     };
     animate();
+
     return group;
 }
 
-// Mist Breathing Efekti (Muichiro) - Demon Slayer Anime
+// ═══════════════════════════════════════════════════════════════════
+// MUICHİRO TOKİTO - MIST BREATHING 7TH FORM EFEKTİ (Anime-accurate)
+// Gerçek Demon Slayer:霞の呼吸・漸層靄死に様の夢幻花 (Yedinci Form)
+// ═══════════════════════════════════════════════════════════════════
 function createMistEffect(position, scene) {
     const group = new THREE.Group();
     group.position.copy(position);
 
-    // Yayılan sis halkası
-    const ringM=new THREE.MeshBasicMaterial({color:0xaaffee,transparent:true,opacity:0.0,side:THREE.DoubleSide});
-    const ring=new THREE.Mesh(new THREE.RingGeometry(0.05,0.30,48),ringM);
-    ring.rotation.x=-Math.PI/2; ring.position.y=0.05; group.add(ring);
+    const mistTeal = 0x00d4d4;
+    const mistLight = 0x88f8ff;
+    const mistWhite = 0xe8ffff;
+    const mistDeep  = 0x003a3a;
 
-    const ringM2=new THREE.MeshBasicMaterial({color:0xccffff,transparent:true,opacity:0.0,side:THREE.DoubleSide});
-    const ring2=new THREE.Mesh(new THREE.RingGeometry(0.05,0.20,48),ringM2);
-    ring2.rotation.x=-Math.PI/2; ring2.position.y=0.12; group.add(ring2);
-
-    // 6 sıralı turkuaz kılıç izi
-    const trails=[];
-    [0,0.7,-0.5,1.3,-1.1,1.8].forEach((baseA,idx)=>{
-        const tg=new THREE.Group();
-        const len=1.4+Math.random()*0.8;
-        const mMain=new THREE.MeshBasicMaterial({color:0x00ffee,transparent:true,opacity:0.0});
-        const mGlow=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.0});
-        tg.add(new THREE.Mesh(new THREE.PlaneGeometry(0.05+Math.random()*0.03,len),mMain));
-        tg.add(new THREE.Mesh(new THREE.PlaneGeometry(0.02,len*0.9),mGlow));
-        tg.position.set(Math.cos(baseA)*(0.5+idx*0.15),0.8+idx*0.25,Math.sin(baseA)*(0.5+idx*0.15));
-        tg.rotation.y=baseA+Math.random()*0.4;
-        tg.rotation.z=(Math.random()-0.5)*0.6;
-        group.add(tg);
-        trails.push({tg,mMain,mGlow,delay:idx*0.07});
-    });
-
-    // Sis bulutları
-    const clouds=[];
-    for(let i=0;i<22;i++){
-        const sc=0.2+Math.random()*0.55;
-        const c=new THREE.Mesh(
-            new THREE.SphereGeometry(sc,10,8),
-            new THREE.MeshBasicMaterial({color:i<11?0xbbffee:0xddfff8,transparent:true,opacity:0.0})
+    // == TEMEL SİS TABAKASI (zemin üstü yoğun) ==
+    for(let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const r = 0.4 + Math.random() * 0.8;
+        const mistMat = new THREE.MeshBasicMaterial({
+            color: mistTeal, transparent: true,
+            opacity: 0.35 + Math.random() * 0.2,
+            depthWrite: false
+        });
+        const cloud = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 8, 6), mistMat
         );
-        const a=Math.random()*Math.PI*2, d=0.15+Math.random()*1.8;
-        c.position.set(Math.cos(a)*d,0.1+Math.random()*1.2,Math.sin(a)*d);
-        c.scale.set(1+Math.random()*0.5,0.4+Math.random()*0.4,1+Math.random()*0.5);
-        c.userData={
-            vx:Math.cos(a)*0.015+(Math.random()-0.5)*0.01,
-            vy:0.005+Math.random()*0.012,
-            vz:Math.sin(a)*0.015+(Math.random()-0.5)*0.01,
-            rot:(Math.random()-0.5)*0.025,
-            maxOp:0.22+Math.random()*0.28,
-            delay:Math.random()*0.3
+        cloud.scale.set(2 + Math.random(), 0.35 + Math.random() * 0.25, 1.5 + Math.random());
+        cloud.position.set(Math.cos(angle) * r, 0.12, Math.sin(angle) * r);
+        cloud.userData = {
+            vx: Math.cos(angle) * (0.01 + Math.random() * 0.015),
+            vz: Math.sin(angle) * (0.01 + Math.random() * 0.015),
+            rotY: (Math.random() - 0.5) * 0.018,
+            life: 1.0, decay: 0.008 + Math.random() * 0.01
         };
-        group.add(c); clouds.push(c);
+        group.add(cloud);
+        group.userData.clouds = group.userData.clouds || [];
+        group.userData.clouds.push(cloud);
     }
 
-    // Turkuaz parçacıklar
-    const parts=[];
-    for(let i=0;i<35;i++){
-        const p=new THREE.Mesh(
-            new THREE.SphereGeometry(0.025+Math.random()*0.04,5,5),
-            new THREE.MeshBasicMaterial({color:i<18?0x00ffcc:0xaaffff,transparent:true,opacity:0.9})
-        );
-        const a=Math.random()*Math.PI*2, d=Math.random()*2.0;
-        p.position.set(Math.cos(a)*d,Math.random()*1.5,Math.sin(a)*d);
-        p.userData={
-            vx:(Math.random()-0.5)*0.03, vy:0.025+Math.random()*0.05, vz:(Math.random()-0.5)*0.03,
-            life:1.0, decay:0.015+Math.random()*0.022, delay:Math.random()*0.4
-        };
-        group.add(p); parts.push(p);
+    // == KILIÇ İZLERİ - Yıldırım hızında çoklu kesim izleri ==
+    // Muichiro'nun 7. formu: dönerek çok sayıda kesim - daire şeklinde kılıç izleri
+    const slashTrails = [];
+    const slashCount = 9; // Yedinci form - çok sayıda kesim
+
+    for(let i = 0; i < slashCount; i++) {
+        const baseAngle = (i / slashCount) * Math.PI * 2;
+        const slashRadius = 0.6 + (i % 3) * 0.38;
+        const slashLen = 1.4 + Math.random() * 0.6;
+        const slashAngle = baseAngle + Math.PI * 0.15;
+
+        // Kılıç izi (ince beyaz-turkuaz bıçak izi)
+        const sx = Math.cos(baseAngle) * slashRadius;
+        const sz = Math.sin(baseAngle) * slashRadius;
+        const ex = Math.cos(slashAngle) * (slashRadius + slashLen * 0.5);
+        const ez = Math.sin(slashAngle) * (slashRadius + slashLen * 0.5);
+        const sy = 0.6 + Math.random() * 1.0;
+        const ey = sy + (Math.random() - 0.5) * 0.8;
+
+        const slashPts = [];
+        const steps = 12;
+        for(let s = 0; s <= steps; s++) {
+            const t2 = s / steps;
+            const slight = (Math.random() - 0.5) * 0.05;
+            slashPts.push(new THREE.Vector3(
+                sx + (ex - sx) * t2 + slight,
+                sy + (ey - sy) * t2 + Math.sin(t2 * Math.PI) * 0.15,
+                sz + (ez - sz) * t2 + slight
+            ));
+        }
+
+        const trailGeo = new THREE.BufferGeometry().setFromPoints(slashPts);
+        // İç kısım (parlak beyaz)
+        const trailMat = new THREE.LineBasicMaterial({
+            color: i % 2 === 0 ? mistWhite : mistLight,
+            transparent: true, opacity: 0.95
+        });
+        const trail = new THREE.Line(trailGeo, trailMat);
+        trail.userData = { life: 1.0, delay: i * 3, decay: 0.022 + Math.random() * 0.018 };
+        group.add(trail);
+        slashTrails.push(trail);
     }
 
-    const light=new THREE.PointLight(0x00ffcc,0,7);
-    light.position.y=1.0; group.add(light);
+    // == SİS KILIÇ AURASİ (kılıcın etrafında yoğun sis) ==
+    for(let i = 0; i < 5; i++) {
+        const auraMat = new THREE.MeshBasicMaterial({
+            color: i % 2 === 0 ? mistTeal : mistWhite,
+            transparent: true, opacity: 0.7,
+            depthWrite: false, side: THREE.DoubleSide
+        });
+        const aura = new THREE.Mesh(new THREE.PlaneGeometry(0.06 + i * 0.02, 1.8 - i * 0.15), auraMat);
+        aura.position.set(
+            (Math.random() - 0.5) * 2.5,
+            0.5 + Math.random() * 1.5,
+            (Math.random() - 0.5) * 2.5
+        );
+        aura.rotation.y = Math.random() * Math.PI;
+        aura.rotation.z = (Math.random() - 0.5) * 0.4;
+        aura.userData = { life: 1.0, ry: (Math.random() - 0.5) * 0.06, decay: 0.025 + Math.random() * 0.02 };
+        group.add(aura);
+        slashTrails.push(aura);
+    }
+
+    // == DAIRESEL SİS DALGASI (yayılan enerji) ==
+    const waveRings = [];
+    for(let w = 0; w < 3; w++) {
+        const waveMat = new THREE.MeshBasicMaterial({
+            color: mistTeal, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+        });
+        const wave = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.22, 32), waveMat);
+        wave.rotation.x = -Math.PI / 2;
+        wave.position.y = 0.05;
+        wave.userData = { scale: 0.3 + w * 0.5, expandSpeed: 0.06 + w * 0.03, life: 1.0, delay: w * 8 };
+        group.add(wave);
+        waveRings.push(wave);
+    }
+
+    // == ENERJİ PARTİKÜLLERİ (sis içinde parlayan noktalar) ==
+    const particles = [];
+    for(let i = 0; i < 50; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 2.5;
+        const pMat = new THREE.MeshBasicMaterial({
+            color: Math.random() > 0.6 ? mistWhite : mistTeal,
+            transparent: true, opacity: 0.9
+        });
+        const p = new THREE.Mesh(new THREE.SphereGeometry(0.02 + Math.random() * 0.04, 4, 4), pMat);
+        p.position.set(
+            Math.cos(angle) * radius,
+            0.1 + Math.random() * 2.2,
+            Math.sin(angle) * radius
+        );
+        p.userData = {
+            vx: (Math.random() - 0.5) * 0.02,
+            vy: -0.005 + Math.random() * 0.025,
+            vz: (Math.random() - 0.5) * 0.02,
+            life: 1.0, decay: 0.015 + Math.random() * 0.025
+        };
+        group.add(p);
+        particles.push(p);
+    }
+
+    // == IŞIK KAYNAĞ (soğuk mavi-yeşil ışık) ==
+    const light = new THREE.PointLight(0x00c8c8, 5, 9);
+    light.position.set(0, 1.2, 0);
+    group.add(light);
+
+    // İkinci spot ışık (renk varyasyonu)
+    const light2 = new THREE.PointLight(0x008888, 2.5, 5);
+    light2.position.set(0, 0.3, 0);
+    group.add(light2);
 
     scene.add(group);
 
-    let t=0;
-    const totalTime=2.2;
-    const animate=()=>{
-        t+=0.032;
+    // == ANİMASYON ==
+    let t = 0;
+    const totalFrames = 110;
 
-        // Sis halkası genişle
-        const rp=Math.min(1,t/0.5), rR=rp*2.8;
-        ring.geometry.dispose();
-        ring.geometry=new THREE.RingGeometry(rR,rR+0.25,48);
-        ringM.opacity=t<0.3?t/0.3*0.6:Math.max(0,0.6-(t-0.3)/1.0);
-        const r2R=Math.min(1,t/0.3)*2.2;
-        ring2.geometry.dispose();
-        ring2.geometry=new THREE.RingGeometry(r2R,r2R+0.18,48);
-        ringM2.opacity=t<0.25?t/0.25*0.45:Math.max(0,0.45-(t-0.25)/0.9);
+    const animateMist = () => {
+        t++;
 
-        // Kılıç izleri
-        trails.forEach(tr=>{
-            const lt=t-tr.delay;
-            if(lt>0){
-                const op=Math.min(1,lt/0.12)*Math.max(0,1-(lt-0.12)/0.6);
-                tr.mMain.opacity=op*0.92; tr.mGlow.opacity=op*0.70;
-            }
+        // Sis bulutları genişler ve yavaşça kaybolur
+        if(group.userData.clouds) {
+            group.userData.clouds.forEach(cloud => {
+                cloud.position.x += cloud.userData.vx;
+                cloud.position.z += cloud.userData.vz;
+                cloud.rotation.y += cloud.userData.rotY;
+                if(t > 20) {
+                    cloud.userData.life -= cloud.userData.decay;
+                    cloud.material.opacity = Math.max(0, cloud.userData.life * 0.35);
+                }
+            });
+        }
+
+        // Kılıç izleri: delay geçtikten sonra hızla parlayıp kaybolur
+        slashTrails.forEach(trail => {
+            if(t < trail.userData.delay) return;
+            trail.userData.life -= trail.userData.decay;
+            const op = Math.max(0, trail.userData.life);
+            trail.material.opacity = trail.userData.ry ? op * 0.7 : op * 0.95;
+            if(trail.userData.ry) trail.rotation.y += trail.userData.ry;
         });
 
-        // Sis bulutları
-        clouds.forEach(c=>{
-            const lt=t-c.userData.delay;
-            if(lt>0){
-                c.position.x+=c.userData.vx; c.position.y+=c.userData.vy; c.position.z+=c.userData.vz;
-                c.rotation.y+=c.userData.rot;
-                const app=Math.min(1,lt/0.35);
-                const fade=t>totalTime-0.7?Math.max(0,1-(t-(totalTime-0.7))/0.7):1;
-                c.material.opacity=app*fade*c.userData.maxOp;
-            }
+        // Dalga halkaları dışarı doğru genişler
+        waveRings.forEach(wave => {
+            if(t < wave.userData.delay) return;
+            wave.userData.scale += wave.userData.expandSpeed;
+            wave.scale.setScalar(wave.userData.scale);
+            wave.userData.life -= 0.018;
+            wave.material.opacity = Math.max(0, wave.userData.life * 0.6);
         });
 
-        // Parçacıklar
-        parts.forEach(p=>{
-            const lt=t-p.userData.delay;
-            if(lt>0){
-                p.position.x+=p.userData.vx; p.position.y+=p.userData.vy; p.position.z+=p.userData.vz;
-                p.userData.life-=p.userData.decay;
-                p.material.opacity=Math.max(0,p.userData.life*0.9);
-                p.scale.setScalar(Math.max(0.1,p.userData.life));
-            }
+        // Partiküller
+        particles.forEach(p => {
+            p.position.x += p.userData.vx;
+            p.position.y += p.userData.vy;
+            p.position.z += p.userData.vz;
+            p.userData.life -= p.userData.decay;
+            p.material.opacity = Math.max(0, p.userData.life * 0.9);
+            p.scale.setScalar(Math.max(0.01, p.userData.life));
         });
 
-        light.intensity=Math.min(6,t/0.2*6)*(t<totalTime-0.5?1:Math.max(0,1-(t-(totalTime-0.5))/0.5));
+        // Işık nabzı (nabız gibi)
+        light.intensity = 5 * (0.5 + 0.5 * Math.sin(t * 0.25)) * Math.max(0, 1 - t / totalFrames);
+        light2.intensity = 2.5 * Math.max(0, 1 - t / totalFrames);
 
-        if(t<totalTime) requestAnimationFrame(animate);
-        else scene.remove(group);
+        if(t < totalFrames) {
+            requestAnimationFrame(animateMist);
+        } else {
+            scene.remove(group);
+        }
     };
-    animate();
+    animateMist();
 }
 
 // Karakter spawn etme (geliştirilmiş)
@@ -1989,93 +2445,130 @@ function updateNPCCombat() {
                 
                 // Saldırı efekti
                 if(npc.type === 'edward') {
-                    // Alchemy spear efekti - FMA Anime (zemin transmutation + taş mızrak)
+                    // === FMA: ALCHEMY SPEAR / TAŞTAN MIZRAK EFEKTİ ===
+                    // Edward zeminden alchemy ile taş/metal mızrak çıkartır
                     const spearGroup = new THREE.Group();
-                    const baseMat = new THREE.MeshBasicMaterial({color:0x0088ff,transparent:true,opacity:0.85,side:THREE.DoubleSide});
-                    const baseRing = new THREE.Mesh(new THREE.RingGeometry(0.15,0.35,32), baseMat);
-                    baseRing.rotation.x = -Math.PI/2;
-                    spearGroup.position.set(npc.mesh.position.x, 0, npc.mesh.position.z);
-                    spearGroup.add(baseRing);
-                    const beamM = new THREE.MeshBasicMaterial({color:0x44aaff,transparent:true,opacity:0.82});
-                    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.12,0.001,8), beamM);
-                    spearGroup.add(beam);
-                    const midX=(npc.mesh.position.x+targetNPC.mesh.position.x)/2;
-                    const midZ=(npc.mesh.position.z+targetNPC.mesh.position.z)/2;
-                    const spearBody = new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.055,0.11,1.7,7),
-                        new THREE.MeshStandardMaterial({color:0x888898,metalness:0.7,roughness:0.35})
-                    );
-                    spearBody.position.set(midX,0.9,midZ);
-                    spearBody.lookAt(new THREE.Vector3(targetNPC.mesh.position.x,0.9,targetNPC.mesh.position.z));
-                    spearBody.rotateX(Math.PI/2);
-                    const impactM = new THREE.MeshBasicMaterial({color:0x00aaff,transparent:true,opacity:0.9,side:THREE.DoubleSide});
-                    const impactRing = new THREE.Mesh(new THREE.RingGeometry(0.0,0.05,24), impactM);
-                    impactRing.position.set(targetNPC.mesh.position.x,1.0,targetNPC.mesh.position.z);
-                    impactRing.rotation.x=-Math.PI/2;
-                    scene.add(spearGroup); scene.add(spearBody); scene.add(impactRing);
-                    let at=0;
-                    const animSpear=()=>{
-                        at+=0.07;
-                        const h=Math.min(2.5,at*12);
-                        beam.geometry.dispose(); beam.geometry=new THREE.CylinderGeometry(0.03,0.10,h,8);
-                        beam.position.y=h/2; baseMat.opacity=Math.max(0,0.85-at*0.9);
-                        const ir=at*4.5; impactM.opacity=Math.max(0,0.9-at*1.1);
-                        impactRing.geometry.dispose(); impactRing.geometry=new THREE.RingGeometry(ir,ir+0.20,24);
-                        if(at<1.0) requestAnimationFrame(animSpear);
-                        else{ scene.remove(spearGroup); scene.remove(spearBody); scene.remove(impactRing); }
+                    const midX = (npc.mesh.position.x + targetNPC.mesh.position.x) / 2;
+                    const midZ = (npc.mesh.position.z + targetNPC.mesh.position.z) / 2;
+                    spearGroup.position.set(midX, 0, midZ);
+
+                    // Mızrak gövdesi (taştan çıkan)
+                    const spearMat = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, metalness: 0.4, roughness: 0.6 });
+                    const spearBody = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 2.2, 6), spearMat);
+                    spearBody.position.y = 0.6;
+                    spearGroup.add(spearBody);
+
+                    // Sivri uç
+                    const spearTipMat = new THREE.MeshStandardMaterial({ color: 0xc8c8d0, metalness: 0.8, roughness: 0.2 });
+                    const spearTip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 6), spearTipMat);
+                    spearTip.position.y = 1.9;
+                    spearGroup.add(spearTip);
+
+                    // Mızrak hedef yönüne dönsün
+                    spearGroup.lookAt(targetNPC.mesh.position.x, 0, targetNPC.mesh.position.z);
+                    spearGroup.rotation.x = Math.PI / 2 - 0.5;
+
+                    // Mavi alchemy ışığı
+                    const alchLight = new THREE.PointLight(0x00ccff, 3, 4);
+                    alchLight.position.y = 1;
+                    spearGroup.add(alchLight);
+
+                    // Transmutation izi (zemin dairesi küçük)
+                    const traceRingMat = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+                    const traceRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.5, 24), traceRingMat);
+                    traceRing.rotation.x = -Math.PI / 2;
+                    traceRing.position.y = 0.02;
+                    spearGroup.add(traceRing);
+
+                    scene.add(spearGroup);
+
+                    // Mızrak yükselme animasyonu
+                    let sf = 0;
+                    const animSpear = () => {
+                        sf++;
+                        if(sf < 8) spearGroup.position.y = sf * 0.1;
+                        alchLight.intensity = 3 * (1 - sf / 25);
+                        traceRing.material.opacity = 0.8 * (1 - sf / 20);
+                        if(sf < 25) requestAnimationFrame(animSpear);
+                        else scene.remove(spearGroup);
                     };
                     animSpear();
+
                 } else {
-                    // Mist slash efekti - Demon Slayer Anime (çok katmanlı turkuaz yay + sis)
+                    // === DEMON SLAYER: MIST BREATHING SLASH EFEKTİ ===
+                    // Muichiro'nun hızlı kılıç kesim izleri - turkuaz sis bırakır
+
                     const slashGroup = new THREE.Group();
-                    slashGroup.position.set(targetNPC.mesh.position.x,1.0,targetNPC.mesh.position.z);
-                    slashGroup.lookAt(new THREE.Vector3(npc.mesh.position.x,1.0,npc.mesh.position.z));
-                    for(let si=0;si<3;si++){
-                        const aM=new THREE.MeshBasicMaterial({
-                            color:si===0?0x00ffee:(si===1?0xaaffff:0xffffff),
-                            transparent:true, opacity:si===0?0.95:(si===1?0.70:0.50),
-                            side:THREE.DoubleSide
-                        });
-                        const arc=new THREE.Mesh(
-                            new THREE.RingGeometry(0.55+si*0.22,0.72+si*0.22,3,1,-0.35+si*0.08,Math.PI*(0.65-si*0.08)),
-                            aM
-                        );
-                        arc.rotation.z=-0.3+si*0.12; arc.userData={mat:aM,si};
-                        slashGroup.add(arc);
+                    slashGroup.position.copy(targetNPC.mesh.position);
+
+                    // Çoklu kesim izleri (Mist Breathing hızı)
+                    for(let si = 0; si < 4; si++) {
+                        const sAngle = (si / 4) * Math.PI * 1.5 - Math.PI * 0.3;
+                        const sLen = 1.2 + Math.random() * 0.5;
+                        const pts = [];
+                        for(let sp = 0; sp <= 10; sp++) {
+                            const t2 = sp / 10;
+                            pts.push(new THREE.Vector3(
+                                Math.cos(sAngle + t2 * 0.5) * sLen * t2 + (Math.random()-0.5)*0.08,
+                                0.5 + t2 * 0.8 + (Math.random()-0.5)*0.2,
+                                Math.sin(sAngle + t2 * 0.5) * sLen * t2 + (Math.random()-0.5)*0.08
+                            ));
+                        }
+                        const slashGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                        const slashC = si % 2 === 0 ? 0xffffff : 0x00e8e8;
+                        const slashMat = new THREE.LineBasicMaterial({ color: slashC, transparent: true, opacity: 0.95 });
+                        const slashLine = new THREE.Line(slashGeo, slashMat);
+                        slashLine.userData = { opacity: 0.95, decay: 0.055 + si * 0.015 };
+                        slashGroup.add(slashLine);
                     }
-                    const puffs=[];
-                    for(let mi=0;mi<4;mi++){
-                        const pf=new THREE.Mesh(
-                            new THREE.SphereGeometry(0.18+mi*0.12,8,6),
-                            new THREE.MeshBasicMaterial({color:0xccffff,transparent:true,opacity:0.5-mi*0.08})
-                        );
-                        pf.position.set((Math.random()-0.5)*0.7,(Math.random()-0.5)*0.5,(Math.random()-0.5)*0.4);
-                        pf.scale.set(1+Math.random()*0.5,0.5+Math.random()*0.3,1+Math.random()*0.5);
-                        slashGroup.add(pf); puffs.push(pf);
+
+                    // Sis kümesi (darbe noktasında sis patlama)
+                    for(let mi = 0; mi < 6; mi++) {
+                        const mAngle = (mi / 6) * Math.PI * 2;
+                        const mistMat2 = new THREE.MeshBasicMaterial({ color: 0x00c8c8, transparent: true, opacity: 0.55 });
+                        const mistPuff = new THREE.Mesh(new THREE.SphereGeometry(0.28 + Math.random()*0.2, 7, 6), mistMat2);
+                        mistPuff.scale.set(1.8, 0.5, 1.4);
+                        mistPuff.position.set(Math.cos(mAngle)*0.7, 0.4 + Math.random()*0.8, Math.sin(mAngle)*0.7);
+                        mistPuff.userData = {
+                            vx: Math.cos(mAngle)*0.02, vz: Math.sin(mAngle)*0.02,
+                            life: 1.0, decay: 0.04
+                        };
+                        slashGroup.add(mistPuff);
                     }
-                    const sLight=new THREE.PointLight(0x00ffcc,5,4);
-                    slashGroup.add(sLight);
+
+                    // Turkuaz darbe ışığı
+                    const mistLight2 = new THREE.PointLight(0x00c8c8, 4, 5);
+                    mistLight2.position.y = 1;
+                    slashGroup.add(mistLight2);
+
                     scene.add(slashGroup);
-                    let at=0;
-                    const animSlash=()=>{
-                        at+=0.06;
-                        slashGroup.children.forEach(ch=>{
-                            if(ch.userData&&ch.userData.mat){
-                                const b=ch.userData.si===0?0.95:(ch.userData.si===1?0.70:0.50);
-                                ch.userData.mat.opacity=Math.max(0,b*(1-at/0.7));
-                                ch.scale.multiplyScalar(1.035);
+
+                    // Slash kaybolma animasyonu
+                    let mf = 0;
+                    const animSlash = () => {
+                        mf++;
+                        slashGroup.children.forEach(child => {
+                            if(child.material) {
+                                if(child.userData.opacity !== undefined) {
+                                    child.userData.opacity -= child.userData.decay || 0.06;
+                                    child.material.opacity = Math.max(0, child.userData.opacity);
+                                } else if(child.userData.life !== undefined) {
+                                    child.userData.life -= child.userData.decay || 0.04;
+                                    child.material.opacity = Math.max(0, child.userData.life * 0.55);
+                                    if(child.userData.vx) {
+                                        child.position.x += child.userData.vx;
+                                        child.position.z += child.userData.vz;
+                                    }
+                                } else if(child.isLight) {
+                                    child.intensity *= 0.85;
+                                }
                             }
                         });
-                        puffs.forEach((pf,i)=>{
-                            pf.material.opacity=Math.max(0,(0.5-i*0.08)*(1-at/1.2));
-                            pf.scale.multiplyScalar(1.04);
-                        });
-                        sLight.intensity=Math.max(0,5-at*7);
-                        if(at<1.1) requestAnimationFrame(animSlash);
+                        mistLight2.intensity *= 0.88;
+                        if(mf < 30) requestAnimationFrame(animSlash);
                         else scene.remove(slashGroup);
                     };
                     animSlash();
-                }
                 
                 showNotification(`${characterSkills[npc.type].name} ${characterSkills[targetNPC.type].name}'e ${npc.attackDamage} hasar verdi!`);
                 
