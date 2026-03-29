@@ -697,7 +697,7 @@ if (!discordToken) {
     console.error('❌ HATA: "token" environment variable eksik!');
     console.error('   Render panelinde Environment Variables bölümüne "token" ekle.');
 } else {
-    console.log('✅ Token bulundu, Discord'a bağlanılıyor...');
+    console.log(`✅ Token bulundu, Discord'a bağlanılıyor...`);
 
     client.once('ready', () => {
         console.log(`✅ Discord: ${client.user.tag} aktif ve hazır!`);
