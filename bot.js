@@ -18,18 +18,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { 
-    joinVoiceChannel, 
-    createAudioPlayer, 
-    createAudioResource, 
-    AudioPlayerStatus, 
-    VoiceConnectionStatus,
-    NoSubscriberBehavior
-} = require('@discordjs/voice');
-const { createReadStream } = require('fs');
-const prism = require('prism-media');
 const { HfInference } = require('@huggingface/inference');
-const DATA_DIR2 = '/var/data/public/sounds'
+
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
@@ -43,8 +33,7 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -116,13 +105,59 @@ function formatRemaining(ms) {
 }
 
 // ────────────────────────────────────────────────
-// MESAJ VE ETKİLEŞİM KOMUTLARI
+// 3D MODEL ÜRETİCİ (Hugging Face)
+// ────────────────────────────────────────────────
+const hf = new HfInference(process.env.meshy);
+
+const CHARACTERS = [
+    "Muichiro Tokito anime character, mist hashira, detailed 3d model",
+    "Naruto Uzumaki, sage mode, spiky hair, 3d avatar",
+    "Edward Elric, fullmetal alchemist, 3d model"
+    // Buraya istediğin kadar ekle
+];
+
+async function generateFree3D(message, prompt) {
+    const charName = prompt.split(',')[0];
+    try {
+        console.log(`[BAŞLADI] ${charName} oluşturuluyor...`);
+
+        const response = await hf.textTo3D({
+            model: 'stabilityai/stable-fast-3d',
+            inputs: prompt,
+        });
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const fileName = `${charName.replace(/\s+/g, '_')}.glb`;
+        fs.writeFileSync(fileName, buffer);
+
+        await message.channel.send({
+            content: `✅ **${charName}** tamamen ücretsiz oluşturuldu!`,
+            files: [new AttachmentBuilder(fileName)]
+        });
+
+        fs.unlinkSync(fileName);
+    } catch (err) {
+        console.error(err);
+        await message.channel.send(`❌ **${charName}** sırasında Hugging Face sunucusu yoğun olabilir, tekrar dene.`);
+    }
+}
+
+// ────────────────────────────────────────────────
+// MESAJ KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
     const args = message.content.trim().split(/ +/).slice(1).join(' ');
 
+    // ── 3D oluştur komutu ──
+    if (prefix === '!oluştur') {
+        message.reply("🚀 **Açık kaynaklı modellerle ücretsiz üretim başladı!**");
+        CHARACTERS.forEach(char => generateFree3D(message, char));
+        return;
+    }
+
+    // ── Yardım ──
     if (prefix === '#yardım') {
         const embed = new EmbedBuilder()
             .setTitle('Partner Bot Komutları')
@@ -133,12 +168,13 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-kanal #kanal', value: 'Reklam kanalı', inline: true },
                 { name: '#partner-log #kanal', value: 'Log kanalı', inline: true },
                 { name: '#partner-mesaj [mesaj]', value: 'Davet metni', inline: false },
-                { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false }
+                { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false },
+                { name: '!oluştur', value: 'Ücretsiz 3D anime karakter modeli üret', inline: false }
             );
         return message.channel.send({ embeds: [embed] });
     }
 
-    // Ayar Komutları
+    // ── Partner Ayar Komutları ──
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
         if (!target) return message.reply('⚠️ Rol etiketle!');
@@ -177,7 +213,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply(`✅ ${args} olarak ayarlandı.`);
     }
 
-    // Partnerlik Buton Gönderme
+    // ── Partnerlik Buton Gönderme ──
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -190,6 +226,9 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
+// ────────────────────────────────────────────────
+// ETKİLEŞİM KOMUTLARI (Button & Modal)
+// ────────────────────────────────────────────────
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Başvuru');
@@ -220,188 +259,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-
-
 // ────────────────────────────────────────────────
-// SES SİSTEMİ (DÜZELTİLMİŞ VE ÇALIŞAN VERSİYON)
+// NODEMAILER YAPILANDIRMASI
 // ────────────────────────────────────────────────
-
-// Sabitler - BURAYI KENDİ DEĞERLERİNİZLE DEĞİŞTİRİN
-const KANAL_ID = "1484873837626785892";
-const SUNUCU_ID = "1425143892633976844";
-const SES_DOSYASI = path.join(DATA_DIR2,"odnogo.mp3");
-
-client.on(Events.ClientReady, async () => {
-    console.log(`✅ ${client.user.tag} olarak giriş yapıldı!`);
-    
-    const channel = client.channels.cache.get(KANAL_ID);
-    if (!channel) {
-        console.log(`❌ Ses kanalı bulunamadı. ID: ${KANAL_ID}`);
-        return;
-    }
-    
-    if (!fs.existsSync(SES_DOSYASI)) {
-        console.log(`❌ Ses dosyası bulunamadı: ${SES_DOSYASI}`);
-        console.log("📁 Dosyayı bu konuma koyun veya yolu düzeltin");
-        return;
-    }
-    
-    console.log(`📁 Ses dosyası bulundu: ${SES_DOSYASI}`);
-    
-    // Audio player oluştur
-    const player = createAudioPlayer({
-        behaviors: {
-            noSubscriber: NoSubscriberBehavior.Play
-        }
-    });
-    
-    // Ses kanalına bağlan
-    const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: SUNUCU_ID,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-        selfDeaf: true,
-        selfMute: false
-    });
-    
-    // Bağlantının hazır olmasını bekle
-    try {
-        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-        console.log(`✅ ${channel.name} kanalına bağlanıldı`);
-    } catch (error) {
-        console.error("❌ Ses kanalına bağlanılamadı:", error);
-        connection.destroy();
-        return;
-    }
-    
-    // Connection'ı player'a abone et
-    const subscription = connection.subscribe(player);
-    if (!subscription) {
-        console.log("❌ Player aboneliği başarısız!");
-        connection.destroy();
-        return;
-    }
-    
-    // Sonsuz döngü için fonksiyon
-    async function playAudio() {
-        try {
-            // Yeni bir stream oluştur (her seferinde yeniden oluşturulmalı)
-            const audioStream = fs.createReadStream(SES_DOSYASI);
-            
-            // Audio resource oluştur - DOĞRU YOL
-            const resource = createAudioResource(audioStream, {
-                inlineVolume: true
-            });
-            
-            // Ses seviyesini ayarla (0-1 arası)
-            resource.volume.setVolume(1.0);
-            
-            // Play et ve promise döndür
-            player.play(resource);
-            
-            // Çalmanın başlamasını bekle
-            await entersState(player, AudioPlayerStatus.Playing, 5_000);
-            console.log("🎵 Ses başarıyla çalıyor...");
-            
-            // Şarkı bitince tekrar başlat
-            player.once(AudioPlayerStatus.Idle, () => {
-                console.log("🔄 Şarkı bitti, yeniden başlatılıyor...");
-                playAudio();
-            });
-            
-        } catch (error) {
-            console.error("❌ Ses çalma hatası:", error.message);
-            console.log("⏱️ 5 saniye sonra yeniden deneniyor...");
-            setTimeout(playAudio, 5000);
-        }
-    }
-    
-    // Player hata yönetimi
-    player.on('error', (error) => {
-        console.error(`⚠️ Player hatası: ${error.message}`);
-        console.log("🔄 Hata nedeniyle yeniden başlatılıyor...");
-        setTimeout(playAudio, 3000);
-    });
-    
-    // Bağlantı koparsa yeniden bağlan
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
-        console.log("⚠️ Bağlantı koptu, yeniden bağlanılıyor...");
-        try {
-            await Promise.race([
-                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-                entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
-            ]);
-            // Bağlantı yeniden sağlandı
-        } catch (error) {
-            console.log("❌ Bağlantı yeniden sağlanamadı, kanala yeniden bağlanılıyor...");
-            connection.destroy();
-            
-            // Yeniden bağlan
-            const newConnection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: SUNUCU_ID,
-                adapterCreator: channel.guild.voiceAdapterCreator,
-                selfDeaf: true,
-                selfMute: false
-            });
-            
-            try {
-                await entersState(newConnection, VoiceConnectionStatus.Ready, 30_000);
-                newConnection.subscribe(player);
-                console.log("✅ Yeniden bağlanıldı!");
-            } catch (err) {
-                console.error("❌ Yeniden bağlanma başarısız:", err);
-            }
-        }
-    });
-    
-    // Bağlantı durum değişikliklerini takip et
-    connection.on(VoiceConnectionStatus.Connecting, () => {
-        console.log("🔌 Ses kanalına bağlanılıyor...");
-    });
-    
-    connection.on(VoiceConnectionStatus.Ready, () => {
-        console.log("✅ Ses kanalına bağlantı hazır!");
-    });
-    
-    connection.on(VoiceConnectionStatus.Destroyed, () => {
-        console.log("❌ Ses bağlantısı sonlandırıldı");
-    });
-    
-    // Player durumlarını takip et
-    player.on(AudioPlayerStatus.Playing, () => {
-        console.log("▶️ Oynatıcı: Ses çalıyor");
-    });
-    
-    player.on(AudioPlayerStatus.Buffering, () => {
-        console.log("⏳ Oynatıcı: Tamponlanıyor");
-    });
-    
-    player.on(AudioPlayerStatus.AutoPaused, () => {
-        console.log("⏸️ Oynatıcı: Otomatik duraklatıldı");
-    });
-    
-    player.on(AudioPlayerStatus.Idle, () => {
-        console.log("⏹️ Oynatıcı: Boşta");
-    });
-    
-    // Ses çalmayı başlat
-    console.log("🎵 Sonsuz döngü başlatılıyor...");
-    await playAudio();
-    
-    console.log(`✅ ${channel.name} kanalında sonsuz döngü aktif!`);
-});
-
-// Hata yakalama
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Yakalanmamış promise hatası:', error);
-});
-
-// ── NODEMAILER YAPILANDIRMASI ──
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'atlaswarfare.com@gmail.com', 
+        user: 'atlaswarfare.com@gmail.com',
         pass: process.env.google
     }
 });
@@ -410,9 +274,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // ── Veri Depoları ──
-const sessionTokens = {}; // token -> username
-const pendingVerifications = {}; // username -> { code, email, userData }
-const passwordResetCodes = {};  // email -> { code, expires, username }
+const sessionTokens = {};
+const pendingVerifications = {};
+const passwordResetCodes = {};
 let activePlayers = {};
 
 // ── Yardımcı Fonksiyonlar ──
@@ -424,7 +288,6 @@ function generateVerifyCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-// GERÇEK E-POSTA GÖNDERİCİ
 function sendEmail(to, subject, body) {
     const mailOptions = {
         from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
@@ -432,7 +295,6 @@ function sendEmail(to, subject, body) {
         subject: subject,
         text: body
     };
-
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
             console.log('❌ E-posta Hatası:', error);
@@ -442,6 +304,9 @@ function sendEmail(to, subject, body) {
     });
 }
 
+// ────────────────────────────────────────────────
+// SOCKET.IO - OYun & KULLANICI SİSTEMİ
+// ────────────────────────────────────────────────
 io.on('connection', (socket) => {
 
     // ── TOKEN İLE OTOMATİK GİRİŞ ──
@@ -468,37 +333,30 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── KULLANICI ADI KONTROL (Türkçe karakter desteği eklendi)
+    // ── KULLANICI ADI KONTROL ──
     socket.on('checkUsername', (username) => {
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        
-        // Türkçe karakterleri de içeren regex
         const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
         socket.emit('usernameAvailable', { available: !usernameExists });
     });
 
-    // ── KAYIT OL (Türkçe karakter desteği eklendi)
+    // ── KAYIT OL ──
     socket.on('register', (data) => {
         const { username, email, password } = data;
-        
-        // Uzunluk kontrolü
+
         if (!username || username.length < 3 || username.length > 16) {
             socket.emit('loginError', 'Kahraman adı 3-16 karakter arasında olmalıdır.');
             return;
         }
-        
-        // Türkçe karakterlere izin ver (ğ,ü,ş,ı,ö,ç,Ğ,Ü,Ş,İ,Ö,Ç)
         if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) {
             socket.emit('loginError', 'Kahraman adında geçersiz karakter var. Sadece harf, rakam, _ ve Türkçe karakterler kullanılabilir.');
             return;
         }
-        
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             socket.emit('loginError', 'Geçerli bir e-posta adresi girin.');
             return;
         }
-        
         if (!password || password.length < 6) {
             socket.emit('loginError', 'Şifre en az 6 karakter olmalıdır.');
             return;
@@ -506,14 +364,13 @@ io.on('connection', (socket) => {
 
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        
-        // Büyük/küçük harf duyarsız kontrol
+
         const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
         if (usernameExists) {
             socket.emit('loginError', 'Bu kahraman adı zaten alınmış.');
             return;
         }
-        
+
         const emailUsed = Object.values(allUsers).some(u => u.email.toLowerCase() === email.toLowerCase());
         if (emailUsed) {
             socket.emit('loginError', 'Bu e-posta adresi zaten kayıtlı.');
@@ -588,33 +445,26 @@ io.on('connection', (socket) => {
             '⚔️ Survival Evolution - Yeni Doğrulama Kodu',
             `Yeni doğrulama kodunuz: ${newCode}\n\nBu kod 10 dakika geçerlidir.`
         );
-        socket.emit('loginError', ''); 
+        socket.emit('loginError', '');
     });
 
-    // ── GİRİŞ YAP (Büyük/küçük harf duyarsız)
+    // ── GİRİŞ YAP ──
     socket.on('login', (data) => {
         const { username, password } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        
-        // Kullanıcı adı veya e-posta ile ara (büyük/küçük harf duyarsız)
+
         let foundUser = null;
-        
-        // Önce tam eşleşme ara
         if (allUsers[username]) {
             foundUser = allUsers[username];
         } else {
-            // Küçük harfe çevirerek ara
             const usernameLower = username.toLowerCase();
             const userKey = Object.keys(allUsers).find(u => u.toLowerCase() === usernameLower);
             if (userKey) foundUser = allUsers[userKey];
         }
-        
-        // E-posta ile ara
         if (!foundUser) {
             foundUser = Object.values(allUsers).find(u => u.email.toLowerCase() === username.toLowerCase());
         }
-
         if (!foundUser) {
             socket.emit('loginError', 'Bu kahraman adı veya e-posta kayıtlı değil.');
             return;
@@ -637,35 +487,31 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── ŞİFREMİ UNUTTUM (KOD GÖNDER) - E-posta kayıtlı değilse hata versin
+    // ── ŞİFREMİ UNUTTUM ──
     socket.on('forgotPassword', (data) => {
         const { email } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        
-        // E-posta ile kullanıcıyı bul (büyük/küçük harf duyarsız)
+
         const user = Object.values(allUsers).find(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        // E-posta kayıtlı değilse hata gönder
         if (!user) {
             socket.emit('loginError', 'Bu e-posta adresi sistemde kayıtlı değil.');
             return;
         }
-        
+
         const code = generateVerifyCode();
-        
         passwordResetCodes[email.toLowerCase()] = {
             code: code,
             username: user.username,
-            expires: Date.now() + 10 * 60 * 1000 // 10 dakika
+            expires: Date.now() + 10 * 60 * 1000
         };
-        
+
         sendEmail(
             email,
             '⚔️ Survival Evolution - Şifre Sıfırlama Kodu',
             `Merhaba ${user.username},\n\nŞifrenizi sıfırlamak için kullanacağınız kod: ${code}\n\nBu kod 10 dakika geçerlidir.`
         );
-        
+
         socket.emit('forgotPasswordCodeSent');
     });
 
@@ -673,53 +519,45 @@ io.on('connection', (socket) => {
     socket.on('verifyResetCode', (data) => {
         const { email, code } = data;
         const resetData = passwordResetCodes[email.toLowerCase()];
-        
+
         if (!resetData || Date.now() > resetData.expires) {
             socket.emit('resetCodeError', 'Kod süresi dolmuş veya geçersiz.');
             return;
         }
-        
         if (resetData.code !== code) {
             socket.emit('resetCodeError', 'Girdiğiniz kod hatalı.');
             return;
         }
-        
-        // Kodu doğrula ve şifre sıfırlama sayfasına geçiş için onay ver
+
         socket.emit('resetCodeVerified', { email: email.toLowerCase(), username: resetData.username });
     });
 
     // ── YENİ ŞİFREYİ KAYDET ──
     socket.on('resetPassword', (data) => {
         const { email, newPassword } = data;
-        
+
         if (!newPassword || newPassword.length < 6) {
             socket.emit('resetPasswordError', 'Şifre en az 6 karakter olmalıdır.');
             return;
         }
-        
+
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        
-        // Kullanıcıyı e-posta ile bul
+
         const userEntry = Object.entries(allUsers).find(([_, u]) => u.email.toLowerCase() === email.toLowerCase());
-        
         if (!userEntry) {
             socket.emit('resetPasswordError', 'Kullanıcı bulunamadı.');
             return;
         }
-        
+
         const [username, user] = userEntry;
-        
-        // Şifreyi güncelle
         user.password = newPassword;
         allUsers[username] = user;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-        
-        // Kullanılan kodu temizle
         delete passwordResetCodes[email.toLowerCase()];
-        
+
         socket.emit('resetPasswordSuccess');
-        
+
         sendEmail(
             email,
             '⚔️ Survival Evolution - Şifre Değişikliği',
@@ -806,11 +644,17 @@ io.on('connection', (socket) => {
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// ── Sunucu ve Discord Başlatma ──
-if (typeof client !== 'undefined') {
-    client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
-    client.login(process.env.token);
-}
+// ── Hata Yönetimi ──
+process.on('unhandledRejection', (error) => {
+    console.error('❌ Yakalanmamış promise hatası:', error);
+});
+
+// ── Discord & Sunucu Başlatma ──
+client.once('ready', () => {
+    console.log(`✅ Discord: ${client.user.tag} hazır`);
+});
+
+client.login(process.env.token);
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
