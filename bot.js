@@ -674,53 +674,12 @@ io.on('connection', (socket) => {
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
+// ── Discord Login ──
+client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
+client.login(process.env.token);
+
 // ── Sunucu Başlatma ──
 server.listen(PORT, () => {
-    console.log(`[✓] Sunucu Port ${PORT} üzerinde aktif.`);
+    console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
     console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
 });
-
-// ── Discord Login (server.listen dışında, bağımsız) ──
-process.on('uncaughtException', (err) => {
-    console.error('❌ Kritik hata:', err.message);
-    console.error(err.stack);
-});
-
-process.on('unhandledRejection', (reason) => {
-    console.error('❌ Yakalanmamış promise hatası:', reason);
-});
-
-console.log('🔄 Discord token kontrol ediliyor...');
-
-const discordToken = process.env.token;
-if (!discordToken) {
-    console.error('❌ HATA: "token" environment variable eksik!');
-    console.error('   Render panelinde Environment Variables bölümüne "token" ekle.');
-} else {
-    console.log(`✅ Token bulundu, Discord'a bağlanılıyor...`);
-
-    client.once('ready', () => {
-        console.log(`✅ Discord: ${client.user.tag} aktif ve hazır!`);
-    });
-
-    client.on('error', (err) => {
-        console.error('❌ Discord client hatası:', err.message);
-    });
-
-    client.login(discordToken).then(() => {
-        console.log('✅ client.login() başarılı, ready eventi bekleniyor...');
-        console.log('🔌 WebSocket durumu:', client.ws.status);
-    }).catch(err => {
-        console.error('❌ Discord login başarısız:', err.message);
-        console.error('   Token geçersiz veya süresi dolmuş olabilir.');
-    });
-
-    // 15 saniye sonra hala ready gelmezse bildir
-    setTimeout(() => {
-        if (!client.user) {
-            console.error('❌ 15 saniye geçti, bot hala hazır değil!');
-            console.error('   WebSocket durumu:', client.ws.status);
-            console.error('   Render WebSocket engelliyor olabilir.');
-        }
-    }, 15000);
-}
