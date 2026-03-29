@@ -3,6 +3,7 @@ const {
     GatewayIntentBits,
     Events,
     ActionRowBuilder,
+    AttachmentBuilder,
     ButtonBuilder,
     ButtonStyle,
     ModalBuilder,
