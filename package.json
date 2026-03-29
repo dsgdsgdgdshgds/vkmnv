@@ -4,7 +4,7 @@
   "description": "mmn",
   "main": "index.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js & avatar.js"
   },
   "dependencies": {
     "@discordjs/voice": "^0.16.0",
@@ -15,7 +15,9 @@
     "opusscript": "^0.0.8",
     "express": "^4.21.0",
     "socket.io": "^4.8.0",
-    "nodemailer": "^6.9.0"
+    "nodemailer": "^6.9.0",
+    "axios": "^1.6.0",
+    "fs-extra": "^11.1.1"
   },
     "engines": {
     "node": ">=18.0.0"
