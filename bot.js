@@ -654,7 +654,13 @@ client.once('ready', () => {
     console.log(`✅ Discord: ${client.user.tag} hazır`);
 });
 
-client.login(process.env.token);
+if (!process.env.token) {
+    console.error('❌ HATA: "token" environment variable tanımlı değil! Render panelini kontrol et.');
+} else {
+    client.login(process.env.token).catch(err => {
+        console.error('❌ Discord login hatası:', err.message);
+    });
+}
 
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
