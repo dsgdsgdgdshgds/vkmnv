@@ -20,16 +20,17 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { HfInference } = require('@huggingface/inference');
 
-
 // ────────────────────────────────────────────────
-// GENEL AYARLAR VE SUNUCU
+// GENEL AYARLAR VE PORT
 // ────────────────────────────────────────────────
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
+// ────────────────────────────────────────────────
+// DISCORD BOT BAŞLATMA
+// ────────────────────────────────────────────────
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -38,23 +39,41 @@ const client = new Client({
     ]
 });
 
+// ────────────────────────────────────────────────
+// KALICI DİSK YOLLARI (Render için /var/data/ kalıcı)
+// ────────────────────────────────────────────────
 const DATA_DIR = '/var/data';
 const dbPath = path.join(DATA_DIR, 'kanal-ayar.json');
 const cooldownPath = path.join(DATA_DIR, 'partner-cooldowns.json');
 const playersDataPath = path.join(DATA_DIR, 'players.json');
 
-// Klasör ve Dosya Kontrolleri
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
+// Klasör Kontrolü
+if (!fs.existsSync(DATA_DIR)) {
+    try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        console.log('✅ /var/data klasörü oluşturuldu');
+    } catch (e) {
+        console.log('❌ /var/data oluşturulamadı:', e.message);
+    }
+}
+
+if (!fs.existsSync(playersDataPath)) {
+    try {
+        fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
+        console.log('✅ players.json oluşturuldu');
+    } catch (e) {
+        console.log('❌ players.json oluşturulamadı:', e.message);
+    }
+}
 
 // ────────────────────────────────────────────────
-// YARDIMCI FONKSİYONLAR (DB & Zaman)
+// DATABASE YARDIMCI FONKSİYONLARI (Discord)
 // ────────────────────────────────────────────────
 function dbSet(key, value) {
     let data = {};
     try { data = JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch (err) {}
     data[key] = value;
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+    try { fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8'); } catch (err) {}
 }
 
 function dbGet(key) {
@@ -69,7 +88,7 @@ function getCooldowns() {
 }
 
 function saveCooldowns(cooldowns) {
-    fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8');
+    try { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); } catch (err) {}
 }
 
 function setUserCooldown(userId, guildId, untilTimestamp) {
@@ -79,7 +98,8 @@ function setUserCooldown(userId, guildId, untilTimestamp) {
 }
 
 function getUserCooldownUntil(userId, guildId) {
-    return getCooldowns()[`${userId}_${guildId}`] || 0;
+    const cooldowns = getCooldowns();
+    return cooldowns[`${userId}_${guildId}`] || 0;
 }
 
 function parseDuration(str) {
@@ -102,7 +122,8 @@ function formatRemaining(ms) {
     if (s < 60) return `${s} saniye`;
     const m = Math.floor(s / 60);
     if (m < 60) return `${m} dk`;
-    return `${Math.floor(m / 60)} saat`;
+    const h = Math.floor(m / 60);
+    return `${h} saat`;
 }
 
 // ────────────────────────────────────────────────
@@ -114,7 +135,7 @@ const CHARACTERS = [
     "Muichiro Tokito anime character, mist hashira, detailed 3d model",
     "Naruto Uzumaki, sage mode, spiky hair, 3d avatar",
     "Edward Elric, fullmetal alchemist, 3d model"
-    // Buraya istediğin kadar ekle
+    // Buraya istediğin kadar karakter ekleyebilirsin
 ];
 
 async function generateFree3D(message, prompt) {
@@ -144,14 +165,14 @@ async function generateFree3D(message, prompt) {
 }
 
 // ────────────────────────────────────────────────
-// MESAJ KOMUTLARI
+// DISCORD BOT KOMUTLARI
 // ────────────────────────────────────────────────
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
     const args = message.content.trim().split(/ +/).slice(1).join(' ');
 
-    // ── 3D oluştur komutu ──
+    // ── 3D Avatar Üret ──
     if (prefix === '!oluştur') {
         message.reply("🚀 **Açık kaynaklı modellerle ücretsiz üretim başladı!**");
         CHARACTERS.forEach(char => generateFree3D(message, char));
@@ -168,43 +189,47 @@ client.on(Events.MessageCreate, async (message) => {
                 { name: '#partner-sistem #kanal', value: 'Başvuru kanalı', inline: true },
                 { name: '#partner-kanal #kanal', value: 'Reklam kanalı', inline: true },
                 { name: '#partner-log #kanal', value: 'Log kanalı', inline: true },
-                { name: '#partner-mesaj [mesaj]', value: 'Davet metni', inline: false },
+                { name: '#partner-mesaj', value: 'Davet metni', inline: false },
                 { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false },
                 { name: '!oluştur', value: 'Ücretsiz 3D anime karakter modeli üret', inline: false }
             );
         return message.channel.send({ embeds: [embed] });
     }
 
-    // ── Partner Ayar Komutları ──
     if (prefix === '#partner-yetkili') {
         const target = message.mentions.roles.first();
         if (!target) return message.reply('⚠️ Rol etiketle!');
         dbSet(`hedefRol_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
+
     if (prefix === '#partner-sistem') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`sistemKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
+
     if (prefix === '#partner-kanal') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`reklamKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
+
     if (prefix === '#partner-log') {
         const target = message.mentions.channels.first();
         if (!target) return message.reply('⚠️ Kanal etiketle!');
         dbSet(`logKanal_${message.guild.id}`, target.id);
         return message.reply('✅ Ayarlandı.');
     }
+
     if (prefix === '#partner-mesaj') {
         if (!args.trim()) return message.reply('⚠️ Metin gir!');
         dbSet(`davetMesaji_${message.guild.id}`, args);
         return message.reply('✅ Kaydedildi.');
     }
+
     if (prefix === '#partner-bekleme') {
         if (args === '0') {
             dbSet(`cooldown_${message.guild.id}`, null);
@@ -214,7 +239,6 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply(`✅ ${args} olarak ayarlandı.`);
     }
 
-    // ── Partnerlik Buton Gönderme ──
     const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
     if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
         const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
@@ -227,9 +251,6 @@ client.on(Events.MessageCreate, async (message) => {
     }
 });
 
-// ────────────────────────────────────────────────
-// ETKİLEŞİM KOMUTLARI (Button & Modal)
-// ────────────────────────────────────────────────
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton() && interaction.customId === 'p_basvuru') {
         const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Başvuru');
@@ -275,9 +296,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // ── Veri Depoları ──
-const sessionTokens = {};
-const pendingVerifications = {};
-const passwordResetCodes = {};
+const sessionTokens = {}; // token -> username
+const pendingVerifications = {}; // username -> { code, email, userData }
+const passwordResetCodes = {};  // email -> { code, expires, username }
 let activePlayers = {};
 
 // ── Yardımcı Fonksiyonlar ──
@@ -289,6 +310,7 @@ function generateVerifyCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// GERÇEK E-POSTA GÖNDERİCİ
 function sendEmail(to, subject, body) {
     const mailOptions = {
         from: '"Survival Evolution" <atlaswarfare.com@gmail.com>',
@@ -296,6 +318,7 @@ function sendEmail(to, subject, body) {
         subject: subject,
         text: body
     };
+
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
             console.log('❌ E-posta Hatası:', error);
@@ -305,9 +328,6 @@ function sendEmail(to, subject, body) {
     });
 }
 
-// ────────────────────────────────────────────────
-// SOCKET.IO - OYun & KULLANICI SİSTEMİ
-// ────────────────────────────────────────────────
 io.on('connection', (socket) => {
 
     // ── TOKEN İLE OTOMATİK GİRİŞ ──
@@ -334,7 +354,7 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── KULLANICI ADI KONTROL ──
+    // ── KULLANICI ADI KONTROL (Türkçe karakter desteği eklendi)
     socket.on('checkUsername', (username) => {
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
@@ -342,7 +362,7 @@ io.on('connection', (socket) => {
         socket.emit('usernameAvailable', { available: !usernameExists });
     });
 
-    // ── KAYIT OL ──
+    // ── KAYIT OL (Türkçe karakter desteği eklendi)
     socket.on('register', (data) => {
         const { username, email, password } = data;
 
@@ -449,13 +469,14 @@ io.on('connection', (socket) => {
         socket.emit('loginError', '');
     });
 
-    // ── GİRİŞ YAP ──
+    // ── GİRİŞ YAP (Büyük/küçük harf duyarsız)
     socket.on('login', (data) => {
         const { username, password } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
 
         let foundUser = null;
+
         if (allUsers[username]) {
             foundUser = allUsers[username];
         } else {
@@ -463,9 +484,11 @@ io.on('connection', (socket) => {
             const userKey = Object.keys(allUsers).find(u => u.toLowerCase() === usernameLower);
             if (userKey) foundUser = allUsers[userKey];
         }
+
         if (!foundUser) {
             foundUser = Object.values(allUsers).find(u => u.email.toLowerCase() === username.toLowerCase());
         }
+
         if (!foundUser) {
             socket.emit('loginError', 'Bu kahraman adı veya e-posta kayıtlı değil.');
             return;
@@ -488,23 +511,25 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('newPlayer', activePlayers[socket.id]);
     });
 
-    // ── ŞİFREMİ UNUTTUM ──
+    // ── ŞİFREMİ UNUTTUM (KOD GÖNDER)
     socket.on('forgotPassword', (data) => {
         const { email } = data;
         let allUsers = {};
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
 
         const user = Object.values(allUsers).find(u => u.email.toLowerCase() === email.toLowerCase());
+
         if (!user) {
             socket.emit('loginError', 'Bu e-posta adresi sistemde kayıtlı değil.');
             return;
         }
 
         const code = generateVerifyCode();
+
         passwordResetCodes[email.toLowerCase()] = {
             code: code,
             username: user.username,
-            expires: Date.now() + 10 * 60 * 1000
+            expires: Date.now() + 10 * 60 * 1000 // 10 dakika
         };
 
         sendEmail(
@@ -525,6 +550,7 @@ io.on('connection', (socket) => {
             socket.emit('resetCodeError', 'Kod süresi dolmuş veya geçersiz.');
             return;
         }
+
         if (resetData.code !== code) {
             socket.emit('resetCodeError', 'Girdiğiniz kod hatalı.');
             return;
@@ -546,15 +572,18 @@ io.on('connection', (socket) => {
         try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
 
         const userEntry = Object.entries(allUsers).find(([_, u]) => u.email.toLowerCase() === email.toLowerCase());
+
         if (!userEntry) {
             socket.emit('resetPasswordError', 'Kullanıcı bulunamadı.');
             return;
         }
 
         const [username, user] = userEntry;
+
         user.password = newPassword;
         allUsers[username] = user;
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
+
         delete passwordResetCodes[email.toLowerCase()];
 
         socket.emit('resetPasswordSuccess');
@@ -645,22 +674,10 @@ io.on('connection', (socket) => {
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// ── Hata Yönetimi ──
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Yakalanmamış promise hatası:', error);
-});
-
-// ── Discord & Sunucu Başlatma ──
-client.once('ready', () => {
-    console.log(`✅ Discord: ${client.user.tag} hazır`);
-});
-
-if (!process.env.token) {
-    console.error('❌ HATA: "token" environment variable tanımlı değil! Render panelini kontrol et.');
-} else {
-    client.login(process.env.token).catch(err => {
-        console.error('❌ Discord login hatası:', err.message);
-    });
+// ── Sunucu ve Discord Başlatma ──
+if (typeof client !== 'undefined') {
+    client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
+    client.login(process.env.token);
 }
 
 server.listen(PORT, () => {
