@@ -678,15 +678,26 @@ app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 server.listen(PORT, () => {
     console.log(`[✓] Sunucu Port ${PORT} üzerinde aktif.`);
     console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
+});
 
-    // ── Discord Login ──
-    const discordToken = process.env.token;
-    if (!discordToken) {
-        console.error('❌ HATA: "token" environment variable eksik! Render panelinde tanımla.');
-        return;
-    }
+// ── Discord Login (server.listen dışında, bağımsız) ──
+process.on('uncaughtException', (err) => {
+    console.error('❌ Kritik hata:', err.message);
+    console.error(err.stack);
+});
 
-    console.log('🔄 Discord bağlantısı kuruluyor...');
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Yakalanmamış promise hatası:', reason);
+});
+
+console.log('🔄 Discord token kontrol ediliyor...');
+
+const discordToken = process.env.token;
+if (!discordToken) {
+    console.error('❌ HATA: "token" environment variable eksik!');
+    console.error('   Render panelinde Environment Variables bölümüne "token" ekle.');
+} else {
+    console.log('✅ Token bulundu, Discord'a bağlanılıyor...');
 
     client.once('ready', () => {
         console.log(`✅ Discord: ${client.user.tag} aktif ve hazır!`);
@@ -698,5 +709,6 @@ server.listen(PORT, () => {
 
     client.login(discordToken).catch(err => {
         console.error('❌ Discord login başarısız:', err.message);
+        console.error('   Token geçersiz veya süresi dolmuş olabilir.');
     });
-});
+}
