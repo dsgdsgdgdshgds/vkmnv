@@ -707,8 +707,20 @@ if (!discordToken) {
         console.error('❌ Discord client hatası:', err.message);
     });
 
-    client.login(discordToken).catch(err => {
+    client.login(discordToken).then(() => {
+        console.log('✅ client.login() başarılı, ready eventi bekleniyor...');
+        console.log('🔌 WebSocket durumu:', client.ws.status);
+    }).catch(err => {
         console.error('❌ Discord login başarısız:', err.message);
         console.error('   Token geçersiz veya süresi dolmuş olabilir.');
     });
+
+    // 15 saniye sonra hala ready gelmezse bildir
+    setTimeout(() => {
+        if (!client.user) {
+            console.error('❌ 15 saniye geçti, bot hala hazır değil!');
+            console.error('   WebSocket durumu:', client.ws.status);
+            console.error('   Render WebSocket engelliyor olabilir.');
+        }
+    }, 15000);
 }
