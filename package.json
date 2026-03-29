@@ -4,7 +4,7 @@
   "description": "mmn",
   "main": "index.js",
   "scripts": {
-    "start": "node bot.js & node avatar.js"
+    "start": "node bot.js"
   },
   "dependencies": {
     "@discordjs/voice": "^0.16.0",
