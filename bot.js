@@ -674,13 +674,29 @@ io.on('connection', (socket) => {
 // ── HTTP ENDPOINTS ──
 app.get('/status', (req, res) => res.send('Sistem Aktif!'));
 
-// ── Sunucu ve Discord Başlatma ──
-if (typeof client !== 'undefined') {
-    client.once('ready', () => { console.log(`✅ Discord: ${client.user.tag} hazır`); });
-    client.login(process.env.token);
-}
-
+// ── Sunucu Başlatma ──
 server.listen(PORT, () => {
-    console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
+    console.log(`[✓] Sunucu Port ${PORT} üzerinde aktif.`);
     console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
+
+    // ── Discord Login ──
+    const discordToken = process.env.token;
+    if (!discordToken) {
+        console.error('❌ HATA: "token" environment variable eksik! Render panelinde tanımla.');
+        return;
+    }
+
+    console.log('🔄 Discord bağlantısı kuruluyor...');
+
+    client.once('ready', () => {
+        console.log(`✅ Discord: ${client.user.tag} aktif ve hazır!`);
+    });
+
+    client.on('error', (err) => {
+        console.error('❌ Discord client hatası:', err.message);
+    });
+
+    client.login(discordToken).catch(err => {
+        console.error('❌ Discord login başarısız:', err.message);
+    });
 });
