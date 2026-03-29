@@ -20,6 +20,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { HfInference } = require('@huggingface/inference');
 
+
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
 // ────────────────────────────────────────────────
