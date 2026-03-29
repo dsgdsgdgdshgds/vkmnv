@@ -28,6 +28,7 @@ const {
 } = require('@discordjs/voice');
 const { createReadStream } = require('fs');
 const prism = require('prism-media');
+const { HfInference } = require('@huggingface/inference');
 const DATA_DIR2 = '/var/data/public/sounds'
 // ────────────────────────────────────────────────
 // GENEL AYARLAR VE SUNUCU
