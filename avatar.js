@@ -3,7 +3,7 @@ const axios = require('axios');
 const fs = require('fs');
 
 const DISCORD_TOKEN = 'BURAYA_DISCORD_BOT_TOKENINI_YAZ';
-const MESHY_API_KEY = 'BURAYA_MESHY_API_KEYINI_YAZ';
+const MESHY_API_KEY = process.env.meshy;
 
 const CHARACTERS = [
     // Demon Slayer
