@@ -1,5 +1,13 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
+const http = require('http'); // HTTP modülü eklendi
+
+// RENDER İÇİN HTTP PORT AYARI
+// Render otomatik olarak bir PORT atar, o yoksa 3000 portunu kullanır.
+http.createServer((req, res) => {
+    res.write("Bot Calisiyor!");
+    res.end();
+}).listen(process.env.PORT || 3000);
 
 const client = new Client({ 
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -14,7 +22,6 @@ const userMemory = new Map();
 
 /**
  * 1. ADIM: SORUYU PARÇALARA BÖLME
- * Soruyu doğrudan aratmaz, neyi araştırması gerektiğini belirler.
  */
 async function aramaTerimleriniBelirle(soru) {
     try {
@@ -35,7 +42,6 @@ async function aramaTerimleriniBelirle(soru) {
 
 /**
  * 2. ADIM: VERİ TOPLAMA
- * Belirlenen terimlerle Google'dan ham bilgileri çeker.
  */
 async function veriTopla(terimler) {
     let hamBilgi = "";
@@ -56,12 +62,10 @@ async function veriTopla(terimler) {
 
 /**
  * 3. ADIM: GEMINI TARZI SENTEZ
- * Toplanan her türlü veriyi alır, mantık süzgecinden geçirir ve cevaplar.
  */
 async function geminiSistemi(userId, userMesaj) {
     let history = userMemory.get(userId) || [];
 
-    // Stratejiyi belirle ve verileri çek
     const terimler = await aramaTerimleriniBelirle(userMesaj);
     const bulunanVeriler = await veriTopla(terimler);
 
@@ -79,7 +83,7 @@ async function geminiSistemi(userId, userMesaj) {
     3. Bilgiyi doğrudan kopyalamak yerine, anlamlı bir bütün haline getirerek anlat.
     4. Markdown kullanarak (Başlıklar, kalın yazılar, listeler) şık bir sunum yap.
     5. Eğer veriler birbiriyle çelişiyorsa, en mantıklı ve tutarlı olanı öne çıkar.
-    6. Yanıtın 1900 karakter sınırını geçmesin.
+    6. Yanıtın 1900 karakter sınırını geçmesın.
     `;
 
     try {
@@ -94,11 +98,10 @@ async function geminiSistemi(userId, userMesaj) {
         }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
 
         const botCevap = response.data.choices[0].message.content;
-        
-        // Bellek yönetimi
+
         history.push({ role: "user", content: userMesaj }, { role: "assistant", content: botCevap });
         userMemory.set(userId, history.slice(-6)); 
-        
+
         return botCevap;
     } catch (e) {
         return "Verileri işlerken bir sorun oluştu, lütfen tekrar deneyin.";
