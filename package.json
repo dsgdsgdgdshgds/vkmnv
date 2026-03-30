@@ -2,7 +2,7 @@
   "name": "nnmm",
   "version": "1.0.0",
   "description": "mmn",
-  "main": "index.js",
+  "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
