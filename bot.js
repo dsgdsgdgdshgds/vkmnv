@@ -1,125 +1,152 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
-const http = require('http'); // HTTP modülü eklendi
+const http = require('http');
 
-// RENDER İÇİN HTTP PORT AYARI
-// Render otomatik olarak bir PORT atar, o yoksa 3000 portunu kullanır.
+/* ====== RENDER/PORT AYARI ====== */
+// Render'ın port hatası vermemesi için basit bir web sunucusu
 http.createServer((req, res) => {
     res.write("Bot Calisiyor!");
     res.end();
-}).listen(process.env.PORT || 3000);
+}).listen(8080);
 
-const client = new Client({ 
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
-// SENİN ANAHTARLARIN
-const GROQ_API_KEY = process.env.api;
-const DISCORD_TOKEN = "O";
+/* ====== API AYARLARI ====== */
+const GROQ_API_KEY = process.env.API;
+const DISCORD_TOKEN = process.env.token; // Sadece bu kısım ENV'den alınacak
 const SERPER_API_KEY = "d5b0d101f822182dd67294e6612b511eb1c797bd";
 
-const userMemory = new Map();
+/* ====== SOHBET GEÇMİŞİ (HAFIZA) ====== */
+const userContexts = new Map(); // Kullanıcı bazlı geçmiş tutar
 
-/**
- * 1. ADIM: SORUYU PARÇALARA BÖLME
- */
-async function aramaTerimleriniBelirle(soru) {
+/* 1. ADIM: ARAMA TERİMİ ÜRETİCİ */
+async function arastirmaPlaniHazirla(soru) {
     try {
-        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant",
-            messages: [
-                { 
-                    role: "system", 
-                    content: "Sen bir araştırma asistanısın. Kullanıcının sorusunu yanıtlamak için gereken en mantıklı 3 farklı arama terimini virgülle ayırarak yaz. Sadece terimleri ver." 
-                },
-                { role: "user", content: soru }
-            ]
-        }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
-
-        return response.data.choices[0].message.content.split(',').map(s => s.trim());
+        const res = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                model: "llama-3.1-8b-instant",
+                messages: [
+                    {
+                        role: "system",
+                        content: "Sen bir veri madencisisin. Kullanıcının sorusu için Google'da aratılacak en güncel ve teknik 3 terimi üret. Örn: 'Arka Sokaklar toplam bölüm sayısı 2026', 'Arka Sokaklar son bölüm numarası'."
+                    },
+                    { role: "user", content: soru }
+                ],
+                temperature: 0.1
+            },
+            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
+        );
+        return res.data.choices[0].message.content.split("\n").filter(s => s.trim().length > 2);
     } catch (e) { return [soru]; }
 }
 
-/**
- * 2. ADIM: VERİ TOPLAMA
- */
-async function veriTopla(terimler) {
-    let hamBilgi = "";
-    for (const terim of terimler.slice(0, 3)) {
+/* 2. ADIM: GENİŞLETİLMİŞ VERİ TOPLAMA */
+async function veriTopla(altSorular) {
+    let kaynaklar = "";
+    for (const altSoru of altSorular.slice(0, 3)) {
         try {
-            const res = await axios.post('https://google.serper.dev/search', 
-                { "q": terim, "gl": "tr", "hl": "tr" },
-                { headers: { 'X-API-KEY': SERPER_API_KEY }, timeout: 5000 }
+            const res = await axios.post(
+                "https://google.serper.dev/search",
+                { q: altSoru, gl: "tr", hl: "tr" },
+                { headers: { "X-API-KEY": SERPER_API_KEY }, timeout: 5000 }
             );
-            if (res.data.organic) {
-                const snippets = res.data.organic.slice(0, 3).map(i => i.snippet).join(" ");
-                hamBilgi += `\n[Kaynak - ${terim}]: ${snippets}`;
+            if (res.data?.organic) {
+                kaynaklar += res.data.organic.slice(0, 5).map(r => `[Bilgi]: ${r.snippet}`).join("\n") + "\n";
             }
-        } catch (e) { continue; }
+        } catch (e) { console.log("Arama başarısız."); }
     }
-    return hamBilgi;
+    return kaynaklar.trim();
 }
 
-/**
- * 3. ADIM: GEMINI TARZI SENTEZ
- */
-async function geminiSistemi(userId, userMesaj) {
-    let history = userMemory.get(userId) || [];
+/* 3. ADIM: MANTIKSAL SENTEZ, GEÇMİŞ VE HESAPLAMA */
+async function dogrulanmisCevap(userId, soru) {
+    const simdi = new Date();
+    const tarihBilgisi = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
-    const terimler = await aramaTerimleriniBelirle(userMesaj);
-    const bulunanVeriler = await veriTopla(terimler);
+    const plan = await arastirmaPlaniHazirla(soru);
+    const hamBilgi = await veriTopla(plan);
 
-    const systemPrompt = `
-    Sen Gemini gibi çalışan, yüksek analiz yeteneğine sahip bir yapay zekasın.
-    
-    İNTERNETTEN GELEN HAM VERİLER:
-    ---
-    ${bulunanVeriler}
-    ---
-    
-    GÖREVİN:
-    1. Yukarıdaki verileri oku ve kullanıcının sorusuyla eşleştir.
-    2. Verilerde sayısal değerler (bölüm sayısı, süre, fiyat, mesafe vb.) varsa bunlar üzerinden mantıksal hesaplamalar yap.
-    3. Bilgiyi doğrudan kopyalamak yerine, anlamlı bir bütün haline getirerek anlat.
-    4. Markdown kullanarak (Başlıklar, kalın yazılar, listeler) şık bir sunum yap.
-    5. Eğer veriler birbiriyle çelişiyorsa, en mantıklı ve tutarlı olanı öne çıkar.
-    6. Yanıtın 1900 karakter sınırını geçmesın.
-    `;
+    // Kullanıcının geçmişini al veya yeni oluştur
+    let history = userContexts.get(userId) || [];
+    let historyText = history.map(h => `Kullanıcı: ${h.user}\nBot: ${h.bot}`).join("\n---\n");
+
+    const synthesisPrompt = `
+GÜNCEL SİSTEM TARİHİ: ${tarihBilgisi}
+
+ÖNCEKİ KONUŞMALAR (HAFIZA):
+${historyText || "Henüz geçmiş yok."}
+
+HATA DENETİMİ VE KURALLAR:
+1. **Sayısal Karşılaştırma:** Eğer bir dizi veya olay hakkında farklı sayılar varsa, kronolojik olarak en mantıklı ve yüksek olanı seç.
+2. **Matematik:** Hesaplamalarda (gün/saat) toplam bölüm ve 130 dk ortalamayı baz al.
+3. **Bağlam:** Eğer kullanıcı "o", "onu", "önceki" gibi ifadeler kullanırsa hafızadaki bilgilere bak.
+
+İNTERNET VERİLERİ:
+---
+${hamBilgi}
+---
+
+KULLANICI SORUSU: ${soru}
+`;
 
     try {
-        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant",
-            messages: [
-                { role: "system", content: systemPrompt },
-                ...history.slice(-4), 
-                { role: "user", content: userMesaj }
-            ],
-            temperature: 0.6
-        }, { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` } });
+        const res = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen ve sadece en güncel veriye odaklanan bir bilgi uzmanısın." },
+                    { role: "user", content: synthesisPrompt }
+                ],
+                temperature: 0
+            },
+            { headers: { Authorization: `Bearer ${GROQ_API_KEY}` } }
+        );
 
-        const botCevap = response.data.choices[0].message.content;
+        const botCevap = res.data.choices[0].message.content;
 
-        history.push({ role: "user", content: userMesaj }, { role: "assistant", content: botCevap });
-        userMemory.set(userId, history.slice(-6)); 
+        // Geçmişi güncelle (Maksimum 2 konuşma tutar)
+        history.push({ user: soru, bot: botCevap });
+        if (history.length > 2) history.shift();
+        userContexts.set(userId, history);
 
         return botCevap;
     } catch (e) {
-        return "Verileri işlerken bir sorun oluştu, lütfen tekrar deneyin.";
+        return "Şu an teknik bir aksaklık nedeniyle cevap veremiyorum.";
     }
 }
 
-client.on('messageCreate', async (msg) => {
+/* ========== DISCORD MESAJ DİNLEYİCİ ========== */
+client.on("messageCreate", async msg => {
     if (msg.author.bot || !msg.mentions.has(client.user)) return;
+
+    const temizSoru = msg.content.replace(/<@!?[^>]+>/g, "").trim();
+
     try {
         await msg.channel.sendTyping();
-        const temizMesaj = msg.content.replace(/<@!?[^>]+>/g, '').trim();
-        const finalYanit = await geminiSistemi(msg.author.id, temizMesaj || "Merhaba");
-        await msg.reply(finalYanit);
-    } catch (err) { console.error("Hata:", err.message); }
+        const cevap = await dogrulanmisCevap(msg.author.id, temizSoru);
+
+        if (cevap.length > 2000) {
+            const chunks = cevap.match(/[\s\S]{1,1900}/g);
+            for (const chunk of chunks) await msg.reply(chunk);
+        } else {
+            msg.reply(cevap);
+        }
+    } catch (err) {
+        msg.reply("Bir sorun oluştu. Lütfen tekrar deneyin.");
+    }
 });
 
-client.once('ready', () => {
-    console.log(`✅ BOT HAZIR: Parçalı arama ve Gemini tarzı analiz aktif.`);
+client.once("ready", () => {
+    console.log(`✅ ${client.user.tag} sistemi 2026 zaman algısıyla başlatıldı.`);
+    console.log(`Geliştirici: Batuhan Aktaş Giresun/Bulancak KAFMTAL`);
 });
 
-client.login(process.env.token);
+client.login(DISCORD_TOKEN);
