@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
-const http = require('http');
+const http = requre('http');
 
 /* ====== RENDER PORT AYARI ====== */
 http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
