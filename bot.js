@@ -355,4 +355,4 @@ process.on("unhandledRejection", err => {
     console.error("🔥 Unhandled Rejection:", err?.message || err);
 });
 
-client.login(DISCORD_TOKEN);
+client.login(DISCON);
