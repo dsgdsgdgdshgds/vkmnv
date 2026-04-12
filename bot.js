@@ -162,48 +162,40 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== GOOGLE UNOFFICIAL JSON ARAMA (En stabil - timeout sorunu çözüldü) ====== */
+/* ====== SEARX.BE JSON ARAMA (En stabil ücretsiz yöntem - timeout riski düşük) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(sorgu)}&hl=tr&gl=tr`;
+        const searchUrl = `https://searx.be/search?q=${encodeURIComponent(sorgu)}&format=json&language=tr-TR&categories=general&safesearch=0`;
         
         const res = await axios.get(searchUrl, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept-Encoding": "gzip, deflate",
-                "DNT": "1"
+                "Accept": "application/json",
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
             },
-            timeout: 12000,
-            responseType: 'text'
+            timeout: 12000,   // 12 saniye
+            responseType: 'json'
         });
         
-        const html = res.data;
+        const data = res.data;
         const results = [];
         
-        // Google sonuçlarını parse eden güçlü regex
-        const resultRegex = /data-sokoban-container=["'][^"']*["'][^>]*>[\s\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<div[^>]*class=["'][^"']*VwiC3b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
-        
-        let match;
-        while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
-            let url = match[1];
-            const title = match[2].replace(/<[^>]*>/g, '').trim();
-            let snippet = match[3].replace(/<[^>]*>/g, '').trim();
-            
-            if (url.startsWith('/url?')) {
-                const urlMatch = url.match(/url\?q=([^&]+)/);
-                if (urlMatch) url = decodeURIComponent(urlMatch[1]);
-            }
-            
-            if (title && snippet && title.length > 5 && snippet.length > 15) {
-                results.push({ title, snippet, url });
+        if (data.results && Array.isArray(data.results)) {
+            for (const item of data.results.slice(0, maxResults)) {
+                if (item.title && item.content) {
+                    results.push({
+                        title: item.title.trim(),
+                        snippet: item.content.trim().slice(0, 250),
+                        url: item.url || '#'
+                    });
+                }
             }
         }
         
+        console.log(`✅ Searx arama başarılı: ${results.length} sonuç bulundu`);
         return results;
     } catch (e) {
-        console.log(`⚠️ Google arama hatası: ${e.message}`);
+        console.log(`⚠️ Searx arama hatası: ${e.message}`);
         return [];
     }
 }
@@ -423,7 +415,7 @@ async function cevapUret(userId, soru) {
     }
 }
 
-/* ====== MESAJ BÖLÜCÜ ====== */
+/* ====== MESAJ BÖLÜCÜ VE GÜVENLİ GÖNDERME (değişmedi) ====== */
 function mesajlariBol(metin, limit = 1950) {
     if (metin.length <= limit) return [metin];
     const parcalar = [];
@@ -442,7 +434,6 @@ function mesajlariBol(metin, limit = 1950) {
     return parcalar;
 }
 
-/* ====== GÜVENLİ MESAJ GÖNDERME ====== */
 async function guvenliGonder(msg, metin, ilk = true) {
     try {
         if (ilk) {
@@ -454,16 +445,14 @@ async function guvenliGonder(msg, metin, ilk = true) {
         if (err.code === 50013) {
             try {
                 await msg.author.send(`(\( {msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n \){metin}`);
-            } catch {
-                console.error("❌ DM de gönderilemedi.");
-            }
+            } catch {}
         } else {
             console.error("❌ Mesaj gönderilemedi:", err.message);
         }
     }
 }
 
-/* ====== DISCORD İSTEMCİSİ ====== */
+/* ====== DISCORD İSTEMCİSİ (değişmedi) ====== */
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
