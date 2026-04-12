@@ -162,35 +162,38 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== BRAVE WEB ARAMA (DuckDuckGo + Bing yerine) ====== */
+/* ====== BRAVE WEB ARAMA (2026 Güncel - Regex düzeltildi) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(sorgu)}`;
+        const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(sorgu)}&lang=tr`;
         
         const res = await axios.get(searchUrl, {
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
                 "Accept-Charset": "utf-8"
             },
-            timeout: 10000,
+            timeout: 12000,
             responseType: 'text'
         });
         
         const html = res.data;
         const results = [];
         
-        // Brave Search 2026 yapısına uygun regex
-        const resultRegex = /<h3[^>]*class="[^"]*title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]*?<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
+        // 2026 Brave Search yapısına özel güncel regex
+        const resultRegex = /<h3[^>]*>\s*<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>\s*<\/h3>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
         
         let match;
         while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
             const url = match[1];
-            const title = match[2].replace(/<[^>]*>/g, '').trim();
-            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
+            let title = match[2].replace(/<[^>]*>/g, '').trim();
+            let snippet = match[3].replace(/<[^>]*>/g, '').trim();
             
-            if (title && snippet && title.length > 3 && snippet.length > 10) {
+            // Başlıktaki › işaretlerini temizle
+            title = title.replace(/›/g, ' › ').trim();
+            
+            if (title && snippet && title.length > 3 && snippet.length > 15) {
                 results.push({ title, snippet, url });
             }
         }
