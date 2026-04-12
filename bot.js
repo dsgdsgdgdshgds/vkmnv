@@ -162,57 +162,39 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== DUCKDUCKGO WEB ARAMA (Timeout + Header düzeltildi) ====== */
+/* ====== SEARX WEB ARAMA (DuckDuckGo yerine - sorunsuz JSON) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(sorgu)}&kl=tr-tr`;
+        const searchUrl = `https://searx.be/search?q=${encodeURIComponent(sorgu)}&format=json&language=tr-TR&categories=general`;
         
         const res = await axios.get(searchUrl, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept-Encoding": "gzip, deflate",
-                "DNT": "1",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Cache-Control": "max-age=0"
+                "Accept": "application/json",
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
             },
-            timeout: 15000,   // ← BURASI 15 SANİYEYE ÇIKARILDI
-            responseType: 'text'
+            timeout: 10000,
+            responseType: 'json'
         });
         
-        const html = res.data;
+        const data = res.data;
         const results = [];
         
-        const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gi;
-        let match;
-        
-        while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
-            const title = match[2].replace(/<[^>]*>/g, '').trim();
-            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-            const url = match[1];
-            
-            if (title && snippet && title.length > 3 && snippet.length > 10) {
-                results.push({ title, snippet, url });
-            }
-        }
-        
-        if (results.length === 0) {
-            const altRegex = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<div[^>]*class="result__snippet"[^>]*>(.*?)<\/div>/gi;
-            while ((match = altRegex.exec(html)) !== null && results.length < maxResults) {
-                const title = match[2].replace(/<[^>]*>/g, '').trim();
-                const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-                if (title && snippet && title.length > 3 && snippet.length > 10) {
-                    results.push({ title, snippet, url: match[1] });
+        if (data.results && Array.isArray(data.results)) {
+            for (const item of data.results.slice(0, maxResults)) {
+                if (item.title && item.content) {
+                    results.push({
+                        title: item.title.trim(),
+                        snippet: item.content.trim(),
+                        url: item.url || '#'
+                    });
                 }
             }
         }
         
         return results;
     } catch (e) {
-        console.log(`⚠️ Web arama hatası: ${e.message}`);  // ← Daha net hata mesajı
+        console.log(`⚠️ Searx arama hatası: ${e.message}`);
         return [];
     }
 }
@@ -310,7 +292,6 @@ function kufurVarMi(metin) {
 /* ====== DİL TEMİZLEME ====== */
 function temizleDil(metin) {
     const yabanciKarakterler = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0750-\u077f\u0400-\u04ff\u0370-\u03ff\u0e00-\u0e7f\u0590-\u05ff]/g;
-    
     let temiz = metin.replace(yabanciKarakterler, '');
     if (temiz.trim().length === 0) return metin;
     return temiz;
