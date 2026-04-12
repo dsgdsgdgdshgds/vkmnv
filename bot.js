@@ -162,40 +162,52 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== SEARX.BE JSON ARAMA (En stabil ücretsiz yöntem - timeout riski düşük) ====== */
+/* ====== DUCKDUCKGO WEB ARAMA ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://searx.be/search?q=${encodeURIComponent(sorgu)}&format=json&language=tr-TR&categories=general&safesearch=0`;
+        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(sorgu)}&kl=tr-tr`;
         
         const res = await axios.get(searchUrl, {
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Charset": "utf-8"
             },
-            timeout: 12000,   // 12 saniye
-            responseType: 'json'
+            timeout: 10000,
+            responseType: 'text'
         });
         
-        const data = res.data;
+        const html = res.data;
         const results = [];
         
-        if (data.results && Array.isArray(data.results)) {
-            for (const item of data.results.slice(0, maxResults)) {
-                if (item.title && item.content) {
-                    results.push({
-                        title: item.title.trim(),
-                        snippet: item.content.trim().slice(0, 250),
-                        url: item.url || '#'
-                    });
+        const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gi;
+        let match;
+        
+        while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
+            const title = match[2].replace(/<[^>]*>/g, '').trim();
+            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
+            const url = match[1];
+            
+            if (title && snippet && title.length > 3 && snippet.length > 10) {
+                results.push({ title, snippet, url });
+            }
+        }
+        
+        if (results.length === 0) {
+            const altRegex = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<div[^>]*class="result__snippet"[^>]*>(.*?)<\/div>/gi;
+            while ((match = altRegex.exec(html)) !== null && results.length < maxResults) {
+                const title = match[2].replace(/<[^>]*>/g, '').trim();
+                const snippet = match[3].replace(/<[^>]*>/g, '').trim();
+                if (title && snippet && title.length > 3 && snippet.length > 10) {
+                    results.push({ title, snippet, url: match[1] });
                 }
             }
         }
         
-        console.log(`✅ Searx arama başarılı: ${results.length} sonuç bulundu`);
         return results;
     } catch (e) {
-        console.log(`⚠️ Searx arama hatası: ${e.message}`);
+        console.log(`⚠️ DuckDuckGo hatası: ${e.message}`);
         return [];
     }
 }
@@ -226,7 +238,7 @@ async function wikipediaFallback(sorgu) {
             for (const sayfa of sayfalar.slice(0, 2)) {
                 try {
                     const ozet = await axios.get(
-                        `https://\( {lang}.wikipedia.org/api/rest_v1/page/summary/ \){encodeURIComponent(sayfa.title)}`,
+                        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
                         { 
                             timeout: 5000,
                             headers: { "Accept": "application/json; charset=utf-8" },
@@ -249,6 +261,7 @@ async function wikipediaFallback(sorgu) {
 
 /* ====== ŞEHİR ÇIKARMA ====== */
 function extractSehir(soru) {
+    // Türkiye şehirleri ve yaygın yerleşimler
     const sehirler = [
         "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", 
         "Gaziantep", "Şanlıurfa", "Mersin", "Diyarbakır", "Kayseri", "Eskişehir",
@@ -269,6 +282,7 @@ function extractSehir(soru) {
         if (k.includes(sehir.toLowerCase())) return sehir;
     }
     
+    // Genel şehir çıkarma (büyük harfle başlayan kelimeler)
     const match = soru.match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)/);
     return match ? match[1] : null;
 }
@@ -292,9 +306,14 @@ function kufurVarMi(metin) {
 
 /* ====== DİL TEMİZLEME ====== */
 function temizleDil(metin) {
+    // Çince, Japonca, Korece, Arapça, Rusça, vs. karakterleri temizle
     const yabanciKarakterler = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0750-\u077f\u0400-\u04ff\u0370-\u03ff\u0e00-\u0e7f\u0590-\u05ff]/g;
+    
     let temiz = metin.replace(yabanciKarakterler, '');
+    
+    // Eğer temizleme sonrası boş kaldıysa orijinali dön
     if (temiz.trim().length === 0) return metin;
+    
     return temiz;
 }
 
@@ -303,12 +322,14 @@ async function cevapUret(userId, soru) {
     const simdi = new Date();
     const tarih = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
     
+    // 1. Önce normal sohbet mi kontrol et
     const normalSohbet = isNormalSohbet(soru);
     const mesajdaKufur = kufurVarMi(soru);
     
     let webSonucu = null;
     let tip = "sohbet";
     
+    // 2. Araştırma gerektiren soruları tespit et
     if (!normalSohbet && !mesajdaKufur) {
         if (isHavaDurumuSorusu(soru)) {
             const sehir = extractSehir(soru) || "İstanbul";
@@ -318,17 +339,19 @@ async function cevapUret(userId, soru) {
                 tip = "hava";
             }
         } else if (isSporSorusu(soru) || isHaberSorusu(soru) || isBilgiSorusu(soru)) {
-            const sorguText = soru.replace(/[?.!]/g, '').trim();
-            const results = await duckDuckGoSearch(sorguText, 5);
+            // Spor, haber veya bilgi sorusu - web ara
+            const sorgu = soru.replace(/[?.!]/g, '').trim();
+            const results = await duckDuckGoSearch(sorgu, 5);
             
             if (results.length > 0) {
                 const formatted = results.map((r, i) => 
-                    `[${i+1}] \( {r.title}\n \){r.snippet}`
+                    `[${i+1}] ${r.title}\n${r.snippet}`
                 ).join("\n\n");
                 webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
             } else {
-                const wiki = await wikipediaFallback(sorguText);
+                // Fallback Wikipedia
+                const wiki = await wikipediaFallback(sorgu);
                 if (wiki) {
                     webSonucu = { tip: "wiki", veri: wiki };
                     tip = "arastirma";
@@ -371,6 +394,7 @@ async function cevapUret(userId, soru) {
         ].filter(Boolean).join("\n\n");
         
     } else {
+        // Normal sohbet
         sistemPrompt = "You are BatuBot, a friendly Discord bot. Developer is Batuhan. Chat casually and warmly. Keep responses short (1-3 sentences). Be witty but respectful. ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.";
         kullaniciPrompt = [
             `Date: ${tarih}`,
@@ -388,12 +412,14 @@ async function cevapUret(userId, soru) {
             { model: MODEL_SMART, temperature: 0.7, max_tokens: 800 }
         );
         
+        // Dil temizliği
         cevap = temizleDil(cevap);
         
+        // Boş kaldıysa fallback
         if (!cevap || cevap.trim().length < 3) {
             if (tip === "hava") {
                 const h = webSonucu.veri;
-                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: \( {h.hissedilen}°C)\n💧 Nem: % \){h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ \( {h.durum}\n\n**3 Günlük Tahmin:**\n \){h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
+                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
             } else if (tip === "arastirma") {
                 cevap = "Üzgünüm, şu an güncel bilgiye ulaşamıyorum. Daha sonra tekrar dene.";
             } else {
@@ -401,6 +427,7 @@ async function cevapUret(userId, soru) {
             }
         }
         
+        // Hafızaya kaydet (sadece sohbet ve başarılı araştırma)
         if (tip === "sohbet" || (tip === "arastirma" && webSonucu)) {
             const yeniGecmis = [...gecmis, { user: soru, bot: cevap }];
             if (yeniGecmis.length > MAX_HISTORY) yeniGecmis.shift();
@@ -415,7 +442,7 @@ async function cevapUret(userId, soru) {
     }
 }
 
-/* ====== MESAJ BÖLÜCÜ VE GÜVENLİ GÖNDERME (değişmedi) ====== */
+/* ====== MESAJ BÖLÜCÜ ====== */
 function mesajlariBol(metin, limit = 1950) {
     if (metin.length <= limit) return [metin];
     const parcalar = [];
@@ -434,6 +461,7 @@ function mesajlariBol(metin, limit = 1950) {
     return parcalar;
 }
 
+/* ====== GÜVENLİ MESAJ GÖNDERME ====== */
 async function guvenliGonder(msg, metin, ilk = true) {
     try {
         if (ilk) {
@@ -444,15 +472,17 @@ async function guvenliGonder(msg, metin, ilk = true) {
     } catch (err) {
         if (err.code === 50013) {
             try {
-                await msg.author.send(`(\( {msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n \){metin}`);
-            } catch {}
+                await msg.author.send(`(${msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n${metin}`);
+            } catch {
+                console.error("❌ DM de gönderilemedi.");
+            }
         } else {
             console.error("❌ Mesaj gönderilemedi:", err.message);
         }
     }
 }
 
-/* ====== DISCORD İSTEMCİSİ (değişmedi) ====== */
+/* ====== DISCORD İSTEMCİSİ ====== */
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
