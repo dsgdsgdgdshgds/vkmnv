@@ -1,7 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
-const cheerio = require('cheerio'); // npm install cheerio
 
 /* ====== RENDER PORT AYARI ====== */
 http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
@@ -163,340 +162,7 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== GOOGLE PROGRAMMABLE SEARCH (Ücretsiz) ====== */
-async function googleProgrammableSearch(sorgu, maxResults = 5) {
-    // Google Programmable Search Engine - Ücretsiz 100 sorgu/gün
-    const CX = process.env.GOOGLE_CX; // Custom Search Engine ID
-    const KEY = process.env.GOOGLE_API_KEY; // Opsiyonel - olmadan da çalışır ama limitli
-    
-    if (!CX) {
-        console.log("⚠️ Google CX tanımlı değil");
-        return [];
-    }
-    
-    try {
-        const params = new URLSearchParams({
-            cx: CX,
-            q: sorgu,
-            num: Math.min(maxResults, 10).toString(),
-            hl: "tr",
-            cr: "countryTR",
-            safe: "active",
-            sort: "date" // En güncel sonuçlar önce
-        });
-        
-        if (KEY) params.append("key", KEY);
-        
-        const res = await axios.get(
-            `https://www.googleapis.com/customsearch/v1?${params.toString()}`,
-            { 
-                timeout: 10000,
-                responseType: 'json'
-            }
-        );
-        
-        const items = res.data.items || [];
-        return items.map(item => ({
-            title: item.title || "",
-            snippet: item.snippet || "",
-            url: item.link || "",
-            date: item.pagemap?.metatags?.[0]?.date || ""
-        }));
-    } catch (e) {
-        console.log(`⚠️ Google Search hatası: ${e.message}`);
-        return [];
-    }
-}
-
-/* ====== BING WEB SEARCH (Ücretsiz Endpoint) ====== */
-async function bingWebSearch(sorgu, maxResults = 5) {
-    try {
-        // Bing'in açık endpoint'i - API key gerektirmez (rate limitli)
-        const res = await axios.get(
-            "https://www.bing.com/search",
-            {
-                params: {
-                    q: sorgu,
-                    count: maxResults,
-                    setmkt: "tr-TR",
-                    setlang: "tr",
-                    safesearch: "Moderate",
-                    format: "json", // AJAX endpoint
-                    q1: "site:tr" // Türkçe sitelere öncelik
-                },
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "DNT": "1",
-                    "Connection": "keep-alive",
-                    "Upgrade-Insecure-Requests": "1",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Cache-Control": "max-age=0"
-                },
-                timeout: 15000,
-                responseType: 'text',
-                maxRedirects: 5
-            }
-        );
-        
-        const $ = cheerio.load(res.data);
-        const results = [];
-        
-        // Bing sonuçları için selector'lar
-        $('.b_algo, .b_caption, .b_snippet').each((i, elem) => {
-            if (results.length >= maxResults) return false;
-            
-            const title = $(elem).find('h2 a, .b_title a').text().trim();
-            const url = $(elem).find('h2 a, .b_title a').attr('href');
-            const snippet = $(elem).find('.b_caption p, .b_snippet, .b_algo p').text().trim();
-            
-            if (title && url && title.length > 3) {
-                results.push({
-                    title: title.replace(/|/g, ''), // Bing'in özel karakterlerini temizle
-                    snippet: snippet.replace(/|/g, ''),
-                    url: url
-                });
-            }
-        });
-        
-        // Alternatif selector dene
-        if (results.length === 0) {
-            $('li.b_algo').each((i, elem) => {
-                if (results.length >= maxResults) return false;
-                const title = $(elem).find('a').first().text().trim();
-                const url = $(elem).find('a').first().attr('href');
-                const snippet = $(elem).find('.b_caption p').text().trim() || $(elem).text().replace(title, '').trim();
-                
-                if (title && url) {
-                    results.push({ title, snippet: snippet.slice(0, 300), url });
-                }
-            });
-        }
-        
-        return results;
-    } catch (e) {
-        console.log(`⚠️ Bing hatası: ${e.message}`);
-        return [];
-    }
-}
-
-/* ====== STARTPAGE SEARCH (Gizlilik Odaklı - Ücretsiz) ====== */
-async function startpageSearch(sorgu, maxResults = 5) {
-    try {
-        const res = await axios.get(
-            "https://www.startpage.com/sp/search",
-            {
-                params: {
-                    query: sorgu,
-                    cat: "web",
-                    pl: "opensearch",
-                    language: "turkish",
-                    engine: "google"
-                },
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "tr-TR,tr;q=0.9"
-                },
-                timeout: 15000,
-                responseType: 'text',
-                maxRedirects: 5
-            }
-        );
-        
-        const $ = cheerio.load(res.data);
-        const results = [];
-        
-        $('.result, .search-result').each((i, elem) => {
-            if (results.length >= maxResults) return false;
-            
-            const title = $(elem).find('h3 a, .result-title a, .search-item__title a').text().trim();
-            const url = $(elem).find('h3 a, .result-title a, .search-item__title a').attr('href');
-            const snippet = $(elem).find('.result-content, .search-item__body, .result-snippet').text().trim();
-            
-            if (title && url && title.length > 3) {
-                results.push({ title, snippet: snippet.slice(0, 300), url });
-            }
-        });
-        
-        return results;
-    } catch (e) {
-        console.log(`⚠️ Startpage hatası: ${e.message}`);
-        return [];
-    }
-}
-
-/* ====== WIKIPEDIA API (Ücretsiz, Güvenilir) ====== */
-async function wikipediaSearch(sorgu, maxResults = 3) {
-    try {
-        for (const lang of ["tr", "en"]) {
-            try {
-                // Önce arama yap
-                const searchRes = await axios.get(
-                    `https://${lang}.wikipedia.org/w/api.php`,
-                    {
-                        params: {
-                            action: "query",
-                            list: "search",
-                            srsearch: sorgu,
-                            srlimit: maxResults,
-                            format: "json",
-                            origin: "*"
-                        },
-                        timeout: 8000,
-                        responseType: 'json'
-                    }
-                );
-                
-                const searchResults = searchRes.data?.query?.search || [];
-                const detailedResults = [];
-                
-                for (const item of searchResults.slice(0, maxResults)) {
-                    try {
-                        // Her sonuç için özet al
-                        const summaryRes = await axios.get(
-                            `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title)}`,
-                            {
-                                headers: { "Accept": "application/json; charset=utf-8" },
-                                timeout: 5000,
-                                responseType: 'json'
-                            }
-                        );
-                        
-                        if (summaryRes.data.extract) {
-                            detailedResults.push({
-                                title: summaryRes.data.title,
-                                snippet: summaryRes.data.extract.slice(0, 500),
-                                url: summaryRes.data.content_urls?.desktop?.page || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(item.title)}`
-                            });
-                        }
-                    } catch (innerErr) {
-                        // Tekil hata atla
-                        detailedResults.push({
-                            title: item.title,
-                            snippet: item.snippet?.replace(/<[^>]*>/g, '').slice(0, 300) || "",
-                            url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(item.title)}`
-                        });
-                    }
-                }
-                
-                if (detailedResults.length > 0) {
-                    return detailedResults;
-                }
-            } catch (langErr) {
-                continue; // Diğer dile geç
-            }
-        }
-        return [];
-    } catch (e) {
-        console.log(`⚠️ Wikipedia hatası: ${e.message}`);
-        return [];
-    }
-}
-
-/* ====== GÜNCEL HABER RSS (Ücretsiz Kaynaklar) ====== */
-async function haberRssAl() {
-    const rssKaynaklari = [
-        "https://www.cnnturk.com/feed/rss/all/news",
-        "https://www.haberturk.com/rss",
-        "https://www.sabah.com.tr/rss/anasayfa.xml",
-        "https://feeds.bbci.co.uk/news/world/rss.xml"
-    ];
-    
-    const haberler = [];
-    
-    for (const url of rssKaynaklari.slice(0, 2)) { // İlk 2'sini dene
-        try {
-            const res = await axios.get(url, {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                },
-                timeout: 8000,
-                responseType: 'text'
-            });
-            
-            const $ = cheerio.load(res.data, { xmlMode: true });
-            
-            $('item').each((i, elem) => {
-                if (i >= 3) return false; // Her kaynaktan 3 haber
-                const title = $(elem).find('title').text().trim();
-                const description = $(elem).find('description').text().trim();
-                const link = $(elem).find('link').text().trim();
-                const pubDate = $(elem).find('pubDate').text().trim();
-                
-                if (title) {
-                    haberler.push({
-                        title,
-                        snippet: description.replace(/<[^>]*>/g, '').slice(0, 200),
-                        url: link,
-                        date: pubDate,
-                        source: new URL(url).hostname
-                    });
-                }
-            });
-        } catch (e) {
-            console.log(`⚠️ RSS hatası (${url}): ${e.message}`);
-        }
-    }
-    
-    return haberler;
-}
-
-/* ====== GELİŞMİŞ WEB ARAMA (Tüm Kaynaklar) ====== */
-async function gelismisWebArama(sorgu, maxResults = 5) {
-    console.log(`🔍 Aranıyor: "${sorgu}"`);
-    
-    // 1. Wikipedia (Ansiklopedi soruları için en iyi)
-    if (isBilgiSorusu(sorgu)) {
-        const wiki = await wikipediaSearch(sorgu, maxResults);
-        if (wiki.length > 0) {
-            console.log(`✅ Wikipedia'dan ${wiki.length} sonuç`);
-            return { source: "Wikipedia", results: wiki };
-        }
-    }
-    
-    // 2. Google Programmable Search (eğer CX tanımlıysa)
-    const google = await googleProgrammableSearch(sorgu, maxResults);
-    if (google.length > 0) {
-        console.log(`✅ Google'dan ${google.length} sonuç`);
-        return { source: "Google", results: google };
-    }
-    
-    // 3. Bing Web Scraping
-    const bing = await bingWebSearch(sorgu, maxResults);
-    if (bing.length > 0) {
-        console.log(`✅ Bing'den ${bing.length} sonuç`);
-        return { source: "Bing", results: bing };
-    }
-    
-    // 4. Startpage
-    const startpage = await startpageSearch(sorgu, maxResults);
-    if (startpage.length > 0) {
-        console.log(`✅ Startpage'den ${startpage.length} sonuç`);
-        return { source: "Startpage", results: startpage };
-    }
-    
-    // 5. Son çare: DuckDuckGo (orijinal fonksiyon)
-    const ddg = await duckDuckGoSearch(sorgu, maxResults);
-    if (ddg.length > 0) {
-        return { source: "DuckDuckGo", results: ddg };
-    }
-    
-    // 6. Wikipedia fallback (her tür soru için)
-    const wikiFallback = await wikipediaSearch(sorgu, maxResults);
-    if (wikiFallback.length > 0) {
-        return { source: "Wikipedia (Fallback)", results: wikiFallback };
-    }
-    
-    return { source: "Hiçbiri", results: [] };
-}
-
-/* ====== ESKİ DUCKDUCKGO (Yedek Olarak Kalsın) ====== */
+/* ====== DUCKDUCKGO WEB ARAMA ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
         const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(sorgu)}&kl=tr-tr`;
@@ -528,6 +194,17 @@ async function duckDuckGoSearch(sorgu, maxResults = 5) {
             }
         }
         
+        if (results.length === 0) {
+            const altRegex = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<div[^>]*class="result__snippet"[^>]*>(.*?)<\/div>/gi;
+            while ((match = altRegex.exec(html)) !== null && results.length < maxResults) {
+                const title = match[2].replace(/<[^>]*>/g, '').trim();
+                const snippet = match[3].replace(/<[^>]*>/g, '').trim();
+                if (title && snippet && title.length > 3 && snippet.length > 10) {
+                    results.push({ title, snippet, url: match[1] });
+                }
+            }
+        }
+        
         return results;
     } catch (e) {
         console.log(`⚠️ DuckDuckGo hatası: ${e.message}`);
@@ -535,8 +212,56 @@ async function duckDuckGoSearch(sorgu, maxResults = 5) {
     }
 }
 
+/* ====== WIKIPEDIA FALLBACK ====== */
+async function wikipediaFallback(sorgu) {
+    try {
+        for (const lang of ["tr", "en"]) {
+            const arama = await axios.get(
+                `https://${lang}.wikipedia.org/w/api.php`,
+                { 
+                    params: { 
+                        action: "query", 
+                        list: "search", 
+                        srsearch: sorgu, 
+                        srlimit: 2, 
+                        format: "json", 
+                        origin: "*" 
+                    }, 
+                    timeout: 6000,
+                    responseType: 'json'
+                }
+            );
+            
+            const sayfalar = arama.data?.query?.search || [];
+            const sonuclar = [];
+            
+            for (const sayfa of sayfalar.slice(0, 2)) {
+                try {
+                    const ozet = await axios.get(
+                        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
+                        { 
+                            timeout: 5000,
+                            headers: { "Accept": "application/json; charset=utf-8" },
+                            responseType: 'json'
+                        }
+                    );
+                    if (ozet.data.extract) {
+                        sonuclar.push(`${ozet.data.title}: ${ozet.data.extract.slice(0, 400)}`);
+                    }
+                } catch {}
+            }
+            
+            if (sonuclar.length) return sonuclar.join("\n");
+        }
+    } catch (e) {
+        console.log(`⚠️ Wikipedia hatası: ${e.message}`);
+    }
+    return "";
+}
+
 /* ====== ŞEHİR ÇIKARMA ====== */
 function extractSehir(soru) {
+    // Türkiye şehirleri ve yaygın yerleşimler
     const sehirler = [
         "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", 
         "Gaziantep", "Şanlıurfa", "Mersin", "Diyarbakır", "Kayseri", "Eskişehir",
@@ -557,6 +282,7 @@ function extractSehir(soru) {
         if (k.includes(sehir.toLowerCase())) return sehir;
     }
     
+    // Genel şehir çıkarma (büyük harfle başlayan kelimeler)
     const match = soru.match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)/);
     return match ? match[1] : null;
 }
@@ -580,9 +306,14 @@ function kufurVarMi(metin) {
 
 /* ====== DİL TEMİZLEME ====== */
 function temizleDil(metin) {
+    // Çince, Japonca, Korece, Arapça, Rusça, vs. karakterleri temizle
     const yabanciKarakterler = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0750-\u077f\u0400-\u04ff\u0370-\u03ff\u0e00-\u0e7f\u0590-\u05ff]/g;
+    
     let temiz = metin.replace(yabanciKarakterler, '');
+    
+    // Eğer temizleme sonrası boş kaldıysa orijinali dön
     if (temiz.trim().length === 0) return metin;
+    
     return temiz;
 }
 
@@ -591,12 +322,14 @@ async function cevapUret(userId, soru) {
     const simdi = new Date();
     const tarih = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
     
+    // 1. Önce normal sohbet mi kontrol et
     const normalSohbet = isNormalSohbet(soru);
     const mesajdaKufur = kufurVarMi(soru);
     
     let webSonucu = null;
     let tip = "sohbet";
     
+    // 2. Araştırma gerektiren soruları tespit et
     if (!normalSohbet && !mesajdaKufur) {
         if (isHavaDurumuSorusu(soru)) {
             const sehir = extractSehir(soru) || "İstanbul";
@@ -606,22 +339,23 @@ async function cevapUret(userId, soru) {
                 tip = "hava";
             }
         } else if (isSporSorusu(soru) || isHaberSorusu(soru) || isBilgiSorusu(soru)) {
+            // Spor, haber veya bilgi sorusu - web ara
             const sorgu = soru.replace(/[?.!]/g, '').trim();
+            const results = await duckDuckGoSearch(sorgu, 5);
             
-            // Yeni gelişmiş arama
-            const aramaSonucu = await gelismisWebArama(sorgu, 5);
-            
-            if (aramaSonucu.results.length > 0) {
-                const formatted = aramaSonucu.results.map((r, i) => 
-                    `[${i+1}] ${r.title}\n${r.snippet}\n🔗 ${r.url}`
+            if (results.length > 0) {
+                const formatted = results.map((r, i) => 
+                    `[${i+1}] ${r.title}\n${r.snippet}`
                 ).join("\n\n");
-                
-                webSonucu = { 
-                    tip: "web", 
-                    veri: formatted,
-                    kaynak: aramaSonucu.source
-                };
+                webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
+            } else {
+                // Fallback Wikipedia
+                const wiki = await wikipediaFallback(sorgu);
+                if (wiki) {
+                    webSonucu = { tip: "wiki", veri: wiki };
+                    tip = "arastirma";
+                }
             }
         }
     }
@@ -654,13 +388,13 @@ async function cevapUret(userId, soru) {
         sistemPrompt = "You are BatuBot, a helpful Discord bot. Answer using the provided web data. Summarize clearly with bullet points. If uncertain, say 'Tahminim:' (My guess:). ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any other non-Latin script. If data is insufficient, say you couldn't find current info.";
         kullaniciPrompt = [
             `Date: ${tarih}`,
-            `Source: ${webSonucu?.kaynak || "Web"}`,
-            webSonucu?.veri ? `Search results:\n${webSonucu.veri}` : "",
+            webSonucu?.veri ? `Web search results:\n${webSonucu.veri}` : "",
             `User question: ${soru}`,
-            `\nIMPORTANT: Answer based ONLY on the data provided above. If no data, say "Güncel bilgiye ulaşamadım" (Couldn't reach current info).`
+            `\nIMPORTANT: Answer based ONLY on the web data provided above. If no data, say "Güncel bilgiye ulaşamadım" (Couldn't reach current info).`
         ].filter(Boolean).join("\n\n");
         
     } else {
+        // Normal sohbet
         sistemPrompt = "You are BatuBot, a friendly Discord bot. Developer is Batuhan. Chat casually and warmly. Keep responses short (1-3 sentences). Be witty but respectful. ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.";
         kullaniciPrompt = [
             `Date: ${tarih}`,
@@ -678,12 +412,14 @@ async function cevapUret(userId, soru) {
             { model: MODEL_SMART, temperature: 0.7, max_tokens: 800 }
         );
         
+        // Dil temizliği
         cevap = temizleDil(cevap);
         
+        // Boş kaldıysa fallback
         if (!cevap || cevap.trim().length < 3) {
             if (tip === "hava") {
                 const h = webSonucu.veri;
-                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${h.min}°C`).join('\n')}`;
+                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
             } else if (tip === "arastirma") {
                 cevap = "Üzgünüm, şu an güncel bilgiye ulaşamıyorum. Daha sonra tekrar dene.";
             } else {
@@ -691,6 +427,7 @@ async function cevapUret(userId, soru) {
             }
         }
         
+        // Hafızaya kaydet (sadece sohbet ve başarılı araştırma)
         if (tip === "sohbet" || (tip === "arastirma" && webSonucu)) {
             const yeniGecmis = [...gecmis, { user: soru, bot: cevap }];
             if (yeniGecmis.length > MAX_HISTORY) yeniGecmis.shift();
