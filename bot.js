@@ -162,39 +162,48 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== SEARX WEB ARAMA (DuckDuckGo yerine - sorunsuz JSON) ====== */
+/* ====== GOOGLE UNOFFICIAL JSON ARAMA (En stabil - timeout sorunu çözüldü) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://searx.be/search?q=${encodeURIComponent(sorgu)}&format=json&language=tr-TR&categories=general`;
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(sorgu)}&hl=tr&gl=tr`;
         
         const res = await axios.get(searchUrl, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept-Encoding": "gzip, deflate",
+                "DNT": "1"
             },
-            timeout: 10000,
-            responseType: 'json'
+            timeout: 12000,
+            responseType: 'text'
         });
         
-        const data = res.data;
+        const html = res.data;
         const results = [];
         
-        if (data.results && Array.isArray(data.results)) {
-            for (const item of data.results.slice(0, maxResults)) {
-                if (item.title && item.content) {
-                    results.push({
-                        title: item.title.trim(),
-                        snippet: item.content.trim(),
-                        url: item.url || '#'
-                    });
-                }
+        // Google sonuçlarını parse eden güçlü regex
+        const resultRegex = /data-sokoban-container=["'][^"']*["'][^>]*>[\s\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<div[^>]*class=["'][^"']*VwiC3b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+        
+        let match;
+        while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
+            let url = match[1];
+            const title = match[2].replace(/<[^>]*>/g, '').trim();
+            let snippet = match[3].replace(/<[^>]*>/g, '').trim();
+            
+            if (url.startsWith('/url?')) {
+                const urlMatch = url.match(/url\?q=([^&]+)/);
+                if (urlMatch) url = decodeURIComponent(urlMatch[1]);
+            }
+            
+            if (title && snippet && title.length > 5 && snippet.length > 15) {
+                results.push({ title, snippet, url });
             }
         }
         
         return results;
     } catch (e) {
-        console.log(`⚠️ Searx arama hatası: ${e.message}`);
+        console.log(`⚠️ Google arama hatası: ${e.message}`);
         return [];
     }
 }
@@ -317,8 +326,8 @@ async function cevapUret(userId, soru) {
                 tip = "hava";
             }
         } else if (isSporSorusu(soru) || isHaberSorusu(soru) || isBilgiSorusu(soru)) {
-            const sorgu = soru.replace(/[?.!]/g, '').trim();
-            const results = await duckDuckGoSearch(sorgu, 5);
+            const sorguText = soru.replace(/[?.!]/g, '').trim();
+            const results = await duckDuckGoSearch(sorguText, 5);
             
             if (results.length > 0) {
                 const formatted = results.map((r, i) => 
@@ -327,7 +336,7 @@ async function cevapUret(userId, soru) {
                 webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
             } else {
-                const wiki = await wikipediaFallback(sorgu);
+                const wiki = await wikipediaFallback(sorguText);
                 if (wiki) {
                     webSonucu = { tip: "wiki", veri: wiki };
                     tip = "arastirma";
