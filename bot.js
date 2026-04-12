@@ -162,14 +162,14 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== DUCKDUCKGO WEB ARAMA ====== */
+/* ====== BING WEB ARAMA (DuckDuckGo yerine) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(sorgu)}&kl=tr-tr`;
+        const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(sorgu)}&setlang=tr-TR&setmkt=tr-tr`;
         
         const res = await axios.get(searchUrl, {
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
                 "Accept-Charset": "utf-8"
@@ -181,33 +181,28 @@ async function duckDuckGoSearch(sorgu, maxResults = 5) {
         const html = res.data;
         const results = [];
         
-        const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gi;
-        let match;
+        // Bing sonuçlarını parse eden regex
+        const resultRegex = /<li class=["']b_algo["'][^>]*>[\s\S]*?<h2[^>]*><a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
         
+        let match;
         while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
+            let url = match[1];
             const title = match[2].replace(/<[^>]*>/g, '').trim();
-            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-            const url = match[1];
+            let snippet = match[3].replace(/<[^>]*>/g, '').trim();
+            
+            // Bing bazen relative link verebiliyor
+            if (url && !url.startsWith('http')) {
+                url = `https://www.bing.com${url}`;
+            }
             
             if (title && snippet && title.length > 3 && snippet.length > 10) {
                 results.push({ title, snippet, url });
             }
         }
         
-        if (results.length === 0) {
-            const altRegex = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<div[^>]*class="result__snippet"[^>]*>(.*?)<\/div>/gi;
-            while ((match = altRegex.exec(html)) !== null && results.length < maxResults) {
-                const title = match[2].replace(/<[^>]*>/g, '').trim();
-                const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-                if (title && snippet && title.length > 3 && snippet.length > 10) {
-                    results.push({ title, snippet, url: match[1] });
-                }
-            }
-        }
-        
         return results;
     } catch (e) {
-        console.log(`⚠️ DuckDuckGo hatası: ${e.message}`);
+        console.log(`⚠️ Bing arama hatası: ${e.message}`);
         return [];
     }
 }
@@ -238,7 +233,7 @@ async function wikipediaFallback(sorgu) {
             for (const sayfa of sayfalar.slice(0, 2)) {
                 try {
                     const ozet = await axios.get(
-                        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
+                        `https://\( {lang}.wikipedia.org/api/rest_v1/page/summary/ \){encodeURIComponent(sayfa.title)}`,
                         { 
                             timeout: 5000,
                             headers: { "Accept": "application/json; charset=utf-8" },
@@ -345,7 +340,7 @@ async function cevapUret(userId, soru) {
             
             if (results.length > 0) {
                 const formatted = results.map((r, i) => 
-                    `[${i+1}] ${r.title}\n${r.snippet}`
+                    `[${i+1}] \( {r.title}\n \){r.snippet}`
                 ).join("\n\n");
                 webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
@@ -419,7 +414,7 @@ async function cevapUret(userId, soru) {
         if (!cevap || cevap.trim().length < 3) {
             if (tip === "hava") {
                 const h = webSonucu.veri;
-                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
+                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: \( {h.hissedilen}°C)\n💧 Nem: % \){h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ \( {h.durum}\n\n**3 Günlük Tahmin:**\n \){h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
             } else if (tip === "arastirma") {
                 cevap = "Üzgünüm, şu an güncel bilgiye ulaşamıyorum. Daha sonra tekrar dene.";
             } else {
@@ -472,7 +467,7 @@ async function guvenliGonder(msg, metin, ilk = true) {
     } catch (err) {
         if (err.code === 50013) {
             try {
-                await msg.author.send(`(${msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n${metin}`);
+                await msg.author.send(`(\( {msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n \){metin}`);
             } catch {
                 console.error("❌ DM de gönderilemedi.");
             }
