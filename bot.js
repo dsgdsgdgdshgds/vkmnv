@@ -162,10 +162,10 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== BING WEB ARAMA (DuckDuckGo yerine) ====== */
+/* ====== BRAVE WEB ARAMA (DuckDuckGo + Bing yerine) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(sorgu)}&setlang=tr-TR&setmkt=tr-tr`;
+        const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(sorgu)}`;
         
         const res = await axios.get(searchUrl, {
             headers: {
@@ -181,19 +181,14 @@ async function duckDuckGoSearch(sorgu, maxResults = 5) {
         const html = res.data;
         const results = [];
         
-        // Bing sonuçlarını parse eden regex
-        const resultRegex = /<li class=["']b_algo["'][^>]*>[\s\S]*?<h2[^>]*><a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+        // Brave Search 2026 yapısına uygun regex
+        const resultRegex = /<h3[^>]*class="[^"]*title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]*?<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
         
         let match;
         while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
-            let url = match[1];
+            const url = match[1];
             const title = match[2].replace(/<[^>]*>/g, '').trim();
-            let snippet = match[3].replace(/<[^>]*>/g, '').trim();
-            
-            // Bing bazen relative link verebiliyor
-            if (url && !url.startsWith('http')) {
-                url = `https://www.bing.com${url}`;
-            }
+            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
             
             if (title && snippet && title.length > 3 && snippet.length > 10) {
                 results.push({ title, snippet, url });
@@ -202,7 +197,7 @@ async function duckDuckGoSearch(sorgu, maxResults = 5) {
         
         return results;
     } catch (e) {
-        console.log(`⚠️ Bing arama hatası: ${e.message}`);
+        console.log(`⚠️ Brave arama hatası: ${e.message}`);
         return [];
     }
 }
@@ -256,7 +251,6 @@ async function wikipediaFallback(sorgu) {
 
 /* ====== ŞEHİR ÇIKARMA ====== */
 function extractSehir(soru) {
-    // Türkiye şehirleri ve yaygın yerleşimler
     const sehirler = [
         "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", 
         "Gaziantep", "Şanlıurfa", "Mersin", "Diyarbakır", "Kayseri", "Eskişehir",
@@ -277,7 +271,6 @@ function extractSehir(soru) {
         if (k.includes(sehir.toLowerCase())) return sehir;
     }
     
-    // Genel şehir çıkarma (büyük harfle başlayan kelimeler)
     const match = soru.match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)/);
     return match ? match[1] : null;
 }
@@ -301,12 +294,10 @@ function kufurVarMi(metin) {
 
 /* ====== DİL TEMİZLEME ====== */
 function temizleDil(metin) {
-    // Çince, Japonca, Korece, Arapça, Rusça, vs. karakterleri temizle
     const yabanciKarakterler = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0750-\u077f\u0400-\u04ff\u0370-\u03ff\u0e00-\u0e7f\u0590-\u05ff]/g;
     
     let temiz = metin.replace(yabanciKarakterler, '');
     
-    // Eğer temizleme sonrası boş kaldıysa orijinali dön
     if (temiz.trim().length === 0) return metin;
     
     return temiz;
@@ -317,14 +308,12 @@ async function cevapUret(userId, soru) {
     const simdi = new Date();
     const tarih = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
     
-    // 1. Önce normal sohbet mi kontrol et
     const normalSohbet = isNormalSohbet(soru);
     const mesajdaKufur = kufurVarMi(soru);
     
     let webSonucu = null;
     let tip = "sohbet";
     
-    // 2. Araştırma gerektiren soruları tespit et
     if (!normalSohbet && !mesajdaKufur) {
         if (isHavaDurumuSorusu(soru)) {
             const sehir = extractSehir(soru) || "İstanbul";
@@ -334,7 +323,6 @@ async function cevapUret(userId, soru) {
                 tip = "hava";
             }
         } else if (isSporSorusu(soru) || isHaberSorusu(soru) || isBilgiSorusu(soru)) {
-            // Spor, haber veya bilgi sorusu - web ara
             const sorgu = soru.replace(/[?.!]/g, '').trim();
             const results = await duckDuckGoSearch(sorgu, 5);
             
@@ -345,7 +333,6 @@ async function cevapUret(userId, soru) {
                 webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
             } else {
-                // Fallback Wikipedia
                 const wiki = await wikipediaFallback(sorgu);
                 if (wiki) {
                     webSonucu = { tip: "wiki", veri: wiki };
@@ -389,7 +376,6 @@ async function cevapUret(userId, soru) {
         ].filter(Boolean).join("\n\n");
         
     } else {
-        // Normal sohbet
         sistemPrompt = "You are BatuBot, a friendly Discord bot. Developer is Batuhan. Chat casually and warmly. Keep responses short (1-3 sentences). Be witty but respectful. ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.";
         kullaniciPrompt = [
             `Date: ${tarih}`,
@@ -407,10 +393,8 @@ async function cevapUret(userId, soru) {
             { model: MODEL_SMART, temperature: 0.7, max_tokens: 800 }
         );
         
-        // Dil temizliği
         cevap = temizleDil(cevap);
         
-        // Boş kaldıysa fallback
         if (!cevap || cevap.trim().length < 3) {
             if (tip === "hava") {
                 const h = webSonucu.veri;
@@ -422,7 +406,6 @@ async function cevapUret(userId, soru) {
             }
         }
         
-        // Hafızaya kaydet (sadece sohbet ve başarılı araştırma)
         if (tip === "sohbet" || (tip === "arastirma" && webSonucu)) {
             const yeniGecmis = [...gecmis, { user: soru, bot: cevap }];
             if (yeniGecmis.length > MAX_HISTORY) yeniGecmis.shift();
