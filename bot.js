@@ -8,7 +8,6 @@ http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(pro
 /* ====== CONFIG ====== */
 const GROQ_API_KEY  = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
-const SERPER_KEY    = process.env.serper;
 
 /* ====== MODELLER ====== */
 const MODEL_FAST  = "llama-3.1-8b-instant";   // Karar verme için hızlı model
@@ -109,60 +108,37 @@ ${gecmisMetin || "(yok)"}`;
 }
 
 /* ======================================================
-   ADIM 2A — WEB ARAŞTIRMA
-   Serper (Google) + Wikipedia fallback
+   ADIM 2A -- WEB ARASTIRMA
+   1. Jina AI Search (key yok, kayit yok, gercek web)
+   2. Wikipedia fallback
    ====================================================== */
-async function webAra(sorgu, maxResults = 6) {
+async function webAra(sorgu) {
     const sonuclar = [];
 
-    // Serper ile Google ara
-    if (SERPER_KEY) {
-        try {
-            const res = await axios.post("https://google.serper.dev/search",
-                { q: sorgu, gl: "tr", hl: "tr", num: maxResults },
-                { headers: { "X-API-KEY": SERPER_KEY, "Content-Type": "application/json" }, timeout: 10000 }
-            );
+    // Jina AI -- tamamen ucretsiz, key gereksiz
+    try {
+        const url = `https://s.jina.ai/${encodeURIComponent(sorgu)}`;
+        const res = await axios.get(url, {
+            headers: { "Accept": "text/plain", "X-Return-Format": "text" },
+            timeout: 15000,
+        });
 
-            const organic = res.data?.organic || [];
-            const answerBox = res.data?.answerBox;
-            const knowledgeGraph = res.data?.knowledgeGraph;
-
-            // Answer box varsa en üste ekle (direkt cevap)
-            if (answerBox?.answer) {
-                sonuclar.push(`✅ Direkt Cevap: ${answerBox.answer}`);
-            } else if (answerBox?.snippet) {
-                sonuclar.push(`✅ Direkt Cevap: ${answerBox.snippet}`);
-            }
-
-            // Knowledge graph (özet bilgi)
-            if (knowledgeGraph?.description) {
-                sonuclar.push(`📖 Özet: ${knowledgeGraph.title} — ${knowledgeGraph.description}`);
-            }
-
-            // Organik sonuçlar
-            for (const r of organic.slice(0, maxResults)) {
-                if (r.title && r.snippet) {
-                    sonuclar.push(`[${r.title}]\n${r.snippet}`);
-                }
-            }
-
-            if (sonuclar.length > 0) {
-                console.log(`🔍 Serper: ${sonuclar.length} sonuç — "${sorgu}"`);
-                return sonuclar.join("\n\n");
-            }
-        } catch (e) {
-            console.log(`⚠️ Serper hatası: ${e.message}`);
+        const icerik = (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)).slice(0, 2500);
+        if (icerik && icerik.length > 50) {
+            console.log(`Jina AI: ${icerik.length} karakter -- "${sorgu}"`);
+            return icerik;
         }
+    } catch (e) {
+        console.log(`Jina hatasi: ${e.message}`);
     }
 
-    // Fallback: Wikipedia
+    // Wikipedia fallback
     try {
         for (const lang of ["tr", "en"]) {
             const arama = await axios.get(`https://${lang}.wikipedia.org/w/api.php`, {
                 params: { action: "query", list: "search", srsearch: sorgu, srlimit: 3, format: "json", origin: "*" },
                 timeout: 6000
             });
-
             const sayfalar = arama.data?.query?.search || [];
             for (const sayfa of sayfalar.slice(0, 2)) {
                 try {
@@ -171,27 +147,22 @@ async function webAra(sorgu, maxResults = 6) {
                         { timeout: 5000 }
                     );
                     if (ozet.data.extract) {
-                        sonuclar.push(`[${ozet.data.title} — Wikipedia]\n${ozet.data.extract.slice(0, 500)}`);
+                        sonuclar.push(`[${ozet.data.title} -- Wikipedia]\n${ozet.data.extract.slice(0, 600)}`);
                     }
                 } catch {}
             }
-
             if (sonuclar.length > 0) {
-                console.log(`📚 Wikipedia (${lang}): ${sonuclar.length} sonuç`);
+                console.log(`Wikipedia (${lang}): ${sonuclar.length} sonuc`);
                 return sonuclar.join("\n\n");
             }
         }
     } catch (e) {
-        console.log(`⚠️ Wikipedia hatası: ${e.message}`);
+        console.log(`Wikipedia hatasi: ${e.message}`);
     }
 
     return "";
 }
 
-/* ======================================================
-   ADIM 2B — HAVA DURUMU
-   Open-Meteo ile dünya geneli ücretsiz
-   ====================================================== */
 async function getHavaDurumu(sehir) {
     try {
         const geoRes = await axios.get("https://geocoding-api.open-meteo.com/v1/search", {
@@ -471,7 +442,7 @@ client.once("ready", c => {
     console.log(`✅ ${c.user.tag} aktif — Model: ${MODEL_SMART}`);
     console.log(`🕒 Başlangıç: ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
     console.log(`👤 Geliştirici: Batuhan`);
-    console.log(`🔍 Serper: ${SERPER_KEY ? "✅ Aktif" : "❌ Key yok"}`);
+    console.log(`🔍 Web Arama: Jina AI aktif`);
 });
 
 process.on("unhandledRejection", err => {
