@@ -162,52 +162,39 @@ async function getHavaDurumu(sehir) {
     }
 }
 
-/* ====== DUCKDUCKGO WEB ARAMA ====== */
+/* ====== SERPER.DEV WEB ARAMA (Google sonuçları, ücretsiz 2500/ay, kart yok) ====== */
 async function duckDuckGoSearch(sorgu, maxResults = 5) {
     try {
-        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(sorgu)}&kl=tr-tr`;
-        
-        const res = await axios.get(searchUrl, {
+        const SERPER_API_KEY = process.env.serper;
+        if (!SERPER_API_KEY) {
+            console.log("⚠️ SERPER_API_KEY bulunamadı");
+            return [];
+        }
+
+        const res = await axios.post("https://google.serper.dev/search", {
+            q: sorgu,
+            gl: "tr",
+            hl: "tr",
+            num: maxResults
+        }, {
             headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Accept-Charset": "utf-8"
+                "X-API-KEY": SERPER_API_KEY,
+                "Content-Type": "application/json"
             },
             timeout: 10000,
-            responseType: 'text'
+            responseType: 'json'
         });
-        
-        const html = res.data;
-        const results = [];
-        
-        const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gi;
-        let match;
-        
-        while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
-            const title = match[2].replace(/<[^>]*>/g, '').trim();
-            const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-            const url = match[1];
-            
-            if (title && snippet && title.length > 3 && snippet.length > 10) {
-                results.push({ title, snippet, url });
-            }
-        }
-        
-        if (results.length === 0) {
-            const altRegex = /<h2[^>]*class="result__title"[^>]*>[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<div[^>]*class="result__snippet"[^>]*>(.*?)<\/div>/gi;
-            while ((match = altRegex.exec(html)) !== null && results.length < maxResults) {
-                const title = match[2].replace(/<[^>]*>/g, '').trim();
-                const snippet = match[3].replace(/<[^>]*>/g, '').trim();
-                if (title && snippet && title.length > 3 && snippet.length > 10) {
-                    results.push({ title, snippet, url: match[1] });
-                }
-            }
-        }
-        
-        return results;
+
+        const organic = res.data?.organic || [];
+
+        return organic.slice(0, maxResults).map(r => ({
+            title: r.title || "",
+            snippet: r.snippet || "",
+            url: r.link || ""
+        })).filter(r => r.title.length > 3 && r.snippet.length > 10);
+
     } catch (e) {
-        console.log(`⚠️ DuckDuckGo hatası: ${e.message}`);
+        console.log(`⚠️ Serper hatası: ${e.message}`);
         return [];
     }
 }
