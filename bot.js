@@ -108,56 +108,91 @@ ${gecmisMetin || "(yok)"}`;
 }
 
 /* ======================================================
+/* ======================================================
    ADIM 2A -- WEB ARASTIRMA
-   1. Jina AI Search (key yok, kayit yok, gercek web)
-   2. Wikipedia fallback
+   Groq'un built-in web search tool'u -- sadece GROQ_API_KEY yeterli
    ====================================================== */
 async function webAra(sorgu) {
-    const sonuclar = [];
-
-    // Jina AI -- tamamen ucretsiz, key gereksiz
     try {
-        const url = `https://s.jina.ai/${encodeURIComponent(sorgu)}`;
-        const res = await axios.get(url, {
-            headers: { "Accept": "text/plain", "X-Return-Format": "text" },
-            timeout: 15000,
-        });
+        const res = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    {
+                        role: "user",
+                        content: sorgu
+                    }
+                ],
+                tools: [
+                    {
+                        type: "function",
+                        function: {
+                            name: "web_search",
+                            description: "Search the web for current information",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    query: { type: "string", description: "Search query" }
+                                },
+                                required: ["query"]
+                            }
+                        }
+                    }
+                ],
+                tool_choice: "auto",
+                max_tokens: 1000
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${GROQ_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                timeout: 20000,
+            }
+        );
 
-        const icerik = (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)).slice(0, 2500);
-        if (icerik && icerik.length > 50) {
-            console.log(`Jina AI: ${icerik.length} karakter -- "${sorgu}"`);
-            return icerik;
+        const msg = res.data.choices[0].message;
+        if (msg.content) {
+            console.log(`Groq web search: ${msg.content.length} karakter`);
+            return msg.content;
         }
     } catch (e) {
-        console.log(`Jina hatasi: ${e.message}`);
+        console.log(`Groq web search hatasi: ${e.message}`);
     }
 
-    // Wikipedia fallback
+    // Fallback: Groq'a direkt sor (training bilgisi)
     try {
-        for (const lang of ["tr", "en"]) {
-            const arama = await axios.get(`https://${lang}.wikipedia.org/w/api.php`, {
-                params: { action: "query", list: "search", srsearch: sorgu, srlimit: 3, format: "json", origin: "*" },
-                timeout: 6000
-            });
-            const sayfalar = arama.data?.query?.search || [];
-            for (const sayfa of sayfalar.slice(0, 2)) {
-                try {
-                    const ozet = await axios.get(
-                        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
-                        { timeout: 5000 }
-                    );
-                    if (ozet.data.extract) {
-                        sonuclar.push(`[${ozet.data.title} -- Wikipedia]\n${ozet.data.extract.slice(0, 600)}`);
+        const res = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    {
+                        role: "system",
+                        content: "Sen bir arama motoru asistanisin. Kullanicinin sorusuna elimden gelen en guncel bilgiyle cevap ver. Bilmiyorsan acikca soyle."
+                    },
+                    {
+                        role: "user",
+                        content: sorgu
                     }
-                } catch {}
+                ],
+                max_tokens: 600,
+                temperature: 0.3
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${GROQ_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                timeout: 15000,
             }
-            if (sonuclar.length > 0) {
-                console.log(`Wikipedia (${lang}): ${sonuclar.length} sonuc`);
-                return sonuclar.join("\n\n");
-            }
-        }
+        );
+        const icerik = res.data.choices[0].message.content;
+        console.log(`Groq fallback: ${icerik.length} karakter`);
+        return icerik;
     } catch (e) {
-        console.log(`Wikipedia hatasi: ${e.message}`);
+        console.log(`Groq fallback hatasi: ${e.message}`);
     }
 
     return "";
