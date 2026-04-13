@@ -22,13 +22,13 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
     const res = await axios.post(
         "https://api.groq.com/openai/v1/chat/completions",
         { model, messages, temperature, max_tokens },
-        { 
-            headers: { 
-                Authorization: `Bearer ${GROQ_API_KEY}`, 
+        {
+            headers: {
+                Authorization: `Bearer ${GROQ_API_KEY}`,
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 "Accept-Charset": "utf-8"
-            }, 
+            },
             timeout: 30000,
             responseType: 'json'
         }
@@ -40,9 +40,9 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
 function isHavaDurumuSorusu(soru) {
     const k = soru.toLowerCase();
     const patterns = [
-        /hava\s*durumu/i, /hava\s*nasıl/i, /kaç\s*derce/i, /sıcaklık/i,
-        /yağmur/i, /kar\s*yağı/i, /güneş/i, /bulutlu/i, /rüzgar/i,
-        /weather/i, /temperature/i, /forecast/i, /yağacak/i, /bulancak/i
+        /hava\s*durumu/i, /hava\s*nasil/i, /kac\s*derece/i, /sicaklik/i,
+        /yagmur/i, /kar\s*yagi/i, /bulutlu/i, /ruzgar/i,
+        /weather/i, /temperature/i, /forecast/i,
     ];
     return patterns.some(p => p.test(k));
 }
@@ -51,10 +51,13 @@ function isHavaDurumuSorusu(soru) {
 function isSporSorusu(soru) {
     const k = soru.toLowerCase();
     const patterns = [
-        /maç/i, /maçı/i, /skor/i, /sonuç/i, /puan/i, /futbol/i, /basketbol/i,
-        /galatasaray/i, /fenerbahçe/i, /beşiktaş/i, /trabzon/i, /süper\s*lig/i,
-        /şampiyonlar\s*ligi/i, /euro/i, /dünya\s*kupası/i, /nba/i, /nfl/i,
-        /tenis/i, /formula/i, /f1/i, /transfer/i, /gol/i, /asist/i
+        /mac\s*(skoru|sonucu|kac\s*kac)/i, /canli\s*skor/i, /live\s*score/i,
+        /bu\s*(sezon|hafta)\s*(kac|puan|gol)/i,
+        /son\s*(mac|oyun|karsilasma)/i,
+        /transfer\s*(haberi|duyurusu|imzaladi)/i,
+        /nba|nfl|formula|f1/i,
+        /super\s*lig\s*(puan|tablo|sonuc)/i,
+        /sampiyonlar\s*ligi\s*(sonuc|mac)/i,
     ];
     return patterns.some(p => p.test(k));
 }
@@ -63,22 +66,60 @@ function isSporSorusu(soru) {
 function isHaberSorusu(soru) {
     const k = soru.toLowerCase();
     const patterns = [
-        /haber/i, /son\s*durum/i, /gündem/i, /bugün\s*ne\s*oldu/i, /son\s*gelişme/i,
-        /patlama/i, /deprem/i, /yangın/i, /kaza/i, /ölüm/i, /seçim/i, /oylama/i,
-        /ekonomi/i, /dolar/i, /euro/i, /altın/i, /borsa/i, /bitcoin/i, /kripto/i,
-        /enflasyon/i, /faiz/i, /merkez\s*bankası/i
+        /son\s*dakika/i, /breaking/i, /bugun\s*ne\s*oldu/i,
+        /son\s*gelisme/i, /gundem/i, /haber/i,
+        /patlama/i, /deprem/i, /yangin/i, /kaza\s*(haberi)?/i,
+        /secim\s*(sonucu|haberi)/i,
+        /dolar\s*(kac|kuru)/i, /euro\s*(kac|kuru)/i,
+        /altin\s*(fiyat|gram)/i, /bitcoin\s*(fiyat|kac)/i,
+        /borsa\s*(bugun|son)/i, /enflasyon\s*(son|bugun)/i,
     ];
     return patterns.some(p => p.test(k));
+}
+
+/* ====== GÜNCEL BİLGİ GEREKTİRİYOR MU? ====== */
+// Sadece gerçekten web araması gerektiren sorgular için true döner.
+// Ansiklopedik/tarihsel sorular (nedir, kimdir, vb.) false döner.
+function isGuncelBilgiSorusu(soru) {
+    const k = soru.toLowerCase();
+
+    // Kesinlikle statik/ansiklopedik — web araması GEREKSIZ
+    const statikPatterns = [
+        /\bnedir\b/i, /\bkimdir\b/i, /ne\s*demek/i, /anlami\s*(nedir)?/i,
+        /tarihi\s*nedir/i, /tarihce/i,
+        /kim\s*(buldu|icat|kurdu|yapti)/i,
+        /kac\s*yilinda\s*(kuruldu|dogdu|oldu|icat)/i,
+        /nasil\s*(calisir|yapilir|oynanir)/i,
+        /ne\s*kadar\s*(surer|uzun|buyuk)/i,
+        /hangi\s*(ulkede|sehirde|kitada)/i,
+        /kac\s*(metre|kilometre|yil\s*once|yuzyl)/i,
+    ];
+    if (statikPatterns.some(p => p.test(k))) return false;
+
+    // Kesinlikle güncel — web araması ŞART
+    const guncelPatterns = [
+        /bugun/i, /su\s*an/i, /simdi/i, /dun/i,
+        /bu\s*(hafta|ay|yil|sezon)/i,
+        /son\s*(haber|gelisme|dakika|durum)/i,
+        /guncel/i, /yeni\s*(haber|durum|gelisme)/i,
+        /kac\s*(lira|dolar|euro)\s*(bugun|simdi|su\s*an)/i,
+        /fiyat\s*(bugun|simdi)/i,
+        /canli/i, /live/i,
+    ];
+    if (guncelPatterns.some(p => p.test(k))) return true;
+
+    // Spor & haber kalıpları da web gerektirir
+    return isSporSorusu(soru) || isHaberSorusu(soru);
 }
 
 /* ====== BİLGİ/ANSİKLOPEDİ SORUSU KONTROLÜ ====== */
 function isBilgiSorusu(soru) {
     const k = soru.toLowerCase();
     const patterns = [
-        /nedir/i, /kimdir/i, /ne\s*zaman/i, /nasıl/i, /neden/i, /nerede/i,
-        /tarihi/i, /hakkında/i, /bilgi/i, /tanım/i, /açıklama/i,
-        /kim\s*yaptı/i, /kim\s*buldu/i, /kim\s*icat/i, /kaç\s*yılında/i,
-        /ne\s*demek/i, /anlamı/i, /tarihçe/i
+        /nedir/i, /kimdir/i, /ne\s*zaman/i, /nasil/i, /neden/i, /nerede/i,
+        /tarihi/i, /hakkinda/i, /bilgi/i, /tanim/i, /aciklama/i,
+        /kim\s*yapti/i, /kim\s*buldu/i, /kim\s*icat/i, /kac\s*yilinda/i,
+        /ne\s*demek/i, /anlami/i, /tarihce/i
     ];
     return patterns.some(p => p.test(k));
 }
@@ -87,32 +128,32 @@ function isBilgiSorusu(soru) {
 function isNormalSohbet(soru) {
     const k = soru.toLowerCase().trim();
     const patterns = [
-        /^merhaba/i, /^selam/i, /^naber/i, /^nasılsın/i, /^ne\s*yapıyorsun/i,
-        /^iyi\s*misin/i, /^günaydın/i, /^iyi\s*akşamlar/i, /^iyi\s*geceler/i,
-        /^teşekkür/i, /^sağol/i, /^eyvallah/i, /^görüşürüz/i, /^bay/i, /^bb/i,
+        /^merhaba/i, /^selam/i, /^naber/i, /^nasilsin/i, /^ne\s*yapiyorsun/i,
+        /^iyi\s*misin/i, /^gunaydin/i, /^iyi\s*aksamlar/i, /^iyi\s*geceler/i,
+        /^teskkur/i, /^sagol/i, /^eyvallah/i, /^gorusuruz/i, /^bay/i, /^bb/i,
         /^haha/i, /^lol/i, /^xd/i, /^😂/, /^🤣/, /^😅/, /^👍/, /^👎/,
-        /^(evet|hayır|tamam|olur|olmaz|belki)$/i,
-        /^(sa|as|sea|selamun\s*aleyküm)$/i
+        /^(evet|hayir|tamam|olur|olmaz|belki)$/i,
+        /^(sa|as|sea|selamun\s*aleykum)$/i
     ];
     return patterns.some(p => p.test(k)) || soru.length < 15;
 }
 
-/* ====== OPEN-METEO HAVA DURUMU ====== */
+/* ====== OPEN-METEO HAVA DURUMU (Dünya geneli) ====== */
 async function getHavaDurumu(sehir) {
     try {
         const geoRes = await axios.get(
             `https://geocoding-api.open-meteo.com/v1/search`,
-            { 
+            {
                 params: { name: sehir, count: 1, language: "tr", format: "json" },
-                timeout: 5000,
+                timeout: 6000,
                 responseType: 'json'
             }
         );
-        
+
         if (!geoRes.data.results?.length) return null;
-        
+
         const { latitude, longitude, name, country } = geoRes.data.results[0];
-        
+
         const weatherRes = await axios.get(
             `https://api.open-meteo.com/v1/forecast`,
             {
@@ -124,24 +165,24 @@ async function getHavaDurumu(sehir) {
                     timezone: "auto",
                     forecast_days: 3
                 },
-                timeout: 5000,
+                timeout: 6000,
                 responseType: 'json'
             }
         );
-        
+
         const current = weatherRes.data.current;
         const daily = weatherRes.data.daily;
-        
+
         const weatherCodes = {
-            0: "Açık ☀️", 1: "Parçalı bulutlu 🌤️", 2: "Bulutlu ⛅", 3: "Kapalı ☁️",
-            45: "Sisli 🌫️", 48: "Donmuş sis 🌫️",
-            51: "Çisenti 🌦️", 53: "Orta çisenti 🌧️", 55: "Yoğun çisenti 🌧️",
-            61: "Hafif yağmur 🌧️", 63: "Yağmur 🌧️", 65: "Şiddetli yağmur 🌧️",
-            71: "Hafif kar 🌨️", 73: "Kar 🌨️", 75: "Yoğun kar 🌨️",
-            80: "Sağanak 🌦️", 81: "Orta sağanak 🌧️", 82: "Şiddetli sağanak ⛈️",
-            95: "Gök gürültüsü ⛈️", 96: "Dolu ⛈️", 99: "Şiddetli dolu ⛈️"
+            0: "Acik ☀️", 1: "Parcali bulutlu 🌤️", 2: "Bulutlu ⛅", 3: "Kapali ☁️",
+            45: "Sisli 🌫️", 48: "Donmus sis 🌫️",
+            51: "Cisenti 🌦️", 53: "Orta cisenti 🌧️", 55: "Yogun cisenti 🌧️",
+            61: "Hafif yagmur 🌧️", 63: "Yagmur 🌧️", 65: "Siddetli yagmur 🌧️",
+            71: "Hafif kar 🌨️", 73: "Kar 🌨️", 75: "Yogun kar 🌨️",
+            80: "Saganak 🌦️", 81: "Orta saganak 🌧️", 82: "Siddetli saganak ⛈️",
+            95: "Gok gurultusu ⛈️", 96: "Dolu ⛈️", 99: "Siddetli dolu ⛈️"
         };
-        
+
         return {
             sehir: name,
             ulke: country,
@@ -162,8 +203,36 @@ async function getHavaDurumu(sehir) {
     }
 }
 
+/* ====== ŞEHİR ÇIKARMA (Dünya geneli — liste yok, geocoding halleder) ====== */
+function extractSehir(soru) {
+    // "X hava durumu", "X'de hava", "weather in X" gibi kalıplardan şehir çek
+    const kaliplar = [
+        // "İstanbul hava", "London hava durumu"
+        /^([A-Za-z\u00C0-\u024F\u0400-\u04FF]+(?:\s[A-Za-z\u00C0-\u024F]+)?)\s+hava/i,
+        // "hava durumu İstanbul", "weather in Tokyo"
+        /hava(?:\s*durumu)?\s+(?:in|at|of|icin)?\s*([A-Za-z\u00C0-\u024F]+(?:\s[A-Za-z\u00C0-\u024F]+)?)/i,
+        /weather\s+(?:in|at|of)?\s*([A-Za-z\u00C0-\u024F]+(?:\s[A-Za-z\u00C0-\u024F]+)?)/i,
+        // "New York'ta hava nasıl"
+        /([A-Za-z\u00C0-\u024F]+(?:\s[A-Za-z\u00C0-\u024F]+)?)'?(?:da|de|ta|te|nin|nun|nun|in)\s+hava/i,
+    ];
+
+    for (const k of kaliplar) {
+        const m = soru.match(k);
+        if (m && m[1]) {
+            const aday = m[1].trim();
+            if (aday.length > 1 && aday.length < 50) return aday;
+        }
+    }
+
+    // Fallback: büyük harfle başlayan kelime grubu
+    const buyukMatch = soru.match(/([A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+){0,2})/);
+    if (buyukMatch) return buyukMatch[1].trim();
+
+    return null;
+}
+
 /* ====== SERPER.DEV WEB ARAMA (Google sonuçları, ücretsiz 2500/ay, kart yok) ====== */
-async function duckDuckGoSearch(sorgu, maxResults = 5) {
+async function webAra(sorgu, maxResults = 5) {
     try {
         const SERPER_API_KEY = process.env.serper;
         if (!SERPER_API_KEY) {
@@ -205,28 +274,28 @@ async function wikipediaFallback(sorgu) {
         for (const lang of ["tr", "en"]) {
             const arama = await axios.get(
                 `https://${lang}.wikipedia.org/w/api.php`,
-                { 
-                    params: { 
-                        action: "query", 
-                        list: "search", 
-                        srsearch: sorgu, 
-                        srlimit: 2, 
-                        format: "json", 
-                        origin: "*" 
-                    }, 
+                {
+                    params: {
+                        action: "query",
+                        list: "search",
+                        srsearch: sorgu,
+                        srlimit: 2,
+                        format: "json",
+                        origin: "*"
+                    },
                     timeout: 6000,
                     responseType: 'json'
                 }
             );
-            
+
             const sayfalar = arama.data?.query?.search || [];
             const sonuclar = [];
-            
+
             for (const sayfa of sayfalar.slice(0, 2)) {
                 try {
                     const ozet = await axios.get(
                         `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
-                        { 
+                        {
                             timeout: 5000,
                             headers: { "Accept": "application/json; charset=utf-8" },
                             responseType: 'json'
@@ -237,7 +306,7 @@ async function wikipediaFallback(sorgu) {
                     }
                 } catch {}
             }
-            
+
             if (sonuclar.length) return sonuclar.join("\n");
         }
     } catch (e) {
@@ -246,61 +315,27 @@ async function wikipediaFallback(sorgu) {
     return "";
 }
 
-/* ====== ŞEHİR ÇIKARMA ====== */
-function extractSehir(soru) {
-    // Türkiye şehirleri ve yaygın yerleşimler
-    const sehirler = [
-        "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", 
-        "Gaziantep", "Şanlıurfa", "Mersin", "Diyarbakır", "Kayseri", "Eskişehir",
-        "Samsun", "Trabzon", "Malatya", "Erzurum", "Van", "Batman", "Elazığ",
-        "Sakarya", "Kocaeli", "Manisa", "Aydın", "Balıkesir", "Tekirdağ",
-        "Çanakkale", "Edirne", "Kırklareli", "Rize", "Artvin", "Giresun", "Ordu",
-        "Sivas", "Tokat", "Amasya", "Çorum", "Yozgat", "Kırıkkale", "Kırşehir",
-        "Nevşehir", "Niğde", "Aksaray", "Karaman", "Isparta", "Burdur", "Uşak",
-        "Afyonkarahisar", "Kütahya", "Bilecik", "Bolu", "Düzce", "Zonguldak",
-        "Karabük", "Bartın", "Kastamonu", "Sinop", "Çankırı", "Bayburt", "Gümüşhane",
-        "Ardahan", "Kars", "Iğdır", "Ağrı", "Muş", "Bitlis", "Hakkari", "Şırnak",
-        "Siirt", "Mardin", "Kilis", "Hatay", "Osmaniye", "Kahramanmaraş", "Adıyaman",
-        "Tunceli", "Bingöl", "Muğla", "Denizli", "Konya", "Eskişehir", "Bulancak"
-    ];
-    
-    const k = soru.toLowerCase();
-    for (const sehir of sehirler) {
-        if (k.includes(sehir.toLowerCase())) return sehir;
-    }
-    
-    // Genel şehir çıkarma (büyük harfle başlayan kelimeler)
-    const match = soru.match(/([A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?:\s[A-ZÇĞİÖŞÜ][a-zçğıöşü]+)?)/);
-    return match ? match[1] : null;
-}
-
 /* ====== KÜFÜR TESPİTİ ====== */
 const KUFURLER = [
-    "amk","amına","orospu","oç","sik","göt","bok","yarrak","piç","sikerim",
-    "orospu çocuğu","gerizekalı","salak","ahmak","kahpe","mal","aptal","pezevenk",
-    "yavşak","şerefsiz","piç kurusu","amcık","gavat","orosbu","siktir","lanet",
-    "allahını","peygamberini","dinsiz","imansız","it","köpek","eşşek","yosma",
-    "keko","zibidi","moron","aptal sürüsü","gerzek","manyak","deli","kafasız"
+    "amk","amina","orospu","oc","sik","got","bok","yarrak","pic","sikerim",
+    "orospu cocugu","geriزekalı","salak","ahmak","kahpe","mal","aptal","pezevenk",
+    "yavsak","serefsiz","pic kurusu","amcik","gavat","orosbu","siktir","lanet",
+    "allahinı","peygamberini","dinsiz","imansiz","it","kopek","essek","yosma",
+    "keko","zibidi","moron","gerzek","manyak","kafasiz"
 ];
 
 function kufurVarMi(metin) {
-    const k = metin.toLowerCase();
-    return KUFURLER.some(w => {
-        const normalized = w.replace(/ı/g, "i").replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u");
-        return k.includes(w) || k.includes(normalized);
-    });
+    const k = metin.toLowerCase()
+        .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ç/g, "c")
+        .replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u");
+    return KUFURLER.some(w => k.includes(w));
 }
 
 /* ====== DİL TEMİZLEME ====== */
 function temizleDil(metin) {
-    // Çince, Japonca, Korece, Arapça, Rusça, vs. karakterleri temizle
     const yabanciKarakterler = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0750-\u077f\u0400-\u04ff\u0370-\u03ff\u0e00-\u0e7f\u0590-\u05ff]/g;
-    
-    let temiz = metin.replace(yabanciKarakterler, '');
-    
-    // Eğer temizleme sonrası boş kaldıysa orijinali dön
+    const temiz = metin.replace(yabanciKarakterler, '');
     if (temiz.trim().length === 0) return metin;
-    
     return temiz;
 }
 
@@ -308,88 +343,113 @@ function temizleDil(metin) {
 async function cevapUret(userId, soru) {
     const simdi = new Date();
     const tarih = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    
-    // 1. Önce normal sohbet mi kontrol et
+
     const normalSohbet = isNormalSohbet(soru);
     const mesajdaKufur = kufurVarMi(soru);
-    
+
     let webSonucu = null;
     let tip = "sohbet";
-    
-    // 2. Araştırma gerektiren soruları tespit et
+
     if (!normalSohbet && !mesajdaKufur) {
         if (isHavaDurumuSorusu(soru)) {
-            const sehir = extractSehir(soru) || "İstanbul";
+            // Hava durumu — şehir çıkar, dünya geneli çalışır
+            const sehir = extractSehir(soru) || "Istanbul";
             const hava = await getHavaDurumu(sehir);
             if (hava) {
                 webSonucu = { tip: "hava", veri: hava };
                 tip = "hava";
             }
-        } else if (isSporSorusu(soru) || isHaberSorusu(soru) || isBilgiSorusu(soru)) {
-            // Spor, haber veya bilgi sorusu - web ara
+        } else if (isGuncelBilgiSorusu(soru)) {
+            // Güncel bilgi gerekiyor → web ara
             const sorgu = soru.replace(/[?.!]/g, '').trim();
-            const results = await duckDuckGoSearch(sorgu, 5);
-            
+            const results = await webAra(sorgu, 5);
+
             if (results.length > 0) {
-                const formatted = results.map((r, i) => 
-                    `[${i+1}] ${r.title}\n${r.snippet}`
+                const formatted = results.map((r, i) =>
+                    `[${i + 1}] ${r.title}\n${r.snippet}`
                 ).join("\n\n");
                 webSonucu = { tip: "web", veri: formatted };
                 tip = "arastirma";
             } else {
-                // Fallback Wikipedia
                 const wiki = await wikipediaFallback(sorgu);
                 if (wiki) {
                     webSonucu = { tip: "wiki", veri: wiki };
                     tip = "arastirma";
                 }
             }
+        } else if (isBilgiSorusu(soru)) {
+            // Ansiklopedik soru → direkt Wikipedia, web aramaya gerek yok
+            const sorgu = soru.replace(/[?.!]/g, '').trim();
+            const wiki = await wikipediaFallback(sorgu);
+            if (wiki) {
+                webSonucu = { tip: "wiki", veri: wiki };
+                tip = "arastirma";
+            }
         }
     }
-    
+
     const gecmis = memory.get(userId) || [];
     const gecmisMetin = gecmis.length
         ? gecmis.slice(-2).map((h, i) => `[${i + 1}] K: ${h.user} | B: ${h.bot}`).join("\n")
         : "";
-    
+
     let sistemPrompt;
     let kullaniciPrompt;
-    
+
     if (mesajdaKufur) {
-        sistemPrompt = "You are a Discord bot named BatuBot. Developer is Batuhan. User insulted you. Respond with short, witty Turkish insults (1-2 sentences). Be creative but not too harsh. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script. ONLY Turkish or English.";
-        kullaniciPrompt = `User said: "${soru}"\n\nRespond with Turkish insult.`;
-        
+        // Küfür geldi → kısa ve eğlenceli laf sok, konuyla alakasız uzun cevap verme
+        sistemPrompt = `You are BatuBot, a Discord bot. Developer is Batuhan.
+The user just insulted you. Fire back with a SHORT, witty Turkish comeback (1-2 sentences max).
+Keep it funny and light, not overly harsh. 
+NEVER answer any question in this mode — ONLY throw the comeback.
+ONLY Turkish. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.`;
+        kullaniciPrompt = `Kullanıcı şunu söyledi: "${soru}"\n\nKısa ve esprili Türkçe laf sok.`;
+
     } else if (tip === "hava") {
         const h = webSonucu.veri;
-        sistemPrompt = "You are BatuBot, a Discord bot. Present weather data in a friendly, concise way. Use emojis. ONLY Turkish or English. Never other languages.";
-        kullaniciPrompt = `Today is ${tarih}\n\nWeather for ${h.sehir}, ${h.ulke}:\n` +
-            `Temperature: ${h.sicaklik}°C (feels like ${h.hissedilen}°C)\n` +
-            `Humidity: ${h.nem}%\n` +
-            `Wind: ${h.ruzgar} km/h\n` +
-            `Condition: ${h.durum}\n\n` +
-            `3-Day Forecast:\n` +
-            h.gunluk.map((g, i) => `Day ${i+1}: ${g.max}°C / ${g.min}°C - ${g.durum}`).join("\n") +
-            `\n\nPresent this information naturally in Turkish.`;
-            
+        // Hava durumu → sadece hava bilgisi sun, laf sokma yok
+        sistemPrompt = `You are BatuBot, a Discord bot. Developer is Batuhan.
+Present the weather data below in a friendly, natural way. Use emojis. Keep it concise.
+DO NOT add jokes, insults, or unrelated commentary — ONLY present the weather.
+ONLY Turkish.`;
+        kullaniciPrompt = `Tarih: ${tarih}\n\n${h.sehir}, ${h.ulke} hava durumu:\n` +
+            `Sıcaklık: ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n` +
+            `Nem: %${h.nem}\n` +
+            `Rüzgar: ${h.ruzgar} km/s\n` +
+            `Durum: ${h.durum}\n\n` +
+            `3 Günlük Tahmin:\n` +
+            h.gunluk.map((g, i) => `Gün ${i + 1}: ${g.max}°C / ${g.min}°C - ${g.durum}`).join("\n") +
+            `\n\nBu bilgileri Türkçe, doğal bir şekilde sun.`;
+
     } else if (tip === "arastirma") {
-        sistemPrompt = "You are BatuBot, a helpful Discord bot. Answer using the provided web data. Summarize clearly with bullet points. If uncertain, say 'Tahminim:' (My guess:). ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any other non-Latin script. If data is insufficient, say you couldn't find current info.";
+        // Araştırma → web verisini kullan, sadece soruyu yanıtla
+        sistemPrompt = `You are BatuBot, a Discord bot. Developer is Batuhan.
+Answer the user's question using ONLY the web data provided below.
+Be direct and informative. Use bullet points if listing multiple facts.
+If the data is insufficient, say "Güncel bilgiye ulaşamadım."
+DO NOT add jokes, insults, or unrelated commentary — just answer the question.
+ONLY Turkish. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.`;
         kullaniciPrompt = [
-            `Date: ${tarih}`,
-            webSonucu?.veri ? `Web search results:\n${webSonucu.veri}` : "",
-            `User question: ${soru}`,
-            `\nIMPORTANT: Answer based ONLY on the web data provided above. If no data, say "Güncel bilgiye ulaşamadım" (Couldn't reach current info).`
+            `Tarih: ${tarih}`,
+            webSonucu?.veri ? `Web arama sonuçları:\n${webSonucu.veri}` : "",
+            `Kullanıcı sorusu: ${soru}`,
+            `\nÖNEMLİ: Sadece yukarıdaki web verisine dayanarak cevap ver.`
         ].filter(Boolean).join("\n\n");
-        
+
     } else {
-        // Normal sohbet
-        sistemPrompt = "You are BatuBot, a friendly Discord bot. Developer is Batuhan. Chat casually and warmly. Keep responses short (1-3 sentences). Be witty but respectful. ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.";
+        // Normal sohbet → samimi, kısa, esprili ama SADECE sohbet et
+        sistemPrompt = `You are BatuBot, a friendly Discord bot. Developer is Batuhan.
+Chat casually and warmly. Keep responses SHORT (1-3 sentences).
+Be witty and fun in normal conversation.
+IMPORTANT: If the user asks a real question (not just chatting), answer it directly without unnecessary jokes.
+ONLY Turkish or English. NEVER use Chinese, Japanese, Korean, Arabic, Russian or any non-Latin script.`;
         kullaniciPrompt = [
-            `Date: ${tarih}`,
-            gecmisMetin ? `Recent chat history:\n${gecmisMetin}` : "",
-            `User: ${soru}`
+            `Tarih: ${tarih}`,
+            gecmisMetin ? `Son konuşmalar:\n${gecmisMetin}` : "",
+            `Kullanıcı: ${soru}`
         ].filter(Boolean).join("\n\n");
     }
-    
+
     try {
         let cevap = await groq(
             [
@@ -398,31 +458,28 @@ async function cevapUret(userId, soru) {
             ],
             { model: MODEL_SMART, temperature: 0.7, max_tokens: 800 }
         );
-        
-        // Dil temizliği
+
         cevap = temizleDil(cevap);
-        
-        // Boş kaldıysa fallback
+
         if (!cevap || cevap.trim().length < 3) {
             if (tip === "hava") {
                 const h = webSonucu.veri;
-                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i+1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
+                cevap = `**${h.sehir} Hava Durumu**\n🌡️ ${h.sicaklik}°C (hissedilen: ${h.hissedilen}°C)\n💧 Nem: %${h.nem}\n💨 Rüzgar: ${h.ruzgar} km/s\n☁️ ${h.durum}\n\n**3 Günlük Tahmin:**\n${h.gunluk.map((g, i) => `Gün ${i + 1}: ${g.max}°C / ${g.min}°C`).join('\n')}`;
             } else if (tip === "arastirma") {
                 cevap = "Üzgünüm, şu an güncel bilgiye ulaşamıyorum. Daha sonra tekrar dene.";
             } else {
                 cevap = "Anladım, devam et.";
             }
         }
-        
-        // Hafızaya kaydet (sadece sohbet ve başarılı araştırma)
+
         if (tip === "sohbet" || (tip === "arastirma" && webSonucu)) {
             const yeniGecmis = [...gecmis, { user: soru, bot: cevap }];
             if (yeniGecmis.length > MAX_HISTORY) yeniGecmis.shift();
             memory.set(userId, yeniGecmis);
         }
-        
+
         return cevap;
-        
+
     } catch (e) {
         console.error("❌ Groq hatası:", e.message);
         return "⚠️ Bir sorun oluştu, lütfen tekrar dene.";
@@ -494,7 +551,7 @@ client.on("messageCreate", async msg => {
     try {
         const cevap = await cevapUret(msg.author.id, soru);
         clearInterval(typingInterval);
-        
+
         const parcalar = mesajlariBol(cevap);
         for (let i = 0; i < parcalar.length; i++) {
             await guvenliGonder(msg, parcalar[i], i === 0);
