@@ -6,7 +6,7 @@ const http = require('http');
 http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
 
 /* ====== CONFIG ====== */
-const GROQ_API_KEY  = process.env.groq;
+const GROQ_API_KEY  = process.env.grq;
 const DISCORD_TOKEN = process.env.token;
 
 /* ====== MODELLER ====== */
