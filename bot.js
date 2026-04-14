@@ -113,69 +113,35 @@ ${gecmisMetin || "(yok)"}`;
    Groq'un built-in web search tool'u -- sadece GROQ_API_KEY yeterli
    ====================================================== */
 async function webAra(sorgu) {
-    // Groq compound-beta -- Groq kendi sunucularından internete çıkar
-    // Render'dan sadece Groq API'sine istek atılır, başka dış bağlantı gerekmez
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "compound-beta",
-                messages: [
-                    {
-                        role: "user",
-                        content: sorgu
-                    }
-                ],
-                max_tokens: 1000
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${GROQ_API_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                timeout: 25000,
-            }
-        );
-
-        const msg = res.data.choices[0].message;
-        const icerik = msg.content || "";
-        const toolsUsed = msg.executed_tools?.map(t => t.tool).join(", ") || "yok";
-        console.log(`compound-beta: ${icerik.length} karakter | araçlar: ${toolsUsed}`);
-        return icerik;
-
-    } catch (e) {
-        // compound-beta yoksa llama-3.3-70b ile dene
-        console.log(`compound-beta hatası: ${e.message} — llama fallback`);
+    const instances = [
+        "https://searx.be",
+        "https://search.bus-hit.me",
+        "https://searxng.site",
+        "https://paulgo.io",
+    ];
+    for (const base of instances) {
         try {
-            const res2 = await axios.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                {
-                    model: "llama-3.3-70b-versatile",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "Kullanicinin sorusunu elimdeki en iyi bilgiyle yanıtla. Bilgin sınırlıysa bunu belirt."
-                        },
-                        { role: "user", content: sorgu }
-                    ],
-                    max_tokens: 600,
-                    temperature: 0.3
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${GROQ_API_KEY}`,
-                        "Content-Type": "application/json",
-                    },
-                    timeout: 15000,
-                }
-            );
-            return res2.data.choices[0].message.content || "";
-        } catch (e2) {
-            console.log(`llama fallback hatası: ${e2.message}`);
-            return "";
+            const res = await axios.get(base + "/search", {
+                params: { q: sorgu, format: "json", language: "tr", categories: "general,news", time_range: "month" },
+                headers: { "User-Agent": "Mozilla/5.0 BatuBot", "Accept": "application/json" },
+                timeout: 8000,
+            });
+            const results = (res.data && res.data.results) ? res.data.results : [];
+            if (results.length === 0) continue;
+            const lines = results.slice(0, 5).map(function(r, i) {
+                return "[" + (i+1) + "] " + (r.title||"") + " - " + (r.content || r.snippet || "") + " (" + (r.url||"") + ")";
+            });
+            console.log("SearXNG (" + base + "): " + results.length + " sonuc");
+            return lines.join(" | ");
+        } catch (e) {
+            console.log("SearXNG " + base + " hatasi: " + e.message);
         }
     }
+    return "";
 }
+
+
+
 
 
 
