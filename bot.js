@@ -113,34 +113,19 @@ ${gecmisMetin || "(yok)"}`;
    Groq'un built-in web search tool'u -- sadece GROQ_API_KEY yeterli
    ====================================================== */
 async function webAra(sorgu) {
+    // Groq compound-beta -- Groq kendi sunucularından internete çıkar
+    // Render'dan sadece Groq API'sine istek atılır, başka dış bağlantı gerekmez
     try {
         const res = await axios.post(
             "https://api.groq.com/openai/v1/chat/completions",
             {
-                model: "llama-3.3-70b-versatile",
+                model: "compound-beta",
                 messages: [
                     {
                         role: "user",
                         content: sorgu
                     }
                 ],
-                tools: [
-                    {
-                        type: "function",
-                        function: {
-                            name: "web_search",
-                            description: "Search the web for current information",
-                            parameters: {
-                                type: "object",
-                                properties: {
-                                    query: { type: "string", description: "Search query" }
-                                },
-                                required: ["query"]
-                            }
-                        }
-                    }
-                ],
-                tool_choice: "auto",
                 max_tokens: 1000
             },
             {
@@ -148,55 +133,51 @@ async function webAra(sorgu) {
                     Authorization: `Bearer ${GROQ_API_KEY}`,
                     "Content-Type": "application/json",
                 },
-                timeout: 20000,
+                timeout: 25000,
             }
         );
 
         const msg = res.data.choices[0].message;
-        if (msg.content) {
-            console.log(`Groq web search: ${msg.content.length} karakter`);
-            return msg.content;
-        }
-    } catch (e) {
-        console.log(`Groq web search hatasi: ${e.message}`);
-    }
-
-    // Fallback: Groq'a direkt sor (training bilgisi)
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    {
-                        role: "system",
-                        content: "Sen bir arama motoru asistanisin. Kullanicinin sorusuna elimden gelen en guncel bilgiyle cevap ver. Bilmiyorsan acikca soyle."
-                    },
-                    {
-                        role: "user",
-                        content: sorgu
-                    }
-                ],
-                max_tokens: 600,
-                temperature: 0.3
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${GROQ_API_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                timeout: 15000,
-            }
-        );
-        const icerik = res.data.choices[0].message.content;
-        console.log(`Groq fallback: ${icerik.length} karakter`);
+        const icerik = msg.content || "";
+        const toolsUsed = msg.executed_tools?.map(t => t.tool).join(", ") || "yok";
+        console.log(`compound-beta: ${icerik.length} karakter | araçlar: ${toolsUsed}`);
         return icerik;
-    } catch (e) {
-        console.log(`Groq fallback hatasi: ${e.message}`);
-    }
 
-    return "";
+    } catch (e) {
+        // compound-beta yoksa llama-3.3-70b ile dene
+        console.log(`compound-beta hatası: ${e.message} — llama fallback`);
+        try {
+            const res2 = await axios.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                {
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        {
+                            role: "system",
+                            content: "Kullanicinin sorusunu elimdeki en iyi bilgiyle yanıtla. Bilgin sınırlıysa bunu belirt."
+                        },
+                        { role: "user", content: sorgu }
+                    ],
+                    max_tokens: 600,
+                    temperature: 0.3
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${GROQ_API_KEY}`,
+                        "Content-Type": "application/json",
+                    },
+                    timeout: 15000,
+                }
+            );
+            return res2.data.choices[0].message.content || "";
+        } catch (e2) {
+            console.log(`llama fallback hatası: ${e2.message}`);
+            return "";
+        }
+    }
 }
+
+
 
 async function getHavaDurumu(sehir) {
     try {
