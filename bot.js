@@ -39,13 +39,13 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
 
 /* ====== ADIM 1: ARAMA PLANI ====== */
 async function planHazirla(soru) {
-    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi sonucu getirecek arama sorgularını üret.
+    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi tek arama sorgusunu üret.
 
 JSON formatında döndür:
 {
   "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
   "arama_gerekli": true | false,
-  "sorgular": ["sorgu1", "sorgu2", "sorgu3"]
+  "sorgular": ["tek en iyi sorgu"]
 }
 
 ARAMA GEREKSİZ (false) — SADECE BUNLAR:
@@ -53,11 +53,12 @@ ARAMA GEREKSİZ (false) — SADECE BUNLAR:
 - "şiir yaz", "fıkra anlat" gibi yaratıcı istekler
 Diğer HER şey için arama_gerekli: true.
 
-SORGU ÜRETİRKEN:
-- Sorudaki özel isimleri, grup adlarını, kişi adlarını AYNEN kullan
-- Biri Türkçe, biri İngilizce sorgu yap (daha fazla kaynak bulunur)
-- Spesifik sorularda konuyu parçala: "host müzik grubu kurucusu" + "host band most popular song" + "host müzik grubu hakkında"
-- Müzik sorularında: "en sevilen şarkı" yerine "popular songs", "hit", "best songs" gibi İngilizce terimler ekle
+EN İYİ SORGU NASIL ÜRETILIR:
+- Sorudaki özel isimleri, grup/kişi adlarını AYNEN kullan
+- Türkçe soru ise İngilizce sorgu üret — İngilizce kaynaklar daha zengin
+- Müzik: "band name most popular songs founder" şeklinde yaz
+- Haber/güncel: Türkçe yaz, tarihi ekle
+- Spesifik ve kısa tut (5-8 kelime ideal)
 - Sadece JSON döndür, başka hiçbir şey yazma.
 
 SORU: ${soru}`;
@@ -72,67 +73,37 @@ SORU: ${soru}`;
 }
 
 /* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
-async function tavilyTekArama(sorgu) {
-    const res = await axios.post(
-        "https://api.tavily.com/search",
-        {
-            api_key: TAVILY_API_KEY,
-            query: sorgu,
-            search_depth: "advanced",
-            max_results: 8,
-            include_answer: true,
-            include_raw_content: true
-        },
-        { timeout: 20000 }
-    );
-    return res.data;
-}
-
 async function tavilyAra(sorgular) {
-    const aramaListesi = Array.isArray(sorgular) ? sorgular.slice(0, 3) : [sorgular];
-    console.log(`🔍 Sıralı arama: ${aramaListesi.join(" | ")}`);
-
-    const tumSonuclar = [];
-    const gorulmus = new Set();
-
-    for (let i = 0; i < aramaListesi.length; i++) {
-        // İkinci ve üçüncü sorguda 1sn bekle — rate limit önlemi
-        if (i > 0) await new Promise(r => setTimeout(r, 1100));
-
-        let deneme = 0;
-        while (deneme < 2) {
-            try {
-                const d = await tavilyTekArama(aramaListesi[i]);
-                if (d.answer && !gorulmus.has(d.answer)) {
-                    tumSonuclar.push(`Özet: ${d.answer}`);
-                    gorulmus.add(d.answer);
-                }
-                (d.results || []).forEach(site => {
-                    if (gorulmus.has(site.url)) return;
-                    gorulmus.add(site.url);
-                    const icerik = site.raw_content || site.content || "";
-                    if (icerik.trim().length > 30)
-                        tumSonuclar.push(`[${site.title || "Kaynak"} — ${site.url}]:\n${icerik.slice(0, 800)}`);
-                });
-                break; // başarılı, döngüden çık
-            } catch (e) {
-                deneme++;
-                if (e.response?.status === 429 && deneme < 2) {
-                    console.log(`⏳ Rate limit, 3sn bekleniyor...`);
-                    await new Promise(r => setTimeout(r, 3000));
-                } else {
-                    console.log(`⚠️ Tavily hata (${aramaListesi[i]}): ${e.message}`);
-                    break;
-                }
-            }
-        }
-
-        // İlk sorguda yeterli sonuç geldiyse devam etme
-        if (i === 0 && tumSonuclar.length >= 6) break;
+    // Tek istek — dev plan rate limit aşmamak için
+    const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
+    console.log(`🔍 Arama: ${sorgu}`);
+    try {
+        const res = await axios.post(
+            "https://api.tavily.com/search",
+            {
+                api_key: TAVILY_API_KEY,
+                query: sorgu,
+                search_depth: "advanced",
+                max_results: 10,
+                include_answer: true,
+                include_raw_content: true
+            },
+            { timeout: 20000 }
+        );
+        const d = res.data;
+        const sonuclar = [];
+        if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
+        (d.results || []).forEach(r => {
+            const icerik = r.raw_content || r.content || "";
+            if (icerik.trim().length > 30)
+                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]:\n${icerik.slice(0, 1000)}`);
+        });
+        console.log(`✅ Tavily: ${sonuclar.length} kaynak`);
+        return sonuclar.join("\n\n");
+    } catch (e) {
+        console.log(`⚠️ Tavily hata: ${e.message}`);
+        return "";
     }
-
-    console.log(`✅ Tavily toplam: ${tumSonuclar.length} kaynak`);
-    return tumSonuclar.join("\n\n");
 }
 
 /* ====== ADIM 3: CEVAP ÜRET ====== */
