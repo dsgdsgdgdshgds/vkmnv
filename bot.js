@@ -10,321 +10,295 @@ const GROQ_API_KEY   = process.env.groq;
 const DISCORD_TOKEN  = process.env.token;
 const TAVILY_API_KEY = process.env.tavily || "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";
 
-// API KEY kontrolu
-if (!GROQ_API_KEY) {
-    console.error("HATA: GROQ_API_KEY (groq) tanimli degil!");
-    process.exit(1);
-}
-if (!DISCORD_TOKEN) {
-    console.error("HATA: DISCORD_TOKEN (token) tanimli degil!");
+if (!GROQ_API_KEY || !DISCORD_TOKEN) {
+    console.error("HATA: GROQ_API_KEY veya DISCORD_TOKEN eksik!");
     process.exit(1);
 }
 
 /* ====== MODELLER ====== */
-const MODEL_FAST  = "llama-3.1-8b-instant";
-const MODEL_SMART = "llama-3.3-70b-versatile";
+const MODEL_FAST  = "llama-3.1-8b-instant";  // 30 RPM
+const MODEL_SMART = "llama-3.3-70b-versatile"; // 30 RPM - dikkatli kullan!
 
 /* ====== HAFIZA ====== */
 const memory = new Map();
-const MAX_HISTORY = 5;
+const MAX_HISTORY = 3; // Dusuruldu
 
-/* ====== RATE LIMIT ====== */
-const groqQueue = [];
-let groqProcessing = false;
-let groqLastRequest = 0;
-const GROQ_MIN_INTERVAL = 2500; // 2.5 saniye (daha guvenli)
-
-const tavilyQueue = [];
-let tavilyProcessing = false;
-let tavilyLastRequest = 0;
-const TAVILY_MIN_INTERVAL = 1000; // 1 saniye
+/* ====== RATE LIMIT STATE ====== */
+let groqRequestCount = 0;
+let groqResetTime = Date.now() + 60000;
+let groqQueue = [];
+let isProcessingGroq = false;
 
 const userCooldowns = new Map();
-const USER_COOLDOWN_MS = 5000;
+const USER_COOLDOWN_MS = 3000;
 
 /* ====== KUFUR ====== */
-const KUFURLER = ["amk","orospu","oc","sik","got","bok","yarrak","pic","sikerim","amina","gerizekali","salak","ahmak","kahpe","aptal","sikeyim"];
+const KUFURLER = ["amk","orospu","oc","sik","got","bok","yarrak","pic","sikerim","amina","gerizekali","salak","ahmak","kahpe","aptal","sikeyim","pezevenk","orosbu","sikik"];
 function kufurVarMi(metin) {
     const k = metin.toLowerCase()
         .replace(/g/g,"g").replace(/u/g,"u").replace(/s/g,"s")
-        .replace(/i/g,"i").replace(/o/g,"o").replace(/c/g,"c");
+        .replace(/i/g,"i").replace(/o/g,"o").replace(/c/g,"c")
+        .replace(/ /g,"");
     return KUFURLER.some(w => k.includes(w));
 }
 
-/* ====== RETRY MEKANIZMASI ====== */
-async function fetchWithRetry(url, options, maxRetries = 3) {
+/* ====== BASIT RULE-BASED CEVAPLAR (Groq kullanmadan) ====== */
+function basitCevap(soru) {
+    const s = soru.toLowerCase().trim();
+    
+    // Selamlasma
+    if (/^(selam|merhaba|hey|hello|hi|naber|nbr|selamm|merhabaa)$/i.test(s)) {
+        return "Selam! Hos geldin. Ne ogrenmek istersin?";
+    }
+    
+    // Nasilsin
+    if (/nasilsin|nasılsın|naber|ne haber/i.test(s) && s.length < 20) {
+        return "Iyiyim, tesekkurler! Sen nasilsin?";
+    }
+    
+    // Ne yapiyorsun
+    if (/ne yapiyorsun|ne yapıyorsun|napıyosun|napıyorsun/i.test(s)) {
+        return "Mesajlari okuyup cevap vermeye calisiyorum. Sen ne yapiyorsun?";
+    }
+    
+    // Kimsin
+    if (/kimsin|sen kimsin|sen nesin/i.test(s)) {
+        return "Ben Awe, Discord botuyum. Gelistiricim Batuhan. Arama yapip bilgi verebilirim.";
+    }
+    
+    // Tesekkur
+    if (/tesekkur|teşekkür|sagol|sağol|tesekkurler/i.test(s)) {
+        return "Rica ederim! Baska bir sey ogrenmek istersen buradayim.";
+    }
+    
+    // Gule gule
+    if (/gule gule|görüşürüz|gorusuruz|bay|bay bay|cik|cikiyorum|cikicam/i.test(s)) {
+        return "Gule gule! Tekrar gorusmek uzere.";
+    }
+    
+    // Saat
+    if (/saat kac|saat kaç|saat$/i.test(s)) {
+        return `Su an saat ${new Date().toLocaleTimeString('tr-TR', {timeZone: 'Europe/Istanbul'})}.`;
+    }
+    
+    // Tarih
+    if (/bugun ayin kaci|bugün ayın kaçı|tarih ne|tarih$/i.test(s)) {
+        return `Bugun ${new Date().toLocaleDateString('tr-TR', {timeZone: 'Europe/Istanbul'})}.`;
+    }
+    
+    return null; // Groq gerekiyor
+}
+
+/* ====== GROQ RATE LIMIT YONETIMI ====== */
+async function checkGroqLimit() {
+    const now = Date.now();
+    if (now > groqResetTime) {
+        groqRequestCount = 0;
+        groqResetTime = now + 60000;
+        console.log("Groq limit resetlendi");
+    }
+    
+    if (groqRequestCount >= 25) { // 30 yerine 25 - guvenli margin
+        const wait = groqResetTime - now;
+        console.log(`Groq limit dolu. ${Math.ceil(wait/1000)}sn bekleniyor...`);
+        await new Promise(r => setTimeout(r, wait + 1000));
+        return checkGroqLimit(); // Recursive kontrol
+    }
+}
+
+async function groqCall(messages, options = {}) {
+    await checkGroqLimit();
+    
+    const model = options.model || MODEL_FAST; // Varsayilan olarak hizli model
+    const maxRetries = 5;
     let lastError;
     
     for (let i = 0; i < maxRetries; i++) {
         try {
-            console.log(`API istegi: ${url} (deneme ${i + 1}/${maxRetries})`);
-            const result = await axios(url, options);
-            return result;
+            groqRequestCount++;
+            console.log(`Groq istek #${groqRequestCount} (deneme ${i+1})`);
+            
+            const res = await axios.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                {
+                    model: model,
+                    messages: messages,
+                    temperature: options.temperature ?? 0.1,
+                    max_tokens: options.max_tokens || 1000
+                },
+                {
+                    headers: { 
+                        Authorization: `Bearer ${GROQ_API_KEY}`, 
+                        "Content-Type": "application/json" 
+                    },
+                    timeout: 25000
+                }
+            );
+            
+            return res.data.choices[0].message.content.trim();
+            
         } catch (err) {
             lastError = err;
-            console.error(`API hatasi (deneme ${i + 1}/${maxRetries}):`, err.message);
+            console.error(`Groq hata ${i+1}/${maxRetries}:`, err.message, err.response?.status);
             
-            if (err.response) {
-                console.error(`Status: ${err.response.status}`);
-                console.error(`Data:`, JSON.stringify(err.response.data).substring(0, 200));
-                
-                // 401 - Unauthorized (API key yanlis)
-                if (err.response.status === 401) {
-                    throw new Error("API anahtari gecersiz. Lutfen GROQ_API_KEY veya TAVILY_API_KEY kontrol et.");
-                }
-                
-                // 429 - Rate limit
-                if (err.response.status === 429) {
-                    const retryAfter = parseInt(err.response.headers['retry-after']) || (Math.pow(2, i) * 2000);
-                    console.log(`Rate limit. ${retryAfter}ms bekleniyor...`);
-                    await new Promise(r => setTimeout(r, retryAfter));
-                    continue;
-                }
-                
-                // 500, 502, 503, 504 - Server hatalari
-                if (err.response.status >= 500) {
-                    const wait = Math.pow(2, i) * 1000;
-                    console.log(`Server hatasi. ${wait}ms bekleniyor...`);
-                    await new Promise(r => setTimeout(r, wait));
-                    continue;
-                }
-            }
-            
-            // Baglanti hatalari
-            if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
-                const wait = Math.pow(2, i) * 1500;
-                console.log(`Baglanti hatasi (${err.code}). ${wait}ms bekleniyor...`);
-                await new Promise(r => setTimeout(r, wait));
+            if (err.response?.status === 429) {
+                const retryAfter = parseInt(err.response.headers['retry-after']) || 5000;
+                console.log(`429 alindi. ${retryAfter}ms bekleniyor...`);
+                await new Promise(r => setTimeout(r, retryAfter + 1000));
+                groqRequestCount = Math.max(0, groqRequestCount - 1); // Bu denemeyi sayma
                 continue;
             }
             
-            // Diger hatalar - hemen fail et
-            throw err;
+            if (err.response?.status === 401) {
+                throw new Error("API key gecersiz!");
+            }
+            
+            if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
+                await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+                continue;
+            }
+            
+            // Diger hatalar
+            await new Promise(r => setTimeout(r, 1000 * (i + 1)));
         }
     }
     
-    throw new Error(`Max retries reached. Son hata: ${lastError?.message || 'Bilinmeyen hata'}`);
-}
-
-/* ====== GROQ ====== */
-async function processGroqQueue() {
-    if (groqProcessing || groqQueue.length === 0) return;
-    groqProcessing = true;
-
-    const now = Date.now();
-    const elapsed = now - groqLastRequest;
-    if (elapsed < GROQ_MIN_INTERVAL) {
-        await new Promise(r => setTimeout(r, GROQ_MIN_INTERVAL - elapsed));
-    }
-
-    const task = groqQueue.shift();
-    try {
-        groqLastRequest = Date.now();
-        const result = await fetchWithRetry(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                method: 'POST',
-                data: {
-                    model: task.model,
-                    messages: task.messages,
-                    temperature: task.temperature,
-                    max_tokens: task.max_tokens
-                },
-                headers: { 
-                    Authorization: `Bearer ${GROQ_API_KEY}`, 
-                    "Content-Type": "application/json" 
-                },
-                timeout: 30000
-            }
-        );
-        task.resolve(result.data.choices[0].message.content.trim());
-    } catch (err) {
-        console.error("Groq isleme hatasi:", err.message);
-        task.reject(err);
-    }
-
-    groqProcessing = false;
-    processGroqQueue();
-}
-
-function groq(messages, options = {}) {
-    return new Promise((resolve, reject) => {
-        groqQueue.push({
-            messages,
-            model: options.model || MODEL_SMART,
-            temperature: options.temperature || 0.1,
-            max_tokens: options.max_tokens || 1500,
-            resolve,
-            reject
-        });
-        processGroqQueue();
-    });
+    throw new Error(`Max retries reached: ${lastError?.message}`);
 }
 
 /* ====== TAVILY ====== */
-async function processTavilyQueue() {
-    if (tavilyProcessing || tavilyQueue.length === 0) return;
-    tavilyProcessing = true;
+let tavilyLastCall = 0;
+const TAVILY_COOLDOWN = 2000; // 2 saniye
 
+async function tavilyAra(sorgu) {
     const now = Date.now();
-    const elapsed = now - tavilyLastRequest;
-    if (elapsed < TAVILY_MIN_INTERVAL) {
-        await new Promise(r => setTimeout(r, TAVILY_MIN_INTERVAL - elapsed));
+    const elapsed = now - tavilyLastCall;
+    if (elapsed < TAVILY_COOLDOWN) {
+        await new Promise(r => setTimeout(r, TAVILY_COOLDOWN - elapsed));
     }
-
-    const task = tavilyQueue.shift();
+    
     try {
-        tavilyLastRequest = Date.now();
-        const result = await fetchWithRetry(
+        tavilyLastCall = Date.now();
+        console.log(`Tavily arama: "${sorgu}"`);
+        
+        const res = await axios.post(
             "https://api.tavily.com/search",
             {
-                method: 'POST',
-                data: {
-                    api_key: TAVILY_API_KEY,
-                    query: task.query,
-                    search_depth: "basic",
-                    max_results: 5,
-                    include_answer: true
-                },
-                timeout: 20000
-            }
+                api_key: TAVILY_API_KEY,
+                query: sorgu,
+                search_depth: "basic",
+                max_results: 5,
+                include_answer: true
+            },
+            { timeout: 15000 }
         );
         
-        const d = result.data;
-        const sonuclar = [];
+        const d = res.data;
+        let sonuc = "";
         
-        if (d.answer && d.answer.length > 10) {
-            sonuclar.push(`OZET: ${d.answer}`);
+        if (d.answer && d.answer.length > 10 && !d.answer.includes("I don't know")) {
+            sonuc += `OZET: ${d.answer}\n\n`;
         }
         
-        (d.results || []).forEach(r => {
-            if (r.content?.trim().length > 30) {
-                sonuclar.push(`[${r.title || "Kaynak"}]: ${r.content.slice(0, 400)}`);
+        (d.results || []).slice(0, 3).forEach(r => {
+            if (r.content?.length > 20) {
+                sonuc += `[${r.title}]: ${r.content.slice(0, 300)}\n`;
             }
         });
         
-        console.log(`Tavily basarili: ${sonuclar.length} sonuc`);
-        task.resolve(sonuclar.join("\n\n") || null);
+        return sonuc || null;
+        
     } catch (err) {
         console.error("Tavily hatasi:", err.message);
-        task.resolve(null); // Hata olsa bile devam et
-    }
-
-    tavilyProcessing = false;
-    processTavilyQueue();
-}
-
-function tavilyAra(sorgular) {
-    const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
-    console.log(`Arama sorgusu: "${sorgu}"`);
-    return new Promise((resolve) => {
-        tavilyQueue.push({ query: sorgu, resolve });
-        processTavilyQueue();
-    });
-}
-
-/* ====== PLAN ====== */
-async function planHazirla(soru) {
-    const prompt = `Soru analiz et. JSON dondur:
-{
-  "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
-  "arama_gerekli": true | false,
-  "sorgular": ["en iyi arama sorgusu"]
-}
-
-Sadece selam, kufur, "nasilsin", "siir yaz" ise arama_gerekli: false.
-Diger hersey icin true.
-
-Soru: ${soru}
-
-Sadece JSON, baska hicbir sey yazma.`;
-
-    try {
-        const raw = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 200 });
-        const json = raw.match(/\{[\s\S]*\}/)?.[0];
-        return json ? JSON.parse(json) : { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
-    } catch (err) {
-        console.error("Plan hazirlama hatasi:", err.message);
-        return { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
+        return null;
     }
 }
 
-/* ====== CEVAP ====== */
+/* ====== ANA CEVAP FONKSIYONU ====== */
 async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    const kufur = kufurVarMi(soru);
-
-    if (kufur) {
+    
+    // 1. Kufur kontrolu
+    if (kufurVarMi(soru)) {
         return "Kufur etme lan gerizekali.";
     }
     
-    const selamRegex = /^(selam|merhaba|naber|nasilsin|ne yapiyorsun|hey|hello)$/i;
-    if (selamRegex.test(soru.trim())) {
-        return "Selam! Ne ogrenmek istersin?";
+    // 2. Basit cevap (Groq kullanmadan)
+    const basit = basitCevap(soru);
+    if (basit) {
+        console.log("Basit cevap donduruldu (Groq kullanilmadi)");
+        return basit;
     }
-
+    
+    // 3. Bilgi sorusu mu kontrol et (regex ile)
+    const bilgiSorusu = /(kimdir|nedir|nerede|ne zaman|hangi|kac|nasil|grubu|sarkisi|album|kurucu|uyesi|tarih|neden|nasıl)/i.test(soru);
+    const aramaGerekli = bilgiSorusu && soru.length > 10;
+    
     let webVerisi = null;
-    try {
-        const plan = await planHazirla(soru);
-        console.log(`Plan: ${JSON.stringify(plan)}`);
-        
-        if (plan.arama_gerekli) {
-            webVerisi = await tavilyAra(plan.sorgular || [soru]);
-        }
-    } catch (err) {
-        console.error("Arama asamasi hatasi:", err.message);
-        // Arama hatasi olsa bile devam et
+    
+    // 4. Arama yap (eger gerekliyse)
+    if (aramaGerekli) {
+        // Arama sorgusunu basitlestir - direk soruyu kullan
+        const aramaSorgusu = soru.replace(/[?¿]/g, "").trim();
+        webVerisi = await tavilyAra(aramaSorgusu);
     }
-
-    if (!webVerisi || webVerisi.length < 50) {
-        const bilgiSorusu = /(kimdir|nedir|nerede|ne zaman|hangi|kac|nasil|grubu|sarkisi|album)/i.test(soru);
-        if (bilgiSorusu) {
-            return "Bu konuda guvenilir kaynaga ulasamadim. Daha spesifik sorabilir misin?";
-        }
-    }
-
+    
+    // 5. Groq prompt hazirla
     const gecmis = memory.get(userId) || [];
-    const gecmisMetin = gecmis.length
-        ? gecmis.map((h, i) => `[${i+1}] K: ${h.user}\nB: ${h.bot}`).join("\n")
-        : "";
-
-    let sistemPrompt;
+    const gecmisText = gecmis.map(h => `K: ${h.user}\nB: ${h.bot}`).join("\n\n");
+    
+    let prompt;
     if (webVerisi && webVerisi.length > 50) {
-        sistemPrompt = `Sen Awe, Discord botu. Gelistiricin Batuhan. Tarih: ${tarih}.
+        prompt = `Sen Awe, Discord botu. Gelistiricin Batuhan. Tarih: ${tarih}.
 
-KATI KURAL: Sadece asagidaki verideki bilgileri kullan. Veride yoksa "bilmiyorum" de.
+KATI KURAL: Sadece asagidaki web verisindeki bilgileri kullan. Emin degilsen "bilmiyorum" de. Uydurma.
 
 Web Verisi:
-${webVerisi}`;
+${webVerisi}
+
+${gecmisText ? `Onceki konusma:\n${gecmisText}\n\n` : ""}Soru: ${soru}`;
     } else {
-        sistemPrompt = `Sen Awe, Discord botu. Gelistiricin Batuhan. Tarih: ${tarih}. Samimi ve kisa konus. Bilmedigini soyleyebilirsin.`;
+        prompt = `Sen Awe, Discord botu. Gelistiricin Batuhan. Tarih: ${tarih}.
+
+Kurallar:
+1) Samimi ve kisa konus (max 2 cumle)
+2) Sadece Turkce
+3) Bilmedigini soyleyebilirsin
+4) "HOST" gibi ozel isimlerde kararsiz kalirsan "bu konuda net bilgim yok" de
+
+${gecmisText ? `Onceki konusma:\n${gecmisText}\n\n` : ""}Soru: ${soru}`;
     }
-
-    const kullaniciPrompt = gecmisMetin 
-        ? `Onceki:\n${gecmisMetin}\n\nSoru: ${soru}`
-        : `Soru: ${soru}`;
-
+    
+    // 6. Groq cagrisi (tek seferde)
     try {
-        const cevap = await groq(
-            [
-                { role: "system", content: sistemPrompt },
-                { role: "user", content: kullaniciPrompt }
-            ],
-            { model: MODEL_SMART, temperature: 0.1, max_tokens: 800 }
+        const cevap = await groqCall(
+            [{ role: "user", content: prompt }],
+            { model: MODEL_FAST, max_tokens: 600 } // Hizli model, kisa cevap
         );
-
+        
+        // 7. Hafiza guncelle
         const yeni = [...gecmis, { user: soru, bot: cevap }];
         if (yeni.length > MAX_HISTORY) yeni.shift();
         memory.set(userId, yeni);
-
+        
         return cevap;
+        
     } catch (err) {
-        console.error("Cevap uretme hatasi:", err.message);
-        return "Uzgunum, su an cevap veremiyorum. Lutfen daha sonra tekrar dene.";
+        console.error("Groq cagri hatasi:", err.message);
+        
+        // Fallback cevaplar
+        if (webVerisi) {
+            return "Arama sonuclarini isleyemedim. Daha sonra tekrar dene.";
+        }
+        return "Su an cok mesgulim. Birazdan tekrar sorar misin?";
     }
 }
 
-/* ====== MESAJ ====== */
+/* ====== DISCORD ====== */
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+});
+
 function mesajlariBol(metin, limit = 1950) {
     if (metin.length <= limit) return [metin];
     const parcalar = [];
@@ -345,17 +319,11 @@ async function guvenliGonder(msg, metin, ilk = true) {
         if (ilk) await msg.reply({ content: metin, allowedMentions: { repliedUser: false } });
         else await msg.channel.send(metin);
     } catch (err) {
-        console.error("Discord gonderme hatasi:", err.message);
         if (err.code === 50013) { 
             try { await msg.author.send(metin); } catch {} 
         }
     }
 }
-
-/* ====== DISCORD ====== */
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
-});
 
 client.on("messageCreate", async msg => {
     if (msg.author.bot || msg.mentions.everyone) return;
@@ -364,22 +332,27 @@ client.on("messageCreate", async msg => {
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
     if (!soru) return guvenliGonder(msg, "Ne sormak istiyorsun?");
 
+    // Cooldown
     const now = Date.now();
     const lastUse = userCooldowns.get(msg.author.id) || 0;
     if (now - lastUse < USER_COOLDOWN_MS) {
         const wait = Math.ceil((USER_COOLDOWN_MS - (now - lastUse)) / 1000);
-        return guvenliGonder(msg, `Cok hizli yaziyorsun. ${wait} saniye bekle.`);
+        return guvenliGonder(msg, `Cok hizli yaziyorsun. ${wait}sn bekle.`);
     }
     userCooldowns.set(msg.author.id, now);
 
+    // Typing indicator
     msg.channel.sendTyping().catch(() => {});
-    const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
+    const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 5000);
 
     try {
         const cevap = await cevapUret(msg.author.id, soru);
         clearInterval(typing);
+        
         const parcalar = mesajlariBol(cevap);
-        for (let i = 0; i < parcalar.length; i++) await guvenliGonder(msg, parcalar[i], i === 0);
+        for (let i = 0; i < parcalar.length; i++) {
+            await guvenliGonder(msg, parcalar[i], i === 0);
+        }
     } catch (err) {
         clearInterval(typing);
         console.error("Genel hata:", err);
@@ -388,15 +361,11 @@ client.on("messageCreate", async msg => {
 });
 
 client.once("ready", c => {
-    console.log(`${c.user.tag} aktif`);
-    console.log(`Tarih: ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
-    console.log(`Groq API: ${GROQ_API_KEY ? 'Tanimli' : 'TANIMLI DEGIL!'}`);
-    console.log(`Tavily API: ${TAVILY_API_KEY ? 'Tanimli' : 'Tanimli degil'}`);
+    console.log(`${c.user.tag} aktif!`);
+    console.log(`Groq: 25 RPM limit (guvenli margin)`);
+    console.log(`Basit cevaplar: Groq kullanilmadan`);
 });
 
 process.on("unhandledRejection", err => console.error("Unhandled:", err));
 
-client.login(DISCORD_TOKEN).catch(err => {
-    console.error("Discord login hatasi:", err.message);
-    process.exit(1);
-});
+client.login(DISCORD_TOKEN);
