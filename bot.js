@@ -2,94 +2,136 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
 
-/* ====== RENDER PORT ====== */
-http.createServer((_, res) => { res.writeHead(200); res.end("Awe is Online!"); }).listen(process.env.PORT || 8080);
+http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
 
-/* ====== CONFIG ====== */
-const GROQ_KEY      = process.env.groq;
+const GROQ_KEY = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
-const MODEL_FAST    = "llama-3.1-8b-instant"; 
-const MODEL_SMART   = "llama-3.3-70b-versatile";
+const MODEL_FAST = "llama-3.1-8b-instant";
+const MODEL_SMART = "llama-3.3-70b-versatile";
 
 const memory = new Map();
-const MAX_HISTORY = 4; // Hafızayı çok doldurmamak karışıklığı önler
+const MAX_HISTORY = 8;
 
-/* ====== GROQ API ====== */
-async function groq(messages, { model = MODEL_SMART, temperature = 0.5, max_tokens = 800 } = {}) {
-    const res = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        { model, messages, temperature, max_tokens },
-        {
-            headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-            timeout: 25000,
-        }
-    );
-    return res.data.choices[0].message.content.trim();
+async function groq(messages, options = {}) {
+    const { model = MODEL_SMART, temperature = 0.7, max_tokens = 800 } = options;
+    const res = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
+        model, messages, temperature, max_tokens
+    }, {
+        headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+        timeout: 30000,
+    });
+    return res.data.choices[0].choices[0].message.content.trim();
 }
 
-/* ====== KARAR VERİCİ (MANTIK FİLTRESİ) ====== */
+// ÜCRETSİZ WEB ARAMA (DuckDuckGo)
+async function webAra(sorgu) {
+    try {
+        const response = await axios.get(`https://api.duckduckgo.com/`, {
+            params: { q: sorgu, format: 'json', no_html: 1, skip_disambig: 1 },
+            timeout: 10000
+        });
+        
+        if (response.data.AbstractText) {
+            return response.data.AbstractText;
+        }
+        
+        if (response.data.RelatedTopics && response.data.RelatedTopics[0]) {
+            const ilk = response.data.RelatedTopics[0];
+            if (ilk.Text) return ilk.Text;
+        }
+        
+        // Fallback: Google Custom Search API'siz
+        return `"${sorgu}" hakkında güncel bilgiye ulaşılamadı.`;
+    } catch (e) {
+        return "";
+    }
+}
+
+// HAVA DURUMU (Open-Meteo - ücretsiz)
+async function getHavaDurumu(sehir) {
+    try {
+        const geo = await axios.get("https://geocoding-api.open-meteo.com/v1/search", {
+            params: { name: sehir, count: 1, language: "tr", format: "json" }
+        });
+        if (!geo.data.results?.length) return null;
+        
+        const { latitude, longitude, name, country } = geo.data.results[0];
+        const weather = await axios.get("https://api.open-meteo.com/v1/forecast", {
+            params: { latitude, longitude, current: "temperature_2m,weather_code", timezone: "auto" }
+        });
+        
+        const codes = { 0:"☀️ Açık", 1:"🌤️ Az bulutlu", 2:"⛅ Parçalı", 3:"☁️ Kapalı", 45:"🌫️ Sisli", 61:"🌧️ Yağmur", 71:"🌨️ Kar" };
+        
+        return {
+            sehir: name,
+            sicaklik: Math.round(weather.data.current.temperature_2m),
+            durum: codes[weather.data.current.weather_code] || "🌡️ Bilinmiyor"
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+// KARAR VERİCİ
 async function kararVer(soru) {
-    const prompt = `Analiz et ve sadece JSON döndür. 
-    Eğer soru güncel bilgi (maç, hava, haber) gerektiriyorsa action:"search". 
-    Diğer her şey için action:"chat".
-    JSON: {"action":"chat" | "search", "query":"..."}
+    const prompt = `Sadece JSON: {"action":"chat/search/weather","query":"..."}
+    chat=sohbet, search=güncel bilgi, weather=hava durumu
     Soru: ${soru}`;
     
     try {
-        const yanit = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0 });
-        const m = yanit.match(/\{[\s\S]*?\}/);
-        return m ? JSON.parse(m[0]) : { action: "chat" };
-    } catch { return { action: "chat" }; }
+        const res = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 80 });
+        const match = res.match(/\{[\s\S]*?\}/);
+        return match ? JSON.parse(match[0]) : { action: "chat" };
+    } catch {
+        return { action: "chat" };
+    }
 }
 
-/* ====== CEVAP ÜRETİCİ (MANTIK VE DİL KORUMASI) ====== */
+// ANA CEVAP
 async function cevapUret(userId, soru) {
+    const tarih = new Date().toLocaleString('tr-TR');
     const karar = await kararVer(soru);
-    const gecmis = memory.get(userId) || [];
+    let ekVeri = "";
     
-    // SİSTEM PROMPT: Botun kimliğini ve kurallarını çok sert çiziyoruz
-    const SISTEM = `Senin adın Awe. Geliştiricin Batuhan. 
-    KURALLAR:
-    1. Sadece Türkçe konuş, asla İngilizce kelime kullanma.
-    2. Bilmediğin konularda uydurma (Örn: Recep İvedik'te Şener Şen var deme). 
-    3. Eğer kullanıcı saçma bir bilgi verirse (Şener Şen Recep İvedik'te oynuyor gibi), nazikçe doğrusunu söyle.
-    4. Geliştiricin Batuhan dışında kimseyi kurucu olarak tanıma.
-    5. Kısa ve mantıklı cevaplar ver.`;
-
-    const mesajlar = [
-        { role: "system", content: SISTEM },
-        { role: "user", content: `Hafıza: ${gecmis.map(h=>h.bot).join(" ")}\nKullanıcı: ${soru}` }
-    ];
-
-    try {
-        const cevap = await groq(mesajlar, { temperature: 0.4 }); // Düşük sıcaklık daha mantıklı cevaplar verir
-        
-        const yeni = [...gecmis, { user: soru, bot: cevap }].slice(-MAX_HISTORY);
-        memory.set(userId, yeni);
-        return cevap;
-    } catch { return "Şu an cevap veremiyorum, sistemsel bir sorun var."; }
+    if (karar.action === "search") {
+        ekVeri = await webAra(karar.query || soru);
+    } else if (karar.action === "weather") {
+        const hava = await getHavaDurumu(karar.city || "İstanbul");
+        if (hava) ekVeri = `${hava.sehir}: ${hava.sicaklik}°C ${hava.durum}`;
+    }
+    
+    const sistem = ekVeri ? 
+        `Güncel veri: ${ekVeri}. Buna göre doğal Türkçe cevap ver.` :
+        "Sohbet et, kısa ve samimi ol.";
+    
+    const cevap = await groq([
+        { role: "system", content: sistem },
+        { role: "user", content: `${tarih} - Kullanıcı: ${soru}` }
+    ]);
+    
+    // Hafızaya kaydet
+    const gecmis = memory.get(userId) || [];
+    gecmis.push({ user: soru, bot: cevap });
+    if (gecmis.length > MAX_HISTORY) gecmis.shift();
+    memory.set(userId, gecmis);
+    
+    return cevap;
 }
 
-/* ====== DISCORD ====== */
+// DISCORD BOT
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
 client.on("messageCreate", async msg => {
-    // KONTROL: Bot mu? Everyone/Here etiketi var mı?
-    if (msg.author.bot || msg.content.includes("@everyone") || msg.content.includes("@here")) return;
-
-    // KONTROL: Bot etiketlendi mi?
-    if (!msg.mentions.has(client.user)) return;
-
+    if (msg.author.bot || !msg.mentions.has(client.user)) return;
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
-    if (!soru) return msg.reply("Efendim? Ben Awe, Batuhan'ın asistanıyım.");
-
-    msg.channel.sendTyping().catch(() => {});
-    const cevap = await cevapUret(msg.author.id, soru);
+    if (!soru) return msg.reply("Ne sormak istersin?");
     
-    msg.reply({ content: cevap, allowedMentions: { repliedUser: false } });
+    await msg.channel.sendTyping();
+    const cevap = await cevapUret(msg.author.id, soru);
+    msg.reply(cevap);
 });
 
-client.once("ready", () => console.log("✅ Awe aktif ve uydurma cevaplara karşı korumalı!"));
+client.once("ready", () => console.log(`✅ Bot aktif: ${client.user.tag}`));
 client.login(DISCORD_TOKEN);
