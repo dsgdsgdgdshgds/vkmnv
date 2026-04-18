@@ -83,93 +83,76 @@ SORU: ${soru}`;
    Groq'un yerleşik web arama aracını kullanır, harici DNS gerekmez.
 ==================================================================== */
 
+/* ====================================================================
+   ARAMA MOTORU — DuckDuckGo JSON + Wikipedia (ücretsiz, DNS sorunu yok)
+==================================================================== */
+
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36";
+
+/* DDG Instant Answer API */
+async function ddgInstant(sorgu) {
+    try {
+        const res = await axios.get("https://api.duckduckgo.com/", {
+            params: { q: sorgu, format: "json", no_html: 1, skip_disambig: 1, no_redirect: 1 },
+            headers: { "User-Agent": UA },
+            timeout: 8000
+        });
+        const d = res.data;
+        const sonuclar = [];
+        if (d.Answer)       sonuclar.push(`Cevap: ${d.Answer}`);
+        if (d.AbstractText) sonuclar.push(`Özet: ${d.AbstractText.slice(0, 500)}`);
+        if (d.Definition)   sonuclar.push(`Tanım: ${d.Definition}`);
+        (d.RelatedTopics || []).slice(0, 3).forEach(t => {
+            const text = t.Text || (t.Result ? t.Result.replace(/<[^>]+>/g, "") : "");
+            if (text && text.trim().length > 10) sonuclar.push(`İlgili: ${text.slice(0, 200)}`);
+        });
+        return sonuclar;
+    } catch { return []; }
+}
+
+/* Wikipedia API — TR önce EN fallback */
+async function wikiBul(sorgu) {
+    for (const lang of ["tr", "en"]) {
+        try {
+            const arama = await axios.get(`https://${lang}.wikipedia.org/w/api.php`, {
+                params: { action: "query", list: "search", srsearch: sorgu, srlimit: 2, format: "json", origin: "*" },
+                timeout: 7000
+            });
+            const sayfalar = arama.data?.query?.search || [];
+            const sonuclar = [];
+            for (const s of sayfalar.slice(0, 2)) {
+                try {
+                    const oz = await axios.get(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(s.title)}`, { timeout: 6000 });
+                    if (oz.data.extract) sonuclar.push(`${oz.data.title}: ${oz.data.extract.slice(0, 400)}`);
+                } catch {}
+            }
+            if (sonuclar.length) return sonuclar;
+        } catch {}
+    }
+    return [];
+}
+
+/* ANA FONKSİYON */
 async function webdenVeriTopla(plan) {
     if (!plan.arama_gerekli || !plan.sorgular?.length) return "";
 
-    const sorgu = plan.sorgular.join(" ");
-    try {
-        const res = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                max_tokens: 1024,
-                messages: [{ role: "user", content: `Şu konuda güncel bilgi ver (kısa, madde madde): ${sorgu}` }],
-                tools: [{
-                    type: "function",
-                    function: {
-                        name: "web_search",
-                        description: "Search the web for current information",
-                        parameters: {
-                            type: "object",
-                            properties: { query: { type: "string" } },
-                            required: ["query"]
-                        }
-                    }
-                }],
-                tool_choice: "auto"
-            },
-            {
-                headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-                timeout: 20000
-            }
-        );
+    const anasorgu = plan.sorgular[0];
+    console.log(`🔍 Aranıyor: ${anasorgu}`);
 
-        const msg = res.data.choices[0].message;
-        // Eğer tool call döndüyse, tool result ile tekrar sor
-        if (msg.tool_calls?.length) {
-            const toolCall = msg.tool_calls[0];
-            const followUp = await axios.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                {
-                    model: "llama-3.3-70b-versatile",
-                    max_tokens: 1024,
-                    messages: [
-                        { role: "user", content: `Şu konuda güncel bilgi ver: ${sorgu}` },
-                        { role: "assistant", content: null, tool_calls: [toolCall] },
-                        { role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ result: `Web araması: ${toolCall.function.arguments}` }) }
-                    ]
-                },
-                {
-                    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-                    timeout: 20000
-                }
-            );
-            const sonuc = followUp.data.choices[0].message.content?.trim();
-            if (sonuc) { console.log(`✅ Groq web search tamamlandı`); return sonuc; }
-        }
+    const [ddg, wiki] = await Promise.all([
+        ddgInstant(anasorgu),
+        wikiBul(anasorgu)
+    ]);
 
-        // Direkt cevap döndüyse onu kullan
-        const direkt = msg.content?.trim();
-        if (direkt) { console.log(`✅ Groq direkt cevap`); return direkt; }
+    const tumSonuclar = [...ddg, ...wiki].filter(s => s && s.trim().length > 10);
+    
+    if (tumSonuclar.length === 0) {
+        console.log("⚠️ Arama sonuç bulunamadı");
         return "";
-    } catch (e) {
-        console.log(`⚠️ Groq web search hata: ${e.message}`);
-        // Fallback: Wikipedia
-        return await wikipediaFallback(sorgu);
     }
-}
 
-/* Wikipedia fallback — Groq başarısız olursa */
-async function wikipediaFallback(sorgu) {
-    try {
-        for (const lang of ["tr", "en"]) {
-            const arama = await axios.get(
-                `https://${lang}.wikipedia.org/w/api.php`,
-                { params: { action: "query", list: "search", srsearch: sorgu, srlimit: 2, format: "json", origin: "*" }, timeout: 6000 }
-            );
-            const sayfalar = arama.data?.query?.search || [];
-            const sonuclar = [];
-            for (const sayfa of sayfalar.slice(0, 2)) {
-                const ozet = await axios.get(
-                    `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(sayfa.title)}`,
-                    { timeout: 5000 }
-                );
-                if (ozet.data.extract) sonuclar.push(`${ozet.data.title}: ${ozet.data.extract.slice(0, 400)}`);
-            }
-            if (sonuclar.length) return sonuclar.join("\n");
-        }
-    } catch {}
-    return "";
+    console.log(`✅ Arama tamamlandı: ${tumSonuclar.length} sonuç`);
+    return tumSonuclar.join("\n");
 }
 
 /* ====== ADIM 3: GROK TARZI DERİN SENTEZ ====== */
@@ -197,11 +180,11 @@ async function cevapUret(userId, soru) {
 
     let sistemPrompt;
     if (mesajdaKufur) {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcı sana küfür etti, aynı tonda Türkçe küfürle kısa karşılık ver (1-2 cümle). Format kullanma.";
+        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcı sana küfür etti. Türkçe, kısa ve sert karşılık ver (1-2 cümle). Asla Çince, Japonca veya başka alfabe kullanma. Sadece Türkçe yaz.";
     } else if (guncelBilgiGerekli) {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Verilen web verisini kullanarak soruyu yanıtla. Kendi eski bilgini kullanma. Web verisi yoksa 'güncel bilgiye ulaşamadım' de. Türkçeye Türkçe, İngilizceye İngilizce. Discord formatı: **kalın**, > alıntı. Emin olmadıklarına 'Tahminim:' ekle.";
+        sistemPrompt = "Discord botusun, geliştirici Batuhan. Verilen web verisini kullanarak soruyu yanıtla. Kendi eski bilgini kullanma, sadece verilen veriyi kullan. Web verisi yoksa 'güncel bilgiye ulaşamadım' de. Türkçeye Türkçe, İngilizceye İngilizce. Asla Çince, Japonca veya Latin dışı alfabe kullanma. Discord formatı: **kalın**, > alıntı. Emin olmadıklarına 'Tahminim:' ekle.";
     } else {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcıyla kısa ve samimi sohbet et. Liste veya başlık kullanma.";
+        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcıyla kısa ve samimi Türkçe sohbet et. Asla Çince, Japonca veya Latin dışı alfabe kullanma. Liste veya başlık kullanma.";
     }
 
     const kullaniciPrompt = [
