@@ -11,55 +11,201 @@ const DISCORD_TOKEN  = process.env.token;
 const TAVILY_API_KEY = process.env.tavily || "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";
 
 /* ====== MODELLER ====== */
-const MODEL_FAST  = "llama-3.1-8b-instant";
-const MODEL_SMART = "llama-3.3-70b-versatile";
+const MODEL_FAST  = "llama-3.1-8b-instant";  // 30 RPM, 14,400 RPD
+const MODEL_SMART = "llama-3.3-70b-versatile"; // 30 RPM, 1,000 RPD
 
 /* ====== HAFIZA ====== */
 const memory = new Map();
 const MAX_HISTORY = 5;
 
-/* ====== KÜFÜR TESPİTİ ====== */
+/* ====== RATE LIMIT YONETIMI ====== */
+// Groq: 30 RPM (2 saniyede 1 istek)
+const groqQueue = [];
+let groqProcessing = false;
+let groqLastRequest = 0;
+const GROQ_MIN_INTERVAL = 2100; // 2.1 saniye (güvenli margin)
+
+// Tavily: 100 RPM (0.6 saniyede 1 istek)
+const tavilyQueue = [];
+let tavilyProcessing = false;
+let tavilyLastRequest = 0;
+const TAVILY_MIN_INTERVAL = 700; // 0.7 saniye
+
+// Kullanici bazli rate limit
+const userCooldowns = new Map();
+const USER_COOLDOWN_MS = 5000; // 5 saniye
+
+/* ====== KUFUR TESPITI ====== */
 const KUFURLER = ["amk","orospu","oc","sik","got","bok","yarrak","pic","sikerim","amina","gerizekali","salak","ahmak","kahpe","aptal","sikeyim"];
 function kufurVarMi(metin) {
     const k = metin.toLowerCase()
-        .replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s")
-        .replace(/ı/g,"i").replace(/ö/g,"o").replace(/ç/g,"c");
+        .replace(/g/g,"g").replace(/u/g,"u").replace(/s/g,"s")
+        .replace(/i/g,"i").replace(/o/g,"o").replace(/c/g,"c");
     return KUFURLER.some(w => k.includes(w));
 }
 
-/* ====== GROQ ÇAĞRISI ====== */
-async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_tokens = 1500 } = {}) {
-    const res = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        { model, messages, temperature, max_tokens },
-        { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" }, timeout: 30000 }
-    );
-    return res.data.choices[0].message.content.trim();
+/* ====== EXPONENTIAL BACKOFF ====== */
+async function fetchWithRetry(url, options, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await axios(url, options);
+        } catch (err) {
+            if (err.response?.status === 429) {
+                const retryAfter = parseInt(err.response.headers['retry-after']) || Math.pow(2, i) * 1000;
+                console.log(`429 hatasi, ${retryAfter}ms bekleniyor... (deneme ${i + 1}/${maxRetries})`);
+                await new Promise(r => setTimeout(r, retryAfter));
+            } else if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
+                const wait = Math.pow(2, i) * 1000;
+                console.log(`Baglanti hatasi, ${wait}ms bekleniyor...`);
+                await new Promise(r => setTimeout(r, wait));
+            } else {
+                throw err;
+            }
+        }
+    }
+    throw new Error('Max retries reached');
 }
 
-/* ====== ADIM 1: ARAMA PLANI ====== */
-async function planHazirla(soru) {
-    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi tek arama sorgusunu üret.
+/* ====== GROQ RATE LIMITER ====== */
+async function processGroqQueue() {
+    if (groqProcessing || groqQueue.length === 0) return;
+    groqProcessing = true;
 
-JSON formatında döndür:
+    const now = Date.now();
+    const elapsed = now - groqLastRequest;
+    
+    if (elapsed < GROQ_MIN_INTERVAL) {
+        const wait = GROQ_MIN_INTERVAL - elapsed;
+        await new Promise(r => setTimeout(r, wait));
+    }
+
+    const task = groqQueue.shift();
+    try {
+        groqLastRequest = Date.now();
+        const result = await fetchWithRetry(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+                method: 'POST',
+                data: {
+                    model: task.model,
+                    messages: task.messages,
+                    temperature: task.temperature,
+                    max_tokens: task.max_tokens
+                },
+                headers: { 
+                    Authorization: `Bearer ${GROQ_API_KEY}`, 
+                    "Content-Type": "application/json" 
+                },
+                timeout: 30000
+            }
+        );
+        task.resolve(result.data.choices[0].message.content.trim());
+    } catch (err) {
+        console.error("Groq hatasi:", err.message);
+        task.reject(err);
+    }
+
+    groqProcessing = false;
+    processGroqQueue();
+}
+
+function groq(messages, options = {}) {
+    return new Promise((resolve, reject) => {
+        groqQueue.push({
+            messages,
+            model: options.model || MODEL_SMART,
+            temperature: options.temperature || 0.6,
+            max_tokens: options.max_tokens || 1500,
+            resolve,
+            reject
+        });
+        processGroqQueue();
+    });
+}
+
+/* ====== TAVILY RATE LIMITER ====== */
+async function processTavilyQueue() {
+    if (tavilyProcessing || tavilyQueue.length === 0) return;
+    tavilyProcessing = true;
+
+    const now = Date.now();
+    const elapsed = now - tavilyLastRequest;
+    
+    if (elapsed < TAVILY_MIN_INTERVAL) {
+        const wait = TAVILY_MIN_INTERVAL - elapsed;
+        await new Promise(r => setTimeout(r, wait));
+    }
+
+    const task = tavilyQueue.shift();
+    try {
+        tavilyLastRequest = Date.now();
+        const result = await fetchWithRetry(
+            "https://api.tavily.com/search",
+            {
+                method: 'POST',
+                data: {
+                    api_key: TAVILY_API_KEY,
+                    query: task.query,
+                    search_depth: "basic",
+                    max_results: 5,
+                    include_answer: true
+                },
+                timeout: 20000
+            }
+        );
+        
+        const d = result.data;
+        const sonuclar = [];
+        if (d.answer) sonuclar.push(`Ozet: ${d.answer}`);
+        (d.results || []).forEach(r => {
+            if (r.content?.trim().length > 30)
+                sonuclar.push(`[${r.title || "Kaynak"} - ${r.url}]:\n${r.content.slice(0, 600)}`);
+        });
+        
+        console.log(`Tavily: ${sonuclar.length} kaynak`);
+        task.resolve(sonuclar.join("\n\n"));
+    } catch (err) {
+        console.log(`Tavily hata: ${err.message}`);
+        task.resolve("");
+    }
+
+    tavilyProcessing = false;
+    processTavilyQueue();
+}
+
+function tavilyAra(sorgular) {
+    const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
+    console.log(`Arama: ${sorgu}`);
+    
+    return new Promise((resolve) => {
+        tavilyQueue.push({ query: sorgu, resolve });
+        processTavilyQueue();
+    });
+}
+
+/* ====== ARAMA PLANI ====== */
+async function planHazirla(soru) {
+    const prompt = `Sen bir arama motoru uzmanisin. Kullanicinin sorusunu analiz et ve en iyi tek arama sorgusunu uret.
+
+JSON formatinda dondur:
 {
   "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
   "arama_gerekli": true | false,
   "sorgular": ["tek en iyi sorgu"]
 }
 
-ARAMA GEREKSİZ (false) — SADECE BUNLAR:
-- Selamlaşma, küfür, argo, "nasılsın", "ne yapıyorsun" gibi sohbet
-- "şiir yaz", "fıkra anlat" gibi yaratıcı istekler
-Diğer HER şey için arama_gerekli: true.
+ARAMA GEREKSIZ (false) - SADECE BUNLAR:
+- Selamlasma, kufur, argo, "nasilsin", "ne yapiyorsun" gibi sohbet
+- "siir yaz", "fikra anlat" gibi yaratci istekler
+Diger HER sey icin arama_gerekli: true.
 
-EN İYİ SORGU NASIL ÜRETILIR:
-- Sorudaki özel isimleri, grup/kişi adlarını AYNEN kullan
-- Türkçe soru ise İngilizce sorgu üret — İngilizce kaynaklar daha zengin
-- Müzik: "band name most popular songs founder" şeklinde yaz
-- Haber/güncel: Türkçe yaz, tarihi ekle
-- Spesifik ve kısa tut (5-8 kelime ideal)
-- Sadece JSON döndür, başka hiçbir şey yazma.
+EN IYI SORGU NASIL URETILIR:
+- Sorudaki ozel isimleri, grup/kisi adlarini AYNEN kullan
+- Turkce soru ise Ingilizce sorgu uret - Ingilizce kaynaklar daha zengin
+- Muzik: "band name most popular songs founder" seklinde yaz
+- Haber/guncel: Turkce yaz, tarihi ekle
+- Spesifik ve kisa tut (5-8 kelime ideal)
+- Sadece JSON dondur, baska hicbir sey yazma.
 
 SORU: ${soru}`;
 
@@ -72,52 +218,7 @@ SORU: ${soru}`;
     }
 }
 
-/* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
-// Son istek zamanı — rate limit koruma
-let sonIstekZamani = 0;
-
-async function tavilyAra(sorgular) {
-    const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
-    console.log(`🔍 Arama: ${sorgu}`);
-
-    // Devplan: dakikada 1 istek — gerekirse bekle
-    const simdi = Date.now();
-    const gecen = simdi - sonIstekZamani;
-    if (gecen < 62000 && sonIstekZamani > 0) {
-        const bekle = 62000 - gecen;
-        console.log(`⏳ Rate limit: ${Math.ceil(bekle/1000)}sn bekleniyor...`);
-        await new Promise(r => setTimeout(r, bekle));
-    }
-
-    try {
-        sonIstekZamani = Date.now();
-        const res = await axios.post(
-            "https://api.tavily.com/search",
-            {
-                api_key: TAVILY_API_KEY,
-                query: sorgu,
-                search_depth: "basic",
-                max_results: 10,
-                include_answer: true
-            },
-            { timeout: 20000 }
-        );
-        const d = res.data;
-        const sonuclar = [];
-        if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
-        (d.results || []).forEach(r => {
-            if (r.content?.trim().length > 30)
-                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]:\n${r.content.slice(0, 800)}`);
-        });
-        console.log(`✅ Tavily: ${sonuclar.length} kaynak`);
-        return sonuclar.join("\n\n");
-    } catch (e) {
-        console.log(`⚠️ Tavily hata: ${e.message}`);
-        return "";
-    }
-}
-
-/* ====== ADIM 3: CEVAP ÜRET ====== */
+/* ====== CEVAP URET ====== */
 async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
@@ -126,24 +227,24 @@ async function cevapUret(userId, soru) {
 
     const gecmis = memory.get(userId) || [];
     const gecmisMetin = gecmis.length
-        ? gecmis.map((h, i) => `[${i+1}] Kullanıcı: ${h.user}\nAwe: ${h.bot}`).join("\n")
+        ? gecmis.map((h, i) => `[${i+1}] Kullanici: ${h.user}\nAwe: ${h.bot}`).join("\n")
         : "";
 
     const kufur = kufurVarMi(soru);
 
     let sistemPrompt;
     if (kufur) {
-        sistemPrompt = "Sen Awe adında bir Discord botusun, geliştiricin Batuhan. Kullanıcı sana küfür etti. Türkçe küfürle kısa ve sert geri dön (1-2 cümle).";
+        sistemPrompt = "Sen Awe adinda bir Discord botusun, gelistiricin Batuhan. Kullanici sana kufur etti. Turkce kufurle kisa ve sert geri don (1-2 cumle).";
     } else if (webVerisi) {
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}. KURALLAR: 1) Sadece aşağıdaki web verisinde yazanları söyle. 2) Web verisinde olmayan hiçbir şeyi UYDURMA veya tahmin etme — bulamadıysan "bu konuda güvenilir bilgiye ulaşamadım" de. 3) Siyasi görüş KATMA. 5) Discord formatı: **kalın**.`;
+        sistemPrompt = `Sen Awe adinda Discord botusun. Gelistiricin Batuhan. Bugun: ${tarih}. KURALLAR: 1) Sadece asagidaki web verisinde yazanlari soyle. 2) Web verisinde olmayan hicbir seyi UYDURMA veya tahmin etme - bulamadiysan "bu konuda guvenilir bilgiye ulasamadim" de. 3) Siyasi gorus KATMA. 5) Discord formati: **kalin**.`;
     } else {
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}. KURALLAR: 1) Samimi ve kısa konuş. 2) SADECE Türkçe kelime kullan, tek bir yabancı kelime bile yazma. 3) Siyasi yorum yapma. 4) Liste veya başlık kullanma.`;
+        sistemPrompt = `Sen Awe adinda Discord botusun. Gelistiricin Batuhan. Bugun: ${tarih}. KURALLAR: 1) Samimi ve kisa konus. 2) SADECE Turkce kelime kullan, tek bir yabanci kelime bile yazma. 3) Siyasi yorum yapma. 4) Liste veya baslik kullanma.`;
     }
 
     const kullaniciPrompt = [
-        gecmisMetin ? `Geçmiş konuşma:\n${gecmisMetin}` : "",
-        webVerisi   ? `Web'den gelen güncel veri:\n${webVerisi}` : "",
-        `Kullanıcı mesajı: ${soru}`
+        gecmisMetin ? `Gecmis konusma:\n${gecmisMetin}` : "",
+        webVerisi   ? `Web'den gelen guncel veri:\n${webVerisi}` : "",
+        `Kullanici mesaji: ${soru}`
     ].filter(Boolean).join("\n\n");
 
     const cevap = await groq(
@@ -161,7 +262,7 @@ async function cevapUret(userId, soru) {
     return cevap;
 }
 
-/* ====== MESAJ BÖLÜCÜ ====== */
+/* ====== MESAJ BOLUCU ====== */
 function mesajlariBol(metin, limit = 1950) {
     if (metin.length <= limit) return [metin];
     const parcalar = [];
@@ -177,14 +278,14 @@ function mesajlariBol(metin, limit = 1950) {
     return parcalar;
 }
 
-/* ====== GÜVENLİ GÖNDER ====== */
+/* ====== GUVENLI GONDER ====== */
 async function guvenliGonder(msg, metin, ilk = true) {
     try {
         if (ilk) await msg.reply({ content: metin, allowedMentions: { repliedUser: false } });
         else     await msg.channel.send(metin);
     } catch (err) {
         if (err.code === 50013) { try { await msg.author.send(metin); } catch {} }
-        else console.error("❌ Mesaj gönderilemedi:", err.message);
+        else console.error("Mesaj gonderilemedi:", err.message);
     }
 }
 
@@ -200,6 +301,15 @@ client.on("messageCreate", async msg => {
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
     if (!soru) return guvenliGonder(msg, "Ne sormak istiyorsun?");
 
+    // Kullanici cooldown kontrolu
+    const now = Date.now();
+    const lastUse = userCooldowns.get(msg.author.id) || 0;
+    if (now - lastUse < USER_COOLDOWN_MS) {
+        const wait = Math.ceil((USER_COOLDOWN_MS - (now - lastUse)) / 1000);
+        return guvenliGonder(msg, `Cok hizli mesaj atiyorsun. ${wait} saniye bekle.`);
+    }
+    userCooldowns.set(msg.author.id, now);
+
     msg.channel.sendTyping().catch(() => {});
     const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
 
@@ -210,17 +320,22 @@ client.on("messageCreate", async msg => {
         for (let i = 0; i < parcalar.length; i++) await guvenliGonder(msg, parcalar[i], i === 0);
     } catch (err) {
         clearInterval(typing);
-        console.error("❌ Hata:", err.message);
-        await guvenliGonder(msg, "Bir sorun oluştu, tekrar dene.");
+        console.error("Hata:", err.message);
+        if (err.response?.status === 429) {
+            await guvenliGonder(msg, "Cok fazla istek atildi, lutfen biraz bekleyin.");
+        } else {
+            await guvenliGonder(msg, "Bir sorun olustu, tekrar dene.");
+        }
     }
 });
 
 client.once("clientReady", c => {
-    console.log(`✅ ${c.user.tag} aktif — Model: ${MODEL_SMART}`);
-    console.log(`🕒 ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
-    console.log(`👤 Geliştirici: Batuhan | Bot: Awe`);
+    console.log(`${c.user.tag} aktif - Model: ${MODEL_SMART}`);
+    console.log(`${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
+    console.log(`Gelistirici: Batuhan | Bot: Awe`);
+    console.log(`Rate limit: Groq 30 RPM, Tavily 100 RPM`);
 });
 
-process.on("unhandledRejection", err => console.error("🔥", err?.message || err));
+process.on("unhandledRejection", err => console.error("Hata:", err?.message || err));
 
 client.login(DISCORD_TOKEN);
