@@ -6,9 +6,9 @@ const http = require('http');
 http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
 
 /* ====== CONFIG ====== */
-const GROQ_API_KEY   = process.env.groq;  // Düzeltildi: groq -> GROQ_API_KEY
-const DISCORD_TOKEN  = process.env.token; // Düzeltildi: token -> DISCORD_TOKEN
-const TAVILY_API_KEY = "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"; // Düzeltildi: sabit key kaldırıldı
+const GROQ_API_KEY   = process.env.groq;
+const DISCORD_TOKEN  = process.env.token;
+const TAVILY_API_KEY = "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";
 
 // API Key kontrolü
 if (!GROQ_API_KEY || !DISCORD_TOKEN) {
@@ -25,11 +25,11 @@ const memory = new Map();
 const MAX_HISTORY = 5;
 
 /* ====== RATE LIMITING ====== */
-const rateLimiter = new Map(); // Kullanıcı bazlı rate limit
-const USER_COOLDOWN = 5000; // 5 saniye
-const GLOBAL_TAVILY_COOLDOWN = 6000; // Tavily: 6 saniye (dakikada 10 istek)
+const rateLimiter = new Map();
+const USER_COOLDOWN = 5000;
 
 let lastTavilyRequest = 0;
+const TAVILY_COOLDOWN = 6000;
 
 /* ====== KÜFÜR TESPİTİ ====== */
 const KUFURLER = ["amk","orospu","oc","sik","got","bok","yarrak","pic","sikerim","amina","gerizekali","salak","ahmak","kahpe","aptal","sikeyim","orospu çocuğu","pezevenk","yavşak"];
@@ -37,11 +37,11 @@ function kufurVarMi(metin) {
     const k = metin.toLowerCase()
         .replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s")
         .replace(/ı/g,"i").replace(/ö/g,"o").replace(/ç/g,"c")
-        .replace(/[^a-z0-9\s]/g, ""); // Özel karakterleri temizle
+        .replace(/[^a-z0-9\s]/g, "");
     return KUFURLER.some(w => k.includes(w) || k.split(/\s+/).includes(w));
 }
 
-/* ====== GROQ ÇAĞRISI (Retry Mekanizmalı) ====== */
+/* ====== GROQ ÇAĞRISI ====== */
 async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_tokens = 1500, retries = 2 } = {}) {
     let lastError;
     for (let i = 0; i <= retries; i++) {
@@ -74,26 +74,27 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
 
 /* ====== ADIM 1: ARAMA PLANI ====== */
 async function planHazirla(soru) {
-    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et.
+    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi tek arama sorgusunu üret.
 
 JSON formatında döndür:
 {
   "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
   "arama_gerekli": true | false,
-  "sorgular": ["en iyi sorgu"]
+  "sorgular": ["tek en iyi sorgu"]
 }
 
-ARAMA GEREKSİZ (false):
-- Selamlaşma, "nasılsın", "ne yapıyorsun", "şiir yaz", "fıkra anlat"
-- Basit matematik, "2+2 kaç eder"
-- Kişisel yaratıcı istekler
+ARAMA GEREKSİZ (false) — SADECE BUNLAR:
+- Selamlaşma, küfür, argo, "nasılsın", "ne yapıyorsun" gibi sohbet
+- "şiir yaz", "fıkra anlat" gibi yaratıcı istekler
+Diğer HER şey için arama_gerekli: true.
 
-EN İYİ SORGU:
-- Özel isimleri AYNEN kullan
-- Türkçe soru → İngilizce sorgu (daha iyi sonuç)
-- Müzik: "HOST band most popular song founder"
-- Spesifik ve kısa (5-8 kelime)
-- Sadece JSON, başka hiçbir şey yazma.
+EN İYİ SORGU NASIL ÜRETILIR:
+- Sorudaki özel isimleri, grup/kişi adlarını AYNEN kullan
+- Türkçe soru ise İngilizce sorgu üret — İngilizce kaynaklar daha zengin
+- Müzik: "band name most popular songs founder" şeklinde yaz
+- Haber/güncel: Türkçe yaz, tarihi ekle
+- Spesifik ve kısa tut (5-8 kelime ideal)
+- Sadece JSON döndür, başka hiçbir şey yazma.
 
 SORU: ${soru}`;
 
@@ -117,24 +118,16 @@ SORU: ${soru}`;
     }
 }
 
-/* ====== ADIM 2: TAVİLY WEB ARAMA (Geliştirilmiş) ====== */
+/* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
 async function tavilyAra(sorgular) {
-    if (!TAVILY_API_KEY) {
-        console.log("⚠️ TAVILY_API_KEY tanımlı değil");
-        return "";
-    }
-
     const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
-    if (!sorgu || sorgu.length < 2) return "";
-
     console.log(`🔍 Arama: ${sorgu}`);
 
-    // Rate limit kontrolü
     const simdi = Date.now();
     const gecen = simdi - lastTavilyRequest;
-    if (gecen < GLOBAL_TAVILY_COOLDOWN && lastTavilyRequest > 0) {
-        const bekle = GLOBAL_TAVILY_COOLDOWN - gecen;
-        console.log(`⏳ Tavily rate limit: ${Math.ceil(bekle/1000)}sn bekleniyor...`);
+    if (gecen < TAVILY_COOLDOWN && lastTavilyRequest > 0) {
+        const bekle = TAVILY_COOLDOWN - gecen;
+        console.log(`⏳ Rate limit: ${Math.ceil(bekle/1000)}sn bekleniyor...`);
         await new Promise(r => setTimeout(r, bekle));
     }
 
@@ -146,24 +139,18 @@ async function tavilyAra(sorgular) {
                 api_key: TAVILY_API_KEY,
                 query: sorgu,
                 search_depth: "basic",
-                max_results: 8,
-                include_answer: true,
-                include_domains: [] // Güvenilir domainler eklenebilir
+                max_results: 10,
+                include_answer: true
             },
-            { timeout: 15000 }
+            { timeout: 20000 }
         );
         
         const d = res.data;
         const sonuclar = [];
-        
-        if (d.answer && d.answer.length > 10) {
-            sonuclar.push(`Özet: ${d.answer}`);
-        }
-        
-        (d.results || []).slice(0, 5).forEach(r => {
-            if (r.content?.trim().length > 20) {
-                sonuclar.push(`[${r.title || "Kaynak"}]: ${r.content.slice(0, 600)}`);
-            }
+        if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
+        (d.results || []).slice(0, 3).forEach(r => {
+            if (r.content?.trim().length > 30)
+                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]: ${r.content.slice(0, 400)}`);
         });
         
         console.log(`✅ Tavily: ${sonuclar.length} kaynak`);
@@ -171,82 +158,75 @@ async function tavilyAra(sorgular) {
     } catch (e) {
         console.log(`⚠️ Tavily hata: ${e.response?.status || e.message}`);
         if (e.response?.status === 429) {
-            lastTavilyRequest = Date.now() + 30000; // 30sn bekle
+            lastTavilyRequest = Date.now() + 30000;
         }
         return "";
     }
 }
 
-/* ====== ADIM 3: CEVAP ÜRET ====== */
+/* ====== ADIM 3: CEVAP ÜRET (KISA) ====== */
 async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
-    // Önce plan hazırla
     const plan = await planHazirla(soru);
-    
-    // Web araması yap (eğer gerekliyse)
-    let webVerisi = "";
-    if (plan.arama_gerekli) {
-        webVerisi = await tavilyAra(plan.sorgular);
-    }
+    const webVerisi = plan.arama_gerekli ? await tavilyAra(plan.sorgular) : "";
 
-    // Hafıza yönetimi
     const gecmis = memory.get(userId) || [];
     const gecmisMetin = gecmis.length
-        ? gecmis.map((h, i) => `[${i+1}] K: ${h.user}\nA: ${h.bot.slice(0, 200)}`).join("\n")
+        ? gecmis.map((h, i) => `[${i+1}] K: ${h.user}\nA: ${h.bot}`).join("\n")
         : "";
 
     const kufur = kufurVarMi(soru);
 
-    // Sistem promptu seçimi
     let sistemPrompt;
     if (kufur) {
-        sistemPrompt = `Sen Awe, Discord botusun. Geliştiricin Batuhan. Kullanıcı sana küfür etti. Kısa, sert ama yaratıcı şekilde karşılık ver. 1-2 cümle, Türkçe.`;
+        sistemPrompt = `Sen Awe adında bir Discord botusun. Kullanıcı sana küfür etti. Türkçe, kısa ve sert geri dön. Max 1-2 cümle.`;
     } else if (webVerisi) {
-        sistemPrompt = `Sen Awe, Discord botusun. Geliştiricin Batuhan. Tarih: ${tarih}.
+        sistemPrompt = `Sen Awe, Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
 
 KURALLAR:
-1) SADECE web verisindeki bilgileri kullan
-2) UYDURMA - emin değilsen "bu konuda kesin bilgim yok" de
-3) Siyasi yorum yapma
-4) Format: **kalın** için markdown
-5) Maksimum 3-4 cümle, öz ve net ol
+1) Sadece web verisindeki bilgileri kullan
+2) UYDURMA - yoksa "bilmiyorum" de
+3) **KISA VE ÖZ** - Max 2-3 cümle
+4) Sadece cevap ver, açıklama yapma
+5) Markdown kullanma, düz yaz
 
 Web verisi:
-${webVerisi.slice(0, 2000)}`;
+${webVerisi.slice(0, 1500)}`;
     } else {
-        sistemPrompt = `Sen Awe, Discord botusun. Geliştiricin Batuhan. Tarih: ${tarih}.
+        sistemPrompt = `Sen Awe, Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
 
 KURALLAR:
-1) Samimi ve kısa konuş (max 2-3 cümle)
+1) Samimi ve ultra kısa konuş (1-2 cümle)
 2) SADECE Türkçe
 3) Siyasi yorum yapma
-4) Sohbet tarzında, doğal ol`;
+4) Liste/başlık yok, düz metin`;
     }
 
-    const kullaniciPrompt = gecmisMetin 
-        ? `Önceki konuşma:\n${gecmisMetin}\n\nŞimdi: ${soru}`
-        : soru;
+    const kullaniciPrompt = [
+        gecmisMetin ? `Geçmiş:\n${gecmisMetin}` : "",
+        `Soru: ${soru}`
+    ].filter(Boolean).join("\n\n");
 
     try {
         const cevap = await groq([
             { role: "system", content: sistemPrompt },
             { role: "user", content: kullaniciPrompt }
         ], { 
-            model: webVerisi ? MODEL_SMART : MODEL_FAST, 
-            temperature: 0.7, 
-            max_tokens: 800 
+            model: MODEL_SMART, 
+            temperature: 0.5, 
+            max_tokens: 300  // Düşürüldü - kısa yanıt
         });
 
-        // Hafızaya kaydet
-        const yeni = [...gecmis, { user: soru.slice(0, 100), bot: cevap.slice(0, 500) }];
+        // Hafızaya kaydet (kısa tut)
+        const yeni = [...gecmis, { user: soru.slice(0, 80), bot: cevap.slice(0, 200) }];
         if (yeni.length > MAX_HISTORY) yeni.shift();
         memory.set(userId, yeni);
 
         return cevap;
     } catch (e) {
         console.error("Groq hatası:", e.message);
-        return "Şu an yanıt üretemiyorum, birazdan tekrar dene.";
+        return "Şu an cevap veremiyorum.";
     }
 }
 
@@ -263,18 +243,11 @@ function mesajlariBol(metin, limit = 1950) {
         }
         
         let kes = limit;
-        // Önce çift yeni satır ara
         const p = kalan.lastIndexOf('\n\n', limit);
-        if (p > limit * 0.5) kes = p;
-        else {
-            // Sonra tek yeni satır
-            const s = kalan.lastIndexOf('\n', limit);
-            if (s > limit * 0.5) kes = s;
-            else {
-                // Sonra nokta+boşluk
-                const n = kalan.lastIndexOf('. ', limit);
-                if (n > limit * 0.7) kes = n + 1;
-            }
+        if (p > limit * 0.6) kes = p;
+        else { 
+            const s = kalan.lastIndexOf('\n', limit); 
+            if (s > limit * 0.6) kes = s; 
         }
         
         parcalar.push(kalan.slice(0, kes).trim());
@@ -288,19 +261,15 @@ async function guvenliGonder(msg, metin, ilk = true) {
     try {
         const options = { 
             content: metin, 
-            allowedMentions: { repliedUser: false, everyone: false, roles: false } 
+            allowedMentions: { repliedUser: false } 
         };
         
         if (ilk) await msg.reply(options);
         else await msg.channel.send(options);
     } catch (err) {
-        console.error("Mesaj gönderme hatası:", err.code, err.message);
-        if (err.code === 50013) { // Missing permissions
-            try { 
-                await msg.author.send(metin); 
-            } catch (dmErr) {
-                console.error("DM de başarısız:", dmErr.message);
-            }
+        console.error("Mesaj hatası:", err.code, err.message);
+        if (err.code === 50013) { 
+            try { await msg.author.send(metin); } catch {} 
         }
     }
 }
@@ -318,25 +287,23 @@ client.on("messageCreate", async msg => {
     if (msg.author.bot) return;
     if (!msg.mentions.has(client.user)) return;
     
-    // Rate limit kontrolü
+    // Rate limit
     const userId = msg.author.id;
     const simdi = Date.now();
     const sonKullanim = rateLimiter.get(userId) || 0;
     
     if (simdi - sonKullanim < USER_COOLDOWN) {
         const kalan = Math.ceil((USER_COOLDOWN - (simdi - sonKullanim)) / 1000);
-        return guvenliGonder(msg, `⏱️ Lütfen ${kalan} saniye bekle.`);
+        return guvenliGonder(msg, `⏱️ ${kalan}sn bekle.`);
     }
     rateLimiter.set(userId, simdi);
 
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
-    if (!soru) return guvenliGonder(msg, "Ne sormak istiyorsun? 🎤");
+    if (!soru) return guvenliGonder(msg, "Ne sormak istiyorsun?");
 
-    // Typing indicator
+    // Typing
     await msg.channel.sendTyping().catch(() => {});
-    const typing = setInterval(() => {
-        msg.channel.sendTyping().catch(() => {});
-    }, 8000);
+    const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
 
     try {
         const cevap = await cevapUret(userId, soru);
@@ -348,26 +315,18 @@ client.on("messageCreate", async msg => {
         }
     } catch (err) {
         clearInterval(typing);
-        console.error("❌ Ana hata:", err);
-        await guvenliGonder(msg, "Bir sorun oluştu 😅 Tekrar dene.");
+        console.error("❌ Hata:", err);
+        await guvenliGonder(msg, "Bir sorun oluştu.");
     }
 });
 
 client.once("ready", () => {
-    console.log(`✅ ${client.user.tag} aktif`);
-    console.log(`🧠 Model: ${MODEL_SMART}`);
+    console.log(`✅ ${client.user.tag} aktif — Model: ${MODEL_SMART}`);
     console.log(`🕒 ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
     console.log(`👤 Geliştirici: Batuhan | Bot: Awe`);
-    console.log(`🔑 Tavily: ${TAVILY_API_KEY ? "Aktif" : "Devre dışı"}`);
 });
 
-process.on("unhandledRejection", err => {
-    console.error("🔥 Unhandled:", err?.message || err);
-});
-
-process.on("uncaughtException", err => {
-    console.error("💥 Uncaught:", err?.message || err);
-    // Bot çökmesin ama logla
-});
+process.on("unhandledRejection", err => console.error("🔥", err?.message || err));
+process.on("uncaughtException", err => console.error("💥", err?.message || err));
 
 client.login(DISCORD_TOKEN);
