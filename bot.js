@@ -2,305 +2,140 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
 
-/* ====== RENDER PORT AYARI ====== */
+/* ====== PORT ====== */
 http.createServer((_, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 8080);
 
 /* ====== CONFIG ====== */
-const GROQ_API_KEY   = process.env.groq;
-const DISCORD_TOKEN  = process.env.token;
-// Serper kaldırıldı — DuckDuckGo kullanılıyor (API key gerekmez)
+const GROQ_API_KEY  = process.env.groq;
+const DISCORD_TOKEN = process.env.token;
 
-/* ====== MODELLER ====== */
-const MODEL_FAST   = "llama-3.1-8b-instant";       // hızlı planlama
-const MODEL_SMART  = "llama-3.3-70b-versatile";    // derin sentez
+const MODEL_FAST  = "llama-3.1-8b-instant";
+const MODEL_SMART = "compound-beta";
 
-/* ====== HAFIZA (userId → mesaj dizisi) ====== */
+/* ====== HAFIZA ====== */
 const memory = new Map();
-const MAX_HISTORY = 5; // kaç konuşma hatırlasın
+const MAX_HISTORY = 5;
 
-/* ====== GROQ YARDIMCI FONKSİYON ====== */
-async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_tokens = 1500 } = {}) {
+/* ====== KÜFÜR TESPİTİ ====== */
+const KUFURLER = ["amk","orospu","oc","sik","got","bok","yarrak","pic","sikerim","amina","gerizekali","salak","ahmak","kahpe","aptal","sikeyim","oglum"];
+function kufurVarMi(metin) {
+    const k = metin.toLowerCase()
+        .replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s")
+        .replace(/ı/g,"i").replace(/ö/g,"o").replace(/ç/g,"c");
+    return KUFURLER.some(w => k.includes(w));
+}
+
+/* ====== GÜNCEL BİLGİ GEREKLİ Mİ ====== */
+const GUNCEL = ["haber","son dakika","bugün","şu an","şimdi","kaç oldu","kim kazandı","skor","maç","puan","fiyat","dolar","euro","btc","bitcoin","kripto","borsa","hava durumu","sıcaklık","ne zaman","güncel","son durum","gelişme","olay","seçim","başbakan","cumhurbaşkanı","bakan","2026","2025"];
+function guncelGerekli(metin) {
+    const k = metin.toLowerCase();
+    return GUNCEL.some(w => k.includes(w));
+}
+
+/* ====== GROQ ÇAĞRISI ====== */
+async function groqCagir(messages, model, max_tokens = 1000) {
     const res = await axios.post(
         "https://api.groq.com/openai/v1/chat/completions",
-        { model, messages, temperature, max_tokens },
-        { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" }, timeout: 30000 }
+        { model, messages, temperature: 0.6, max_tokens },
+        { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" }, timeout: 35000 }
     );
     return res.data.choices[0].message.content.trim();
 }
 
-/* ====== ADIM 1: SORU ANALİZİ & ARAMA PLANI ====== */
-// Bu adım Grok'un "düşünme" modunu simüle eder.
-// Sorunun türünü (güncel haber / bilgi / hesaplama / genel) tespit edip
-// Serper için optimize arama sorguları üretir.
-async function planHazirla(soru) {
-    const prompt = `Sen bir arama kararı vericisin. Kullanıcı mesajını analiz et ve şu JSON formatında yanıt ver:
-
-{
-  "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
-  "arama_gerekli": true | false,
-  "sorgular": ["sorgu1", "sorgu2"],
-  "dil": "tr | en"
-}
-
-ARAMA GEREKLİ (arama_gerekli: true):
-- Haber, olay, gelişme, duyuru içeren her soru
-- Spor sonuçları, maç, skor, puan durumu
-- Fiyat, kur, borsa, kripto
-- Hava durumu
-- "ne zaman", "kim kazandı", "son durum", "şu an", "bugün", "kaç oldu" gibi ifadeler
-- Herhangi bir kişi, yer, ürün veya olayın güncel durumu
-- Teknik veya ansiklopedik bilgi soruları
-
-ARAMA GEREKSİZ (arama_gerekli: false) — SADECE BUNLAR:
-- Selamlaşma: merhaba, naber, selam, hey
-- Küfür veya argo: orospu, amk, sik, lan, göt, vb.
-- Kısa sohbet: nasılsın, ne yapıyorsun, iyi misin
-- Yaratıcı istek: şiir yaz, fıkra anlat, kelimeyi tanımla
-
-Kurallar:
-- Emin olamazsan arama_gerekli: true yap
-- Sorgular kısa ve arama motoruna uygun olsun (2-5 kelime)
-- Tarih/spor sorgularına yıl ekle: "2026"
-- Sadece JSON döndür, başka hiçbir şey yazma.
-
-SORU: ${soru}`;
-
-    try {
-        const raw = await groq(
-            [{ role: "user", content: prompt }],
-            { model: MODEL_FAST, temperature: 0.1, max_tokens: 300 }
-        );
-        // JSON parse
-        const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0];
-        return jsonStr ? JSON.parse(jsonStr) : { tip: "genel_sohbet", arama_gerekli: false, sorgular: [], dil: "tr" };
-    } catch {
-        return { tip: "genel_sohbet", arama_gerekli: true, sorgular: [soru], dil: "tr" };
-    }
-}
-
-/* ====================================================================
-   ADIM 2: GROQ WEB SEARCH TOOL — Güncel Bilgi
-   Groq'un yerleşik web arama aracını kullanır, harici DNS gerekmez.
-==================================================================== */
-
-/* ====================================================================
-   ARAMA MOTORU — DuckDuckGo JSON + Wikipedia (ücretsiz, DNS sorunu yok)
-==================================================================== */
-
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36";
-
-/* DDG Instant Answer API */
-async function ddgInstant(sorgu) {
-    try {
-        const res = await axios.get("https://api.duckduckgo.com/", {
-            params: { q: sorgu, format: "json", no_html: 1, skip_disambig: 1, no_redirect: 1 },
-            headers: { "User-Agent": UA },
-            timeout: 8000
-        });
-        const d = res.data;
-        const sonuclar = [];
-        if (d.Answer)       sonuclar.push(`Cevap: ${d.Answer}`);
-        if (d.AbstractText) sonuclar.push(`Özet: ${d.AbstractText.slice(0, 500)}`);
-        if (d.Definition)   sonuclar.push(`Tanım: ${d.Definition}`);
-        (d.RelatedTopics || []).slice(0, 3).forEach(t => {
-            const text = t.Text || (t.Result ? t.Result.replace(/<[^>]+>/g, "") : "");
-            if (text && text.trim().length > 10) sonuclar.push(`İlgili: ${text.slice(0, 200)}`);
-        });
-        return sonuclar;
-    } catch { return []; }
-}
-
-/* Wikipedia API — TR önce EN fallback */
-async function wikiBul(sorgu) {
-    for (const lang of ["tr", "en"]) {
-        try {
-            const arama = await axios.get(`https://${lang}.wikipedia.org/w/api.php`, {
-                params: { action: "query", list: "search", srsearch: sorgu, srlimit: 2, format: "json", origin: "*" },
-                timeout: 7000
-            });
-            const sayfalar = arama.data?.query?.search || [];
-            const sonuclar = [];
-            for (const s of sayfalar.slice(0, 2)) {
-                try {
-                    const oz = await axios.get(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(s.title)}`, { timeout: 6000 });
-                    if (oz.data.extract) sonuclar.push(`${oz.data.title}: ${oz.data.extract.slice(0, 400)}`);
-                } catch {}
-            }
-            if (sonuclar.length) return sonuclar;
-        } catch {}
-    }
-    return [];
-}
-
-/* ANA FONKSİYON */
-async function webdenVeriTopla(plan) {
-    if (!plan.arama_gerekli || !plan.sorgular?.length) return "";
-
-    const anasorgu = plan.sorgular[0];
-    console.log(`🔍 Aranıyor: ${anasorgu}`);
-
-    const [ddg, wiki] = await Promise.all([
-        ddgInstant(anasorgu),
-        wikiBul(anasorgu)
-    ]);
-
-    const tumSonuclar = [...ddg, ...wiki].filter(s => s && s.trim().length > 10);
-    
-    if (tumSonuclar.length === 0) {
-        console.log("⚠️ Arama sonuç bulunamadı");
-        return "";
-    }
-
-    console.log(`✅ Arama tamamlandı: ${tumSonuclar.length} sonuç`);
-    return tumSonuclar.join("\n");
-}
-
-/* ====== ADIM 3: GROK TARZI DERİN SENTEZ ====== */
-/* Türkçe küfür tespiti */
-const KUFURLER = ["amk","orospu","oç","sik","göt","bok","yarrak","piç","sikerim","amına","orospu çocuğu","gerizekalı","salak","ahmak","kahpe","mal","aptal"];
-function kufurVarMi(metin) {
-    const k = metin.toLowerCase();
-    return KUFURLER.some(w => k.includes(w));
-}
-
+/* ====== CEVAP ÜRET ====== */
 async function cevapUret(userId, soru) {
-    const simdi = new Date();
-    const tarih = simdi.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-
-    const plan       = await planHazirla(soru);
-    const webVerisi  = await webdenVeriTopla(plan);
-
+    const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
     const gecmis = memory.get(userId) || [];
-    const gecmisMetin = gecmis.length
-        ? gecmis.map((h, i) => `[${i + 1}] K: ${h.user} | B: ${h.bot}`).join("\n")
-        : "";
 
-    const mesajdaKufur       = kufurVarMi(soru);
-    const guncelBilgiGerekli = plan.arama_gerekli && webVerisi.trim().length > 20;
+    const kufur  = kufurVarMi(soru);
+    const guncel = guncelGerekli(soru);
 
-    let sistemPrompt;
-    if (mesajdaKufur) {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcı sana küfür etti. Türkçe, kısa ve sert karşılık ver (1-2 cümle). Asla Çince, Japonca veya başka alfabe kullanma. Sadece Türkçe yaz.";
-    } else if (guncelBilgiGerekli) {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Verilen web verisini kullanarak soruyu yanıtla. Kendi eski bilgini kullanma, sadece verilen veriyi kullan. Web verisi yoksa 'güncel bilgiye ulaşamadım' de. Türkçeye Türkçe, İngilizceye İngilizce. Asla Çince, Japonca veya Latin dışı alfabe kullanma. Discord formatı: **kalın**, > alıntı. Emin olmadıklarına 'Tahminim:' ekle.";
+    let sistem;
+    if (kufur) {
+        sistem = "Sen Awe adinda bir Discord botusun. Gelistiricin Batuhan. Kullanici sana kufur etti. Turkce kufurle kisa ve sert geri don, 1-2 cumle. Sadece Latin alfabesiyle yaz, baska alfabe yasak.";
+    } else if (guncel) {
+        sistem = `Sen Awe adinda bir Discord botusun. Bugunun tarihi: ${tarih}. Guncel bilgi gerektiren soruyu internetten arastirarak yanıtla. Sadece Latin alfabesiyle yaz, baska alfabe kesinlikle yasak. Turkceye Turkce, Ingilizceye Ingilizce cevap ver. Discord formatı: **kalin**, > alinti. Kisa ve net ol.`;
     } else {
-        sistemPrompt = "Discord botusun, geliştirici Batuhan. Kullanıcıyla kısa ve samimi Türkçe sohbet et. Asla Çince, Japonca veya Latin dışı alfabe kullanma. Liste veya başlık kullanma.";
+        sistem = `Sen Awe adinda bir Discord botusun. Gelistiricin ve yaraticin Batuhan. Tarih: ${tarih}. Kisa ve samimi sohbet et. Gelistiricin kim diye sorarlarsa Batuhan de. Sadece Latin alfabesiyle yaz, baska alfabe kesinlikle yasak. Liste veya baslik kullanma.`;
     }
 
-    const kullaniciPrompt = [
-        `Tarih: ${tarih}`,
-        gecmisMetin ? `Geçmiş:\n${gecmisMetin}` : "",
-        webVerisi    ? `Web verisi:\n${webVerisi}` : "",
-        `Soru: ${soru}`
-    ].filter(Boolean).join("\n\n");
+    const messages = [{ role: "system", content: sistem }];
+    for (const h of gecmis) {
+        messages.push({ role: "user",      content: h.user });
+        messages.push({ role: "assistant", content: h.bot  });
+    }
+    messages.push({ role: "user", content: soru });
 
-    const cevap = await groq(
-        [
-            { role: "system", content: sistemPrompt },
-            { role: "user",   content: kullaniciPrompt }
-        ],
-        { model: MODEL_SMART, temperature: 0.65, max_tokens: 1000 }
-    );
+    const model = (kufur || !guncel) ? MODEL_FAST : MODEL_SMART;
+    const cevap = await groqCagir(messages, model);
 
-    const yeniGecmis = [...gecmis, { user: soru, bot: cevap }];
-    if (yeniGecmis.length > MAX_HISTORY) yeniGecmis.shift();
-    memory.set(userId, yeniGecmis);
+    const yeni = [...gecmis, { user: soru, bot: cevap }];
+    if (yeni.length > MAX_HISTORY) yeni.shift();
+    memory.set(userId, yeni);
 
     return cevap;
 }
 
-/* ====== DISCORD MESAJ BÖLÜCÜ ====== */
+/* ====== MESAJ BÖLÜCÜ ====== */
 function mesajlariBol(metin, limit = 1950) {
     if (metin.length <= limit) return [metin];
     const parcalar = [];
     let kalan = metin;
     while (kalan.length > 0) {
         let kes = limit;
-        const sonParagraf = kalan.lastIndexOf('\n\n', limit);
-        if (sonParagraf > limit * 0.6) kes = sonParagraf;
-        else {
-            const sonSatir = kalan.lastIndexOf('\n', limit);
-            if (sonSatir > limit * 0.6) kes = sonSatir;
-        }
+        const p = kalan.lastIndexOf('\n\n', limit);
+        if (p > limit * 0.6) kes = p;
+        else { const s = kalan.lastIndexOf('\n', limit); if (s > limit * 0.6) kes = s; }
         parcalar.push(kalan.slice(0, kes).trim());
         kalan = kalan.slice(kes).trim();
     }
     return parcalar;
 }
 
-/* ====== GÜVENLİ MESAJ GÖNDERME ====== */
-// reply başarısız olursa channel.send'e, o da başarısız olursa sadece loglar.
+/* ====== GÜVENLİ GÖNDER ====== */
 async function guvenliGonder(msg, metin, ilk = true) {
     try {
-        if (ilk) {
-            await msg.reply({ content: metin, allowedMentions: { repliedUser: false } });
-        } else {
-            await msg.channel.send(metin);
-        }
+        if (ilk) await msg.reply({ content: metin, allowedMentions: { repliedUser: false } });
+        else     await msg.channel.send(metin);
     } catch (err) {
-        if (err.code === 50013) {
-            // İzin yoksa DM ile dene
-            console.warn(`⚠️ Kanal izni yok (${msg.channel.id}), DM deneniyor...`);
-            try {
-                await msg.author.send(`(${msg.guild?.name || "Sunucu"} kanalında mesaj iznim yok, DM atıyorum)\n\n${metin}`);
-            } catch {
-                console.error("❌ DM de gönderilemedi. Bot'a 'Send Messages' ve 'Read Message History' izni ver.");
-            }
-        } else {
-            console.error("❌ Mesaj gönderilemedi:", err.message);
-        }
+        if (err.code === 50013) { try { await msg.author.send(metin); } catch {} }
+        else console.error("❌ Mesaj gönderilemedi:", err.message);
     }
 }
 
-/* ====== DISCORD İSTEMCİSİ ====== */
+/* ====== DISCORD ====== */
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
 client.on("messageCreate", async msg => {
-    if (msg.author.bot) return;
-    // @everyone veya @here etiketlerini yoksay
-    if (msg.mentions.everyone) return;
+    if (msg.author.bot || msg.mentions.everyone) return;
     if (!msg.mentions.has(client.user)) return;
 
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
-    if (!soru) {
-        return guvenliGonder(msg, "Merhaba! Bana bir şey sormak ister misin? 🤖");
-    }
+    if (!soru) return guvenliGonder(msg, "Ne sormak istiyorsun?");
 
-    // Typing başlat (izin yoksa sessizce geç)
     msg.channel.sendTyping().catch(() => {});
-    const typingInterval = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
+    const typing = setInterval(() => msg.channel.sendTyping().catch(() => {}), 8000);
 
     try {
         const cevap = await cevapUret(msg.author.id, soru);
-        clearInterval(typingInterval);
-
+        clearInterval(typing);
         const parcalar = mesajlariBol(cevap);
-        for (let i = 0; i < parcalar.length; i++) {
-            await guvenliGonder(msg, parcalar[i], i === 0);
-        }
+        for (let i = 0; i < parcalar.length; i++) await guvenliGonder(msg, parcalar[i], i === 0);
     } catch (err) {
-        clearInterval(typingInterval);
-        console.error("❌ Genel hata:", err.message);
-        await guvenliGonder(msg, "⚠️ Bir sorun oluştu, lütfen tekrar dene.");
+        clearInterval(typing);
+        console.error("❌ Hata:", err.message);
+        await guvenliGonder(msg, "Bir sorun oluştu, tekrar dene.");
     }
 });
 
-// v14+ için clientReady kullan (ready deprecation uyarısını kapatır)
 client.once("clientReady", c => {
-    console.log(`✅ ${c.user.tag} aktif — Model: ${MODEL_SMART}`);
-    console.log(`🕒 Başlangıç: ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
-    console.log(`👤 Geliştirici: Batuhan`);
+    console.log(`✅ ${c.user.tag} aktif`);
+    console.log(`🕒 ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
+    console.log(`👤 Geliştirici: Batuhan | Bot: Awe`);
 });
 
-// Unhandled rejection'ları yakala — bot çökmesini engeller
-process.on("unhandledRejection", err => {
-    console.error("🔥 Unhandled Rejection:", err?.message || err);
-});
+process.on("unhandledRejection", err => console.error("🔥", err?.message || err));
 
 client.login(DISCORD_TOKEN);
