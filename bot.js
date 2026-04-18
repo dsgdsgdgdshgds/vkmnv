@@ -89,39 +89,50 @@ async function tavilyTekArama(sorgu) {
 }
 
 async function tavilyAra(sorgular) {
-    try {
-        // Tüm sorguları paralel çalıştır
-        const aramaListesi = Array.isArray(sorgular) ? sorgular.slice(0, 3) : [sorgular];
-        console.log(`🔍 Paralel arama: ${aramaListesi.join(" | ")}`);
+    const aramaListesi = Array.isArray(sorgular) ? sorgular.slice(0, 3) : [sorgular];
+    console.log(`🔍 Sıralı arama: ${aramaListesi.join(" | ")}`);
 
-        const sonuclar = await Promise.allSettled(aramaListesi.map(s => tavilyTekArama(s)));
+    const tumSonuclar = [];
+    const gorulmus = new Set();
 
-        const tumSonuclar = [];
-        const gorulmus = new Set();
+    for (let i = 0; i < aramaListesi.length; i++) {
+        // İkinci ve üçüncü sorguda 1sn bekle — rate limit önlemi
+        if (i > 0) await new Promise(r => setTimeout(r, 1100));
 
-        sonuclar.forEach((r, i) => {
-            if (r.status !== "fulfilled") return;
-            const d = r.value;
-            if (d.answer && !gorulmus.has(d.answer)) {
-                tumSonuclar.push(`Özet (${aramaListesi[i]}): ${d.answer}`);
-                gorulmus.add(d.answer);
-            }
-            (d.results || []).forEach(site => {
-                if (gorulmus.has(site.url)) return;
-                gorulmus.add(site.url);
-                const icerik = site.raw_content || site.content || "";
-                if (icerik.trim().length > 30) {
-                    tumSonuclar.push(`[${site.title || "Kaynak"} — ${site.url}]:\n${icerik.slice(0, 800)}`);
+        let deneme = 0;
+        while (deneme < 2) {
+            try {
+                const d = await tavilyTekArama(aramaListesi[i]);
+                if (d.answer && !gorulmus.has(d.answer)) {
+                    tumSonuclar.push(`Özet: ${d.answer}`);
+                    gorulmus.add(d.answer);
                 }
-            });
-        });
+                (d.results || []).forEach(site => {
+                    if (gorulmus.has(site.url)) return;
+                    gorulmus.add(site.url);
+                    const icerik = site.raw_content || site.content || "";
+                    if (icerik.trim().length > 30)
+                        tumSonuclar.push(`[${site.title || "Kaynak"} — ${site.url}]:\n${icerik.slice(0, 800)}`);
+                });
+                break; // başarılı, döngüden çık
+            } catch (e) {
+                deneme++;
+                if (e.response?.status === 429 && deneme < 2) {
+                    console.log(`⏳ Rate limit, 3sn bekleniyor...`);
+                    await new Promise(r => setTimeout(r, 3000));
+                } else {
+                    console.log(`⚠️ Tavily hata (${aramaListesi[i]}): ${e.message}`);
+                    break;
+                }
+            }
+        }
 
-        console.log(`✅ Tavily toplam: ${tumSonuclar.length} kaynak`);
-        return tumSonuclar.join("\n\n");
-    } catch (e) {
-        console.log(`⚠️ Tavily hata: ${e.message}`);
-        return "";
+        // İlk sorguda yeterli sonuç geldiyse devam etme
+        if (i === 0 && tumSonuclar.length >= 6) break;
     }
+
+    console.log(`✅ Tavily toplam: ${tumSonuclar.length} kaynak`);
+    return tumSonuclar.join("\n\n");
 }
 
 /* ====== ADIM 3: CEVAP ÜRET ====== */
