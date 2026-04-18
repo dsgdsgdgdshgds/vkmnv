@@ -44,7 +44,7 @@ async function planHazirla(soru) {
 {
   "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
   "arama_gerekli": true | false,
-  "sorgu": "arama motoru için kısa sorgu"
+  "sorgular": ["ana sorgu", "alternatif sorgu 1", "alternatif sorgu 2"]
 }
 
 ARAMA GEREKLİ (true):
@@ -53,7 +53,8 @@ ARAMA GEREKLİ (true):
 - Fiyat, kur, borsa, kripto
 - Hava durumu
 - Herhangi bir şeyin güncel durumu
-- Teknik veya ansiklopedik bilgi
+- Teknik, istatistiksel veya ansiklopedik bilgi
+- Detaylı veya spesifik sorular (tarih, sayı, isim içeren)
 
 ARAMA GEREKSİZ (false) — SADECE BUNLAR:
 - Selamlaşma: merhaba, selam, naber
@@ -62,6 +63,7 @@ ARAMA GEREKSİZ (false) — SADECE BUNLAR:
 - Şiir yaz, fıkra anlat gibi yaratıcı istekler
 
 Kural: Şüpheliysen arama_gerekli: true yap.
+Sorgular farklı açılardan olsun — biri Türkçe biri İngilizce olabilir.
 Sadece JSON döndür.
 
 MESAJ: ${soru}`;
@@ -76,33 +78,52 @@ MESAJ: ${soru}`;
 }
 
 /* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
-async function tavilyAra(sorgu) {
+async function tavilyTekArama(sorgu) {
+    const res = await axios.post(
+        "https://api.tavily.com/search",
+        {
+            api_key: TAVILY_API_KEY,
+            query: sorgu,
+            search_depth: "advanced",
+            max_results: 8,
+            include_answer: true,
+            include_raw_content: true
+        },
+        { timeout: 20000 }
+    );
+    return res.data;
+}
+
+async function tavilyAra(sorgular) {
     try {
-        const res = await axios.post(
-            "https://api.tavily.com/search",
-            {
-                api_key: TAVILY_API_KEY,
-                query: sorgu,
-                search_depth: "advanced",
-                max_results: 7,
-                include_answer: true,
-                include_raw_content: true
-            },
-            { timeout: 20000 }
-        );
+        // Tüm sorguları paralel çalıştır
+        const aramaListesi = Array.isArray(sorgular) ? sorgular.slice(0, 3) : [sorgular];
+        console.log(`🔍 Paralel arama: ${aramaListesi.join(" | ")}`);
 
-        const d = res.data;
-        const sonuclar = [];
+        const sonuclar = await Promise.allSettled(aramaListesi.map(s => tavilyTekArama(s)));
 
-        if (d.answer) sonuclar.push(`Genel Özet: ${d.answer}`);
+        const tumSonuclar = [];
+        const gorulmus = new Set();
 
-        (d.results || []).slice(0, 5).forEach(r => {
-            const icerik = r.raw_content || r.content || "";
-            if (icerik) sonuclar.push(`[${r.title || "Kaynak"} — ${r.url || ""}]:\n${icerik.slice(0, 600)}`);
+        sonuclar.forEach((r, i) => {
+            if (r.status !== "fulfilled") return;
+            const d = r.value;
+            if (d.answer && !gorulmus.has(d.answer)) {
+                tumSonuclar.push(`Özet (${aramaListesi[i]}): ${d.answer}`);
+                gorulmus.add(d.answer);
+            }
+            (d.results || []).forEach(site => {
+                if (gorulmus.has(site.url)) return;
+                gorulmus.add(site.url);
+                const icerik = site.raw_content || site.content || "";
+                if (icerik.trim().length > 30) {
+                    tumSonuclar.push(`[${site.title || "Kaynak"} — ${site.url}]:\n${icerik.slice(0, 800)}`);
+                }
+            });
         });
 
-        console.log(`✅ Tavily: ${sonuclar.length} sonuç — "${sorgu}"`);
-        return sonuclar.join("\n\n");
+        console.log(`✅ Tavily toplam: ${tumSonuclar.length} kaynak`);
+        return tumSonuclar.join("\n\n");
     } catch (e) {
         console.log(`⚠️ Tavily hata: ${e.message}`);
         return "";
@@ -114,7 +135,7 @@ async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
     const plan = await planHazirla(soru);
-    const webVerisi = plan.arama_gerekli ? await tavilyAra(plan.sorgu) : "";
+    const webVerisi = plan.arama_gerekli ? await tavilyAra(plan.sorgular || plan.sorgu) : "";
 
     const gecmis = memory.get(userId) || [];
     const gecmisMetin = gecmis.length
@@ -127,7 +148,7 @@ async function cevapUret(userId, soru) {
     if (kufur) {
         sistemPrompt = "Sen Awe adında bir Discord botusun, geliştiricin Batuhan. Kullanıcı sana küfür etti. Türkçe küfürle kısa ve sert geri dön (1-2 cümle). Sadece Latin alfabesi kullan.";
     } else if (webVerisi) {
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}. KURALLAR: 1) Aşağıda web'den güncel veri var, onu kullanarak soruyu yanıtla. 2) Asla 'bilmiyorum', 'takip etmiyorum', 'yorum yapamam' deme — veri varsa kullan. 3) Siyasi görüş KATMA. 4) SADECE Türkçe kelime kullan, tek bir yabancı kelime bile yazma. 5) Discord formatı: **kalın**.`;
+        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}. KURALLAR: 1) Sadece aşağıdaki web verisinde yazanları söyle. 2) Web verisinde olmayan hiçbir şeyi UYDURMA veya tahmin etme — bulamadıysan "bu konuda güvenilir bilgiye ulaşamadım" de. 3) Siyasi görüş KATMA. 4) SADECE Türkçe kelime kullan, yabancı kelime yasak. 5) Discord formatı: **kalın**.`;
     } else {
         sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}. KURALLAR: 1) Samimi ve kısa konuş. 2) SADECE Türkçe kelime kullan, tek bir yabancı kelime bile yazma. 3) Siyasi yorum yapma. 4) Liste veya başlık kullanma.`;
     }
