@@ -39,41 +39,35 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
 
 /* ====== ADIM 1: ARAMA PLANI ====== */
 async function planHazirla(soru) {
-    const prompt = `Kullanıcı mesajını analiz et ve JSON döndür:
+    const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi sonucu getirecek arama sorgularını üret.
 
+JSON formatında döndür:
 {
   "tip": "guncel_haber | bilgi_sorgusu | hesaplama | genel_sohbet",
   "arama_gerekli": true | false,
-  "sorgular": ["ana sorgu", "alternatif sorgu 1", "alternatif sorgu 2"]
+  "sorgular": ["sorgu1", "sorgu2", "sorgu3"]
 }
 
-ARAMA GEREKLİ (true):
-- Haber, olay, güncel gelişme
-- Spor sonuçları, skor, puan durumu
-- Fiyat, kur, borsa, kripto
-- Hava durumu
-- Herhangi bir şeyin güncel durumu
-- Teknik, istatistiksel veya ansiklopedik bilgi
-- Detaylı veya spesifik sorular (tarih, sayı, isim içeren)
-
 ARAMA GEREKSİZ (false) — SADECE BUNLAR:
-- Selamlaşma: merhaba, selam, naber
-- Küfür veya argo
-- Nasılsın, ne yapıyorsun gibi sohbet
-- Şiir yaz, fıkra anlat gibi yaratıcı istekler
+- Selamlaşma, küfür, argo, "nasılsın", "ne yapıyorsun" gibi sohbet
+- "şiir yaz", "fıkra anlat" gibi yaratıcı istekler
+Diğer HER şey için arama_gerekli: true.
 
-Kural: Şüpheliysen arama_gerekli: true yap.
-Sorgular farklı açılardan olsun — biri Türkçe biri İngilizce olabilir.
-Sadece JSON döndür.
+SORGU ÜRETİRKEN:
+- Sorudaki özel isimleri, grup adlarını, kişi adlarını AYNEN kullan
+- Biri Türkçe, biri İngilizce sorgu yap (daha fazla kaynak bulunur)
+- Spesifik sorularda konuyu parçala: "host müzik grubu kurucusu" + "host band most popular song" + "host müzik grubu hakkında"
+- Müzik sorularında: "en sevilen şarkı" yerine "popular songs", "hit", "best songs" gibi İngilizce terimler ekle
+- Sadece JSON döndür, başka hiçbir şey yazma.
 
-MESAJ: ${soru}`;
+SORU: ${soru}`;
 
     try {
-        const raw = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 200 });
+        const raw = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 300 });
         const json = raw.match(/\{[\s\S]*\}/)?.[0];
-        return json ? JSON.parse(json) : { tip: "genel_sohbet", arama_gerekli: false, sorgu: soru };
+        return json ? JSON.parse(json) : { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
     } catch {
-        return { tip: "genel_sohbet", arama_gerekli: true, sorgu: soru };
+        return { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
     }
 }
 
