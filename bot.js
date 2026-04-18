@@ -83,24 +83,26 @@ async function tavilyAra(sorgu) {
             {
                 api_key: TAVILY_API_KEY,
                 query: sorgu,
-                search_depth: "basic",
-                max_results: 5,
-                include_answer: true
+                search_depth: "advanced",
+                max_results: 7,
+                include_answer: true,
+                include_raw_content: true
             },
-            { timeout: 15000 }
+            { timeout: 20000 }
         );
 
         const d = res.data;
         const sonuclar = [];
 
-        if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
+        if (d.answer) sonuclar.push(`Genel Özet: ${d.answer}`);
 
-        (d.results || []).slice(0, 4).forEach(r => {
-            if (r.content) sonuclar.push(`[${r.title || "Kaynak"}]: ${r.content.slice(0, 300)}`);
+        (d.results || []).slice(0, 5).forEach(r => {
+            const icerik = r.raw_content || r.content || "";
+            if (icerik) sonuclar.push(`[${r.title || "Kaynak"} — ${r.url || ""}]:\n${icerik.slice(0, 600)}`);
         });
 
         console.log(`✅ Tavily: ${sonuclar.length} sonuç — "${sorgu}"`);
-        return sonuclar.join("\n");
+        return sonuclar.join("\n\n");
     } catch (e) {
         console.log(`⚠️ Tavily hata: ${e.message}`);
         return "";
