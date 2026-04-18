@@ -37,7 +37,7 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_toke
     return res.data.choices[0].message.content.trim();
 }
 
-/* ====== ADIM 1: ARAMA PLANI ====== */
+/* ====== ADIM 1: ARAMA PLANI (DÜZELTİLDİ) ====== */
 async function planHazirla(soru) {
     const prompt = `Sen bir arama motoru uzmanısın. Kullanıcının sorusunu analiz et ve en iyi tek arama sorgusunu üret.
 
@@ -49,39 +49,34 @@ JSON formatında döndür:
 }
 
 ARAMA GEREKSİZ (false) — SADECE BUNLAR:
-- Selamlaşma, küfür, argo, "nasılsın", "ne yapıyorsun" gibi sohbet
-- "şiir yaz", "fıkra anlat" gibi yaratıcı istekler
-Diğer HER şey için arama_gerekli: true.
+- Selamlaşma, küfür, argo, "nasılsın", "ne yapıyorsun", "şiir yaz", "fıkra anlat" gibi basit sohbet ve yaratıcı istekler.
 
-EN İYİ SORGU NASIL ÜRETILIR:
-- Sorudaki özel isimleri, grup/kişi adlarını AYNEN kullan
-- Türkçe soru ise İngilizce sorgu üret — İngilizce kaynaklar daha zengin
-- Müzik: "band name most popular songs founder" şeklinde yaz
-- Haber/güncel: Türkçe yaz, tarihi ekle
-- Spesifik ve kısa tut (5-8 kelime ideal)
-- Sadece JSON döndür, başka hiçbir şey yazma.
+ÖZEL KURAL - MÜZİK GRUBU / SANATÇI SORULARI:
+- "müzik grubu", "grup", "band", "şarkıcı", "sanatçı" kelimeleri geçiyorsa sorguyu TÜRKÇE tut.
+- Türkçe isimleri olduğu gibi bırak, İngilizceye çevirme.
+- Örnek: "HOST müzik grubu nedir", "HOST grubu kurucusu", "HOST müzik grubu en bilinen şarkıları"
+
+Spesifik ve kısa tut. Sadece JSON döndür, başka hiçbir şey yazma.
 
 SORU: ${soru}`;
 
     try {
         const raw = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 300 });
-        const json = raw.match(/\{[\s\S]*\}/)?.[0];
-        return json ? JSON.parse(json) : { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        return jsonMatch ? JSON.parse(jsonMatch[0]) : { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
     } catch {
         return { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru] };
     }
 }
 
 /* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
-// Rate limit yönetimi
 let sonIstekZamani = 0;
-const MIN_BEKLEME = 65000; // 65 saniye (Tavily limiti için güvenli)
+const MIN_BEKLEME = 40000; // 40 saniye (daha dengeli)
 
 async function tavilyAra(sorgular) {
     const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
     console.log(`🔍 Arama: ${sorgu}`);
 
-    // Rate limit kontrolü
     const simdi = Date.now();
     const gecen = simdi - sonIstekZamani;
     if (gecen < MIN_BEKLEME && sonIstekZamani > 0) {
@@ -108,27 +103,27 @@ async function tavilyAra(sorgular) {
         if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
         (d.results || []).forEach(r => {
             if (r.content?.trim().length > 30)
-                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]:\n${r.content.slice(0, 800)}`);
+                sonuclar.push(`[${r.title || "Kaynak"} — \( {r.url}]:\n \){r.content.slice(0, 800)}`);
         });
         console.log(`✅ Tavily: ${sonuclar.length} kaynak`);
         return sonuclar.join("\n\n");
     } catch (e) {
         console.log(`⚠️ Tavily hata: ${e.message}`);
-        return null; // null = arama yapılamadı
+        return null;
     }
 }
 
-/* ====== ADIM 3: CEVAP ÜRET ====== */
+/* ====== ADIM 3: CEVAP ÜRET (DÜZELTİLDİ) ====== */
 async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
     const plan = await planHazirla(soru);
     let webVerisi = "";
     let aramaBasarili = false;
-    
+
     if (plan.arama_gerekli) {
-        webVerisi = await tavilyAra(plan.sorgular || plan.sorgu);
-        aramaBasarili = webVerisi !== null && webVerisi.length > 50;
+        webVerisi = await tavilyAra(plan.sorgular || [soru]);
+        aramaBasarili = webVerisi !== null && webVerisi.length > 60;
     }
 
     const gecmis = memory.get(userId) || [];
@@ -138,30 +133,30 @@ async function cevapUret(userId, soru) {
 
     const kufur = kufurVarMi(soru);
 
-    let sistemPrompt;
+    let sistemPrompt = `SEN GERÇEK BİLGİ BOTUSUN. BİLMEDİĞİN VEYA WEB VERİSİNDE OLMAYAN HİÇBİR BİLGİYİ ASLA UYDURMA. 
+Bilmiyorsan açıkça "bulamadım" veya "bu konuda net bilgi yok" de. Uydurmak kesinlikle yasaktır.\n\n`;
+
     if (kufur) {
-        sistemPrompt = "Sen Awe adında bir Discord botusun, geliştiricin Batuhan. Kullanıcı sana küfür etti. Türkçe küfürle kısa ve sert geri dön (1-2 cümle).";
+        sistemPrompt += "Sen Awe adında bir Discord botusun, geliştiricin Batuhan. Kullanıcı sana küfür etti. Türkçe küfürle kısa ve sert geri dön (1-2 cümle).";
     } else if (plan.arama_gerekli && aramaBasarili) {
-        // ✅ Web verisi var - SADECE buna güven
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
+        sistemPrompt += `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
 
 KESİN KURALLAR:
-1) SADECE aşağıdaki web verisinde yazanları kullan
-2) Web verisinde olmayan bilgiyi ASLA söyleme - "bu konuda güvenilir kaynak bulunamadı" de
-3) Emin olmadığın şeyi tahmin etme
-4) Discord formatı: **kalın**
-5) Kısa ve net cevap ver`;
+1) SADECE aşağıdaki web verisinde yazanları kullan.
+2) Web verisinde olmayan bilgiyi ASLA söyleme.
+3) Emin olmadığın şeyi tahmin etme veya uydurma.
+4) Kısa ve net cevap ver.`;
     } else if (plan.arama_gerekli && !aramaBasarili) {
-        // ❌ Arama gerekli ama başarısız oldu
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
+        sistemPrompt += `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
 
-KESİN KURALLAR:
-1) Web araması başarısız oldu veya rate limit aşıldı
-2) Bu durumda SADECE şunu söyle: "Şu anda güncel bilgiye ulaşamıyorum, birazdan tekrar dene."
-3) Başka hiçbir şey ekleme, tahmin yapma, uydurma`;
+KESİN KURALLAR - BUNLARA MUTLAKA UY:
+1) Web araması başarısız oldu veya yeterli güvenilir bilgi bulunamadı.
+2) SADECE şu tarz cevap ver: 
+   "HOST diye bilinen popüler bir müzik grubu bulamadım. Belki isim yanlış yazılmış olabilir, başka detay verir misin?"
+3) ASLA şarkı adı, kişi adı, kurucu gibi bilgi uydurma.
+4) Tahmin yapma. Cevap 1-2 cümleyi geçmesin.`;
     } else {
-        // Genel sohbet - arama gerekmez
-        sistemPrompt = `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
+        sistemPrompt += `Sen Awe adında Discord botusun. Geliştiricin Batuhan. Bugün: ${tarih}.
 KURALLAR: 1) Samimi ve kısa konuş. 2) SADECE Türkçe. 3) Siyasi yorum yapma.`;
     }
 
@@ -176,7 +171,11 @@ KURALLAR: 1) Samimi ve kısa konuş. 2) SADECE Türkçe. 3) Siyasi yorum yapma.`
             { role: "system", content: sistemPrompt },
             { role: "user",   content: kullaniciPrompt }
         ],
-        { model: MODEL_SMART, temperature: 0.3, max_tokens: 1200 }  // Düşük temperature = daha az yaratıcı/uydurma
+        { 
+            model: MODEL_SMART, 
+            temperature: (plan.arama_gerekli && aramaBasarili) ? 0.2 : 0.3, 
+            max_tokens: 1200 
+        }
     );
 
     const yeni = [...gecmis, { user: soru, bot: cevap }];
@@ -240,7 +239,7 @@ client.on("messageCreate", async msg => {
     }
 });
 
-client.once("clientReady", c => {
+client.once("ready", c => {
     console.log(`✅ ${c.user.tag} aktif — Model: ${MODEL_SMART}`);
     console.log(`🕒 ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`);
     console.log(`👤 Geliştirici: Batuhan | Bot: Awe`);
