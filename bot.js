@@ -14,6 +14,11 @@ const TAVILY_API_KEY = process.env.tavily || "tvly-dev-34i6LS-2XqYgX9UFTDPogXmX6
 const MODEL_FAST  = "llama-3.1-8b-instant";
 const MODEL_SMART = "llama-3.3-70b-versatile";
 
+/* ====== GROQ RATE LIMIT YÖNETİMİ ====== */
+// 429 gelince Retry-After başlığına göre bekle, sonra tekrar dene
+const GROQ_MAX_RETRY = 4;
+const GROQ_RETRY_BASE = 5000; // ms — başlangıç bekleme (header yoksa)
+
 /* ====== HAFIZA ====== */
 const memory    = new Map();
 const MAX_HISTORY = 5;
@@ -125,66 +130,92 @@ function kufurVarMi(metin) {
     return KUFURLER.some(w => k.includes(w));
 }
 
-/* ====== GROQ ÇAĞRISI ====== */
-async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_tokens = 1500 } = {}) {
-    const res = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        { model, messages, temperature, max_tokens },
-        { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" }, timeout: 30000 }
-    );
-    return res.data.choices[0].message.content.trim();
-}
-
-/* ====== ADIM 1: AKILLI ARAMA PLANI ====== */
-async function planHazirla(soru) {
-    const prompt = `Kullanıcının sorusunu analiz et. Kullanıcının GERÇEKTE ne öğrenmek istediğini anla ve buna göre tek, isabetli bir web arama sorgusu üret.
-
-ARAMA GEREKSİZ (arama_gerekli: false) — YALNIZCA BUNLAR:
-- Selamlaşma: "merhaba", "selam", "naber", "nasılsın"
-- Sohbet: "ne yapıyorsun", "kim yarattı seni"
-- Yaratıcı: "şiir yaz", "fıkra anlat", "hikaye anlat"
-- Basit matematik: "2+2", "100'ün karekökü"
-
-DİĞER HER ŞEY için arama_gerekli: true. Emin olamıyorsan TRUE seç.
-
-SORGU ÜRETME KURALLARI:
-- Kullanıcının asıl amacını çıkar: "Gece Yarısı Çöküşü şarkıları" → "Gece Yarısı Çöküşü" bir şarkıcı/grup olabilir
-- Özel isimler, grup adları, marka adlarını AYNEN kullan, çevirme
-- Türkçe soru → İngilizce sorgu (İngilizce kaynaklar daha zengin); güncel Türkiye haberleri → Türkçe
-- Müzik: "ArtistName discography top songs" 
-- Kişi: "PersonName career biography"
-- Güncel haber: Türkçe + tarih ekle
-- 4-7 kelime ideal, çok genel veya çok uzun olmasın
-
-Sadece JSON döndür, başka hiçbir şey yazma:
-{
-  "tip": "guncel_haber | bilgi_sorgusu | muzik | kisi | hesaplama | genel_sohbet",
-  "arama_gerekli": true | false,
-  "sorgular": ["en isabetli tek sorgu"],
-  "kullanici_amaci": "kısa açıklama"
-}
-
-SORU: ${soru}`;
-
-    try {
-        const raw = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0.1, max_tokens: 200 });
-        const json = raw.match(/\{[\s\S]*\}/)?.[0];
-        if (json) {
-            const parsed = JSON.parse(json);
-            console.log(`🧠 Plan: tip=${parsed.tip} | arama=${parsed.arama_gerekli} | sorgu="${parsed.sorgular?.[0]}" | amaç="${parsed.kullanici_amaci}"`);
-            return parsed;
+/* ====== GROQ ÇAĞRISI (retry + 429 koruması) ====== */
+async function groq(messages, { model = MODEL_SMART, temperature = 0.6, max_tokens = 1200 } = {}) {
+    for (let deneme = 1; deneme <= GROQ_MAX_RETRY; deneme++) {
+        try {
+            const res = await axios.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                { model, messages, temperature, max_tokens },
+                { headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" }, timeout: 30000 }
+            );
+            return res.data.choices[0].message.content.trim();
+        } catch (e) {
+            const status = e.response?.status;
+            if (status === 429) {
+                const retryAfter = (parseInt(e.response?.headers?.["retry-after"] || "0") * 1000)
+                    || (GROQ_RETRY_BASE * deneme);
+                console.log(`⏳ Groq 429 — ${Math.ceil(retryAfter/1000)}sn bekleniyor (deneme ${deneme}/${GROQ_MAX_RETRY})`);
+                await new Promise(r => setTimeout(r, retryAfter));
+            } else if (status === 503 || status === 502) {
+                const bekle = GROQ_RETRY_BASE * deneme;
+                console.log(`⚠️ Groq ${status} — ${Math.ceil(bekle/1000)}sn sonra tekrar (deneme ${deneme})`);
+                await new Promise(r => setTimeout(r, bekle));
+            } else {
+                throw e;
+            }
+            if (deneme === GROQ_MAX_RETRY) throw new Error(`Groq ${GROQ_MAX_RETRY} denemede yanıt vermedi`);
         }
-    } catch (e) {
-        console.log(`⚠️ Plan hatası: ${e.message}`);
     }
-    return { tip: "bilgi_sorgusu", arama_gerekli: true, sorgular: [soru], kullanici_amaci: soru };
+}
+
+/* ====== ADIM 1: KURAL TABANLI ARAMA PLANI (Groq çağrısı YOK) ====== */
+// Groq'u yormamak için arama kararını ve sorguyu kural+regex ile veriyoruz.
+// Groq sadece TEK çağrı: nihai cevap üretimi.
+
+const SOHBET_PATTERN = /^(merhaba|selam|naber|nasılsın|ne yapıyorsun|iyi misin|hey|hi|hello|kim (yarattı|yaptı)|kim (geliştirdi)|kim (kodladı))/i;
+const YARATICI_PATTERN = /^(şiir yaz|fıkra anlat|hikaye anlat|bir şiir|bir fıkra|bir hikaye|bana şiir|bana fıkra)/i;
+const MATEMATIK_PATTERN = /^[\d\s\+\-\*\/\(\)\.]+[=?]?\s*$/;
+
+// Türkçe karakterleri normalize et
+function normalize(s) {
+    return s.toLowerCase()
+        .replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s")
+        .replace(/ı/g,"i").replace(/ö/g,"o").replace(/ç/g,"c");
+}
+
+// Sorudan akıllı Tavily sorgusu üret — Groq kullanmadan
+function sorguUret(soru) {
+    const s = soru.trim();
+    const sn = normalize(s);
+
+    // Müzik / şarkı
+    if (/şark|albüm|müzik|dinle|parça|playlist|çalar|grup|sanatç/i.test(s))
+        return { sorgu: s.replace(/şarkıları|müzikleri|albümleri/gi, "").trim() + " songs discography", tip: "muzik" };
+
+    // Güncel haber / son dakika
+    if (/haber|son dakika|bugün|dün|gündem|gelişme/i.test(s))
+        return { sorgu: s, tip: "guncel_haber" };
+
+    // Kişi / biyografi
+    if (/kim(dir)?|hayatı|biyografi|doğum|öldü mü|yaşıyor mu/i.test(s))
+        return { sorgu: s.replace(/kim(dir)?|hakkında/gi, "").trim() + " biography", tip: "kisi" };
+
+    // Fiyat / kripto / borsa
+    if (/fiyat|kaç para|dolar|euro|btc|bitcoin|ethereum|borsa|döviz/i.test(s))
+        return { sorgu: s + " price today", tip: "guncel_haber" };
+
+    // Genel — İngilizce'ye çevirme, doğrudan kullan
+    return { sorgu: s, tip: "bilgi_sorgusu" };
+}
+
+function planHazirla(soru) {
+    const s = soru.trim();
+
+    // Arama gereksiz mi? — sadece kural tabanlı
+    if (SOHBET_PATTERN.test(normalize(s)) || YARATICI_PATTERN.test(normalize(s)) || MATEMATIK_PATTERN.test(s))
+        return { arama_gerekli: false, tip: "genel_sohbet", sorgular: [], kullanici_amaci: s };
+
+    const { sorgu, tip } = sorguUret(s);
+    console.log(`🧠 Plan (kural): tip=${tip} | sorgu="${sorgu}"`);
+    return { arama_gerekli: true, tip, sorgular: [sorgu], kullanici_amaci: s };
 }
 
 /* ====== ADIM 3: CEVAP ÜRET ====== */
 async function cevapUret(userId, soru) {
     const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
-    const plan = await planHazirla(soru);
+    const plan = planHazirla(soru);
 
     let webVerisi = "";
     if (plan.arama_gerekli) {
