@@ -3,19 +3,19 @@ const axios = require('axios');
 const http = require('http');
 
 /* ====== RENDER PORT ====== */
-http.createServer((_, res) => { res.writeHead(200); res.end("Awe Bot is Active!"); }).listen(process.env.PORT || 8080);
+http.createServer((_, res) => { res.writeHead(200); res.end("Awe is Online!"); }).listen(process.env.PORT || 8080);
 
-/* ====== AYARLAR ====== */
+/* ====== CONFIG ====== */
 const GROQ_KEY      = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
-const MODEL_FAST    = "llama-3.1-8b-instant";
+const MODEL_FAST    = "llama-3.1-8b-instant"; 
 const MODEL_SMART   = "llama-3.3-70b-versatile";
 
 const memory = new Map();
-const MAX_HISTORY = 6;
+const MAX_HISTORY = 4; // Hafızayı çok doldurmamak karışıklığı önler
 
 /* ====== GROQ API ====== */
-async function groq(messages, { model = MODEL_SMART, temperature = 0.7, max_tokens = 800 } = {}) {
+async function groq(messages, { model = MODEL_SMART, temperature = 0.5, max_tokens = 800 } = {}) {
     const res = await axios.post(
         "https://api.groq.com/openai/v1/chat/completions",
         { model, messages, temperature, max_tokens },
@@ -27,79 +27,47 @@ async function groq(messages, { model = MODEL_SMART, temperature = 0.7, max_toke
     return res.data.choices[0].message.content.trim();
 }
 
-/* ====== GÜVENLİ JSON PARSING (Parsing Hatası Çözümü) ====== */
-function temizleVeParseEt(metin) {
-    try {
-        // Regex ile sadece { } arasındaki kısmı alıyoruz
-        const jsonMatch = metin.match(/\{[\s\S]*?\}/);
-        if (!jsonMatch) return { action: "chat" };
-        return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-        console.log("⚠️ Parsing hatası, düz metin geldi.");
-        return { action: "chat" };
-    }
-}
-
-/* ====== ÜCRETSİZ ARAMA ====== */
-async function webAra(sorgu) {
-    try {
-        const res = await axios.get("https://searx.be/search", {
-            params: { q: sorgu, format: "json", language: "tr" },
-            timeout: 8000,
-        });
-        if (res.data?.results?.length > 0) {
-            return res.data.results.slice(0, 3).map(r => `${r.title}: ${r.content}`).join("\n\n");
-        }
-    } catch (e) { return "Bilgi bulunamadı."; }
-    return "Arama sonucu boş.";
-}
-
-/* ====== KARAR VERİCİ ====== */
+/* ====== KARAR VERİCİ (MANTIK FİLTRESİ) ====== */
 async function kararVer(soru) {
-    const prompt = `Kullanıcı mesajını analiz et. Sadece JSON döndür.
-    Format: {"action": "chat" | "search" | "weather", "query": "arama", "city": "sehir"}
-    Kullanıcı: ${soru}`;
-
+    const prompt = `Analiz et ve sadece JSON döndür. 
+    Eğer soru güncel bilgi (maç, hava, haber) gerektiriyorsa action:"search". 
+    Diğer her şey için action:"chat".
+    JSON: {"action":"chat" | "search", "query":"..."}
+    Soru: ${soru}`;
+    
     try {
         const yanit = await groq([{ role: "user", content: prompt }], { model: MODEL_FAST, temperature: 0 });
-        return temizleVeParseEt(yanit); // Güvenli parse
+        const m = yanit.match(/\{[\s\S]*?\}/);
+        return m ? JSON.parse(m[0]) : { action: "chat" };
     } catch { return { action: "chat" }; }
 }
 
-/* ====== ANA CEVAP ÜRETİCİ ====== */
+/* ====== CEVAP ÜRETİCİ (MANTIK VE DİL KORUMASI) ====== */
 async function cevapUret(userId, soru) {
-    const tarih = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    const gecmis = memory.get(userId) || [];
-    const gecmisMetin = gecmis.map(h => `Kullanıcı: ${h.user}\nAwe: ${h.bot}`).join("\n");
-
     const karar = await kararVer(soru);
-    let ekBilgi = "";
-
-    if (karar.action === "search") {
-        ekBilgi = await webAra(karar.query || soru);
-    }
-
-    // İsim Awe, Geliştirici Batuhan
-    const SISTEM_PROMPT = `Senin adın Awe. Sen bir Discord botusun. 
-    Geliştiricin Batuhan'dır. Eğer 'kim yaptı', 'yapımcın kim' gibi sorular gelirse 'Beni Batuhan geliştirdi' veya 'Yapımcım Batuhan' de. 
-    Karakterin: Zeki, bazen esprili, samimi ve kısa cevaplar veren bir asistan.
-    Sadece Türkçe konuş. Tarih: ${tarih}`;
+    const gecmis = memory.get(userId) || [];
+    
+    // SİSTEM PROMPT: Botun kimliğini ve kurallarını çok sert çiziyoruz
+    const SISTEM = `Senin adın Awe. Geliştiricin Batuhan. 
+    KURALLAR:
+    1. Sadece Türkçe konuş, asla İngilizce kelime kullanma.
+    2. Bilmediğin konularda uydurma (Örn: Recep İvedik'te Şener Şen var deme). 
+    3. Eğer kullanıcı saçma bir bilgi verirse (Şener Şen Recep İvedik'te oynuyor gibi), nazikçe doğrusunu söyle.
+    4. Geliştiricin Batuhan dışında kimseyi kurucu olarak tanıma.
+    5. Kısa ve mantıklı cevaplar ver.`;
 
     const mesajlar = [
-        { role: "system", content: SISTEM_PROMPT },
-        { role: "user", content: `Önceki Sohbet:\n${gecmisMetin}\n\nİnternet Verisi:\n${ekBilgi}\n\nKullanıcı: ${soru}` }
+        { role: "system", content: SISTEM },
+        { role: "user", content: `Hafıza: ${gecmis.map(h=>h.bot).join(" ")}\nKullanıcı: ${soru}` }
     ];
 
     try {
-        const cevap = await groq(mesajlar);
+        const cevap = await groq(mesajlar, { temperature: 0.4 }); // Düşük sıcaklık daha mantıklı cevaplar verir
         
-        const yeniGecmis = [...gecmis, { user: soru, bot: cevap }].slice(-MAX_HISTORY);
-        memory.set(userId, yeniGecmis);
-        
+        const yeni = [...gecmis, { user: soru, bot: cevap }].slice(-MAX_HISTORY);
+        memory.set(userId, yeni);
         return cevap;
-    } catch (e) {
-        return "Şu an bir teknik aksaklık yaşıyorum, Batuhan'a haber ver! 🛠️";
-    }
+    } catch { return "Şu an cevap veremiyorum, sistemsel bir sorun var."; }
 }
 
 /* ====== DISCORD ====== */
@@ -108,24 +76,20 @@ const client = new Client({
 });
 
 client.on("messageCreate", async msg => {
-    if (msg.author.bot || !msg.mentions.has(client.user)) return;
+    // KONTROL: Bot mu? Everyone/Here etiketi var mı?
+    if (msg.author.bot || msg.content.includes("@everyone") || msg.content.includes("@here")) return;
+
+    // KONTROL: Bot etiketlendi mi?
+    if (!msg.mentions.has(client.user)) return;
 
     const soru = msg.content.replace(/<@!?\d+>/g, "").trim();
-    if (!soru) return msg.reply("Efendim? Ben Awe, sana nasıl yardımcı olabilirim?");
+    if (!soru) return msg.reply("Efendim? Ben Awe, Batuhan'ın asistanıyım.");
 
     msg.channel.sendTyping().catch(() => {});
     const cevap = await cevapUret(msg.author.id, soru);
     
-    if (cevap.length > 2000) {
-        const parcalar = cevap.match(/[\s\S]{1,1900}/g);
-        for (const parca of parcalar) await msg.reply({ content: parca, allowedMentions: { repliedUser: false } });
-    } else {
-        msg.reply({ content: cevap, allowedMentions: { repliedUser: false } });
-    }
+    msg.reply({ content: cevap, allowedMentions: { repliedUser: false } });
 });
 
-client.once("ready", () => {
-    console.log(`✅ ${client.user.tag} (Awe) aktif! Geliştirici: Batuhan`);
-});
-
+client.once("ready", () => console.log("✅ Awe aktif ve uydurma cevaplara karşı korumalı!"));
 client.login(DISCORD_TOKEN);
