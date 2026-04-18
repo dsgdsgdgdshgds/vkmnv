@@ -73,20 +73,32 @@ SORU: ${soru}`;
 }
 
 /* ====== ADIM 2: TAVİLY WEB ARAMA ====== */
+// Son istek zamanı — rate limit koruma
+let sonIstekZamani = 0;
+
 async function tavilyAra(sorgular) {
-    // Tek istek — dev plan rate limit aşmamak için
     const sorgu = Array.isArray(sorgular) ? sorgular[0] : sorgular;
     console.log(`🔍 Arama: ${sorgu}`);
+
+    // Devplan: dakikada 1 istek — gerekirse bekle
+    const simdi = Date.now();
+    const gecen = simdi - sonIstekZamani;
+    if (gecen < 62000 && sonIstekZamani > 0) {
+        const bekle = 62000 - gecen;
+        console.log(`⏳ Rate limit: ${Math.ceil(bekle/1000)}sn bekleniyor...`);
+        await new Promise(r => setTimeout(r, bekle));
+    }
+
     try {
+        sonIstekZamani = Date.now();
         const res = await axios.post(
             "https://api.tavily.com/search",
             {
                 api_key: TAVILY_API_KEY,
                 query: sorgu,
-                search_depth: "advanced",
+                search_depth: "basic",
                 max_results: 10,
-                include_answer: true,
-                include_raw_content: true
+                include_answer: true
             },
             { timeout: 20000 }
         );
@@ -94,9 +106,8 @@ async function tavilyAra(sorgular) {
         const sonuclar = [];
         if (d.answer) sonuclar.push(`Özet: ${d.answer}`);
         (d.results || []).forEach(r => {
-            const icerik = r.raw_content || r.content || "";
-            if (icerik.trim().length > 30)
-                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]:\n${icerik.slice(0, 1000)}`);
+            if (r.content?.trim().length > 30)
+                sonuclar.push(`[${r.title || "Kaynak"} — ${r.url}]:\n${r.content.slice(0, 800)}`);
         });
         console.log(`✅ Tavily: ${sonuclar.length} kaynak`);
         return sonuclar.join("\n\n");
