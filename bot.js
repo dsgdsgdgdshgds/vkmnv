@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -32,159 +32,133 @@ function simdi() {
    GROQ - ANA BEYİN
    ══════════════════════════════════════════════════════ */
 async function groqCall(messages, model = SMART, max_tokens = 2000, temperature = 0.5) {
-  const r = await axios.post(
-    'https://api.groq.com/openai/v1/chat/completions',
-    { model, messages, temperature, max_tokens },
-    {
-      headers: {
-        Authorization: `Bearer ${GROQ_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  );
-  return r.data.choices[0].message.content.trim();
+  try {
+    const r = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      { model, messages, temperature, max_tokens },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      }
+    );
+    return r.data.choices[0].message.content.trim();
+  } catch (e) {
+    console.error("Groq Hatası:", e.message);
+    return "Üzgünüm, şu an cevap veremiyorum.";
+  }
 }
 
 /* ══════════════════════════════════════════════════════
-   🧠 AKILLI KARAR VE WEB GEZGİNİ
+   🧠 HİBRİT ZEKA: SOHBET Mİ? ARAŞTIRMA MI?
    ══════════════════════════════════════════════════════ */
 
-async function akilliWebGezgini(soru) {
-  // 1. ADIM: Niyet Analizi - İnternet araması şart mı?
-  const niyetAnalizi = await groqCall([
+async function akilliCevapSistemi(soru, gecmis = []) {
+  // 1. ADIM: Niyet Analizi (Hızlı Model ile)
+  // Modele çok sert bir talimat veriyoruz ki basit soruları internete taşımasın.
+  const analiz = await groqCall([
     {
       role: 'system',
-      content: `Sen bir karar mekanizmasısın. Kullanıcının sorusunu analiz et. 
-      Sadece şu durumlarda "internet": true döndür: Güncel haberler, hava durumu, döviz/borsa, yeni çıkan ürünler veya spesifik teknik araştırma gerektiren konular.
-      Sıradan sohbet, felsefe, genel kültür veya kişisel sorular için "internet": false döndür.
+      content: `Görevin kullanıcının sorusunu 'sohbet' mi yoksa 'arama' mı olarak ayırmak.
+      
+      - SOHBET: Selamlaşma, nasılsın, şaka yap, felsefi sorular, genel tanımlar, tavsiye isteme, senin hakkında sorular.
+      - ARAMA: Güncel haberler, bugünkü hava durumu/borsa, yeni çıkan bir ürün, dün olan bir maç, belirli bir tarihli olay.
 
-      ÖNEMLİ: Cevabın araya yabancı kelime sokmadan SADECE saf bir JSON objesi olmalı.
+      JSON FORMATINDA CEVAP VER:
       {
-        "internet": true/false,
-        "niyet": "hava_durumu | haber | sohbet | bilgi | teknoloji | genel",
-        "arama_sorgusu": "aranacak cümle",
-        "anahtar_kelimeler": ["k1", "k2"]
+        "karar": "sohbet" veya "arama",
+        "sebep": "neden bu karar verildi",
+        "arama_terimi": "eğer arama ise Google'a yazılacak kısa öz cümle"
       }`
     },
     { role: 'user', content: soru }
-  ], FAST, 300, 0.2);
+  ], FAST, 200, 0.1);
 
-  let strateji;
+  let kararVerici;
   try {
-    const match = niyetAnalizi.match(/\{[\s\S]*\}/);
-    strateji = match ? JSON.parse(match[0]) : { internet: true };
+    const match = analiz.match(/\{[\s\S]*\}/);
+    kararVerici = match ? JSON.parse(match[0]) : { karar: "sohbet" };
   } catch (e) {
-    strateji = { internet: true }; 
+    kararVerici = { karar: "sohbet" };
   }
 
-  // --- KISA DEVRE: Sohbet sorusu ise internete gitme ---
-  if (strateji.internet === false) {
-    console.log('💬 Sohbet sorusu algılandı, direkt cevaplanıyor.');
+  // --- DURUM A: SADECE SOHBET ---
+  if (kararVerici.karar === "sohbet") {
+    console.log("💬 Sadece sohbet ediliyor...");
     return {
       cevap: await groqCall([
-        { role: 'system', content: "Sen samimi bir asistansın. Geliştiricin Batuhan. Web araması yapmadan, araya yabancı kelime sokmadan, tamamen Türkçe ve doğal bir cevap ver." },
+        { role: 'system', content: "Sen samimi, zeki bir asistansın. Geliştiricin Batuhan. Web araması yapmadan, kendi bilgilerinle, Türkçe ve doğal bir şekilde cevap ver. Asla yabancı kelime karıştırma." },
+        ...gecmis,
         { role: 'user', content: soru }
       ], SMART, 1000, 0.7),
       kaynaklar: []
     };
   }
 
-  // 2. ADIM: İnternet Gerekliyse Arama Yap
-  console.log('🔍 İnternet araştırması başlatıldı:', strateji.arama_sorgusu);
-  const aramaSonuclari = await googleArama(strateji.arama_sorgusu || soru);
-  const siteIcerikleri = await siteZiyaretcisi(aramaSonuclari, strateji, soru);
-  const cevap = await bilgiBirlestirici(soru, siteIcerikleri);
+  // --- DURUM B: GÜNCEL BİLGİ GEREKİYOR (İNTERNET) ---
+  console.log("🔍 Güncel bilgi aranıyor:", kararVerici.arama_terimi);
+  const aramaSonuclari = await googleArama(kararVerici.arama_terimi || soru);
+  const siteIcerikleri = await siteZiyaretcisi(aramaSonuclari);
+  
+  const kaynakMetni = siteIcerikleri.map((s, i) => `[KAYNAK ${i+1}]: ${s.metin}`).join('\n\n');
+  
+  const finalCevap = await groqCall([
+    { role: 'system', content: `Sen bir araştırma asistanısın. Şu anki tarih: ${simdi()}. Aşağıdaki internet verilerini kullanarak soruyu cevapla. Türkçe konuş, yabancı kelime kullanma, link verme. Geliştiricin Batuhan.` },
+    { role: 'user', content: `Web Verileri:\n${kaynakMetni}\n\nSoru: ${soru}` }
+  ], SMART, 1500, 0.3);
 
   return {
-    cevap,
+    cevap: finalCevap,
     kaynaklar: siteIcerikleri.map(s => s.url)
   };
 }
 
 /* ──────────────────────────────────────────────────────
-   Google Arama (HTML scraping)
+   YARDIMCI FONKSİYONLAR (Arama & Tarama)
    ────────────────────────────────────────────────────── */
+
 async function googleArama(sorgu) {
   try {
     const { data } = await axios.get('https://www.google.com/search', {
-      params: { q: sorgu, hl: 'tr', num: 8 },
+      params: { q: sorgu, hl: 'tr' },
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 10000
     });
-
     const $ = cheerio.load(data);
     const sonuclar = [];
-    $('a').each((i, elem) => {
-      const href = $(elem).attr('href');
-      if (href && href.startsWith('/url?q=')) {
+    $('a').each((i, el) => {
+      const href = $(el).attr('href');
+      if (href?.startsWith('/url?q=')) {
         const url = href.replace('/url?q=', '').split('&')[0];
         if (url.startsWith('http') && !url.includes('google.com')) {
-          const baslik = $(elem).find('h3').text().trim();
+          const baslik = $(el).find('h3').text().trim();
           if (baslik) sonuclar.push({ url, baslik });
         }
       }
     });
-    return sonuclar;
-  } catch (e) {
-    return [];
-  }
+    return sonuclar.slice(0, 5);
+  } catch (e) { return []; }
 }
 
-/* ──────────────────────────────────────────────────────
-   Site Ziyaretçisi ve Bilgi Birleştirici
-   ────────────────────────────────────────────────────── */
-async function siteZiyaretcisi(linkler, strateji, soru) {
-  const icerikler = [];
-  const ziyaretEdilecekler = linkler.slice(0, 3);
-
-  for (const link of ziyaretEdilecekler) {
+async function siteZiyaretcisi(linkler) {
+  const sonuclar = [];
+  for (const link of linkler.slice(0, 2)) { // Hız için ilk 2 site yeterli
     try {
-      const { data } = await axios.get(link.url, { timeout: 6000 });
+      const { data } = await axios.get(link.url, { timeout: 5000 });
       const $ = cheerio.load(data);
-      let metin = $('p, h1, h2').text().substring(0, 2500).replace(/\s+/g, ' ').trim();
-      if (metin.length > 100) icerikler.push({ url: link.url, metin });
+      const metin = $('p').text().substring(0, 2000).replace(/\s+/g, ' ').trim();
+      if (metin.length > 100) sonuclar.push({ url: link.url, metin });
     } catch (e) { continue; }
   }
-  return icerikler;
-}
-
-async function bilgiBirlestirici(soru, icerikler) {
-  const kaynakMetni = icerikler.map((s, i) => `[KAYNAK ${i+1}]: ${s.metin}`).join('\n\n');
-  const prompt = `Tarih: ${simdi()}\nSoru: ${soru}\n\nWeb Verileri:\n${kaynakMetni}\n\nAnaliz et ve Türkçe cevapla. Araya yabancı kelime sokma. Kaynak linki verme. Geliştiricin Batuhan'dır.`;
-
-  return await groqCall([
-    { role: 'system', content: "Sen bir araştırma asistanısın. Web verilerini kullanarak doğal Türkçe ile cevap verirsin." },
-    { role: 'user', content: prompt }
-  ], SMART, 1500, 0.4);
+  return sonuclar;
 }
 
 /* ══════════════════════════════════════════════════════
-   🎬 VİDEO OLUŞTURMA VE GÖRSEL OKUMA (Önceki Fonksiyonlar)
+   🤖 DISCORD BOT BAŞLANGIÇ
    ══════════════════════════════════════════════════════ */
-async function gorselOku(url, soru) {
-  try {
-    const img = await axios.get(url, { responseType: 'arraybuffer' });
-    const b64 = Buffer.from(img.data).toString('base64');
-    return await groqCall([{
-      role: 'user',
-      content: [
-        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
-        { type: 'text', text: soru || 'Bu görseli Türkçe açıkla.' }
-      ]
-    }], VISION, 800, 0.5);
-  } catch (e) { return "Görsel okunamadı."; }
-}
 
-function videoOlustur(metin, dosya) {
-  // (Önceki AVI oluşturma mantığı buraya gelir, kod kalabalığı olmasın diye kısalttım)
-  const riff = Buffer.from("RIFF..."); // Gerçek fonksiyon yukarıdaki orijinal kodda mevcut
-  fs.writeFileSync(dosya, riff);
-}
-
-/* ══════════════════════════════════════════════════════
-   🤖 DISCORD BOT MANTIĞI
-   ══════════════════════════════════════════════════════ */
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
@@ -193,34 +167,37 @@ client.on('messageCreate', async msg => {
   if (msg.author.bot || msg.mentions.everyone || !msg.mentions.has(client.user)) return;
 
   const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
-  const ekler = [...msg.attachments.values()];
+  if (!soru) return msg.reply("Seni dinliyorum?");
 
-  // "Eşit rol" oylama kuralı (İdamı engelleme)
-  if (soru.toLowerCase().includes("oylama") && (soru.includes("eşit") || soru.includes("berabere"))) {
-    return msg.reply("Oylamada eşitlik var, kimse idam edilmedi. Durum berabere!");
+  // Özel Durum: Oylama Eşitliği
+  if (soru.includes("eşit") && soru.includes("oylama")) {
+    return msg.reply("Beraberlik var! Kimse idam edilmedi, herkes hayatta.");
   }
 
   await msg.channel.sendTyping();
 
+  // Hafıza Yönetimi
+  if (!mem.has(msg.channel.id)) mem.set(msg.channel.id, []);
+  const gecmis = mem.get(msg.channel.id);
+
   try {
-    let cevap;
-    if (ekler.length > 0) {
-      const gorsel = ekler.find(a => a.contentType?.startsWith('image'));
-      cevap = gorsel ? await gorselOku(gorsel.url, soru) : "Bu dosyayı analiz edemiyorum.";
+    const sonuc = await akilliCevapSistemi(soru, gecmis);
+    
+    // Hafızayı güncelle
+    gecmis.push({ role: 'user', content: soru });
+    gecmis.push({ role: 'assistant', content: sonuc.cevap });
+    if (gecmis.length > MAX) gecmis.splice(0, 2);
+
+    // Mesaj gönder (2000 karakter sınırı kontrolü)
+    if (sonuc.cevap.length > 1900) {
+      const parts = sonuc.cevap.match(/[\s\S]{1,1900}/g) || [];
+      for (const p of parts) await msg.channel.send(p);
     } else {
-      const sonuc = await akilliWebGezgini(soru);
-      cevap = sonuc.cevap;
+      await msg.reply(sonuc.cevap);
     }
 
-    // Uzun mesaj bölme ve cevaplama
-    if (cevap.length > 1900) {
-      const parcalar = cevap.match(/[\s\S]{1,1900}/g) || [];
-      for (const p of parcalar) await msg.channel.send(p);
-    } else {
-      await msg.reply(cevap);
-    }
-  } catch (e) {
-    await msg.reply('⚠️ Bir sorun oluştu.');
+  } catch (err) {
+    msg.reply("Şu an bağlantı kuramadım, tekrar dener misin?");
   }
 });
 
