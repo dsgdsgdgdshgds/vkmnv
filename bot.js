@@ -14,7 +14,7 @@ http.createServer((_, r) => {
 /* ── CONFIG ──────────────────────────────────────────── */
 const GROQ_KEY = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
-const FAST = 'llama-3.1-8b-instant';
+const FAST = 'llama-3.3-70b-versatile';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
 const TMP = '/tmp/bb';
