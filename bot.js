@@ -13,20 +13,21 @@ http.createServer((_, r) => {
 const GROQ_KEY = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
 const SMART = 'llama-3.3-70b-versatile';
-const VISION = 'llama-3.3-70b-versatile';
+const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
 
 /* ── HAFIZA ── */
 const mem = new Map();
-const MAX_PAIRS = 6; // user+assistant çifti
+const MAX_MESAJ = 10; // Kaç mesaj tutulsun (user+assistant toplam)
 
 /* ══════════════════════════════════════════════════════
    GROQ API
+   - 429 veya sunucu hatası gelince 3 kez retry yapar
    ══════════════════════════════════════════════════════ */
-async function groqCall(messages, model = SMART, max_tokens = 2000, temperature = 0.5) {
+async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0) {
   try {
     const r = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
-      { model, messages, temperature, max_tokens },
+      { model: SMART, messages, temperature, max_tokens },
       {
         headers: {
           Authorization: `Bearer ${GROQ_KEY}`,
@@ -37,27 +38,40 @@ async function groqCall(messages, model = SMART, max_tokens = 2000, temperature 
     );
     return r.data.choices[0].message.content.trim();
   } catch (e) {
-    console.error('Groq Hatası:', e.response?.data || e.message);
-    return 'API hatası oluştu.';
+    const status = e.response?.status;
+    console.error(`Groq Hatası (deneme ${deneme + 1}):`, e.response?.data || e.message);
+
+    if ((status === 429 || status >= 500) && deneme < 10) {
+      const bekle = (deneme + 1) * 4000; // 4s, 8s, 12s
+      console.log(`${bekle / 1000}s bekleniyor...`);
+      await new Promise(res => setTimeout(res, bekle));
+      return groqCall(messages, max_tokens, temperature, deneme + 1);
+    }
+
+    return null;
   }
 }
 
 /* ══════════════════════════════════════════════════════
-   HAFIZA YÖNETİMİ — user+assistant çiftleri dengeli
+   NİYET ANALİZİ — Groq token harcamadan regex ile
    ══════════════════════════════════════════════════════ */
-function hafizayaEkle(userId, role, content) {
-  if (!mem.has(userId)) mem.set(userId, []);
-  const gecmis = mem.get(userId);
-  gecmis.push({ role, content });
-  while (gecmis.length > MAX_PAIRS * 2) gecmis.splice(0, 2);
-}
-
-function hafizaGetir(userId) {
-  return mem.get(userId) || [];
+function niyetBelirle(soru) {
+  const s = soru.toLowerCase();
+  const aramaKelimeler = [
+    'bugün', 'bu gün', 'şu an', 'şu anda', 'şimdi', 'son dakika', 'güncel',
+    'bu hafta', 'bu ay', 'bu yıl', 'dün', 'yarın',
+    'kaç lira', 'kaç tl', 'kaç dolar', 'fiyat', 'kur', 'döviz', 'dolar', 'euro',
+    'borsa', 'bitcoin', 'kripto', 'altın', 'faiz',
+    'haber', 'son haber', 'gelişme', 'deprem', 'seçim', 'maç', 'skor',
+    'kim kazandı', 'sonuç', 'fikstür', 'transfer',
+    'hava durumu', 'hava nasıl', 'yağmur', 'sıcaklık', 'derece',
+    'nerede', 'nasıl gidilir', 'açık mı', 'ne zaman', 'kaçta',
+  ];
+  return aramaKelimeler.some(k => s.includes(k)) ? 'ARAMA' : 'SOHBET';
 }
 
 /* ══════════════════════════════════════════════════════
-   GOOGLE ARAMA (çalışan versiyon)
+   GOOGLE ARAMA — çalışan versiyon (ikinci dosyadan)
    ══════════════════════════════════════════════════════ */
 async function googleArama(sorgu) {
   try {
@@ -89,8 +103,6 @@ async function googleArama(sorgu) {
     return sonuclar.slice(0, 8);
   } catch (e) {
     console.log('Google hatası, DuckDuckGo deneniyor:', e.message);
-
-    // Yedek: DuckDuckGo
     try {
       const { data } = await axios.post(
         'https://html.duckduckgo.com/html/',
@@ -130,26 +142,24 @@ async function siteZiyaretcisi(linkler, anahtar_kelimeler) {
       const { data } = await axios.get(link.url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'tr,en;q=0.9',
         },
-        timeout: 8000,
+        timeout: 6000,
         maxRedirects: 3,
       });
 
       const $ = cheerio.load(data);
+      $('script, style, nav, footer, header').remove();
       let metin = '';
 
-      $('p, h1, h2, h3, article, .content, .post-content, .entry-content, main').each((i, el) => {
+      $('p, h1, h2, h3, article, .content, .post-content, main').each((i, el) => {
         const text = $(el).text().trim();
         if (text.length > 50) metin += text + '\n';
       });
 
-      if (metin.length < 200) {
-        metin = $('body').text().replace(/\s+/g, ' ').trim();
-      }
+      if (metin.length < 200) metin = $('body').text().replace(/\s+/g, ' ').trim();
 
-      metin = metin.substring(0, 3000);
+      metin = metin.substring(0, 1200); // Token tasarrufu için kısa tut
 
       let alaka = 0;
       anahtar_kelimeler.forEach(k => {
@@ -157,12 +167,8 @@ async function siteZiyaretcisi(linkler, anahtar_kelimeler) {
         if (m) alaka += m.length;
       });
 
-      if (metin.length > 100) {
-        icerikler.push({ url: link.url, baslik: link.baslik, metin, alaka });
-      }
-    } catch (e) {
-      console.log(`Erişilemedi: ${link.url}`);
-    }
+      if (metin.length > 100) icerikler.push({ metin, alaka });
+    } catch { /* erişilemeyen siteyi atla */ }
   });
 
   await Promise.allSettled(promises);
@@ -171,123 +177,73 @@ async function siteZiyaretcisi(linkler, anahtar_kelimeler) {
 }
 
 /* ══════════════════════════════════════════════════════
-   BİLGİ BİRLEŞTİRİCİ
-   ══════════════════════════════════════════════════════ */
-async function bilgiBirlestirici(soru, icerikler) {
-  const kaynakMetni = icerikler
-    .map((s, i) => `[KAYNAK ${i + 1}: ${s.url}]\n${s.metin}`)
-    .join('\n---\n');
-
-  return await groqCall(
-    [
-      {
-        role: 'system',
-        content: 'Sen güncel web verilerini analiz eden akıllı bir asistansın. Geliştiricin Batuhan. Türkçe konuş, yabancı kelime kullanma.',
-      },
-      {
-        role: 'user',
-        content: `Soru: "${soru}"\n\nİnternetten Toplanan Bilgiler:\n${kaynakMetni || '(Veri çekilemedi, kendi bilginle yanıtla)'}`,
-      },
-    ],
-    SMART,
-    1500,
-    0.4
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   NİYET ANALİZİ — SOHBET mi ARAMA mı?
-   ══════════════════════════════════════════════════════ */
-async function niyetBelirle(soru) {
-  const cevap = await groqCall(
-    [
-      {
-        role: 'system',
-        content: `Kullanıcı mesajını analiz et ve sadece tek kelime yaz: "ARAMA" veya "SOHBET".
-
-ARAMA gereken durumlar:
-- Güncel haberler, son dakika gelişmeleri
-- Hava durumu
-- Döviz, kripto, borsa fiyatları
-- Güncel spor sonuçları, fikstür
-- Belirli bir kişi/şirket/ürün hakkında güncel bilgi
-- "şu an", "bugün", "son", "güncel", "kaç lira", "ne zaman", "kim kazandı" gibi ifadeler
-- Spesifik bir olay veya habere dair soru
-
-SOHBET gereken durumlar:
-- Selamlaşma, sohbet, şaka
-- Genel kültür, tanım, açıklama
-- Fikir sorma, öneri isteme
-- Matematik, mantık, yazma yardımı
-- Tarihsel bilgi (güncel değil)
-
-Sadece tek kelime yaz.`,
-      },
-      { role: 'user', content: soru },
-    ],
-    SMART,
-    10,
-    0.0
-  );
-
-  return cevap.trim().toUpperCase().includes('ARAMA') ? 'ARAMA' : 'SOHBET';
-}
-
-/* ══════════════════════════════════════════════════════
    ANA İŞLEYİCİ
    ══════════════════════════════════════════════════════ */
 async function anaIsleyici(soru, kullaniciId) {
-  const karar = await niyetBelirle(soru);
+  const karar = niyetBelirle(soru);
   console.log(`[${kullaniciId}] Karar: ${karar} | Soru: ${soru}`);
 
+  // ── ARAMA YOLU ──
   if (karar === 'ARAMA') {
-    // Anahtar kelimeler için soruyu böl
-    const anahtar_kelimeler = soru.split(' ').filter(k => k.length > 2).slice(0, 5);
-
     const linkler = await googleArama(soru);
-    let cevap;
 
     if (linkler.length === 0) {
-      // Arama tamamen başarısız → kendi bilgiyle cevapla
-      cevap = await groqCall([
-        { role: 'system', content: 'Sen yardımsever bir asistansın. Geliştiricin Batuhan. Türkçe konuş.' },
+      // Google/DDG çalışmadıysa kendi bilgiyle cevapla
+      return await groqCall([
+        { role: 'system', content: 'Sen yardımsever bir asistansın. Geliştiricin Batuhan. Türkçe konuş, yabancı kelime kullanma.' },
         { role: 'user', content: soru },
       ]);
-    } else {
-      const icerikler = await siteZiyaretcisi(linkler, anahtar_kelimeler);
-      cevap = await bilgiBirlestirici(soru, icerikler);
     }
 
-    hafizayaEkle(kullaniciId, 'user', soru);
-    hafizayaEkle(kullaniciId, 'assistant', cevap);
-    return cevap;
+    const anahtar = soru.split(' ').filter(k => k.length > 2).slice(0, 5);
+    const icerikler = await siteZiyaretcisi(linkler, anahtar);
+    const kaynakMetni = icerikler.map(s => s.metin).join('\n---\n');
+
+    const cevap = await groqCall([
+      {
+        role: 'system',
+        content: 'Sen yardımsever bir asistansın. Geliştiricin Batuhan. Verilen bilgileri kullanarak soruyu doğal Türkçe ile cevapla. Yabancı kelime ve kaynak/link belirtme.',
+      },
+      {
+        role: 'user',
+        content: `Soru: ${soru}\n\nBulunan Bilgiler:\n${kaynakMetni || '(Bilgi çekilemedi, kendi bilginle cevapla)'}`,
+      },
+    ]);
+
+    // Arama cevabını da hafızaya ekle
+    if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
+    const gecmis = mem.get(kullaniciId);
+    gecmis.push({ role: 'user', content: soru });
+    gecmis.push({ role: 'assistant', content: cevap || '' });
+    while (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
+
+    return cevap || 'Şu an cevap veremiyorum, biraz sonra tekrar dener misin?';
   }
 
-  // SOHBET
-  hafizayaEkle(kullaniciId, 'user', soru);
-  const gecmis = hafizaGetir(kullaniciId);
+  // ── SOHBET YOLU ──
+  if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
+  const gecmis = mem.get(kullaniciId);
+
+  gecmis.push({ role: 'user', content: soru });
+  while (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2); // En eski çifti sil
 
   const cevap = await groqCall([
-    {
-      role: 'system',
-      content: 'Sen samimi bir asistansın. Geliştiricin Batuhan. Türkçe ve doğal konuş, yabancı kelime kullanma.',
-    },
+    { role: 'system', content: 'Sen samimi bir asistansın. Geliştiricin Batuhan. Türkçe ve doğal konuş, yabancı kelime kullanma.' },
     ...gecmis,
   ]);
 
-  hafizayaEkle(kullaniciId, 'assistant', cevap);
-  return cevap;
+  const sonCevap = cevap || 'Şu an cevap veremiyorum, biraz sonra tekrar dener misin?';
+  gecmis.push({ role: 'assistant', content: sonCevap });
+  while (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
+
+  return sonCevap;
 }
 
 /* ══════════════════════════════════════════════════════
    DISCORD
    ══════════════════════════════════════════════════════ */
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
 client.on('messageCreate', async msg => {
@@ -296,10 +252,7 @@ client.on('messageCreate', async msg => {
   const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
   if (!soru) return msg.reply('Efendim?');
 
-  if (
-    soru.toLowerCase().includes('oylama') &&
-    (soru.includes('eşit') || soru.includes('berabere'))
-  ) {
+  if (soru.toLowerCase().includes('oylama') && (soru.includes('eşit') || soru.includes('berabere'))) {
     return msg.reply('Oylama berabere bitti, kimse idam edilmedi!');
   }
 
@@ -322,7 +275,6 @@ client.on('messageCreate', async msg => {
 
 client.once('ready', c => {
   console.log(`✅ ${c.user.tag} hazır!`);
-  console.log(`🕒 ${new Date().toLocaleString('tr-TR')}`);
 });
 
 client.login(DISCORD_TOKEN);
