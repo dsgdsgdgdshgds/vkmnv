@@ -13,7 +13,7 @@ http.createServer((_, r) => {
 const GROQ_KEY = process.env.groq;
 const DISCORD_TOKEN = process.env.token;
 const SMART = 'llama-3.3-70b-versatile';
-const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
+const VISION = 'llama-3.3-70b-versatile';
 
 /* ── HAFIZA ── */
 const mem = new Map();
