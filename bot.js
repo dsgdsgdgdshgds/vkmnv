@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -45,18 +45,21 @@ async function groqCall(messages, model = SMART, max_tokens = 2000, temperature 
 /* ══════════════════════════════════════════════════════
    💬 DİREKT GROQ CEVAP - Araştırma gerektirmeyen sorular
    ══════════════════════════════════════════════════════ */
-async function direktCevap(soru) {
-  return await groqCall([
+async function direktCevap(soru, gecmis = []) {
+  const messages = [
     {
       role: 'system',
-      content: `Sen yardımsever, samimi bir sohbet asistanısın. Kısa ve öz cevaplar ver.
+      content: `Sen yardımsever, samimi bir sohbet asistanısın.
+- Cevaplarını her zaman tam ve anlamlı bir şekilde bitir, yarıda kesme.
+- Kısa ve öz ol ama cümleleri eksik bırakma.
 - Asla kaynak, link veya URL gösterme.
 - Geliştirici kim diye sorulursa "Batuhan" de.
-- Gereksiz uzun açıklamalar yapma.
 - Türkçe konuş.`
     },
+    ...gecmis,
     { role: 'user', content: soru }
-  ], FAST, 600, 0.7);
+  ];
+  return await groqCall(messages, FAST, 800, 0.7);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -464,6 +467,11 @@ client.on('messageCreate', async msg => {
     return msg.reply('Ne sormak istiyorsun? 🤖');
   }
 
+  // Geçmişi yükle
+  const kanalId = msg.channel.id;
+  if (!mem.has(kanalId)) mem.set(kanalId, []);
+  const gecmis = mem.get(kanalId);
+
   await msg.channel.sendTyping();
 
   try {
@@ -500,9 +508,14 @@ client.on('messageCreate', async msg => {
         cevap = sonuc.cevap;
       } else {
         console.log('💬 Direkt cevap veriliyor...');
-        cevap = await direktCevap(soru);
+        cevap = await direktCevap(soru, gecmis);
       }
     }
+
+    // Geçmişe kaydet
+    gecmis.push({ role: 'user', content: soru });
+    gecmis.push({ role: 'assistant', content: cevap });
+    if (gecmis.length > MAX) gecmis.splice(0, gecmis.length - MAX);
 
     // Uzun mesajları böl
     if (cevap.length > 1900) {
