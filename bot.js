@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -40,6 +40,86 @@ async function groqCall(messages, model = SMART, max_tokens = 2000, temperature 
     }
   );
   return r.data.choices[0].message.content.trim();
+}
+
+/* ══════════════════════════════════════════════════════
+   💬 DİREKT GROQ CEVAP - Araştırma gerektirmeyen sorular
+   ══════════════════════════════════════════════════════ */
+async function direktCevap(soru) {
+  return await groqCall([
+    {
+      role: 'system',
+      content: `Sen yardımsever, samimi bir sohbet asistanısın. Kısa ve öz cevaplar ver.
+- Asla kaynak, link veya URL gösterme.
+- Geliştirici kim diye sorulursa "Batuhan" de.
+- Gereksiz uzun açıklamalar yapma.
+- Türkçe konuş.`
+    },
+    { role: 'user', content: soru }
+  ], FAST, 600, 0.7);
+}
+
+/* ══════════════════════════════════════════════════════
+   🔍 SORU TİPİ AYRIŞTIRICI
+   Araştırma gerekip gerekmediğine karar verir
+   ══════════════════════════════════════════════════════ */
+async function arastirmaGerekliMi(soru) {
+  const soruKucuk = soru.toLowerCase();
+
+  // Kesinlikle araştırma gereken kalıplar
+  const arastirmaKaliplari = [
+    /hava\s*(durumu|nasıl)/i,
+    /bugün.*?(haber|gündem|son dakika)/i,
+    /son dakika/i,
+    /dolar|euro|döviz|borsa|bitcoin|kripto/i,
+    /deprem/i,
+    /güncel|son haberler/i,
+    /kaç.*?(fiyat|tl|lira)/i,
+    /transfer haberi/i,
+    /maç sonucu|maç skoru/i,
+  ];
+
+  for (const kalip of arastirmaKaliplari) {
+    if (kalip.test(soruKucuk)) return true;
+  }
+
+  // Kesinlikle araştırma gerektirmeyen kalıplar
+  const sohbetKaliplari = [
+    /^(merhaba|selam|hey|naber|nasılsın)/i,
+    /^(teşekkür|sağ ol|tamam|ok|güzel|harika)/i,
+    /kim (yaptı|geliştirdi|sin)/i,
+    /ne (yapabilirsin|bilirsin)/i,
+    /ne demek|nedir|ne anlama/i,
+    /şiir|hikaye|yazı yaz/i,
+    /hesapla|kaç eder/i,
+    /kod|program|script/i,
+    /tavsiye|öneri/i,
+    /nasıl (yapılır|çalışır)/i,
+  ];
+
+  for (const kalip of sohbetKaliplari) {
+    if (kalip.test(soruKucuk)) return false;
+  }
+
+  // Kısa sorular genellikle sohbet
+  if (soru.split(' ').length <= 4) return false;
+
+  // Belirsiz durumlarda hızlı AI kararı
+  try {
+    const karar = await groqCall([
+      {
+        role: 'system',
+        content: `Kullanıcının sorusu güncel internet araştırması gerektiriyor mu?
+Sadece "EVET" veya "HAYIR" yaz. Başka hiçbir şey yazma.
+EVET: Hava durumu, haberler, güncel fiyatlar, maç sonuçları, son gelişmeler.
+HAYIR: Genel bilgi, sohbet, nasıl yapılır, tarihsel bilgi, tanımlar, kod, yaratıcı yazı.`
+      },
+      { role: 'user', content: soru }
+    ], FAST, 5, 0.1);
+    return karar.trim().toUpperCase().startsWith('EVET');
+  } catch (e) {
+    return false;
+  }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -412,9 +492,16 @@ client.on('messageCreate', async msg => {
       setTimeout(() => fs.unlinkSync(videoYol), 10000);
       return;
     } else {
-      // Normal soru - Akıllı web gezgini
-      const sonuc = await akilliWebGezgini(soru);
-      cevap = sonuc.cevap;
+      // Araştırma gerekli mi kontrol et
+      const araştırmaYap = await arastirmaGerekliMi(soru);
+      if (araştırmaYap) {
+        console.log('🔍 Araştırma yapılıyor...');
+        const sonuc = await akilliWebGezgini(soru);
+        cevap = sonuc.cevap;
+      } else {
+        console.log('💬 Direkt cevap veriliyor...');
+        cevap = await direktCevap(soru);
+      }
     }
 
     // Uzun mesajları böl
