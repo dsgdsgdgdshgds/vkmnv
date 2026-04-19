@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -50,7 +50,7 @@ async function direktCevap(soru, gecmis = []) {
     {
       role: 'system',
       content: `Sen yardımsever, samimi bir sohbet asistanısın.
-- Cevaplarını her zaman tam ve anlamlı bir şekilde bitir, yarıda kesme.
+- Cevaplarını her zaman tam ve anlamlı şekilde bitir, yarıda kesme.
 - Kısa ve öz ol ama cümleleri eksik bırakma.
 - Asla kaynak, link veya URL gösterme.
 - Geliştirici kim diye sorulursa "Batuhan" de.
@@ -392,12 +392,10 @@ function videoOlustur(metin, dosya) {
   const sure = Math.max(3, Math.min(10, Math.ceil(metin.length / 40)));
   const kares = FPS * sure;
 
-  // Basit AVI yapısı
   const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
   const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
   const cc4 = (s) => Buffer.from(s.padEnd(4,' ').slice(0,4));
 
-  // BMP frame
   const rowPad = Math.ceil(W * 3 / 4) * 4;
   const pixLen = rowPad * H;
   const bmpBuf = Buffer.alloc(54 + pixLen, 0);
@@ -411,7 +409,6 @@ function videoOlustur(metin, dosya) {
   bmpBuf.writeUInt16LE(24, 28);
   bmpBuf.writeUInt32LE(pixLen, 34);
 
-  // Arka plan rengi
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const o = 54 + y * rowPad + x * 3;
@@ -484,7 +481,8 @@ client.on('messageCreate', async msg => {
         const aciklama = await gorselOku(gorsel.url, soru);
         cevap = aciklama || 'Görseli analiz edemedim.';
       } else {
-        cevap = await akilliWebGezgini(soru);
+        const sonuc = await akilliWebGezgini(soru);
+        cevap = sonuc.cevap;
       }
     } else if (soru.toLowerCase().includes('video') && 
                (soru.includes('yap') || soru.includes('oluştur'))) {
