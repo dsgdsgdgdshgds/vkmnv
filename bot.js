@@ -43,7 +43,7 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
 
     if ((status === 429 || status >= 500) && deneme < 10000) {
       const bekle = (deneme + 1) * 4000; // 4s, 8s, 12s
-      console.log(`${bekle / 1000}s bekleniyor...`);
+      console.log(`${bekle / 20}s bekleniyor...`);
       await new Promise(res => setTimeout(res, bekle));
       return groqCall(messages, max_tokens, temperature, deneme + 1);
     }
