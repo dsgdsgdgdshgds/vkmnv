@@ -89,13 +89,13 @@ async function akilliWebGezgini(soru) {
 
   // 2. ADIM: Google arama yap (gerçek tarayıcı gibi)
   const aramaSonuclari = await googleArama(strateji.arama_sorgulari[0]);
-  
+
   // 3. ADIM: En alakalı siteleri ziyaret et ve içerik çek
   const siteIcerikleri = await siteZiyaretcisi(aramaSonuclari, strateji, soru);
-  
+
   // 4. ADIM: Tüm verileri Groq'ya ver, cevap üret
   const cevap = await bilgiBirlestirici(soru, siteIcerikleri, strateji);
-  
+
   return {
     cevap,
     kaynaklar: siteIcerikleri.map(s => s.url).filter(u => u),
@@ -142,7 +142,7 @@ async function googleArama(sorgu) {
     return sonuclar.slice(0, 8); // İlk 8 sonuç
   } catch (e) {
     console.log('Google arama hatası:', e.message);
-    
+
     // Yedek: DuckDuckGo HTML
     try {
       const { data } = await axios.post('https://html.duckduckgo.com/html/', 
@@ -155,7 +155,7 @@ async function googleArama(sorgu) {
           timeout: 10000 
         }
       );
-      
+
       const $ = cheerio.load(data);
       const sonuclar = [];
       $('.result').each((i, elem) => {
@@ -178,11 +178,11 @@ async function googleArama(sorgu) {
 async function siteZiyaretcisi(linkler, strateji, orijinalSoru) {
   const icerikler = [];
   const ziyaretEdilecekler = linkler.slice(0, 5);
-  
+
   const promises = ziyaretEdilecekler.map(async (link) => {
     try {
       console.log(`🌐 Ziyaret ediliyor: ${link.url}`);
-      
+
       const { data } = await axios.get(link.url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -194,10 +194,10 @@ async function siteZiyaretcisi(linkler, strateji, orijinalSoru) {
       });
 
       const $ = cheerio.load(data);
-      
+
       // Sayfadaki ana metni çıkar
       let metin = '';
-      
+
       // Önemli etiketlerden metin topla
       $('p, h1, h2, h3, article, .content, .post-content, .entry-content, main').each((i, el) => {
         const text = $(el).text().trim();
@@ -205,15 +205,15 @@ async function siteZiyaretcisi(linkler, strateji, orijinalSoru) {
           metin += text + '\n';
         }
       });
-      
+
       // Eğer yeterli metin yoksa body'den al
       if (metin.length < 200) {
         metin = $('body').text().replace(/\s+/g, ' ').trim();
       }
-      
+
       // Metni kısalt (ilk 3000 karakter)
       metin = metin.substring(0, 3000);
-      
+
       // Alakalılık skoru hesapla (basit anahtar kelime eşleşmesi)
       let alakaPuani = 0;
       strateji.anahtar_kelimeler.forEach(kelime => {
@@ -221,7 +221,7 @@ async function siteZiyaretcisi(linkler, strateji, orijinalSoru) {
         const matches = metin.match(regex);
         if (matches) alakaPuani += matches.length;
       });
-      
+
       if (metin.length > 100) {
         icerikler.push({
           url: link.url,
@@ -230,17 +230,17 @@ async function siteZiyaretcisi(linkler, strateji, orijinalSoru) {
           alaka: alakaPuani
         });
       }
-      
+
     } catch (e) {
       console.log(`❌ ${link.url} erişilemedi:`, e.message);
     }
   });
 
   await Promise.allSettled(promises);
-  
+
   // Alakaya göre sırala
   icerikler.sort((a, b) => b.alaka - a.alaka);
-  
+
   return icerikler.slice(0, 3); // En alakalı 3 site
 }
 
@@ -262,13 +262,14 @@ ${kaynakMetni || "(Hiçbir siteden veri çekilemedi, lütfen kendi bilgine göre
 Görevin:
 1. Bu bilgileri kullanarak soruyu doğru, güncel ve kapsamlı şekilde yanıtla.
 2. Bilgiler çelişiyorsa en güvenilir olanı seç veya farklı görüşleri belirt.
-3. Yanıtın sonunda hangi kaynakları kullandığını kısaca belirt.
-4. Türkçe yanıt ver, samimi ve yardımsever ol.
+3. Asla kaynak, link veya URL gösterme. Yanıtın sonuna herhangi bir kaynak ekleme.
+4. Eğer kullanıcı "kim yaptı", "geliştirici kim", "seni kim yaptı" veya benzeri bir soru sorarsa, geliştiricinin adının "Batuhan" olduğunu söyle.
+5. Türkçe yanıt ver, samimi ve yardımsever ol.
 
 Yanıtın:`;
 
   const cevap = await groqCall([
-    { role: 'system', content: 'Sen güncel web verilerini analiz eden akıllı bir asistansın.' },
+    { role: 'system', content: 'Sen güncel web verilerini analiz eden akıllı bir asistansın. Asla kaynak, link veya URL göstermezsin. Geliştirici kim diye sorulursa sadece "Batuhan" dersin.' },
     { role: 'user', content: prompt }
   ], SMART, 1500, 0.4);
 
@@ -286,7 +287,7 @@ async function gorselOku(url, soru) {
     });
     const mime = img.headers['content-type'] || 'image/jpeg';
     const b64 = Buffer.from(img.data).toString('base64');
-    
+
     return await groqCall([{
       role: 'user',
       content: [
@@ -307,12 +308,12 @@ function videoOlustur(metin, dosya) {
   const W = 640, H = 480, FPS = 2;
   const sure = Math.max(3, Math.min(10, Math.ceil(metin.length / 40)));
   const kares = FPS * sure;
-  
+
   // Basit AVI yapısı
   const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
   const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
   const cc4 = (s) => Buffer.from(s.padEnd(4,' ').slice(0,4));
-  
+
   // BMP frame
   const rowPad = Math.ceil(W * 3 / 4) * 4;
   const pixLen = rowPad * H;
@@ -326,7 +327,7 @@ function videoOlustur(metin, dosya) {
   bmpBuf.writeUInt16LE(1, 26);
   bmpBuf.writeUInt16LE(24, 28);
   bmpBuf.writeUInt32LE(pixLen, 34);
-  
+
   // Arka plan rengi
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -334,14 +335,14 @@ function videoOlustur(metin, dosya) {
       bmpBuf[o] = 100; bmpBuf[o+1] = 50; bmpBuf[o+2] = 30;
     }
   }
-  
+
   const piksel = bmpBuf.slice(54);
   const chunks = [];
   for (let i = 0; i < kares; i++) {
     chunks.push(Buffer.concat([cc4('00dc'), u32(piksel.length), piksel, 
       piksel.length % 2 ? Buffer.alloc(1) : Buffer.alloc(0)]));
   }
-  
+
   const movi = Buffer.concat(chunks);
   const moviList = Buffer.concat([cc4('LIST'), u32(4 + movi.length), cc4('movi'), movi]);
   const strh = Buffer.concat([cc4('strh'), u32(56), cc4('vids'), cc4('DIB '), 
@@ -356,7 +357,7 @@ function videoOlustur(metin, dosya) {
   const hdrl = Buffer.concat([cc4('LIST'), u32(4+avih.length+strl.length), cc4('hdrl'), avih, strl]);
   const riffBody = Buffer.concat([cc4('AVI '), hdrl, moviList]);
   const riff = Buffer.concat([cc4('RIFF'), u32(riffBody.length), riffBody]);
-  
+
   fs.writeFileSync(dosya, riff);
 }
 
@@ -375,19 +376,19 @@ client.on('messageCreate', async msg => {
   if (msg.author.bot) return;
   if (msg.mentions.everyone) return;
   if (!msg.mentions.has(client.user)) return;
-  
+
   const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
   const ekler = [...msg.attachments.values()];
-  
+
   if (!soru && !ekler.length) {
     return msg.reply('Ne sormak istiyorsun? 🤖');
   }
-  
+
   await msg.channel.sendTyping();
-  
+
   try {
     let cevap;
-    
+
     // Görsel varsa
     if (ekler.length > 0) {
       const gorsel = ekler.find(a => a.contentType?.startsWith('image'));
@@ -402,26 +403,20 @@ client.on('messageCreate', async msg => {
       // Video isteği
       const videoYol = path.join(TMP, `v_${Date.now()}.avi`);
       videoOlustur(soru, videoYol);
-      
+
       await msg.reply({
         content: '🎬 İşte videon hazır!',
         files: [new AttachmentBuilder(videoYol)]
       });
-      
+
       setTimeout(() => fs.unlinkSync(videoYol), 10000);
       return;
     } else {
       // Normal soru - Akıllı web gezgini
       const sonuc = await akilliWebGezgini(soru);
       cevap = sonuc.cevap;
-      
-      // Kaynakları da göster
-      if (sonuc.kaynaklar && sonuc.kaynaklar.length > 0) {
-        cevap += '\n\n📚 **Yararlanılan Kaynaklar:**\n' + 
-                 sonuc.kaynaklar.map(u => `• ${u}`).join('\n');
-      }
     }
-    
+
     // Uzun mesajları böl
     if (cevap.length > 1900) {
       const parcalar = cevap.match(/[\s\S]{1,1900}/g) || [];
@@ -431,7 +426,7 @@ client.on('messageCreate', async msg => {
     } else {
       await msg.reply(cevap);
     }
-    
+
   } catch (e) {
     console.error('Hata:', e);
     await msg.reply('⚠️ Bir sorun oluştu, tekrar dener misin?');
