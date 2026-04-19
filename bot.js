@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.gro;
-const DISCORD_TOKEN = process.env.toke;
+const GROQ_KEY = process.env.groq;
+const DISCORD_TOKEN = process.env.token;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
