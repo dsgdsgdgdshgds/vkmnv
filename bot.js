@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -335,26 +335,29 @@ async function bilgiBirlestirici(soru, icerikler, strateji) {
     `[KAYNAK ${i+1}: ${s.url}]\n${s.metin}\n`
   ).join('\n---\n');
 
-  const prompt = `Sen bir araştırma asistanısın. Aşağıda farklı web sitelerinden toplanmış güncel bilgiler var.
+  if (!kaynakMetni) {
+    return "İnternetten güncel bilgi çekemedim, şu an bu soruyu yanıtlayamıyorum. Lütfen tekrar dene.";
+  }
+
+  const prompt = `Aşağıda internetten toplanmış güncel bilgiler var. SADECE bu bilgilere dayanarak yanıt ver, asla kendin ekleme yapma.
 
 Kullanıcı Sorusu: "${soru}"
 
 İnternetten Toplanan Bilgiler:
-${kaynakMetni || "(Hiçbir siteden veri çekilemedi, lütfen kendi bilgine göre yanıtla)"}
+${kaynakMetni}
 
-Görevin:
-1. Bu bilgileri kullanarak soruyu doğru, güncel ve kapsamlı şekilde yanıtla.
-2. Bilgiler çelişiyorsa en güvenilir olanı seç veya farklı görüşleri belirt.
-3. Asla kaynak, link veya URL gösterme. Yanıtın sonuna herhangi bir kaynak ekleme.
-4. Eğer kullanıcı "kim yaptı", "geliştirici kim", "seni kim yaptı" veya benzeri bir soru sorarsa, geliştiricinin adının "Batuhan" olduğunu söyle.
-5. Türkçe yanıt ver, samimi ve yardımsever ol.
+Kurallar:
+- Sadece yukarıdaki bilgileri kullan, tahmin veya ekleme yapma.
+- Asla kaynak, link veya URL gösterme.
+- Cümleni tam bitir, yarıda kesme.
+- Türkçe, kısa ve net yanıt ver.
 
 Yanıtın:`;
 
   const cevap = await groqCall([
-    { role: 'system', content: 'Sen güncel web verilerini analiz eden akıllı bir asistansın. Asla kaynak, link veya URL göstermezsin. Geliştirici kim diye sorulursa sadece "Batuhan" dersin.' },
+    { role: 'system', content: 'Sen internetten gelen verileri özetleyen bir asistansın. Sadece sana verilen bilgileri kullan, asla uydurma. Kaynak veya link gösterme. Cümlelerini tam bitir.' },
     { role: 'user', content: prompt }
-  ], SMART, 1500, 0.4);
+  ], SMART, 1000, 0.3);
 
   return cevap;
 }
