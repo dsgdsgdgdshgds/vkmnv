@@ -540,3 +540,4 @@ client.once('ready', c => {
 client.login(DISCORD_TOKEN);
 
 process.on('unhandledRejection', e => console.error('🔥', e));
+
