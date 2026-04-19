@@ -12,8 +12,8 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ──────────────────────────────────────────── */
-const GROQ_KEY = process.env.groq;
-const DISCORD_TOKEN = process.env.token;
+const GROQ_KEY = process.env.gro;
+const DISCORD_TOKEN = process.env.toke;
 const FAST = 'llama-3.1-8b-instant';
 const SMART = 'llama-3.3-70b-versatile';
 const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
@@ -23,6 +23,11 @@ if (!fs.existsSync(TMP)) fs.mkdirSync(TMP, { recursive: true });
 /* ── HAFIZA ──────────────────────────────────────────── */
 const mem = new Map();
 const MAX = 30;
+
+/* ── Güncel tarih/saat ────────────────────────────────── */
+function simdi() {
+  return new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+}
 
 /* ══════════════════════════════════════════════════════
    GROQ - ANA BEYİN
@@ -40,89 +45,6 @@ async function groqCall(messages, model = SMART, max_tokens = 2000, temperature 
     }
   );
   return r.data.choices[0].message.content.trim();
-}
-
-/* ══════════════════════════════════════════════════════
-   💬 DİREKT GROQ CEVAP - Araştırma gerektirmeyen sorular
-   ══════════════════════════════════════════════════════ */
-async function direktCevap(soru, gecmis = []) {
-  const messages = [
-    {
-      role: 'system',
-      content: `Sen yardımsever, samimi bir sohbet asistanısın.
-- Cevaplarını her zaman tam ve anlamlı şekilde bitir, yarıda kesme.
-- Kısa ve öz ol ama cümleleri eksik bırakma.
-- Asla kaynak, link veya URL gösterme.
-- Geliştirici kim diye sorulursa "Batuhan" de.
-- Türkçe konuş.`
-    },
-    ...gecmis,
-    { role: 'user', content: soru }
-  ];
-  return await groqCall(messages, FAST, 800, 0.7);
-}
-
-/* ══════════════════════════════════════════════════════
-   🔍 SORU TİPİ AYRIŞTIRICI
-   Araştırma gerekip gerekmediğine karar verir
-   ══════════════════════════════════════════════════════ */
-async function arastirmaGerekliMi(soru) {
-  const soruKucuk = soru.toLowerCase();
-
-  // Kesinlikle araştırma gereken kalıplar
-  const arastirmaKaliplari = [
-    /hava\s*(durumu|nasıl)/i,
-    /bugün.*?(haber|gündem|son dakika)/i,
-    /son dakika/i,
-    /dolar|euro|döviz|borsa|bitcoin|kripto/i,
-    /deprem/i,
-    /güncel|son haberler/i,
-    /kaç.*?(fiyat|tl|lira)/i,
-    /transfer haberi/i,
-    /maç sonucu|maç skoru/i,
-  ];
-
-  for (const kalip of arastirmaKaliplari) {
-    if (kalip.test(soruKucuk)) return true;
-  }
-
-  // Kesinlikle araştırma gerektirmeyen kalıplar
-  const sohbetKaliplari = [
-    /^(merhaba|selam|hey|naber|nasılsın)/i,
-    /^(teşekkür|sağ ol|tamam|ok|güzel|harika)/i,
-    /kim (yaptı|geliştirdi|sin)/i,
-    /ne (yapabilirsin|bilirsin)/i,
-    /ne demek|nedir|ne anlama/i,
-    /şiir|hikaye|yazı yaz/i,
-    /hesapla|kaç eder/i,
-    /kod|program|script/i,
-    /tavsiye|öneri/i,
-    /nasıl (yapılır|çalışır)/i,
-  ];
-
-  for (const kalip of sohbetKaliplari) {
-    if (kalip.test(soruKucuk)) return false;
-  }
-
-  // Kısa sorular genellikle sohbet
-  if (soru.split(' ').length <= 4) return false;
-
-  // Belirsiz durumlarda hızlı AI kararı
-  try {
-    const karar = await groqCall([
-      {
-        role: 'system',
-        content: `Kullanıcının sorusu güncel internet araştırması gerektiriyor mu?
-Sadece "EVET" veya "HAYIR" yaz. Başka hiçbir şey yazma.
-EVET: Hava durumu, haberler, güncel fiyatlar, maç sonuçları, son gelişmeler.
-HAYIR: Genel bilgi, sohbet, nasıl yapılır, tarihsel bilgi, tanımlar, kod, yaratıcı yazı.`
-      },
-      { role: 'user', content: soru }
-    ], FAST, 5, 0.1);
-    return karar.trim().toUpperCase().startsWith('EVET');
-  } catch (e) {
-    return false;
-  }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -336,6 +258,7 @@ async function bilgiBirlestirici(soru, icerikler, strateji) {
   ).join('\n---\n');
 
   const prompt = `Sen bir araştırma asistanısın. Aşağıda farklı web sitelerinden toplanmış güncel bilgiler var.
+Şu anki tarih ve saat: ${simdi()}
 
 Kullanıcı Sorusu: "${soru}"
 
@@ -352,7 +275,7 @@ Görevin:
 Yanıtın:`;
 
   const cevap = await groqCall([
-    { role: 'system', content: 'Sen güncel web verilerini analiz eden akıllı bir asistansın. Asla kaynak, link veya URL göstermezsin. Geliştirici kim diye sorulursa sadece "Batuhan" dersin.' },
+    { role: 'system', content: `Sen güncel web verilerini analiz eden akıllı bir asistansın. Şu anki tarih: ${simdi()}. Asla kaynak, link veya URL göstermezsin. Geliştirici kim diye sorulursa sadece "Batuhan" dersin.` },
     { role: 'user', content: prompt }
   ], SMART, 1500, 0.4);
 
@@ -498,16 +421,9 @@ client.on('messageCreate', async msg => {
       setTimeout(() => fs.unlinkSync(videoYol), 10000);
       return;
     } else {
-      // Araştırma gerekli mi kontrol et
-      const araştırmaYap = await arastirmaGerekliMi(soru);
-      if (araştırmaYap) {
-        console.log('🔍 Araştırma yapılıyor...');
-        const sonuc = await akilliWebGezgini(soru);
-        cevap = sonuc.cevap;
-      } else {
-        console.log('💬 Direkt cevap veriliyor...');
-        cevap = await direktCevap(soru, gecmis);
-      }
+      // Her soru Google'a gidiyor
+      const sonuc = await akilliWebGezgini(soru);
+      cevap = sonuc.cevap;
     }
 
     // Geçmişe kaydet
