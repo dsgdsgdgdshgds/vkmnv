@@ -256,12 +256,6 @@ async function anaIsleyici(soru, kullaniciId) {
     } else {
       const icerikler = await siteZiyaretcisi(linkler, anahtar_kelimeler);
       cevap = await bilgiBirlestirici(soru, icerikler);
-
-      // Kaynakları ekle
-      const kaynaklar = icerikler.map(s => s.url);
-      if (kaynaklar.length > 0) {
-        cevap += '\n\n📚 **Kaynaklar:**\n' + kaynaklar.map(u => `• ${u}`).join('\n');
-      }
     }
 
     hafizayaEkle(kullaniciId, 'user', soru);
