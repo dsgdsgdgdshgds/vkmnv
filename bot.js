@@ -212,3 +212,51 @@ client.on('messageCreate', async msg => {
 
 client.once('ready', c => console.log(`✅ ${c.user.tag} hazır!`));
 client.login(DISCORD_TOKEN);
+
+/* ══════════════════════════════════════════════════════
+   EKLENEN ÖZELLİKLER (Kodun hiçbir satırı değiştirilmemiştir)
+   ══════════════════════════════════════════════════════ */
+
+// 1. Yapılandırma: Birden çok yasaklı kelime ve hariç tutulacak ID'ler
+const YASAK_KELIMELER = ['edward','elric']; // İstediğiniz kelimeleri buraya ekleyin
+const HARIC_ID_LIST = []; // Örn: ['123456789012345678', '914407026036199425']
+
+// 2. Orijinal groqCall fonksiyonunu sarmalayarak botun kendini "Awe" olarak tanıtmasını sağla
+const originalGroqCall = groqCall;
+global.groqCall = async function(messages, max_tokens = 1500, temperature = 0.5, deneme = 0) {
+    // Sistem mesajlarına "Awe" kimliğini ekle
+    const yeniMesajlar = messages.map(msg => {
+        if (msg.role === 'system') {
+            const yeniIcerik = `${msg.content} Senin adın Awe. Kendini Awe olarak tanıt.`;
+            return { ...msg, content: yeniIcerik };
+        }
+        return msg;
+    });
+    return originalGroqCall(yeniMesajlar, max_tokens, temperature, deneme);
+};
+
+// 3. Mesaj silme listener'ı (birden çok kelime kontrolü)
+client.on('messageCreate', async (msg) => {
+    // Bot mesajlarını ve hariç ID'leri kontrol et
+    if (msg.author.bot) return;
+    if (HARIC_ID_LIST.includes(msg.author.id)) return;
+
+    // Yasaklı kelimelerden herhangi biri mesajda geçiyor mu? (case-insensitive)
+    const mesajKucuk = msg.content.toLowerCase();
+    const yasakBulundu = YASAK_KELIMELER.some(kelime => mesajKucuk.includes(kelime.toLowerCase()));
+
+    if (yasakBulundu) {
+        try {
+            await msg.delete();
+            // İsteğe bağlı: Kullanıcıya özel mesaj göndermek için aşağıdaki satırı aktifleştirin
+            // await msg.author.send(`Yasaklı kelimelerden birini kullandınız: ${YASAK_KELIMELER.join(', ')}`).catch(() => {});
+        } catch (err) {
+            console.error('Mesaj silinemedi:', err.message);
+        }
+    }
+});
+
+// 4. Bot hazır olduğunda ek olarak "Awe hazır!" yazdır
+client.once('ready', () => {
+    console.log(`🤖 Awe hazır! (${client.user.tag})`);
+});
