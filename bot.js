@@ -259,4 +259,4 @@ client.on('messageCreate', async (msg) => {
 // 4. Bot hazır olduğunda ek olarak "Awe hazır!" yazdır
 client.once('ready', () => {
     console.log(`🤖 Awe hazır! (${client.user.tag})`);
-});
+}); 
