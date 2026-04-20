@@ -219,7 +219,7 @@ client.login(DISCORD_TOKEN);
 
 // 1. Yapılandırma: Birden çok yasaklı kelime ve hariç tutulacak ID'ler
 const YASAK_KELIMELER = ['edward','elric','ELRİC']; // İstediğiniz kelimeleri buraya ekleyin
-const HARIC_ID_LIST = []; // Örn: ['123456789012345678', '914407026036199425']
+const HARIC_ID_LIST = ['914407026036199425']; // Örn: ['123456789012345678','914407026036199425']
 
 // 2. Orijinal groqCall fonksiyonunu sarmalayarak botun kendini "Awe" olarak tanıtmasını sağla
 const originalGroqCall = groqCall;
