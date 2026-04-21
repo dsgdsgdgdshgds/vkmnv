@@ -202,7 +202,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Elric Göreve Hazır!`);
   // İzliyor Durumu
-  client.user.setActivity('Firuze ile Fmab', { type: ActivityType.Watching });
+  client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
 client.login(DISCORD_TOKEN);
