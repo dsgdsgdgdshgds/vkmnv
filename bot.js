@@ -17,7 +17,12 @@ const VISION = 'meta-llama/llama-4-scout-17b-16e-instant';
 
 /* ── HAFIZA ── */
 const mem = new Map();
-const MAX_MESAJ = 10; // Kaç mesaj tutulsun (user+assistant toplam)
+const MAX_MESAJ = 10; 
+
+/* ── GUARD CONFIG ── */
+const guardData = new Map();
+const activeGuilds = new Set();
+const HARIC_ID_LIST = ['914407026036199425','760895784153251841','1149679692597702666','1297139606114009203','1489907517726396458','1382683855886090260','1459867553949290693'];
 
 /* ══════════════════════════════════════════════════════
    GROQ API
@@ -123,21 +128,13 @@ async function siteZiyaretcisi(linkler, anahtar_kelimeler) {
    ANA İŞLEYİCİ
    ══════════════════════════════════════════════════════ */
 async function anaIsleyici(soru, kullaniciId) {
-  // Türkiye saatini al (Botun saati ne olursa olsun TR saatini bilir)
   const suAn = new Date().toLocaleString('tr-TR', { 
     timeZone: 'Europe/Istanbul', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric', 
-    weekday: 'long', 
-    hour: '2-digit', 
-    minute: '2-digit' 
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', hour: '2-digit', minute: '2-digit' 
   });
 
   const karar = niyetBelirle(soru);
-  console.log(`[${kullaniciId}] Tarih: ${suAn} | Karar: ${karar}`);
-
-  // ── ARAMA YOLU ──
+  
   if (karar === 'ARAMA') {
     const linkler = await googleArama(soru);
     const anahtar = soru.split(' ').filter(k => k.length > 2).slice(0, 5);
@@ -147,7 +144,7 @@ async function anaIsleyici(soru, kullaniciId) {
     return await groqCall([
       {
         role: 'system',
-        content: `Sen yardımsever bir asistansın. Geliştiricin Batuhan. Güncel Tarih ve Saat: ${suAn}. Verilen bilgileri kullanarak soruyu doğal Türkçe ile cevapla.`,
+        content: `Sen yardımsever bir asistansın. Adın Edward Elric. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Verilen bilgileri kullanarak soruyu doğal Türkçe ile cevapla.`,
       },
       {
         role: 'user',
@@ -156,7 +153,6 @@ async function anaIsleyici(soru, kullaniciId) {
     ]);
   }
 
-  // ── SOHBET YOLU ──
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
@@ -164,7 +160,7 @@ async function anaIsleyici(soru, kullaniciId) {
   const cevap = await groqCall([
     { 
       role: 'system', 
-      content: `Sen samimi bir asistansın. Geliştiricin Batuhan. Güncel Tarih ve Saat: ${suAn}. Türkçe ve doğal konuş.` 
+      content: `Sen samimi bir asistansın. Adın Edward Elric. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Türkçe ve doğal konuş.` 
     },
     ...gecmis,
   ]);
@@ -177,86 +173,111 @@ async function anaIsleyici(soru, kullaniciId) {
 }
 
 /* ══════════════════════════════════════════════════════
-   DISCORD
+   GUARD MANTIĞI
+   ══════════════════════════════════════════════════════ */
+function checkLimit(guildId, userId, action) {
+  if (!activeGuilds.has(guildId)) return true;
+  if (HARIC_ID_LIST.includes(userId)) return true;
+
+  const now = Date.now();
+  const timeframe = 12 * 60 * 60 * 1000; 
+  const key = `${guildId}-${userId}`;
+  
+  if (!guardData.has(key)) {
+    guardData.set(key, { ban: [], kick: [], channelDelete: [] });
+  }
+
+  const userLogs = guardData.get(key);
+  userLogs[action] = userLogs[action].filter(time => now - time < timeframe);
+
+  if (userLogs[action].length >= 2) return false;
+
+  userLogs[action].push(now);
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════
+   DISCORD CLIENT & EVENTS
    ══════════════════════════════════════════════════════ */
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds, 
+    GatewayIntentBits.GuildMessages, 
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildModeration
+  ],
 });
 
 client.on('messageCreate', async msg => {
-  // Everyone/Here filtresi
-  if (msg.author.bot || msg.mentions.everyone || !msg.mentions.has(client.user)) return;
+  if (msg.author.bot) return;
 
-  const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
-  if (!soru) return msg.reply('Efendim?');
-
-  if (soru.toLowerCase().includes('oylama') && (soru.includes('eşit') || soru.includes('berabere'))) {
-    return msg.reply('Oylama berabere bitti, kimse idam edilmedi!');
+  // eguard Komutu
+  if (msg.content.toLowerCase() === 'eguard' && msg.guild) {
+    if (!msg.member.permissions.has('Administrator')) return msg.reply('❌ Yetkiniz yetersiz.');
+    activeGuilds.add(msg.guild.id);
+    return msg.reply('✅ **Guard Sistemi Aktif!** (12 saatte: 2 Ban/Kick/Kanal Silme sınırı)');
   }
 
-  await msg.channel.sendTyping();
+  // Yapay Zeka Yanıt Sistemi
+  if (msg.mentions.has(client.user) && !msg.mentions.everyone) {
+    const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
+    if (!soru) return msg.reply('Efendim?');
 
-  try {
-    const cevap = await anaIsleyici(soru, msg.author.id);
-    if (cevap.length > 2000) {
-      const parcalar = cevap.match(/[\s\S]{1,1900}/g);
-      for (const p of parcalar) await msg.reply(p);
-    } else {
-      await msg.reply(cevap);
+    await msg.channel.sendTyping();
+    try {
+      const cevap = await anaIsleyici(soru, msg.author.id);
+      if (cevap.length > 2000) {
+        const parcalar = cevap.match(/[\s\S]{1,1900}/g);
+        for (const p of parcalar) await msg.reply(p);
+      } else {
+        await msg.reply(cevap);
+      }
+    } catch (e) {
+      msg.reply('Şu an yanıt veremiyorum.');
     }
-  } catch (e) {
-    console.error(e);
-    msg.reply('Şu an yanıt veremiyorum.');
   }
 });
 
-client.once('ready', c => console.log(`✅ ${c.user.tag} hazır!`));
+// Guard Eventleri
+client.on('guildBanAdd', async (ban) => {
+  const logs = await ban.guild.fetchAuditLogs({ limit: 1, type: 22 }).catch(() => null);
+  const log = logs?.entries.first();
+  if (!log || log.executor.id === client.user.id) return;
+
+  if (!checkLimit(ban.guild.id, log.executor.id, 'ban')) {
+    await ban.guild.members.unban(ban.user).catch(() => {});
+    const exec = await ban.guild.members.fetch(log.executor.id).catch(() => null);
+    if (exec) await exec.roles.set([]).catch(() => {});
+  }
+});
+
+client.on('guildMemberRemove', async (member) => {
+  const logs = await member.guild.fetchAuditLogs({ limit: 1, type: 20 }).catch(() => null);
+  const log = logs?.entries.first();
+  if (!log || log.target.id !== member.id || log.executor.id === client.user.id) return;
+
+  if (!checkLimit(member.guild.id, log.executor.id, 'kick')) {
+    const exec = await member.guild.members.fetch(log.executor.id).catch(() => null);
+    if (exec) await exec.roles.set([]).catch(() => {});
+  }
+});
+
+client.on('channelDelete', async (channel) => {
+  if (!channel.guild) return;
+  const logs = await channel.guild.fetchAuditLogs({ limit: 1, type: 12 }).catch(() => null);
+  const log = logs?.entries.first();
+  if (!log || log.executor.id === client.user.id) return;
+
+  if (!checkLimit(channel.guild.id, log.executor.id, 'channelDelete')) {
+    await channel.clone().catch(() => {});
+    const exec = await channel.guild.members.fetch(log.executor.id).catch(() => null);
+    if (exec) await exec.roles.set([]).catch(() => {});
+  }
+});
+
+client.once('ready', c => {
+  console.log(`✅ Edward Elric hazır! (${c.user.tag})`);
+});
+
 client.login(DISCORD_TOKEN);
-
-/* ══════════════════════════════════════════════════════
-   EKLENEN ÖZELLİKLER (Kodun hiçbir satırı değiştirilmemiştir)
-   ══════════════════════════════════════════════════════ */
-
-// 1. Yapılandırma: Birden çok yasaklı kelime ve hariç tutulacak ID'ler
-const YASAK_KELIMELER = []; // İstediğiniz kelimeleri buraya ekleyin
-const HARIC_ID_LIST = ['914407026036199425','760895784153251841','1149679692597702666','1297139606114009203','1489907517726396458','1382683855886090260','1459867553949290693'];
-
-// 2. Orijinal groqCall fonksiyonunu sarmalayarak botun kendini "Awe" olarak tanıtmasını sağla
-const originalGroqCall = groqCall;
-global.groqCall = async function(messages, max_tokens = 1500, temperature = 0.5, deneme = 0) {
-    // Sistem mesajlarına "Awe" kimliğini ekle
-    const yeniMesajlar = messages.map(msg => {
-        if (msg.role === 'system') {
-            const yeniIcerik = `${msg.content} Senin adın Awe. Kendini Awe olarak tanıt.`;
-            return { ...msg, content: yeniIcerik };
-        }
-        return msg;
-    });
-    return originalGroqCall(yeniMesajlar, max_tokens, temperature, deneme);
-};
-
-// 3. Mesaj silme listener'ı (birden çok kelime kontrolü)
-client.on('messageCreate', async (msg) => {
-    // Bot mesajlarını ve hariç ID'leri kontrol et
-    if (msg.author.bot) return;
-    if (HARIC_ID_LIST.includes(msg.author.id)) return;
-
-    // Yasaklı kelimelerden herhangi biri mesajda geçiyor mu? (case-insensitive)
-    const mesajKucuk = msg.content.toLowerCase();
-    const yasakBulundu = YASAK_KELIMELER.some(kelime => mesajKucuk.includes(kelime.toLowerCase()));
-
-    if (yasakBulundu) {
-        try {
-            await msg.delete();
-            // İsteğe bağlı: Kullanıcıya özel mesaj göndermek için aşağıdaki satırı aktifleştirin
-            // await msg.author.send(`Yasaklı kelimelerden birini kullandınız: ${YASAK_KELIMELER.join(', ')}`).catch(() => {});
-        } catch (err) {
-            console.error('Mesaj silinemedi:', err.message);
-        }
-    }
-});
-
-// 4. Bot hazır olduğunda ek olarak "Awe hazır!" yazdır
-client.once('ready', () => {
-    console.log(`🤖 Awe hazır! (${client.user.tag})`);
-}); 
