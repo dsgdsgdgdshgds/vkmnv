@@ -166,7 +166,7 @@ client.on('messageCreate', async msg => {
     if (!msg.member.permissions.has('Administrator')) return msg.reply('Buna yetkin yok ufaklık.');
     activeGuilds.add(msg.guild.id);
     saveGuardList(); // Kayıt et
-    return msg.reply('✅ **Edward Guard Aktif!** Limitler veritabanına kaydedildi.');
+    return msg.reply('✅ **Edward Guard Aktif!**');
   }
 
   if (msg.mentions.has(client.user) && !msg.mentions.everyone) {
@@ -202,7 +202,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Elric Göreve Hazır!`);
   // İzliyor Durumu
-  client.user.setActivity('Sunucuları', { type: ActivityType.Watching });
+  client.user.setActivity('Firuze ile Fmab', { type: ActivityType.Watching });
 });
 
 client.login(DISCORD_TOKEN);
