@@ -26,7 +26,7 @@ const SMART = 'llama-3.3-70b-versatile';
 
 /* ── HAFIZA ── */
 const mem = new Map();
-const MAX_MESAJ = 10;
+const MAX_MESAJ = 3;
 
 /* ── GUARD CONFIG ── */
 const guardData = new Map();
