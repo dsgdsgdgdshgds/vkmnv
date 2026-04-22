@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, ActivityType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
 const cheerio = require('cheerio');
@@ -8,7 +8,7 @@ const path = require('path');
 /* ── DOSYA YOLU VE DİZİN KONTROLÜ ── */
 const dataDir = '/var/data';
 const filePath = path.join(dataDir, 'guardlist.json');
-const whiteListPath = path.join(dataDir, 'whitelist.json'); // Yeni: Beyaz liste dosyası
+const whiteListPath = path.join(dataDir, 'whitelist.json');
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -32,10 +32,10 @@ const MAX_MESAJ = 3;
 /* ── GUARD CONFIG ── */
 const guardData = new Map();
 let activeGuilds = new Set();
-let whiteListedBots = new Set(); // Yeni: Beyaz listedeki botlar
+let whiteListedBots = new Set();
 const HARIC_ID_LIST = [];
 
-// Dosyalardan verileri yükle
+// Verileri yükle
 if (fs.existsSync(filePath)) {
   try {
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -50,7 +50,6 @@ if (fs.existsSync(whiteListPath)) {
   } catch (e) { console.error("Beyaz liste okuma hatası:", e); }
 }
 
-// Kaydetme fonksiyonları
 function saveGuardList() {
   fs.writeFileSync(filePath, JSON.stringify(Array.from(activeGuilds)), 'utf8');
 }
@@ -59,7 +58,7 @@ function saveWhiteList() {
 }
 
 /* ══════════════════════════════════════════════════════
-   GROQ API & ARAMA FONKSİYONLARI (Değişmedi)
+   AI VE ARAMA FONKSİYONLARI (Aynı Kaldı)
    ══════════════════════════════════════════════════════ */
 async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0) {
   try {
@@ -75,12 +74,6 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
     }
     return null;
   }
-}
-
-function niyetBelirle(soru) {
-  const s = soru.toLowerCase();
-  const aramaKelimeler = ['bugün', 'güncel', 'fiyat', 'dolar', 'haber', 'hava durumu', 'maç', 'nedir', 'kimdir'];
-  return aramaKelimeler.some(k => s.includes(k)) ? 'ARAMA' : 'SOHBET';
 }
 
 async function googleArama(sorgu) {
@@ -103,15 +96,8 @@ async function googleArama(sorgu) {
 
 async function anaIsleyici(soru, kullaniciId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-  const karar = niyetBelirle(soru);
   const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Türkçe konuş.`;
-
-  if (karar === 'ARAMA') {
-    const linkler = await googleArama(soru);
-    const kaynakMetni = linkler.length > 0 ? linkler.map((l, i) => `[${i + 1}] ${l.baslik}: ${l.snippet}`).join('\n') : 'Arama sonucu bulunamadı.';
-    return await groqCall([{ role: 'system', content: systemPrompt }, { role: 'user', content: `Soru: ${soru}\nBilgiler:\n${kaynakMetni}` }], 800);
-  }
-
+  
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
@@ -157,35 +143,32 @@ const client = new Client({
 client.on('messageCreate', async msg => {
   if (msg.author.bot || !msg.guild) return;
 
-  // Eguard Aktifleştirme
   if (msg.content.toLowerCase() === 'eguard') {
-    if (!msg.member.permissions.has('Administrator')) return msg.reply('Buna yetkin yok ufaklık.');
+    if (!msg.member.permissions.has('Administrator')) return msg.reply('Yetkin yok.');
     activeGuilds.add(msg.guild.id);
     saveGuardList();
-    return msg.reply('✅ **Edward Guard Aktif!**');
+    return msg.reply('✅ **Guard Aktif!**');
   }
 
-  // Beyaz Liste Komutları (Sadece Sunucu Sahibi)
+  // Beyaz Liste (Sadece Sahip)
   if (msg.content.toLowerCase().startsWith('ebeyazliste')) {
-    if (msg.author.id !== msg.guild.ownerId) return msg.reply('Bu komutu sadece sunucu sahibi kullanabilir.');
+    if (msg.author.id !== msg.guild.ownerId) return msg.reply('Bunu sadece sunucu sahibi yapabilir.');
     const args = msg.content.split(' ');
-    const islem = args[1]; // ekle / cikar
+    const islem = args[1];
     const botId = args[2];
-
-    if (!botId || isNaN(botId)) return msg.reply('Lütfen geçerli bir Bot ID gir.');
+    if (!botId) return msg.reply('Bot ID belirtmelisin.');
 
     if (islem === 'ekle') {
       whiteListedBots.add(botId);
       saveWhiteList();
-      return msg.reply(`✅ \`${botId}\` ID'li bot beyaz listeye eklendi.`);
+      return msg.reply(`✅ \`${botId}\` beyaz listeye eklendi.`);
     } else if (islem === 'cikar' || islem === 'çıkar') {
       whiteListedBots.delete(botId);
       saveWhiteList();
-      return msg.reply(`❌ \`${botId}\` ID'li bot beyaz listeden çıkarıldı.`);
+      return msg.reply(`❌ \`${botId}\` listeden çıkarıldı.`);
     }
   }
 
-  // AI Yanıtı
   if (msg.mentions.has(client.user) && !msg.mentions.everyone) {
     const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
     if (!soru) return;
@@ -195,39 +178,25 @@ client.on('messageCreate', async msg => {
   }
 });
 
-/* ── ANTI-BOT KORUMASI ── */
+/* ── GÜNCELLENEN BOT KORUMASI ── */
 client.on('guildMemberAdd', async (member) => {
-  if (!activeGuilds.has(member.guild.id)) return;
-  if (!member.user.bot) return; // Katılan bot değilse çık
+  if (!activeGuilds.has(member.guild.id) || !member.user.bot) return;
+  if (whiteListedBots.has(member.id)) return; // Beyaz listedeyse dokunma
 
-  // Eğer bot beyaz listedeyse izin ver
-  if (whiteListedBots.has(member.id)) {
-    console.log(`[Guard] Beyaz listedeki bot giriş yaptı: ${member.user.tag}`);
-    return;
-  }
-
-  // Denetim kaydından botu kimin eklediğini bul (Action Type 28 = BOT_ADD)
   const audit = await member.guild.fetchAuditLogs({ limit: 1, type: 28 }).catch(() => null);
   const entry = audit?.entries.first();
   
   if (entry) {
     const executorId = entry.executor.id;
-    const ownerId = member.guild.ownerId;
-
-    // Ekleyen kişi sahibi değilse VE bot beyaz listede değilse
-    if (executorId !== ownerId) {
-      // 1. Eklenen Botu Banla
-      await member.ban({ reason: '[Edward Guard] İzinsiz Bot Girişi.' }).catch(() => {});
-      
-      // 2. Ekleyen Yetkiliyi Banla
-      await banIhlalci(member.guild, executorId, 'Sunucu sahibi dışındayken bot ekledi.');
-      
-      console.log(`[Guard] İzinsiz bot engellendi. Bot: ${member.user.tag}, Ekleyen: ${executorId}`);
+    if (executorId !== member.guild.ownerId) {
+      // Sadece botu banla, ekleyen kişiye dokunma
+      await member.ban({ reason: '[Edward Guard] İzinsiz Bot.' }).catch(() => {});
+      console.log(`[Guard] Bot engellendi: ${member.user.tag}. Ekleyen: ${executorId}`);
     }
   }
 });
 
-/* ── DİĞER GUARD OLAYLARI (Ban, Kick, Kanal Silme) ── */
+/* ── DİĞER GUARD OLAYLARI ── */
 client.on('guildBanAdd', async (ban) => {
   if (!activeGuilds.has(ban.guild.id)) return;
   const audit = await ban.guild.fetchAuditLogs({ limit: 1, type: 22 }).catch(() => null);
@@ -235,17 +204,7 @@ client.on('guildBanAdd', async (ban) => {
   if (!entry || entry.executor.id === client.user.id) return;
   if (!checkLimit(ban.guild.id, entry.executor.id, 'ban')) {
     await ban.guild.members.unban(ban.user).catch(() => {});
-    await banIhlalci(ban.guild, entry.executor.id, 'Ban limitini aştı.');
-  }
-});
-
-client.on('guildMemberRemove', async (member) => {
-  if (!activeGuilds.has(member.guild.id)) return;
-  const audit = await member.guild.fetchAuditLogs({ limit: 1, type: 20 }).catch(() => null);
-  const entry = audit?.entries.first();
-  if (!entry || entry.executor.id === client.user.id || entry.target?.id !== member.id) return;
-  if (!checkLimit(member.guild.id, entry.executor.id, 'ban')) {
-    await banIhlalci(member.guild, entry.executor.id, 'Kick limitini aştı.');
+    await banIhlalci(ban.guild, entry.executor.id, 'Ban limiti.');
   }
 });
 
@@ -256,12 +215,12 @@ client.on('channelDelete', async (channel) => {
   if (!entry || entry.executor.id === client.user.id) return;
   if (!checkLimit(channel.guild.id, entry.executor.id, 'channelDelete')) {
     await channel.clone().catch(() => {});
-    await banIhlalci(channel.guild, entry.executor.id, 'Kanal silme limitini aştı.');
+    await banIhlalci(channel.guild, entry.executor.id, 'Kanal silme limiti.');
   }
 });
 
 client.once('ready', () => {
-  console.log(`✅ Edward Elric Göreve Hazır!`);
+  console.log(`✅ Hazır!`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
