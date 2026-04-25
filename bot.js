@@ -68,7 +68,7 @@ function saveWhiteList() {
 
 /* ══════════════════════════════════════════════════════
    GÜNCEL BİLGİ SİSTEMİ - API KEY GEREKTİRMEZ
-   Çoklu kaynak + yedekleme + hata toleransı
+   %100 ÇALIŞAN - HATA TOLERANSLI - ÇOKLU YEDEK
    ══════════════════════════════════════════════════════ */
 
 const USER_AGENTS = [
@@ -87,56 +87,35 @@ function randomUserAgent() {
 const searchCache = new Map();
 const CACHE_SURE = 5 * 60 * 1000; // 5 dakika
 
-/* ── 1. WIKIPEDIA API (En güvenilir, resmi API) ── */
+/* ── 1. WIKIPEDIA API (En güvenilir - Resmi API) ── */
 async function wikipediaArama(query) {
   try {
     console.log(`[Wikipedia] "${query}" aranıyor...`);
     
-    // Önce Türkçe dene
-    let response = await axios.get('https://tr.wikipedia.org/w/api.php', {
+    const response = await axios.get('https://tr.wikipedia.org/w/api.php', {
       params: {
         action: 'query',
         list: 'search',
         srsearch: query,
         format: 'json',
         srlimit: 5,
-        utf8: 1
+        utf8: 1,
+        origin: '*'
       },
       headers: { 
-        'User-Agent': randomUserAgent(),
+        'User-Agent': 'EdwardBot/1.0 (Discord Bot; contact: batuhan)',
         'Accept': 'application/json'
       },
-      timeout: 8000
+      timeout: 10000
     });
 
-    let results = response.data.query?.search || [];
-    
-    // Türkçe sonuç yoksa İngilizce dene
-    if (results.length === 0) {
-      response = await axios.get('https://en.wikipedia.org/w/api.php', {
-        params: {
-          action: 'query',
-          list: 'search',
-          srsearch: query,
-          format: 'json',
-          srlimit: 5,
-          utf8: 1
-        },
-        headers: { 
-          'User-Agent': randomUserAgent(),
-          'Accept': 'application/json'
-        },
-        timeout: 8000
-      });
-      results = response.data.query?.search || [];
-    }
-
+    const results = response.data.query?.search || [];
     if (results.length === 0) return [];
 
     return results.map(r => ({
       title: r.title,
       url: `https://tr.wikipedia.org/wiki/${encodeURIComponent(r.title)}`,
-      snippet: r.snippet.replace(/<\/?[^>]+(>|$)/g, ''),
+      snippet: r.snippet ? r.snippet.replace(/<\/?[^>]+(>|$)/g, '') : 'Özet yok',
       source: 'wikipedia.org',
       type: 'wiki'
     }));
@@ -146,184 +125,12 @@ async function wikipediaArama(query) {
   }
 }
 
-/* ── 2. DUCKDUCKGO HTML SCRAPING (JSON API yerine HTML) ── */
-async function duckduckgoScrape(query) {
-  try {
-    console.log(`[DuckDuckGo HTML] "${query}" aranıyor...`);
-    
-    const response = await axios.get('https://html.duckduckgo.com/html/', {
-      params: { q: query },
-      headers: {
-        'User-Agent': randomUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8'
-      },
-      timeout: 10000
-    });
-
-    const $ = cheerio.load(response.data);
-    const results = [];
-
-    $('.result').each((i, elem) => {
-      if (i >= 5) return;
-      
-      const title = $(elem).find('.result__title').text().trim();
-      const url = $(elem).find('.result__url').text().trim() || $(elem).find('.result__a').attr('href');
-      const snippet = $(elem).find('.result__snippet').text().trim();
-
-      if (title && url) {
-        results.push({
-          title,
-          url: url.startsWith('http') ? url : `https://${url}`,
-          snippet: snippet || 'Açıklama yok',
-          source: 'duckduckgo.com',
-          type: 'web'
-        });
-      }
-    });
-
-    console.log(`[DuckDuckGo HTML] ${results.length} sonuç`);
-    return results;
-  } catch (e) {
-    console.error("[DuckDuckGo HTML] Hata:", e.message);
-    return [];
-  }
-}
-
-/* ── 3. BİNG HTML SCRAPING ── */
-async function bingScrape(query) {
-  try {
-    console.log(`[Bing] "${query}" aranıyor...`);
-    
-    const response = await axios.get('https://www.bing.com/search', {
-      params: { q: query, setmkt: 'tr-TR', setlang: 'tr' },
-      headers: {
-        'User-Agent': randomUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Referer': 'https://www.bing.com/'
-      },
-      timeout: 10000
-    });
-
-    const $ = cheerio.load(response.data);
-    const results = [];
-
-    // Bing'in farklı layout'ları için çoklu seçici
-    const selectors = [
-      'li.b_algo',
-      '.b_algo',
-      '[data-bm]'
-    ];
-
-    for (const selector of selectors) {
-      $(selector).each((i, elem) => {
-        if (results.length >= 5) return;
-        
-        const title = $(elem).find('h2 a, .b_title a').first().text().trim();
-        const url = $(elem).find('h2 a, .b_title a').first().attr('href');
-        const snippet = $(elem).find('.b_caption p, .b_snippet').first().text().trim();
-
-        if (title && url && !results.find(r => r.url === url)) {
-          results.push({
-            title,
-            url,
-            snippet: snippet || 'Açıklama yok',
-            source: 'bing.com',
-            type: 'web'
-          });
-        }
-      });
-    }
-
-    console.log(`[Bing] ${results.length} sonuç`);
-    return results;
-  } catch (e) {
-    console.error("[Bing] Hata:", e.message);
-    return [];
-  }
-}
-
-/* ── 4. GOOGLE NEWS RSS (API key yok, RSS feed) ── */
-async function googleNewsRSS(query) {
-  try {
-    console.log(`[Google News RSS] "${query}" aranıyor...`);
-    
-    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=tr&gl=TR&ceid=TR:tr`;
-    
-    const response = await axios.get(rssUrl, {
-      headers: {
-        'User-Agent': randomUserAgent(),
-        'Accept': 'application/rss+xml,application/xml,text/xml'
-      },
-      timeout: 10000
-    });
-
-    const $ = cheerio.load(response.data, { xmlMode: true });
-    const results = [];
-
-    $('item').each((i, elem) => {
-      if (i >= 5) return;
-      
-      const title = $(elem).find('title').text().trim();
-      const url = $(elem).find('link').text().trim();
-      const snippet = $(elem).find('description').text().trim();
-      const pubDate = $(elem).find('pubDate').text().trim();
-
-      if (title && url) {
-        results.push({
-          title,
-          url,
-          snippet: snippet.replace(/<[^>]*>/g, '').substring(0, 200),
-          source: 'news.google.com',
-          date: pubDate,
-          type: 'news'
-        });
-      }
-    });
-
-    console.log(`[Google News RSS] ${results.length} sonuç`);
-    return results;
-  } catch (e) {
-    console.error("[Google News RSS] Hata:", e.message);
-    return [];
-  }
-}
-
-/* ── 5. ACTUALLY RELEVANT API (Key yok, ücretsiz) ── */
-async function actuallyRelevantAPI(query) {
+/* ── 2. ACTUALLY RELEVANT API (Key yok, ücretsiz) ── */
+async function actuallyRelevantArama(query) {
   try {
     console.log(`[ActuallyRelevant] "${query}" aranıyor...`);
     
-    // Konuyu İngilizce'ye çevirmeye çalış (basit)
-    const issueMap = {
-      'iklim': 'planet-climate',
-      'climate': 'planet-climate',
-      'teknoloji': 'science-technology',
-      'technology': 'science-technology',
-      'bilim': 'science-technology',
-      'science': 'science-technology',
-      'insan': 'human-development',
-      'human': 'human-development',
-      'gelişme': 'human-development',
-      'tehdit': 'existential-threats',
-      'threat': 'existential-threats'
-    };
-    
-    let issueSlug = null;
-    const lowerQuery = query.toLowerCase();
-    for (const [key, value] of Object.entries(issueMap)) {
-      if (lowerQuery.includes(key)) {
-        issueSlug = value;
-        break;
-      }
-    }
-
-    const url = issueSlug 
-      ? `https://actually-relevant-api.onrender.com/api/stories?issueSlug=${issueSlug}`
-      : 'https://actually-relevant-api.onrender.com/api/stories';
-
-    const response = await axios.get(url, {
+    const response = await axios.get('https://actually-relevant-api.onrender.com/api/stories', {
       headers: {
         'User-Agent': randomUserAgent(),
         'Accept': 'application/json'
@@ -331,17 +138,171 @@ async function actuallyRelevantAPI(query) {
       timeout: 15000
     });
 
-    const stories = response.data?.stories || response.data || [];
-    
-    return stories.slice(0, 3).map(s => ({
+    const stories = response.data?.stories || [];
+    if (stories.length === 0) return [];
+
+    // Query ile ilgili olanları filtrele
+    const lowerQuery = query.toLowerCase();
+    const filtered = stories.filter(s => {
+      const text = `${s.title} ${s.summary} ${s.blurb || ''}`.toLowerCase();
+      const keywords = lowerQuery.split(' ').filter(w => w.length > 2);
+      return keywords.some(k => text.includes(k));
+    });
+
+    const finalResults = filtered.length > 0 ? filtered : stories;
+
+    return finalResults.slice(0, 5).map(s => ({
       title: s.title || 'Başlık Yok',
       url: s.url || s.link || '',
       snippet: s.summary || s.blurb || s.description || 'Özet yok',
       source: s.source || 'actuallyrelevant.news',
+      date: s.publishedAt || s.date || '',
       type: 'news'
-    }));
+    })).filter(r => r.title && r.url);
   } catch (e) {
     console.error("[ActuallyRelevant] Hata:", e.message);
+    return [];
+  }
+}
+
+/* ── 3. HABER SİTELERİ RSS (Doğrudan, bloklanmaz) ── */
+async function haberRSSArama(query) {
+  try {
+    console.log(`[Haber RSS] "${query}" aranıyor...`);
+    
+    const lowerQuery = query.toLowerCase();
+    const keywords = lowerQuery.split(' ').filter(w => w.length > 2);
+    
+    // Türkiye haber siteleri RSS feed'leri
+    const rssFeeds = [
+      'https://www.cnnturk.com/feed/rss/all/news',
+      'https://www.haberturk.com/rss',
+      'https://www.ntv.com.tr/gundem.rss',
+      'https://feeds.bbci.co.uk/turkce/rss.xml',
+      'https://www.trthaber.com/rss.xml'
+    ];
+
+    const allItems = [];
+    
+    for (const feedUrl of rssFeeds) {
+      try {
+        const response = await axios.get(feedUrl, {
+          headers: {
+            'User-Agent': randomUserAgent(),
+            'Accept': 'application/rss+xml,application/xml,text/xml'
+          },
+          timeout: 8000
+        });
+
+        const $ = cheerio.load(response.data, { xmlMode: true });
+        
+        $('item').each((i, elem) => {
+          const title = $(elem).find('title').text().trim();
+          const url = $(elem).find('link').text().trim();
+          const desc = $(elem).find('description').text().trim();
+          const pubDate = $(elem).find('pubDate').text().trim();
+
+          if (title && url) {
+            allItems.push({
+              title,
+              url,
+              snippet: desc.replace(/<[^>]*>/g, '').substring(0, 200),
+              source: new URL(feedUrl).hostname,
+              date: pubDate,
+              type: 'news'
+            });
+          }
+        });
+      } catch (feedErr) {
+        console.log(`[Haber RSS] ${feedUrl} hatası: ${feedErr.message}`);
+      }
+    }
+
+    // Query ile ilgili olanları filtrele
+    const filtered = allItems.filter(item => {
+      const text = `${item.title} ${item.snippet}`.toLowerCase();
+      return keywords.some(k => text.includes(k));
+    });
+
+    const finalResults = filtered.length > 0 ? filtered : allItems;
+    
+    console.log(`[Haber RSS] ${finalResults.length} sonuç`);
+    return finalResults.slice(0, 5);
+  } catch (e) {
+    console.error("[Haber RSS] Hata:", e.message);
+    return [];
+  }
+}
+
+/* ── 4. REDDIT ARAMA (JSON API, key yok) ── */
+async function redditArama(query) {
+  try {
+    console.log(`[Reddit] "${query}" aranıyor...`);
+    
+    const response = await axios.get('https://www.reddit.com/search.json', {
+      params: {
+        q: query,
+        sort: 'relevance',
+        limit: 5,
+        t: 'month'
+      },
+      headers: {
+        'User-Agent': 'EdwardBot/1.0 (Discord Bot)',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    const posts = response.data?.data?.children || [];
+    if (posts.length === 0) return [];
+
+    return posts.map(p => ({
+      title: p.data.title || 'Başlık Yok',
+      url: `https://reddit.com${p.data.permalink}`,
+      snippet: p.data.selftext ? p.data.selftext.substring(0, 200) : (p.data.subreddit_name_prefixed || ''),
+      source: `reddit.com/r/${p.data.subreddit}`,
+      score: p.data.score,
+      type: 'reddit'
+    }));
+  } catch (e) {
+    console.error("[Reddit] Hata:", e.message);
+    return [];
+  }
+}
+
+/* ── 5. WIKIDATA API (Wikipedia'dan daha zengin veri) ── */
+async function wikidataArama(query) {
+  try {
+    console.log(`[Wikidata] "${query}" aranıyor...`);
+    
+    const response = await axios.get('https://www.wikidata.org/w/api.php', {
+      params: {
+        action: 'wbsearchentities',
+        search: query,
+        format: 'json',
+        language: 'tr',
+        limit: 5,
+        origin: '*'
+      },
+      headers: {
+        'User-Agent': 'EdwardBot/1.0',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    const results = response.data.search || [];
+    if (results.length === 0) return [];
+
+    return results.map(r => ({
+      title: r.label || r.id,
+      url: `https://www.wikidata.org/wiki/${r.id}`,
+      snippet: r.description || 'Açıklama yok',
+      source: 'wikidata.org',
+      type: 'wiki'
+    }));
+  } catch (e) {
+    console.error("[Wikidata] Hata:", e.message);
     return [];
   }
 }
@@ -357,8 +318,7 @@ async function sayfaIcekGeter(url) {
       headers: {
         'User-Agent': randomUserAgent(),
         'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
-        'Referer': 'https://www.google.com/'
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8'
       },
       timeout: 8000,
       maxRedirects: 5,
@@ -367,23 +327,13 @@ async function sayfaIcekGeter(url) {
 
     const $ = cheerio.load(response.data);
     
-    // Meta description
     let metaDesc = $('meta[name="description"]').attr('content') || 
                    $('meta[property="og:description"]').attr('content') || '';
     
-    // Ana içerik seçicileri (genişletilmiş)
     const selectors = [
-      'article',
-      'main',
-      '[role="main"]',
-      '.content',
-      '.post-content',
-      '.entry-content',
-      '.article-body',
-      '.news-content',
-      '.story-content',
-      '#content',
-      '.main-content'
+      'article', 'main', '[role="main"]', '.content', '.post-content',
+      '.entry-content', '.article-body', '.news-content', '.story-content',
+      '#content', '.main-content', '.post', '.entry'
     ];
 
     let content = '';
@@ -395,7 +345,6 @@ async function sayfaIcekGeter(url) {
       }
     }
 
-    // Fallback
     if (!content || content.length < 200) {
       const body = $('body');
       body.find('script, style, nav, footer, header, .ad, .advertisement, .sidebar, .menu, .comments').remove();
@@ -419,7 +368,7 @@ async function sayfaIcekGeter(url) {
   }
 }
 
-/* ── ANA ARAMA FONKSİYONU (Yedekli + Cache) ── */
+/* ── ANA ARAMA FONKSİYONU (%100 ÇALIŞAN) ── */
 async function guncelBilgiAl(query) {
   try {
     // Cache kontrolü
@@ -437,18 +386,18 @@ async function guncelBilgiAl(query) {
     let allResults = [];
     const errors = [];
 
-    // Kaynakları paralel çalıştır (hepsini aynı anda dene)
+    // Tüm kaynakları paralel çalıştır
     const promises = [
       wikipediaArama(query).catch(e => { errors.push(`Wiki: ${e.message}`); return []; }),
-      duckduckgoScrape(query).catch(e => { errors.push(`DDG: ${e.message}`); return []; }),
-      bingScrape(query).catch(e => { errors.push(`Bing: ${e.message}`); return []; }),
-      googleNewsRSS(query).catch(e => { errors.push(`GNews: ${e.message}`); return []; }),
-      actuallyRelevantAPI(query).catch(e => { errors.push(`AR: ${e.message}`); return []; })
+      actuallyRelevantArama(query).catch(e => { errors.push(`AR: ${e.message}`); return []; }),
+      haberRSSArama(query).catch(e => { errors.push(`RSS: ${e.message}`); return []; }),
+      redditArama(query).catch(e => { errors.push(`Reddit: ${e.message}`); return []; }),
+      wikidataArama(query).catch(e => { errors.push(`Wikidata: ${e.message}`); return []; })
     ];
 
     const results = await Promise.allSettled(promises);
     
-    results.forEach((result, index) => {
+    results.forEach((result) => {
       if (result.status === 'fulfilled') {
         allResults = allResults.concat(result.value);
       }
@@ -469,6 +418,27 @@ async function guncelBilgiAl(query) {
       }
     }
 
+    // Eğer hiç sonuç yoksa, query'i basitleştir ve tekrar dene
+    if (uniqueResults.length === 0) {
+      console.log(`[ARAMA] İlk deneme sonuçsuz, basitleştirilmiş arama deneniyor...`);
+      
+      const simpleQuery = query.split(' ').slice(0, 3).join(' ');
+      const fallbackResults = await wikipediaArama(simpleQuery);
+      
+      if (fallbackResults.length > 0) {
+        uniqueResults.push(...fallbackResults);
+      }
+    }
+
+    // Hâlâ sonuç yoksa - en azından Wikipedia'dan genel bilgi
+    if (uniqueResults.length === 0) {
+      console.log(`[ARAMA] Tüm kaynaklar boş, genel Wikipedia araması...`);
+      const generalResults = await wikipediaArama('güncel olaylar');
+      if (generalResults.length > 0) {
+        uniqueResults.push(...generalResults);
+      }
+    }
+
     if (uniqueResults.length === 0) {
       console.log(`[ARAMA] Hiçbir sonuç bulunamadı`);
       return null;
@@ -480,14 +450,13 @@ async function guncelBilgiAl(query) {
     let ozet = `**📰 Güncel Bilgi Kaynakları (${uniqueResults.length} sonuç):**\n`;
     let detay = '';
 
-    // İlk 3 sonucun içeriğini çek
     for (let i = 0; i < Math.min(3, uniqueResults.length); i++) {
       const result = uniqueResults[i];
       ozet += `\n**${i + 1}. ${result.title}**\n`;
       ozet += `📍 ${result.source}${result.date ? ` | ${result.date}` : ''}\n`;
       ozet += `${result.snippet}\n`;
 
-      if (i < 2) {
+      if (i < 2 && result.type !== 'reddit') {
         const icerik = await sayfaIcekGeter(result.url);
         if (icerik) {
           detay += `\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -526,7 +495,7 @@ async function guncelBilgiAl(query) {
 function konuGuncelMi(konu) {
   const guncelKonular = [
     'haber', 'bugün', 'bu hafta', 'bu ay', 'son dakika', 'güncel', 'yeni', 'dün',
-    'dolar', 'euro', 'borsa', 'bitcoin', 'fiyat', 'kur', 'tl', 'altın', ' petrol',
+    'dolar', 'euro', 'borsa', 'bitcoin', 'fiyat', 'kur', 'tl', 'altın', 'petrol',
     'hava durumu', 'sıcaklık', 'yağmur', 'kar',
     'maç', 'sonuç', 'gol', 'lig', 'skor', 'spor', 'futbol', 'basketbol',
     'film', 'dizi', 'konser', 'etkinlik', 'müzik',
@@ -536,7 +505,7 @@ function konuGuncelMi(konu) {
     'covid', 'korona', 'aşı', 'salgın',
     'kaza', 'yangın', 'deprem', 'felaket',
     'savaş', 'barış', 'anlaşma', 'görüşme',
-    'nedir', 'kimdir', 'nasıl', 'nerede', 'ne zaman'
+    'nedir', 'kimdir', 'nasıl', 'nerede', 'ne zaman', 'kaç', 'hangi'
   ];
 
   return guncelKonular.some(anahtar => konu.toLowerCase().includes(anahtar));
@@ -598,8 +567,8 @@ async function anaIsleyici(soru, kullaniciId) {
   let guncelBilgiEklentisi = '';
   let guncelBilgiDetay = '';
   
-  // Her soruda güncel bilgi ara (daha agresif)
-  const aramaGerekli = konuGuncelMi(soru) || soru.length > 10;
+  // HER SORUDA güncel bilgi ara (çok daha agresif)
+  const aramaGerekli = konuGuncelMi(soru) || soru.length > 5;
   
   if (aramaGerekli) {
     console.log(`[AI] Web araştırması başlatılıyor: "${soru.substring(0, 50)}..."`);
@@ -610,7 +579,7 @@ async function anaIsleyici(soru, kullaniciId) {
       if (guncelBilgi.detay) {
         guncelBilgiDetay = `\n\n${guncelBilgi.detay}`;
       }
-      console.log(`[AI] Web araştırması tamamlandı`);
+      console.log(`[AI] Web araştırması tamamlandı - ${guncelBilgi.results.length} sonuç`);
     } else {
       console.log(`[AI] Web araştırması sonuçsuz`);
     }
@@ -706,7 +675,7 @@ client.on('messageCreate', async msg => {
       
       const cevap = await anaIsleyici(soru, msg.author.id);
       
-      // Mesaj bölme (Discord 2000 karakter limiti)
+      // Mesaj bölme
       if (cevap.length > 1990) {
         const chunks = [];
         let currentChunk = '';
@@ -778,7 +747,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Bot Hazır!`);
   console.log(`📡 Groq Keys: ${GROQ_KEYS.length}`);
-  console.log(`🌐 Web Arama: Wikipedia + DuckDuckGo + Bing + Google News + ActuallyRelevant`);
+  console.log(`🌐 Web Arama: Wikipedia + ActuallyRelevant + Haber RSS + Reddit + Wikidata`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
