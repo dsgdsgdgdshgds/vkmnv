@@ -1,7 +1,6 @@
 const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
 const axios = require('axios');
 const http = require('http');
-const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
 
@@ -21,9 +20,18 @@ http.createServer((_, r) => {
 }).listen(process.env.PORT || 8080);
 
 /* ── CONFIG ── */
-const GROQ_KEY = process.env.groq;
+const GROQ_KEYS = [
+  process.env.groq,
+  process.env.groq1,
+  process.env.groq2,
+  process.env.groq3,
+  process.env.groq4
+].filter(Boolean);
+
 const DISCORD_TOKEN = process.env.token;
 const SMART = 'llama-3.3-70b-versatile';
+
+let currentGroqIndex = 0;
 
 /* ── HAFIZA ── */
 const mem = new Map();
@@ -58,52 +66,71 @@ function saveWhiteList() {
 }
 
 /* ══════════════════════════════════════════════════════
-   AI VE ARAMA FONKSİYONLARI (Aynı Kaldı)
+   GROQ API FONKSIYONLARI - MULTIPLE KEY DESTEĞI
    ══════════════════════════════════════════════════════ */
-async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0) {
-  try {
-    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions',
-      { model: SMART, messages, temperature, max_tokens },
-      { headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' }, timeout: 60000 }
-    );
-    return r.data.choices[0].message.content.trim();
-  } catch (e) {
-    if ((e.response?.status === 429 || e.response?.status >= 500) && deneme < 3) {
-      await new Promise(res => setTimeout(res, (deneme + 1) * 4000));
-      return groqCall(messages, max_tokens, temperature, deneme + 1);
-    }
-    return null;
-  }
+function nextGroqKey() {
+  currentGroqIndex = (currentGroqIndex + 1) % GROQ_KEYS.length;
+  return GROQ_KEYS[currentGroqIndex];
 }
 
-async function googleArama(sorgu) {
+function getCurrentGroqKey() {
+  return GROQ_KEYS[currentGroqIndex];
+}
+
+async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0, keyIndex = 0) {
   try {
-    const { data } = await axios.get('https://www.google.com/search', {
-      params: { q: sorgu, hl: 'tr', num: 5 },
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      timeout: 10000,
-    });
-    const $ = cheerio.load(data);
-    const sonuclar = [];
-    $('div.g').each((i, el) => {
-      const baslik = $(el).find('h3').first().text().trim();
-      const snippet = $(el).find('.VwiC3b').text().trim() || $(el).find('.s3v9rd').text().trim();
-      if (baslik) sonuclar.push({ baslik, snippet: snippet?.slice(0, 200) });
-    });
-    return sonuclar.slice(0, 4);
-  } catch (e) { return []; }
+    const apiKey = GROQ_KEYS[keyIndex];
+    if (!apiKey) {
+      console.error("Hiçbir Groq API key mevcut değil!");
+      return null;
+    }
+
+    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions',
+      { model: SMART, messages, temperature, max_tokens },
+      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+    );
+    
+    // Başarılıysa şu anki keyi güncelle
+    currentGroqIndex = keyIndex;
+    return r.data.choices[0].message.content.trim();
+  } catch (e) {
+    const isRateLimitOrServerError = e.response?.status === 429 || e.response?.status >= 500;
+    
+    if (isRateLimitOrServerError || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
+      console.warn(`[Groq ${keyIndex}] Hata: ${e.response?.status || e.message}. Diğer key deneniyor...`);
+      
+      // Sonraki keyi dene
+      const nextKeyIndex = (keyIndex + 1) % GROQ_KEYS.length;
+      if (nextKeyIndex !== keyIndex) { // Döngü tamamlanmadıysa
+        await new Promise(res => setTimeout(res, 1000));
+        return groqCall(messages, max_tokens, temperature, deneme, nextKeyIndex);
+      }
+      
+      // Tüm keyler denenmiş, retry et
+      if (deneme < 3) {
+        console.warn(`Tüm keyler denendi, ${deneme + 1}. deneme bekleniyor...`);
+        await new Promise(res => setTimeout(res, (deneme + 1) * 4000));
+        return groqCall(messages, max_tokens, temperature, deneme + 1, 0);
+      }
+    }
+    
+    console.error(`[Groq] API Hatası:`, e.message);
+    return null;
+  }
 }
 
 async function anaIsleyici(soru, kullaniciId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Türkçe konuş.`;
-  
+
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
+  
   const cevap = await groqCall([{ role: 'system', content: systemPrompt }, ...gecmis]);
   const sonCevap = cevap || 'Simya enerjim düşük.';
   gecmis.push({ role: 'assistant', content: sonCevap });
+  
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
   return sonCevap;
 }
@@ -185,7 +212,7 @@ client.on('guildMemberAdd', async (member) => {
 
   const audit = await member.guild.fetchAuditLogs({ limit: 1, type: 28 }).catch(() => null);
   const entry = audit?.entries.first();
-  
+
   if (entry) {
     const executorId = entry.executor.id;
     if (executorId !== member.guild.ownerId) {
@@ -221,6 +248,7 @@ client.on('channelDelete', async (channel) => {
 
 client.once('ready', () => {
   console.log(`✅ Hazır!`);
+  console.log(`📡 Aktif Groq API Keyler: ${GROQ_KEYS.length}`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
