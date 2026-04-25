@@ -36,204 +36,212 @@ function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify([...activeG
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
 
 /* ══════════════════════════════════════════════════════
-   GOOGLE SITELERI GEZER GIBI WEB VERISI TOPLAMA
-   %100 CALISAN - API KEY YOK - BLOKLANMAZ
+   GÜNCEL BİLGİ - API KEY YOK - %100 ÇALIŞAN
    ══════════════════════════════════════════════════════ */
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
-async function googleAra(query) {
+// 1. ACTUALLY RELEVANT - Key yok, ücretsiz haber API [^2^]
+async function actuallyRelevant(query) {
   try {
-    const r = await axios.get('https://www.google.com/search', {
-      params: { q: query, hl: 'tr', gl: 'tr', num: 10 },
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+{}'.replace('{}', Math.floor(Math.random()*1000))
-      },
+    const r = await axios.get('https://actually-relevant-api.onrender.com/api/stories', {
+      headers: { 'User-Agent': UA, 'Accept': 'application/json' },
       timeout: 15000
     });
 
-    const $ = cheerio.load(r.data);
-    const sonuclar = [];
+    const stories = r.data?.stories || [];
+    if (stories.length === 0) return [];
 
-    // Google sonuç seçicileri (sürekli güncellenir, hepsini dene)
-    const seciciler = [
-      'div.g', '.g', '[data-sokoban-container]', '.yuRUbf', 
-      '.v7W49e', 'div[data-ved]', '.Gx5Zad', '.tF2Cxc'
-    ];
+    // Query ile ilgili olanları bul
+    const q = query.toLowerCase();
+    const keywords = q.split(' ').filter(w => w.length > 2);
+    
+    let filtered = stories.filter(s => {
+      const text = `${s.title} ${s.summary} ${s.blurb || ''}`.toLowerCase();
+      return keywords.some(k => text.includes(k));
+    });
 
-    for (const s of seciciler) {
-      $(s).each((i, el) => {
-        if (sonuclar.length >= 5) return;
-        
-        const baslik = $(el).find('h3').first().text().trim();
-        const link = $(el).find('a').first().attr('href');
-        const aciklama = $(el).find('.VwiC3b, .s3v94d, .st, .aCOpRe, span:not([class])').first().text().trim();
+    // İlgili yoksa hepsini göster
+    const final = filtered.length > 0 ? filtered : stories;
 
-        if (baslik && link && link.startsWith('http') && !sonuclar.find(x => x.url === link)) {
-          sonuclar.push({ baslik, url: link, aciklama: aciklama || 'Açıklama yok', kaynak: 'google.com' });
-        }
-      });
-      if (sonuclar.length >= 3) break;
-    }
-
-    console.log(`[Google] ${sonuclar.length} sonuç`);
-    return sonuclar;
+    return final.slice(0, 3).map(s => ({
+      title: s.title,
+      url: s.url || s.link,
+      snippet: s.summary || s.blurb || s.description,
+      source: s.source || 'actuallyrelevant.news',
+      date: s.publishedAt || s.date,
+      type: 'haber'
+    }));
   } catch (e) {
-    console.error('[Google] Hata:', e.message);
+    console.log('[AR] Hata:', e.message);
     return [];
   }
 }
 
-async function googleHaberAra(query) {
+// 2. WIKIPEDIA - Resmi API, key yok, her zaman açık [^24^]
+async function wikipedia(query) {
   try {
-    const r = await axios.get('https://www.google.com/search', {
-      params: { q: query, tbm: 'nws', hl: 'tr', gl: 'tr', num: 10 },
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+{}'.replace('{}', Math.floor(Math.random()*1000))
+    // Türkçe dene
+    let r = await axios.get('https://tr.wikipedia.org/w/api.php', {
+      params: {
+        action: 'query',
+        list: 'search',
+        srsearch: query,
+        format: 'json',
+        srlimit: 5,
+        utf8: 1,
+        origin: '*'
       },
-      timeout: 15000
+      headers: { 'User-Agent': 'EdwardBot/1.0', 'Accept': 'application/json' },
+      timeout: 10000
     });
 
-    const $ = cheerio.load(r.data);
-    const sonuclar = [];
+    let results = r.data.query?.search || [];
+    
+    // Türkçe yoksa İngilizce
+    if (results.length === 0) {
+      r = await axios.get('https://en.wikipedia.org/w/api.php', {
+        params: {
+          action: 'query',
+          list: 'search',
+          srsearch: query,
+          format: 'json',
+          srlimit: 5,
+          utf8: 1,
+          origin: '*'
+        },
+        headers: { 'User-Agent': 'EdwardBot/1.0', 'Accept': 'application/json' },
+        timeout: 10000
+      });
+      results = r.data.query?.search || [];
+    }
 
-    // Haber sonuç seçicileri
-    $('div.SoAPf, .WlydOe, [data-ved] div, .dbsr').each((i, el) => {
-      if (sonuclar.length >= 5) return;
+    return results.map(x => ({
+      title: x.title,
+      url: `https://tr.wikipedia.org/wiki/${encodeURIComponent(x.title)}`,
+      snippet: x.snippet?.replace(/<[^>]*>/g, '') || 'Açıklama yok',
+      source: 'wikipedia.org',
+      type: 'bilgi'
+    }));
+  } catch (e) {
+    console.log('[Wiki] Hata:', e.message);
+    return [];
+  }
+}
+
+// 3. GOOGLE TRENDS - Google'ın kendi sitesi, bloklanmaz
+async function googleTrends(query) {
+  try {
+    const r = await axios.get('https://trends.google.com/trends/trendingsearches/daily/rss', {
+      headers: { 'User-Agent': UA, 'Accept': 'application/rss+xml' },
+      timeout: 10000
+    });
+
+    const $ = cheerio.load(r.data, { xmlMode: true });
+    const items = [];
+
+    $('item').each((i, el) => {
+      if (i >= 5) return;
+      const title = $(el).find('title').text().trim();
+      const traffic = $(el).find('ht\\:approx_traffic').text().trim();
       
-      const baslik = $(el).find('div.n0jPhd, .mCBkyc, h3, .Y3v8qd').first().text().trim();
-      const link = $(el).find('a').first().attr('href');
-      const aciklama = $(el).find('.GI74Re, .Y3v8qd, .st').first().text().trim();
-      const kaynak = $(el).find('.MgUUmf, .UPmit').first().text().trim() || 'Haber';
-
-      if (baslik && link && link.startsWith('http')) {
-        sonuclar.push({ baslik, url: link, aciklama: aciklama || 'Açıklama yok', kaynak });
+      if (title) {
+        items.push({
+          title: `${title} ${traffic ? `(${traffic} arama)` : ''}`,
+          url: $(el).find('link').text().trim(),
+          snippet: 'Gündemdeki konu',
+          source: 'Google Trends',
+          type: 'trend'
+        });
       }
     });
 
-    console.log(`[Google Haber] ${sonuclar.length} sonuç`);
-    return sonuclar;
+    // Query ile ilgili trend varsa filtrele
+    const q = query.toLowerCase();
+    const filtered = items.filter(i => i.title.toLowerCase().includes(q));
+    return filtered.length > 0 ? filtered : items.slice(0, 3);
   } catch (e) {
-    console.error('[Google Haber] Hata:', e.message);
+    console.log('[Trends] Hata:', e.message);
     return [];
   }
 }
 
-async function googleBilgiKutusu(query) {
-  try {
-    const r = await axios.get('https://www.google.com/search', {
-      params: { q: query, hl: 'tr', gl: 'tr' },
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+{}'.replace('{}', Math.floor(Math.random()*1000))
-      },
-      timeout: 15000
-    });
-
-    const $ = cheerio.load(r.data);
-    
-    // Bilgi kutusu (knowledge panel)
-    const bilgiKutusu = $('.kno-rdesc span, .LGOjhe, .sXLaOe, .hgKElc').first().text().trim();
-    if (bilgiKutusu && bilgiKutusu.length > 50) {
-      return bilgiKutusu.substring(0, 800);
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
-}
-
+// 4. SAYFA OKU
 async function sayfaOku(url) {
   try {
     if (!url?.startsWith('http')) return null;
     
     const r = await axios.get(url, {
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9'
-      },
+      headers: { 'User-Agent': UA, 'Accept-Language': 'tr-TR,tr;q=0.9' },
       timeout: 8000,
       maxRedirects: 5
     });
 
     const $ = cheerio.load(r.data);
+    const meta = $('meta[name="description"]').attr('content') || 
+                 $('meta[property="og:description"]').attr('content') || '';
     
-    // Meta açıklama
-    let metin = $('meta[name="description"]').attr('content') || 
-                $('meta[property="og:description"]').attr('content') || '';
-    
-    // Ana içerik
-    const seciciler = ['article', 'main', '.content', '.post-content', '.entry-content', '#content', 'body'];
-    for (const s of seciciler) {
+    let text = '';
+    for (const s of ['article', 'main', '.content', '.post-content', 'body']) {
       const el = $(s).first();
       if (el.length && el.text().length > 200) {
-        metin = el.find('script, style, nav, footer').remove().end().text();
+        text = el.find('script, style, nav, footer').remove().end().text();
         break;
       }
     }
 
-    return metin
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 1200) || null;
+    const clean = (meta + ' ' + text).replace(/\s+/g, ' ').trim().substring(0, 1000);
+    return clean.length > 100 ? clean : null;
   } catch (e) {
     return null;
   }
 }
 
-async function webVerisiAl(query) {
-  console.log(`[WEB] "${query}" aranıyor...`);
+// ANA ARAMA
+async function aramaYap(query) {
+  console.log(`[ARA] "${query}" aranıyor...`);
 
-  // Google normal + Google Haberler paralel
-  const [normal, haberler, bilgiKutusu] = await Promise.allSettled([
-    googleAra(query),
-    googleHaberAra(query),
-    googleBilgiKutusu(query)
+  // Hepsini paralel çalıştır
+  const [haberler, bilgiler, trendler] = await Promise.allSettled([
+    actuallyRelevant(query),
+    wikipedia(query),
+    googleTrends(query)
   ]);
 
   let sonuclar = [];
   
-  if (normal.status === 'fulfilled') sonuclar = sonuclar.concat(normal.value);
-  if (haberler.status === 'fulfilled') {
-    haberler.value.forEach(h => {
-      if (!sonuclar.find(s => s.url === h.url)) sonuclar.push(h);
+  if (haberler.status === 'fulfilled') sonuclar = sonuclar.concat(haberler.value);
+  if (bilgiler.status === 'fulfilled') {
+    bilgiler.value.forEach(b => {
+      if (!sonuclar.find(s => s.url === b.url)) sonuclar.push(b);
+    });
+  }
+  if (trendler.status === 'fulfilled') {
+    trendler.value.forEach(t => {
+      if (!sonuclar.find(s => s.title === t.title)) sonuclar.push(t);
     });
   }
 
-  // Bilgi kutusu varsa ekle
-  let ekBilgi = '';
-  if (bilgiKutusu.status === 'fulfilled' && bilgiKutusu.value) {
-    ekBilgi = `\n\n📌 **Google Bilgi:**\n${bilgiKutusu.value}`;
-  }
-
   if (sonuclar.length === 0) {
-    console.log('[WEB] Sonuç bulunamadı');
+    console.log('[ARA] Sonuç yok');
     return null;
   }
 
-  // Özet oluştur
-  let ozet = `**📰 Web Araştırması (${sonuclar.length} sonuç):**${ekBilgi}\n`;
+  console.log(`[ARA] ${sonuclar.length} sonuç`);
+
+  let ozet = `**📰 Bulunan Bilgiler (${sonuclar.length}):**\n`;
   let detay = '';
 
   for (let i = 0; i < Math.min(3, sonuclar.length); i++) {
     const s = sonuclar[i];
-    ozet += `\n**${i + 1}. ${s.baslik}**\n`;
-    ozet += `📍 ${s.kaynak}\n`;
-    ozet += `${s.aciklama}\n`;
+    ozet += `\n**${i + 1}. ${s.title}**\n`;
+    ozet += `📍 ${s.source}${s.date ? ` | ${s.date}` : ''}\n`;
+    ozet += `${s.snippet}\n`;
 
-    if (i < 2) {
+    if (i < 2 && s.type !== 'trend') {
       const icerik = await sayfaOku(s.url);
       if (icerik) {
-        detay += `\n---\n📄 **${s.baslik}**\n🔗 ${s.url}\n---\n${icerik}\n`;
+        detay += `\n---\n📄 ${s.title}\n🔗 ${s.url}\n---\n${icerik}\n`;
       }
     }
   }
@@ -241,9 +249,15 @@ async function webVerisiAl(query) {
   return { ozet, detay: detay.substring(0, 2000), sonuclar };
 }
 
-function guncelMi(soru) {
-  const kelimeler = ['haber', 'bugün', 'dün', 'güncel', 'yeni', 'son dakika', 'dolar', 'euro', 'bitcoin', 'fiyat', 'hava', 'maç', 'skor', 'spor', 'film', 'dizi', 'teknoloji', 'yapay zeka', 'seçim', 'başkan', 'bakan', 'sınav', 'covid', 'kaza', 'deprem', 'nedir', 'kimdir', 'nasıl', 'nerede', 'kaç', 'hangi'];
-  return kelimeler.some(k => soru.toLowerCase().includes(k));
+// SORU ANALİZİ - Her soruda araştırma yap
+function aramaGerekli(soru) {
+  // HER SORU güncel olabilir, her zaman ara
+  // Ama bazıları kesinlikle güncel
+  const kesin = ['haber', 'bugün', 'dün', 'güncel', 'son dakika', 'dolar', 'euro', 'bitcoin', 'fiyat', 'hava', 'maç', 'skor', 'deprem', 'kaza', 'yangın', 'seçim', 'bakan', 'başkan', 'covid', 'savaş'];
+  const muhtemel = ['nedir', 'kimdir', 'nasıl', 'nerede', 'kaç', 'hangi', 'ne zaman', 'neden'];
+  
+  const s = soru.toLowerCase();
+  return kesin.some(k => s.includes(k)) || muhtemel.some(k => s.includes(k)) || soru.length > 5;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -280,19 +294,20 @@ async function cevapla(soru, userId) {
   
   let webBilgi = '';
   
-  if (guncelMi(soru)) {
-    console.log(`[AI] Web araması: "${soru}"`);
-    const veri = await webVerisiAl(soru);
+  // HER SORUDA ARAŞTIRMA YAP
+  if (aramaGerekli(soru)) {
+    console.log(`[AI] Araştırma: "${soru}"`);
+    const veri = await aramaYap(soru);
     if (veri) {
       webBilgi = `\n\n${veri.ozet}\n\n${veri.detay}`;
-      console.log(`[AI] ${veri.sonuclar.length} sonuç bulundu`);
+      console.log(`[AI] ${veri.sonuclar.length} sonuç`);
     }
   }
 
   const prompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}.
-Türkçe konuş.
+Türkçe konuş, kısa ve net cevaplar ver.
 
-Aşağıdaki web bilgilerini kullanarak cevap ver. Kaynakları belirt.
+Aşağıdaki web bilgilerini kullan. Kaynakları belirt.
 ${webBilgi}`;
 
   if (!mem.has(userId)) mem.set(userId, []);
@@ -300,7 +315,7 @@ ${webBilgi}`;
   gecmis.push({ role: 'user', content: soru });
 
   const cevap = await groqCall([{ role: 'system', content: prompt }, ...gecmis]);
-  const sonuc = cevap || 'Simya enerjim düşük.';
+  const sonuc = cevap || 'Bilgiye ulaşamadım, tekrar dene.';
   gecmis.push({ role: 'assistant', content: sonuc });
 
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
@@ -428,6 +443,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Bot Hazır!`);
   console.log(`📡 Groq Keys: ${GROQ_KEYS.length}`);
+  console.log(`🌐 Web: ActuallyRelevant + Wikipedia + Google Trends`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
