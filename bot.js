@@ -1,28 +1,27 @@
 const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
-const axios = require('axios');
+const axios   = require('axios');
 const cheerio = require('cheerio');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+const http    = require('http');
+const fs      = require('fs');
+const path    = require('path');
 
 /* ─── SETUP ─── */
-const dataDir = '/var/data';
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const dataDir    = '/var/data';
 const GUARD_FILE = path.join(dataDir, 'guardlist.json');
 const WHITE_FILE = path.join(dataDir, 'whitelist.json');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 http.createServer((_, r) => { r.writeHead(200); r.end('OK'); }).listen(process.env.PORT || 8080);
 
-/* ─── ENV ─── */
 const GROQ_KEYS = [
   process.env.groq,  process.env.groq1, process.env.groq2,
-  process.env.groq3, process.env.groq4
+  process.env.groq3, process.env.groq4,
 ].filter(Boolean);
+
 const DISCORD_TOKEN = process.env.token;
-const GROQ_MODEL    = 'llama-3.3-70b-versatile';
+const MODEL = 'llama-3.3-70b-versatile';
 let gIdx = 0;
 
-/* ─── STATE ─── */
 let activeGuilds    = new Set();
 let whiteListedBots = new Set();
 const guardData     = new Map();
@@ -33,178 +32,175 @@ try { whiteListedBots = new Set(JSON.parse(fs.readFileSync(WHITE_FILE, 'utf8')))
 const saveGuards = () => fs.writeFileSync(GUARD_FILE, JSON.stringify([...activeGuilds]));
 const saveWhite  = () => fs.writeFileSync(WHITE_FILE, JSON.stringify([...whiteListedBots]));
 
-/* ═══════════════════════════════════════════════════
-   WEB SEARCH — GOOGLE HTML PARSE
-   Google'ın yanıt HTML'ini çekip cheerio ile parse et.
-   API key gerekmez, tamamen ücretsiz.
-═══════════════════════════════════════════════════ */
-
-// Farklı User-Agent'lar — Google'ın bot tespitini atlatmak için
+/* ═══════════════════════════════════════════
+   GOOGLE SCRAPING
+═══════════════════════════════════════════ */
 const UA_LIST = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
 ];
-const ua = () => UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 
-async function googleSearch(query) {
+async function webAra(query) {
   try {
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=tr&gl=tr&num=8`;
-    const { data: html } = await axios.get(url, {
+    const url = 'https://www.google.com/search?' + new URLSearchParams({
+      q: query, hl: 'tr', gl: 'tr', num: '8', ie: 'UTF-8',
+    });
+
+    const { data: html, status } = await axios.get(url, {
       headers: {
-        'User-Agent': ua(),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-Mode': 'navigate',
+        'User-Agent'      : UA_LIST[Math.floor(Math.random() * UA_LIST.length)],
+        'Accept'          : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language' : 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding' : 'gzip, deflate, br',
+        'Sec-Fetch-Dest'  : 'document',
+        'Sec-Fetch-Mode'  : 'navigate',
+        'Sec-Fetch-Site'  : 'none',
+        'Sec-Fetch-User'  : '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control'   : 'max-age=0',
       },
       timeout: 10000,
       decompress: true,
+      validateStatus: s => s < 500,
     });
 
-    const $ = cheerio.load(html);
-    const sonuclar = [];
+    if (status === 429) { console.warn('[Google] Rate limit'); return null; }
+    if (status !== 200) { console.warn('[Google] HTTP', status); return null; }
 
-    // ── 1. Answer box (anlık cevap: döviz, hava, skor vb.) ──
-    const answerSelectors = [
-      'div.LGOjhe',   // döviz kurusu
-      'div.BNeawe',   // genel özet
-      'div[data-attrid]', // structured data
-      'span.hgKElc',  // featured snippet
-      'div.kCrYT',
-    ];
-    for (const sel of answerSelectors) {
-      const txt = $(sel).first().text().trim();
-      if (txt && txt.length > 5 && txt.length < 400) {
-        sonuclar.push({ type: 'answer', text: txt });
-        break;
-      }
-    }
+    const $       = cheerio.load(html);
+    const satirlar = [];
 
-    // ── 2. Featured snippet ──
-    const featured = $('div.xpdopen, div.ifM9O, block-component').first().text().trim();
-    if (featured && featured.length > 20 && featured.length < 600) {
-      sonuclar.push({ type: 'featured', text: featured });
-    }
+    // 1) Döviz / anlık bilgi kutusu
+    const doviz = $('div.BNeawe.iBp4i.AP7Wnd').first().text().trim();
+    if (doviz) satirlar.push(`📌 ${doviz}`);
 
-    // ── 3. Organik sonuçlar ──
-    $('div.g, div[data-hveid]').each((_, el) => {
-      if (sonuclar.filter(s => s.type === 'organic').length >= 4) return;
-      const title   = $(el).find('h3').first().text().trim();
-      const snippet = $(el).find('div.VwiC3b, div.yXK7lf, span.aCOpRe').first().text().trim();
-      const link    = $(el).find('a').first().attr('href') ?? '';
-      if (title && snippet && title.length > 3) {
-        sonuclar.push({ type: 'organic', title, snippet, link });
+    // 2) Hava durumu
+    const sicaklik  = $('span#wob_tm').first().text().trim();
+    const havaDurum = $('div.VQF4g').first().text().trim();
+    if (sicaklik) satirlar.push(`🌤️ ${sicaklik}°C — ${havaDurum}`);
+
+    // 3) Featured snippet
+    const snippet = $('div.IZ6rdc').first().text().trim()
+                 || $('span.hgKElc').first().text().trim()
+                 || $('div.LGOjhe').first().text().trim();
+    if (snippet && snippet.length > 15) satirlar.push(`💡 ${snippet.substring(0, 400)}`);
+
+    // 4) Organik arama sonuçları
+    $('div.g').each((_, el) => {
+      if (satirlar.filter(s => s.startsWith('🔹')).length >= 4) return false;
+      const baslik = $(el).find('h3').first().text().trim();
+      const ozet   = $(el).find('div.VwiC3b').first().text().trim()
+                  || $(el).find('span.aCOpRe').first().text().trim();
+      const href   = $(el).find('a').first().attr('href') || '';
+      let domain   = '';
+      try { domain = new URL(href).hostname.replace('www.', ''); } catch {}
+      if (baslik && ozet) {
+        satirlar.push(`🔹 **${baslik}**${domain ? ` (${domain})` : ''}\n${ozet.substring(0, 220)}`);
       }
     });
 
-    if (sonuclar.length === 0) return null;
+    // 5) Haber kutusu
+    $('div.SoaBEf, g-card').each((_, el) => {
+      if (satirlar.filter(s => s.startsWith('📰')).length >= 2) return false;
+      const baslik = $(el).find('div.mCBkyc, div.n0jPhd').first().text().trim();
+      const kaynak = $(el).find('div.CEMjEf span').first().text().trim();
+      if (baslik) satirlar.push(`📰 **${baslik}**${kaynak ? ` — ${kaynak}` : ''}`);
+    });
 
-    // Metne çevir
-    const lines = [];
-    for (const s of sonuclar) {
-      if (s.type === 'answer')   lines.push(`📌 ${s.text}`);
-      if (s.type === 'featured') lines.push(`💡 ${s.text}`);
-      if (s.type === 'organic')  lines.push(`🔹 **${s.title}**\n${s.snippet}`);
-    }
-    return lines.join('\n\n');
+    if (satirlar.length === 0) { console.warn('[Google] Parse sonucu boş'); return null; }
 
+    console.log(`[Google] ${satirlar.length} sonuç ✅`);
+    return satirlar.join('\n\n');
   } catch (e) {
     console.error('[Google] Hata:', e.message);
     return null;
   }
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    GROQ
-═══════════════════════════════════════════════════ */
-async function groqCall(messages, max_tokens = 1024) {
+═══════════════════════════════════════════ */
+async function groq(messages, max_tokens = 1024) {
   for (let i = 0; i < GROQ_KEYS.length; i++) {
     const idx = (gIdx + i) % GROQ_KEYS.length;
     try {
       const { data } = await axios.post(
         'https://api.groq.com/openai/v1/chat/completions',
-        { model: GROQ_MODEL, messages, max_tokens, temperature: 0.75 },
-        { headers: { Authorization: `Bearer ${GROQ_KEYS[idx]}`, 'Content-Type': 'application/json' }, timeout: 30000 }
+        { model: MODEL, messages, max_tokens, temperature: 0.75 },
+        {
+          headers: { Authorization: `Bearer ${GROQ_KEYS[idx]}`, 'Content-Type': 'application/json' },
+          timeout: 30000,
+        }
       );
       gIdx = idx;
       return data.choices[0].message.content.trim();
     } catch (e) {
-      const s = e.response?.status;
-      if (s === 400) throw e;
-      console.warn(`[Groq key${idx}] ${s ?? e.message}`);
-      await new Promise(r => setTimeout(r, 600));
+      if (e.response?.status === 400) throw e;
+      console.warn(`[Groq key${idx}] ${e.response?.status ?? e.message}`);
+      await new Promise(r => setTimeout(r, 700));
     }
   }
   return null;
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    ANA İŞLEYİCİ
-═══════════════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 async function cevapla(soru, userId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   if (!mem.has(userId)) mem.set(userId, []);
   const history = mem.get(userId);
 
-  /* Adım 1: Groq'a "web araması gerekiyor mu?" diye sor */
-  const kararMesaj = [
+  // Groq'a "web araması gerekiyor mu?" diye sor
+  const karar = await groq([
     {
       role: 'system',
-      content: 'Kullanıcının sorusu güncel internet verisi gerektiriyor mu? (haberler, döviz, kripto, hava, maç sonucu, yeni çıkan ürün/film vb.) Sadece EVET ya da HAYIR yaz.'
+      content: 'Kullanıcı sorusu güncel internet verisi gerektiriyor mu? (haber, döviz, kripto, hava, maç sonucu, yeni ürün vb.) Sadece EVET veya HAYIR yaz.',
     },
-    { role: 'user', content: soru }
-  ];
-  const karar = (await groqCall(kararMesaj, 5)) ?? 'HAYIR';
-  const aramaYap = karar.toUpperCase().includes('EVET');
+    { role: 'user', content: soru },
+  ], 5);
 
-  /* Adım 2: Gerekiyorsa Google'da ara */
   let webBlok = '';
-  if (aramaYap) {
-    // Arama sorgusunu da Groq üretsin — daha iyi sonuç verir
-    const sorguMesaj = [
-      { role: 'system', content: 'Kullanıcının sorusunu Google\'da aramak için en iyi Türkçe arama sorgusunu tek satır olarak yaz. Başka hiçbir şey ekleme.' },
-      { role: 'user', content: soru }
-    ];
-    const sorgu = (await groqCall(sorguMesaj, 30)) ?? soru;
-    console.log(`[Arama] "${sorgu}"`);
+  if (karar?.toUpperCase().includes('EVET')) {
+    // Arama sorgusunu Groq üretsin
+    const sorgu = await groq([
+      {
+        role: 'system',
+        content: 'Bu soru için Google\'da aramak üzere en kısa Türkçe arama sorgusunu yaz. Sadece sorguyu yaz.',
+      },
+      { role: 'user', content: soru },
+    ], 25) ?? soru;
 
-    const webSonuc = await googleSearch(sorgu);
-    if (webSonuc) {
-      webBlok = `\n\n[GÜNCEL WEB VERİSİ]\n${webSonuc}\n[/GÜNCEL WEB VERİSİ]`;
-      console.log('[Web] Veri alındı ✅');
-    } else {
-      console.warn('[Web] Sonuç alınamadı');
-    }
+    console.log(`[Arama] "${sorgu}"`);
+    const webSonuc = await webAra(sorgu);
+    webBlok = webSonuc
+      ? `\n\n[WEB - ${new Date().toLocaleTimeString('tr-TR')}]\n${webSonuc}\n[/WEB]`
+      : '\n\n[Web araması sonuç vermedi, kendi bilginle cevapla.]';
   }
 
-  /* Adım 3: Gerçek cevap */
   const system = `Sen Edward Elric'sin. Geliştiricin Batuhan. Şu an: ${suAn}.
-Kişilik: Fullmetal Alchemist karakteri, zeki, bazen sinirli, yardımsever. "Ben kısa değilim!" gibi replikleri doğal kullan. Türkçe konuş.
-Yetenek: Her konuyu derin ve doğru açıkla — kod, bilim, tarih, güncel haber, fiyat, hava, yaratıcı yazı. Hiçbir şeyi geçiştirme.
-Format: Discord markdown kullan. Kaynak varsa sadece site adını belirt.${webBlok}`;
+Kişilik: Fullmetal Alchemist karakteri. Zeki, bazen sinirli, yardımsever. Türkçe konuş. "Ben kısa değilim!" gibi replikleri doğal kullan.
+Yetenekler: Kod, matematik, bilim, tarih, güncel haber/fiyat/hava, yaratıcı yazı. Hiçbir soruyu geçiştirme.
+Format: Discord markdown kullan. Web verisi geldiyse onu kullan, kaynağı belirt.${webBlok}`;
 
-  const messages = [
+  const cevap = await groq([
     { role: 'system', content: system },
     ...history,
-    { role: 'user', content: soru }
-  ];
-
-  const cevap = await groqCall(messages) ?? 'Simya enerjim tükendi, tekrar dene.';
+    { role: 'user', content: soru },
+  ]) ?? 'Simya enerjim tükendi, tekrar dene.';
 
   history.push({ role: 'user',      content: soru  });
   history.push({ role: 'assistant', content: cevap });
-  if (history.length > 12) history.splice(0, 2);
+  if (history.length > 14) history.splice(0, 2);
 
   return cevap;
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    GUARD
-═══════════════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 function checkLimit(guildId, userId, action) {
   if (!activeGuilds.has(guildId)) return true;
   const now = Date.now(), key = `${guildId}-${userId}`;
@@ -219,16 +215,16 @@ async function banIhlalci(guild, userId, sebep) {
   try { await guild.members.ban(userId, { reason: `[Guard] ${sebep}` }); } catch {}
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    DISCORD
-═══════════════════════════════════════════════════ */
+═══════════════════════════════════════════ */
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildModeration, GatewayIntentBits.GuildPresences
+    GatewayIntentBits.GuildModeration, GatewayIntentBits.GuildPresences,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
 });
 
 client.on('messageCreate', async msg => {
@@ -264,7 +260,7 @@ client.on('messageCreate', async msg => {
       }
     } catch (e) {
       console.error(e);
-      (m ? m.edit('❌ Hata oluştu.') : msg.reply('❌ Hata oluştu.'));
+      try { await m.edit('❌ Hata oluştu, tekrar dene.'); } catch {}
     }
   }
 });
@@ -302,7 +298,6 @@ client.on('channelDelete', async channel => {
 client.once('ready', () => {
   console.log(`✅ ${client.user.tag} hazır!`);
   console.log(`📡 Groq keys: ${GROQ_KEYS.length}`);
-  console.log(`🔍 Web arama: Google HTML scraping (ücretsiz, API key yok)`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
