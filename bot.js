@@ -1,9 +1,9 @@
 const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
-const axios   = require('axios');
-const cheerio = require('cheerio');
-const http    = require('http');
-const fs      = require('fs');
-const path    = require('path');
+const axios  = require('axios');
+const http   = require('http');
+const fs     = require('fs');
+const path   = require('path');
+const { GoogleSearch } = require('googlesearch-results-nodejs');
 
 /* ─── SETUP ─── */
 const dataDir    = '/var/data';
@@ -18,8 +18,10 @@ const GROQ_KEYS = [
   process.env.groq3, process.env.groq4,
 ].filter(Boolean);
 
+// SerpAPI key - https://serpapi.com - AYDA 100 ARAMA ÜCRETSİZ
+const SERP_KEY      = process.env.SERP_KEY;
 const DISCORD_TOKEN = process.env.token;
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL         = 'llama-3.3-70b-versatile';
 let gIdx = 0;
 
 let activeGuilds    = new Set();
@@ -33,103 +35,63 @@ const saveGuards = () => fs.writeFileSync(GUARD_FILE, JSON.stringify([...activeG
 const saveWhite  = () => fs.writeFileSync(WHITE_FILE, JSON.stringify([...whiteListedBots]));
 
 /* ═══════════════════════════════════════════
-   GOOGLE SCRAPING
-   Class isimleri sürekli değiştiği için
-   h3 tag'ına ve yapıya göre parse ediyoruz.
-   Son çare: body'nin tüm temiz metni.
+   WEB ARAMA
+   - SERP_KEY varsa SerpAPI kullan (ayda 100 ücretsiz)
+   - Yoksa DuckDuckGo instant answer API dene (ücretsiz ama sınırlı)
 ═══════════════════════════════════════════ */
-const UA_LIST = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
-];
-
 async function webAra(query) {
-  try {
-    const url = 'https://www.google.com/search?' + new URLSearchParams({
-      q: query, hl: 'tr', gl: 'tr', num: '8',
-    });
 
-    const { data: html, status } = await axios.get(url, {
-      headers: {
-        'User-Agent'     : UA_LIST[Math.floor(Math.random() * UA_LIST.length)],
-        'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Sec-Fetch-Dest' : 'document',
-        'Sec-Fetch-Mode' : 'navigate',
-        'Sec-Fetch-Site' : 'none',
-        'Sec-Fetch-User' : '?1',
-        'Cache-Control'  : 'max-age=0',
-      },
-      timeout: 10000,
-      decompress: true,
-      validateStatus: s => s < 500,
-    });
+  // 1) SerpAPI — en güvenilir, ayda 100 ücretsiz
+  if (SERP_KEY) {
+    try {
+      const search = new GoogleSearch(SERP_KEY);
+      const data = await new Promise((res, rej) =>
+        search.json({ q: query, hl: 'tr', gl: 'tr', num: 5 }, d => d.error ? rej(d.error) : res(d))
+      );
 
-    if (status === 429) { console.warn('[Google] Rate limit'); return null; }
-    if (status !== 200) { console.warn('[Google] HTTP', status); return null; }
+      const satirlar = [];
 
-    const $ = cheerio.load(html);
-    $('script, style, noscript').remove();
+      if (data.answer_box?.answer)   satirlar.push(`📌 ${data.answer_box.answer}`);
+      if (data.answer_box?.snippet)  satirlar.push(`💡 ${data.answer_box.snippet}`);
 
-    const sonuclar = [];
+      (data.organic_results || []).slice(0, 4).forEach(r => {
+        satirlar.push(`🔹 **${r.title}** (${r.displayed_link || ''})\n${r.snippet || ''}`);
+      });
 
-    // 1) Hava durumu — id hiç değişmiyor
-    const sicaklik  = $('#wob_tm').text().trim();
-    const havaDurum = $('#wob_dc').text().trim();
-    const havaYer   = $('#wob_loc').text().trim();
-    if (sicaklik) sonuclar.push(`🌤️ ${havaYer} ${sicaklik}°C, ${havaDurum}`);
-
-    // 2) h3 etiketlerine bakarak organik sonuçları çek
-    // Google hangi class kullanırsa kullansın h3 her zaman başlık
-    $('h3').each((_, h3) => {
-      if (sonuclar.length >= 6) return false;
-
-      const baslik = $(h3).text().trim();
-      if (!baslik || baslik.length < 4 || baslik.length > 200) return;
-
-      // h3'ün üst kapsayıcısını bul
-      const kapsayici = $(h3).parents().filter((_, el) => {
-        return $(el).find('a[href]').length > 0 && $(el).text().length > baslik.length + 10;
-      }).first();
-
-      // Özet metni: kapsayıcı içindeki tüm metinden başlığı çıkar
-      const tumMetin = kapsayici.text().replace(baslik, '').replace(/\s+/g, ' ').trim();
-      const ozet = tumMetin.substring(0, 280);
-
-      // Domain
-      let domain = '';
-      try {
-        const href = kapsayici.find('a[href^="http"]').first().attr('href') || '';
-        domain = new URL(href).hostname.replace('www.', '');
-      } catch {}
-
-      if (ozet.length > 15) {
-        sonuclar.push(`🔹 **${baslik}**${domain ? ` (${domain})` : ''}\n${ozet}`);
+      if (satirlar.length) {
+        console.log(`[SerpAPI] ${satirlar.length} sonuç ✅`);
+        return satirlar.join('\n\n');
       }
-    });
-
-    // 3) Sonuç yoksa son çare: body'den anlamlı metin çek
-    if (sonuclar.length === 0) {
-      console.warn('[Google] h3 parse başarısız, body fallback deneniyor...');
-      const bodyMetin = $('body').text().replace(/\s+/g, ' ').trim();
-      if (bodyMetin.length > 200) {
-        console.log('[Google] Body fallback ✅');
-        return bodyMetin.substring(0, 2000);
-      }
-      console.warn('[Google] Tamamen boş, büyük ihtimal CAPTCHA');
-      return null;
+    } catch (e) {
+      console.error('[SerpAPI] Hata:', e);
     }
-
-    console.log(`[Google] ${sonuclar.length} sonuç ✅`);
-    return sonuclar.join('\n\n');
-
-  } catch (e) {
-    console.error('[Google] Hata:', e.message);
-    return null;
   }
+
+  // 2) DuckDuckGo instant answer — ücretsiz, API key yok
+  try {
+    const { data } = await axios.get('https://api.duckduckgo.com/', {
+      params: { q: query, format: 'json', no_html: 1, skip_disambig: 1 },
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      timeout: 8000,
+    });
+
+    const satirlar = [];
+    if (data.AbstractText)  satirlar.push(`💡 ${data.AbstractText}`);
+    if (data.Answer)        satirlar.push(`📌 ${data.Answer}`);
+    (data.RelatedTopics || []).slice(0, 3).forEach(t => {
+      if (t.Text) satirlar.push(`🔹 ${t.Text}`);
+    });
+
+    if (satirlar.length) {
+      console.log(`[DuckDuckGo] ${satirlar.length} sonuç ✅`);
+      return satirlar.join('\n\n');
+    }
+  } catch (e) {
+    console.error('[DuckDuckGo] Hata:', e.message);
+  }
+
+  console.warn('[webAra] Hiç sonuç yok');
+  return null;
 }
 
 /* ═══════════════════════════════════════════
@@ -142,10 +104,7 @@ async function groq(messages, max_tokens = 1024) {
       const { data } = await axios.post(
         'https://api.groq.com/openai/v1/chat/completions',
         { model: MODEL, messages, max_tokens, temperature: 0.75 },
-        {
-          headers: { Authorization: `Bearer ${GROQ_KEYS[idx]}`, 'Content-Type': 'application/json' },
-          timeout: 30000,
-        }
+        { headers: { Authorization: `Bearer ${GROQ_KEYS[idx]}`, 'Content-Type': 'application/json' }, timeout: 30000 }
       );
       gIdx = idx;
       return data.choices[0].message.content.trim();
@@ -166,29 +125,22 @@ async function cevapla(soru, userId) {
   if (!mem.has(userId)) mem.set(userId, []);
   const history = mem.get(userId);
 
-  // Web araması gerekiyor mu?
   const karar = await groq([
-    {
-      role: 'system',
-      content: 'Kullanıcı sorusu güncel internet verisi gerektiriyor mu? (haber, döviz, kripto, hava, maç sonucu, yeni ürün vb.) Sadece EVET veya HAYIR yaz.',
-    },
-    { role: 'user', content: soru },
+    { role: 'system', content: 'Kullanıcı sorusu güncel internet verisi gerektiriyor mu? (haber, döviz, kripto, hava, maç, yeni ürün vb.) Sadece EVET veya HAYIR yaz.' },
+    { role: 'user',   content: soru },
   ], 5);
 
   let webBlok = '';
   if (karar?.toUpperCase().includes('EVET')) {
     const sorgu = await groq([
-      {
-        role: 'system',
-        content: 'Bu soru için Google\'da aramak üzere en kısa Türkçe arama sorgusunu yaz. Sadece sorguyu yaz.',
-      },
-      { role: 'user', content: soru },
+      { role: 'system', content: 'Bu soru için en kısa Türkçe Google arama sorgusunu yaz. Sadece sorguyu yaz.' },
+      { role: 'user',   content: soru },
     ], 25) ?? soru;
 
     console.log(`[Arama] "${sorgu}"`);
-    const webSonuc = await webAra(sorgu);
-    webBlok = webSonuc
-      ? `\n\n[WEB - ${new Date().toLocaleTimeString('tr-TR')}]\n${webSonuc}\n[/WEB]`
+    const sonuc = await webAra(sorgu);
+    webBlok = sonuc
+      ? `\n\n[WEB - ${new Date().toLocaleTimeString('tr-TR')}]\n${sonuc}\n[/WEB]`
       : '\n\n[Web araması sonuç vermedi, kendi bilginle cevapla.]';
   }
 
@@ -272,7 +224,7 @@ client.on('messageCreate', async msg => {
       }
     } catch (e) {
       console.error(e);
-      try { await m.edit('❌ Hata oluştu, tekrar dene.'); } catch {}
+      try { await m.edit('❌ Hata oluştu.'); } catch {}
     }
   }
 });
@@ -310,6 +262,7 @@ client.on('channelDelete', async channel => {
 client.once('ready', () => {
   console.log(`✅ ${client.user.tag} hazır!`);
   console.log(`📡 Groq keys: ${GROQ_KEYS.length}`);
+  console.log(`🔍 Arama: ${SERP_KEY ? 'SerpAPI ✅' : 'DuckDuckGo (SERP_KEY ekle → serpapi.com → 100/ay ücretsiz)'}`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
