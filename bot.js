@@ -36,162 +36,106 @@ function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify([...activeG
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
 
 /* ══════════════════════════════════════════════════════
-   GERÇEK ÇALIŞAN SİSTEM
-   DuckDuckGo Lite → URL bul → Jina AI ile oku → Groq özetle
-   Jina AI = API key yok, ücretsiz, stabil
+   SEARXNG PUBLIC INSTANCES - JSON API - KEY YOK
+   Google+Bing+DuckDuckGo sonuçlarını toplar
    ══════════════════════════════════════════════════════ */
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+const SEARXNG_INSTANCES = [
+  'https://searx.be',
+  'https://search.sapti.me',
+  'https://search.bus-hit.me',
+  'https://search.projectsegfault.com',
+  'https://search.demoniak.ch',
+  'https://searx.tiekoetter.com',
+  'https://searx.fmac.xyz',
+  'https://search.mdosch.de',
+  'https://searx.nixnet.services',
+  'https://searxng.nicfab.eu'
+];
 
-// 1. DuckDuckGo Lite'dan URL bul
-async function ddgBul(query) {
-  try {
-    const r = await axios.get('https://lite.duckduckgo.com/lite/', {
-      params: { q: query, kl: 'tr-tr' },
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html',
-        'Accept-Language': 'tr-TR,tr;q=0.9'
-      },
-      timeout: 15000,
-      maxRedirects: 5
-    });
-
-    const $ = cheerio.load(r.data);
-    const urls = [];
-
-    $('a.result-link').each((i, el) => {
-      if (urls.length >= 5) return;
-      const href = $(el).attr('href');
-      if (href && href.startsWith('http') && !href.includes('duckduckgo.com')) {
-        urls.push(href);
-      }
-    });
-
-    if (urls.length === 0) {
-      $('a[href^="http"]').each((i, el) => {
-        if (urls.length >= 5) return;
-        const href = $(el).attr('href');
-        if (href && !href.includes('duckduckgo.com') && !urls.includes(href)) {
-          urls.push(href);
-        }
+async function searxngAra(query) {
+  for (const base of SEARXNG_INSTANCES) {
+    try {
+      const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=tr&safesearch=0`;
+      console.log(`[SearXNG] Deneniyor: ${base}`);
+      
+      const r = await axios.get(url, {
+        headers: {
+          'User-Agent': 'EdwardBot/1.0',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
       });
-    }
 
-    return urls.slice(0, 3);
-  } catch (e) {
-    console.log('[DDG] Hata:', e.message);
-    return [];
+      const results = r.data?.results || [];
+      if (results.length === 0) continue;
+
+      console.log(`[SearXNG] ${base} ÇALIŞIYOR - ${results.length} sonuç`);
+      
+      return results.slice(0, 5).map(x => ({
+        title: x.title || 'Başlık Yok',
+        url: x.url || x.link || '',
+        snippet: x.content || x.snippet || x.abstract || 'Açıklama yok',
+        engine: x.engine || 'search'
+      })).filter(x => x.url && x.title);
+    } catch (e) {
+      console.log(`[SearXNG] ${base} HATA: ${e.message}`);
+      continue;
+    }
   }
+  return [];
 }
 
-// 2. Jina AI ile URL'den içerik çek (API key yok, stabil)
+// Jina AI yedek (URL'den içerik çek)
 async function jinaOku(url) {
   try {
     if (!url?.startsWith('http')) return null;
-    
-    const jinaUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, '')}`;
-    
-    const r = await axios.get(jinaUrl, {
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/plain'
-      },
+    const r = await axios.get(`https://r.jina.ai/http://${url.replace(/^https?:\/\//, '')}`, {
+      headers: { 'User-Agent': 'EdwardBot/1.0' },
       timeout: 15000
     });
-
-    let text = r.data;
-    if (!text || text.length < 50) return null;
-
-    // Jina metadata satırlarını temizle
-    const lines = text.split('\n');
-    const clean = [];
-    for (const line of lines) {
-      if (line.startsWith('Title:') || line.startsWith('URL Source:') || line.startsWith('Markdown Content:')) continue;
-      clean.push(line);
-    }
-    
-    return clean.join('\n')
-      .replace(/!\[.*?\]\(.*?\)/g, '')
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 2500);
+    return r.data?.replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1').substring(0, 2000) || null;
   } catch (e) {
-    console.log('[Jina] Hata:', e.message);
     return null;
   }
 }
 
-// 3. Wikipedia yedek
-async function wikiBul(query) {
-  try {
-    const r = await axios.get('https://tr.wikipedia.org/w/api.php', {
-      params: {
-        action: 'query',
-        list: 'search',
-        srsearch: query,
-        format: 'json',
-        srlimit: 3,
-        utf8: 1,
-        origin: '*'
-      },
-      headers: { 'User-Agent': 'EdwardBot/1.0' },
-      timeout: 10000
-    });
-
-    const results = r.data.query?.search || [];
-    return results.map(x => ({
-      title: x.title,
-      url: `https://tr.wikipedia.org/wiki/${encodeURIComponent(x.title)}`,
-      snippet: x.snippet?.replace(/<[^>]*>/g, '') || ''
-    }));
-  } catch (e) {
-    return [];
-  }
-}
-
-// 4. ANA ARAMA
+// ANA ARAMA
 async function internetAra(query) {
   console.log(`[NET] "${query}" aranıyor...`);
   
-  let urls = await ddgBul(query);
-  
-  if (urls.length === 0) {
-    const wiki = await wikiBul(query);
-    if (wiki.length > 0) {
-      urls = wiki.map(w => w.url);
-    }
-  }
-
-  if (urls.length === 0) {
-    console.log('[NET] Hiç kaynak bulunamadı');
+  const sonuclar = await searxngAra(query);
+  if (sonuclar.length === 0) {
+    console.log('[NET] Tüm SearXNG instance\'ları çöktü');
     return null;
   }
 
-  let icerikler = [];
-  for (const url of urls) {
-    const text = await jinaOku(url);
-    if (text) {
-      icerikler.push(text);
-      console.log(`[NET] Okundu: ${url.substring(0, 40)}...`);
+  let bilgi = '';
+  for (let i = 0; i < Math.min(3, sonuclar.length); i++) {
+    const s = sonuclar[i];
+    bilgi += `\n\n[${i+1}] ${s.title}\n${s.snippet}`;
+    
+    // İlk sonucu Jina ile detaylandır
+    if (i === 0) {
+      const detay = await jinaOku(s.url);
+      if (detay) bilgi += `\nDetay: ${detay.substring(0, 1000)}`;
     }
   }
 
-  if (icerikler.length === 0) return null;
-  return icerikler.join('\n\n---\n\n').substring(0, 6000);
+  return bilgi.substring(0, 5000);
 }
 
 // SORU ANALİZİ
-function bilgiSorusuMu(soru) {
-  const s = soru.toLowerCase().trim();
-  const guncel = ['bugün', 'dün', 'son dakika', 'güncel', 'haber', 'dolar', 'euro', 'bitcoin', 'fiyat', 'hava', 'maç', 'skor', 'deprem', 'kaza', 'seçim', 'yangın', 'savaş', 'bakan', 'başkan'];
+function bilgiMi(soru) {
+  const s = soru.toLowerCase();
+  const guncel = ['bugün','dün','son dakika','güncel','haber','dolar','euro','bitcoin','fiyat','hava','maç','skor','deprem','kaza','seçim','yangın','savaş','bakan','başkan','covid'];
+  const bilgi = ['nedir','kimdir','nasıl','nerede','ne zaman','kaç','hangi','neden','niçin','tarihi','hakkında','özellikleri'];
+  const sohbet = ['naber','nasılsın','merhaba','selam','teşekkür','sağol','senin','sen ','seviyorum','şaka','sence','niye','anlamadım','fullmetal','fma','edward','anime','manga','oyun öner','film öner','dizi öner','rastgele'];
+  
+  if (sohbet.some(k => s.includes(k))) return false;
   if (guncel.some(k => s.includes(k))) return true;
-  
-  const bilgi = ['nedir', 'kimdir', 'nasıl', 'nerede', 'ne zaman', 'kaç', 'hangi', 'neden', 'niçin', 'tarihi', 'hakkında', 'bilgi', 'özellikleri', 'farkı', 'karşılaştırma'];
   if (bilgi.some(k => s.includes(k))) return true;
-  
-  if (s.length > 20) return true;
+  if (s.length > 15) return true;
   return false;
 }
 
@@ -227,24 +171,23 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.7, deneme =
 async function cevapla(soru, userId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   
-  const arastir = bilgiSorusuMu(soru);
+  const arastir = bilgiMi(soru);
   let internetBilgisi = '';
   
   if (arastir) {
-    console.log(`[AI] İnternet araştırması: "${soru}"`);
+    console.log(`[AI] Araştırma: "${soru}"`);
     const veri = await internetAra(soru);
     if (veri) internetBilgisi = veri;
   } else {
-    console.log(`[AI] Groq kendi zekasıyla cevaplıyor`);
+    console.log(`[AI] Sohbet modu`);
   }
 
-  const prompt = arastir 
+  const prompt = arastir && internetBilgisi
     ? `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}. Türkçe konuş.
 
-Aşağıdaki internet araştırması bilgilerine dayanarak cevap ver. Sadece bu bilgileri kullan. Kaynak belirtme, sadece doğal cevap ver.
+Aşağıdaki internet araştırması bilgilerini kullanarak cevap ver. Sadece bu bilgilere dayan. Kaynak belirtme, doğal cevap ver.
 
-ARAŞTIRMA:
-${internetBilgisi}`
+BİLGİLER:${internetBilgisi}`
     : `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}. Türkçe konuş, samimi ve doğal cevaplar ver.`;
 
   if (!mem.has(userId)) mem.set(userId, []);
@@ -380,7 +323,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Bot Hazır!`);
   console.log(`📡 Groq Keys: ${GROQ_KEYS.length}`);
-  console.log(`🌐 İnternet: DuckDuckGo Lite + Jina AI`);
+  console.log(`🌐 SearXNG: 10 public instance`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
