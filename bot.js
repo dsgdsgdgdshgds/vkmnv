@@ -31,11 +31,9 @@ const DISCORD_TOKEN = process.env.token;
 const SMART = 'llama-3.3-70b-versatile';
 let currentGroqIndex = 0;
 
-/* ── HAFIZA (MEHMET) ── */
+/* ── HAFIZA VE GUARD CONFIG (MEHMET) ── */
 const mem = new Map();
 const MAX_MESAJ = 3;
-
-/* ── GUARD CONFIG (MEHMET) ── */
 const guardData = new Map();
 let activeGuilds = new Set();
 let whiteListedBots = new Set();
@@ -52,7 +50,7 @@ function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify(Array.from(
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify(Array.from(whiteListedBots)), 'utf8'); }
 
 /* ══════════════════════════════════════════════════════
-   GROQ API FONKSIYONLARI (MEHMET'İN ÇOKLU KEY SİSTEMİ)
+   GROQ API - MULTIPLE KEY SİSTEMİ (MEHMET'İN YAPISI)
    ══════════════════════════════════════════════════════ */
 async function groqCall(messages, max_tokens = 1500, temperature = 0.5, keyIndex = 0) {
   try {
@@ -76,7 +74,7 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, keyIndex
 }
 
 /* ══════════════════════════════════════════════════════
-   🌐 AHMET'İN WEB ARAÇLARI (PARALEL TARAMA)
+   🌐 AHMET'İN TAM WEB GEZGİNİ SİSTEMİ
    ══════════════════════════════════════════════════════ */
 
 async function googleArama(sorgu) {
@@ -86,82 +84,109 @@ async function googleArama(sorgu) {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 10000
     });
+
     const $ = cheerio.load(data);
     const sonuclar = [];
     $('a').each((i, elem) => {
       const href = $(elem).attr('href');
       if (href && href.startsWith('/url?q=')) {
         const url = href.replace('/url?q=', '').split('&')[0];
-        const baslik = $(elem).find('h3').text().trim();
-        if (url.startsWith('http') && !url.includes('google.com') && baslik) {
-          sonuclar.push({ url, baslik });
+        if (url.startsWith('http') && !url.includes('google.com')) {
+          const baslik = $(elem).find('h3').text().trim();
+          if (baslik) sonuclar.push({ url, baslik });
         }
       }
     });
-    return sonuclar.slice(0, 5);
-  } catch (e) { return []; }
+    return sonuclar.slice(0, 8);
+  } catch (e) {
+    // AHMET'İN DUCKDUCKGO FALLBACK'İ
+    try {
+      const { data } = await axios.post('https://html.duckduckgo.com/html/', 
+        new URLSearchParams({ q: sorgu }).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }
+      );
+      const $ = cheerio.load(data);
+      const sonuclar = [];
+      $('.result').each((i, elem) => {
+        const a = $(elem).find('.result__a');
+        const url = a.attr('href');
+        const baslik = a.text().trim();
+        if (url && baslik) sonuclar.push({ url, baslik });
+      });
+      return sonuclar.slice(0, 8);
+    } catch (e2) { return []; }
+  }
 }
 
-async function siteIcerikCek(linkler) {
+async function siteZiyaretcisi(linkler, strateji) {
   const icerikler = [];
-  const promises = linkler.map(async (link) => {
+  const promises = linkler.slice(0, 5).map(async (link) => {
     try {
-      const { data } = await axios.get(link.url, { timeout: 7000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const { data } = await axios.get(link.url, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
       const $ = cheerio.load(data);
-      let sayfaMetni = '';
-      $('p, article, .content').each((i, el) => {
-        if (i < 5) sayfaMetni += $(el).text().trim() + '\n';
+      let metin = '';
+      $('p, h1, h2, h3, article').each((i, el) => {
+        const text = $(el).text().trim();
+        if (text.length > 50) metin += text + '\n';
       });
-      if (sayfaMetni.length > 100) icerikler.push(`BAŞLIK: ${link.baslik}\nİÇERİK: ${sayfaMetni.substring(0, 1000)}`);
+      
+      metin = metin.substring(0, 3000);
+      let alakaPuani = 0;
+      strateji.anahtar_kelimeler.forEach(kelime => {
+        const regex = new RegExp(kelime, 'gi');
+        const matches = metin.match(regex);
+        if (matches) alakaPuani += matches.length;
+      });
+
+      if (metin.length > 100) {
+        icerikler.push({ url: link.url, baslik: link.baslik, metin, alaka: alakaPuani });
+      }
     } catch (e) {}
   });
+
   await Promise.allSettled(promises);
-  return icerikler.join('\n---\n');
+  icerikler.sort((a, b) => b.alaka - a.alaka);
+  return icerikler.slice(0, 3);
 }
 
 /* ══════════════════════════════════════════════════════
-   🧠 AKILLI KARAR VE PARSE DÜZELTME
+   🧠 ANA İŞLEYİCİ - AKILLI KARAR & BİRLEŞTİRME
    ══════════════════════════════════════════════════════ */
 
 async function anaIsleyici(soru, kullaniciId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   
-  // 1. ADIM: Niyet Analizi ve Parse (Ahmet'in mantığı Mehmet'in key sistemiyle)
+  // 1. Niyet Analizi (Ahmet'in JSON Formatı)
   const niyetAnalizi = await groqCall([
     {
       role: 'system',
-      content: `Kullanıcı sorusunu analiz et. SADECE aşağıdaki JSON formatında yanıt ver:
+      content: `Kullanıcının sorusunu analiz et. SADECE JSON formatında şunu döndür:
       {
         "aramaGerekli": true/false,
-        "sorgu": "en iyi arama sorgusu"
+        "niyet": "bilgi/sohbet",
+        "anahtar_kelimeler": ["kelime1", "kelime2"],
+        "arama_sorgulari": ["sorgu1"]
       }`
     },
     { role: 'user', content: soru }
   ], 300, 0.2);
 
-  let strateji = { aramaGerekli: false, sorgu: soru };
-  
-  // PARSE HATASINI DÜZELTEN KISIM (Ahmet'in Regex'i)
+  let strateji = { aramaGerekli: false, anahtar_kelimeler: [], arama_sorgulari: [soru] };
   try {
     const match = niyetAnalizi.match(/\{[\s\S]*\}/);
-    if (match) {
-      strateji = JSON.parse(match[0]);
-    }
-  } catch (e) {
-    console.log("Parse Hatası Düzeldi: Varsayılan değer kullanılıyor.");
-    // Eğer parse edilemezse ama içinde "true" geçiyorsa aramayı zorla
-    if (niyetAnalizi.toLowerCase().includes('true')) strateji.aramaGerekli = true;
-  }
+    if (match) strateji = JSON.parse(match[0]);
+  } catch (e) {}
 
   let webVerisi = "";
   if (strateji.aramaGerekli) {
-    const sonuclar = await googleArama(strateji.sorgu);
-    webVerisi = await siteIcerikCek(sonuclar);
+    const linkler = await googleArama(strateji.arama_sorgulari[0]);
+    const siteler = await siteZiyaretcisi(linkler, strateji);
+    webVerisi = siteler.map((s, i) => `[VERİ ${i+1}]\n${s.metin}`).join('\n---\n');
   }
 
-  // 2. ADIM: Yanıt Oluşturma
+  // 2. Yanıt Oluşturma (Edward Elric Kişiliği)
   const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. 
-  ${webVerisi ? `İnternetten bulduğum veriler:\n${webVerisi}` : "Kendi bilgilerinle yanıt ver."}
+  ${webVerisi ? `İnternetten gelen veriler:\n${webVerisi}` : "Bu genel bir sohbet, kendi simya bilginle yanıtla."}
   Kesinlikle kaynak linki verme. Türkçe konuş.`;
 
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
@@ -169,7 +194,7 @@ async function anaIsleyici(soru, kullaniciId) {
   gecmis.push({ role: 'user', content: soru });
   
   const cevap = await groqCall([{ role: 'system', content: systemPrompt }, ...gecmis]);
-  const sonCevap = cevap || 'Simya döngüsünde hata oluştu.';
+  const sonCevap = cevap || 'Simya enerjim tükendi...';
   
   gecmis.push({ role: 'assistant', content: sonCevap });
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
@@ -178,7 +203,7 @@ async function anaIsleyici(soru, kullaniciId) {
 }
 
 /* ══════════════════════════════════════════════════════
-   GUARD SİSTEMİ (MEHMET - DEĞİŞMEDİ)
+   GUARD SİSTEMİ (MEHMET - AYNI KALDI)
    ══════════════════════════════════════════════════════ */
 function checkLimit(guildId, userId, action) {
   if (!activeGuilds.has(guildId) || HARIC_ID_LIST.includes(userId)) return true;
@@ -197,7 +222,7 @@ async function banIhlalci(guild, userId, sebep) {
 }
 
 /* ══════════════════════════════════════════════════════
-   DISCORD BAĞLANTISI (MEHMET)
+   DISCORD BOT MOTORU
    ══════════════════════════════════════════════════════ */
 const client = new Client({
   intents: [
@@ -267,8 +292,7 @@ client.on('channelDelete', async (channel) => {
 });
 
 client.once('ready', () => {
-  console.log(`✅ ${client.user.tag} hazır! Parse sorunu giderildi.`);
-  client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
+  console.log(`✅ ${client.user.tag} hazır! Ahmet'in web gezgini entegre edildi.`);
 });
 
 client.login(DISCORD_TOKEN);
