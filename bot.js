@@ -3,6 +3,7 @@ const axios = require('axios');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const cheerio = require('cheerio');
 
 /* ── DOSYA YOLU VE DİZİN KONTROLÜ ── */
 const dataDir = '/var/data';
@@ -66,6 +67,137 @@ function saveWhiteList() {
 }
 
 /* ══════════════════════════════════════════════════════
+   WEB ARAMA VE SCRAPING FONKSIYONLARI
+   ══════════════════════════════════════════════════════ */
+
+async function googleSearch(query) {
+  try {
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    const response = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 8000
+    });
+
+    const $ = cheerio.load(response.data);
+    const results = [];
+
+    $('div.g').each((index, element) => {
+      if (results.length >= 3) return;
+      
+      const titleElement = $(element).find('h3');
+      const linkElement = $(element).find('a');
+      const snippetElement = $(element).find('div[style*="line-height"]').first();
+
+      const title = titleElement.text();
+      const link = linkElement.attr('href');
+      const snippet = snippetElement.text();
+
+      if (title && link && snippet) {
+        results.push({
+          title: title.substring(0, 100),
+          link: link,
+          snippet: snippet.substring(0, 200)
+        });
+      }
+    });
+
+    return results;
+  } catch (e) {
+    console.error("Google arama hatası:", e.message);
+    return [];
+  }
+}
+
+async function fetchPageContent(url) {
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 8000
+    });
+
+    const $ = cheerio.load(response.data);
+    let content = '';
+
+    // Yaygın içerik seçicileri
+    $('article, main, [role="main"], .content, .post, .entry').each((_, el) => {
+      const text = $(el).text();
+      if (text.length > content.length) {
+        content = text;
+      }
+    });
+
+    if (!content) {
+      content = $('body').text();
+    }
+
+    return content
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 1000);
+  } catch (e) {
+    console.error("Sayfa okuma hatası:", e.message);
+    return '';
+  }
+}
+
+async function getGuncelBilgi(konu) {
+  try {
+    console.log(`[Web] "${konu}" için arama yapılıyor...`);
+    
+    const searchResults = await googleSearch(konu);
+    
+    if (searchResults.length === 0) {
+      return null;
+    }
+
+    let guncelBilgi = `**Güncel Bilgi Kaynakları:**\n`;
+    let detayliIcerik = '';
+
+    for (let i = 0; i < Math.min(2, searchResults.length); i++) {
+      const result = searchResults[i];
+      guncelBilgi += `\n**${i + 1}. ${result.title}**\n${result.snippet}\n`;
+
+      // İlk iki kaynaktan detaylı içerik çek
+      if (i < 2) {
+        const pageContent = await fetchPageContent(result.link);
+        if (pageContent) {
+          detayliIcerik += `\n${pageContent}`;
+        }
+      }
+    }
+
+    return {
+      ozet: guncelBilgi,
+      detay: detayliIcerik.substring(0, 2000)
+    };
+  } catch (e) {
+    console.error("Güncel bilgi hatası:", e.message);
+    return null;
+  }
+}
+
+function konuGuncelMi(konu) {
+  const guncelKonular = [
+    'haber', 'haberler', 'bugün', 'bu hafta', 'bu ay', 'son dakika',
+    'güncel', 'geçen', 'yeni', 'dün', 'öğlen', 'sabah',
+    'dolar', 'euro', 'borsa', 'piyasa', 'bitcoin', 'kripto',
+    'hava durumu', 'iklim', 'sıcaklık', 'yağmur', 'kar', 'rüzgar',
+    'covid', 'koronavirus', 'aşı', 'salgın',
+    'futbol', 'maç', 'sonuç', 'gol', 'lig', 'turnuva',
+    'müzik', 'konser', 'etkinlik', 'festival', 'film',
+    'teknoloji', 'yazılım', 'oyun', 'telefon', 'bilgisayar',
+    'politika', 'seçim', 'başkan', 'cumhuriyet',
+    'eğitim', 'okul', 'üniversite', 'sınav', 'sonuçlar'
+  ];
+
+  return guncelKonular.some(konu_anahtar => konu.toLowerCase().includes(konu_anahtar));
+}
+
+/* ══════════════════════════════════════════════════════
    GROQ API FONKSIYONLARI - MULTIPLE KEY DESTEĞI
    ══════════════════════════════════════════════════════ */
 function nextGroqKey() {
@@ -89,23 +221,23 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
       { model: SMART, messages, temperature, max_tokens },
       { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
     );
-    
+
     // Başarılıysa şu anki keyi güncelle
     currentGroqIndex = keyIndex;
     return r.data.choices[0].message.content.trim();
   } catch (e) {
     const isRateLimitOrServerError = e.response?.status === 429 || e.response?.status >= 500;
-    
+
     if (isRateLimitOrServerError || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
       console.warn(`[Groq ${keyIndex}] Hata: ${e.response?.status || e.message}. Diğer key deneniyor...`);
-      
+
       // Sonraki keyi dene
       const nextKeyIndex = (keyIndex + 1) % GROQ_KEYS.length;
       if (nextKeyIndex !== keyIndex) { // Döngü tamamlanmadıysa
         await new Promise(res => setTimeout(res, 1000));
         return groqCall(messages, max_tokens, temperature, deneme, nextKeyIndex);
       }
-      
+
       // Tüm keyler denenmiş, retry et
       if (deneme < 3) {
         console.warn(`Tüm keyler denendi, ${deneme + 1}. deneme bekleniyor...`);
@@ -113,7 +245,7 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
         return groqCall(messages, max_tokens, temperature, deneme + 1, 0);
       }
     }
-    
+
     console.error(`[Groq] API Hatası:`, e.message);
     return null;
   }
@@ -121,16 +253,34 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
 
 async function anaIsleyici(soru, kullaniciId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-  const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Türkçe konuş.`;
+  
+  // Konu güncel mi kontrol et
+  let guncelBilgiEklentisi = '';
+  let guncelBilgiDetay = '';
+  
+  if (konuGuncelMi(soru)) {
+    console.log(`[${kullaniciId}] Güncel konuda soru algılandı: "${soru}"`);
+    const guncelBilgi = await getGuncelBilgi(soru);
+    
+    if (guncelBilgi) {
+      guncelBilgiEklentisi = `\n\nGüncel Web Araştırması Sonuçları:\n${guncelBilgi.ozet}`;
+      guncelBilgiDetay = `\n\nDetaylı Kaynak İçeriği:\n${guncelBilgi.detay}`;
+    }
+  }
+
+  const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. Türkçe konuş.
+${guncelBilgiEklentisi}${guncelBilgiDetay}
+
+Eğer web araştırması yapıldıysa, bu bilgiye dayanarak cevap ver. Kaynakları göz önünde tut.`;
 
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
-  
+
   const cevap = await groqCall([{ role: 'system', content: systemPrompt }, ...gecmis]);
   const sonCevap = cevap || 'Simya enerjim düşük.';
   gecmis.push({ role: 'assistant', content: sonCevap });
-  
+
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
   return sonCevap;
 }
@@ -199,9 +349,24 @@ client.on('messageCreate', async msg => {
   if (msg.mentions.has(client.user) && !msg.mentions.everyone) {
     const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
     if (!soru) return;
-    await msg.channel.sendTyping();
-    const cevap = await anaIsleyici(soru, msg.author.id);
-    msg.reply(cevap);
+    
+    try {
+      await msg.channel.sendTyping();
+      const cevap = await anaIsleyici(soru, msg.author.id);
+      
+      // Discord mesaj limiti (2000 karakter)
+      if (cevap.length > 2000) {
+        const chunks = cevap.match(/[\s\S]{1,2000}/g) || [];
+        for (const chunk of chunks) {
+          await msg.reply(chunk);
+        }
+      } else {
+        await msg.reply(cevap);
+      }
+    } catch (e) {
+      console.error("Mesaj işleme hatası:", e);
+      msg.reply('❌ Bir hata oluştu, lütfen tekrar dene.');
+    }
   }
 });
 
