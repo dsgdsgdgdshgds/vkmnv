@@ -76,15 +76,15 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, keyIndex
 }
 
 /* ══════════════════════════════════════════════════════
-   🌐 AHMET'İN WEB GEZGİNİ ARAÇLARI
+   🌐 AHMET'İN WEB ARAÇLARI (PARALEL TARAMA)
    ══════════════════════════════════════════════════════ */
 
 async function googleArama(sorgu) {
   try {
     const { data } = await axios.get('https://www.google.com/search', {
-      params: { q: sorgu, hl: 'tr', num: 5 },
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' },
-      timeout: 8000
+      params: { q: sorgu, hl: 'tr', num: 10 },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 10000
     });
     const $ = cheerio.load(data);
     const sonuclar = [];
@@ -92,61 +92,84 @@ async function googleArama(sorgu) {
       const href = $(elem).attr('href');
       if (href && href.startsWith('/url?q=')) {
         const url = href.replace('/url?q=', '').split('&')[0];
-        if (url.startsWith('http') && !url.includes('google.com')) sonuclar.push(url);
+        const baslik = $(elem).find('h3').text().trim();
+        if (url.startsWith('http') && !url.includes('google.com') && baslik) {
+          sonuclar.push({ url, baslik });
+        }
       }
     });
-    return sonuclar.slice(0, 3);
+    return sonuclar.slice(0, 5);
   } catch (e) { return []; }
 }
 
-async function siteZiyaretcisi(linkler) {
+async function siteIcerikCek(linkler) {
   const icerikler = [];
-  const promises = linkler.map(async (url) => {
+  const promises = linkler.map(async (link) => {
     try {
-      const { data } = await axios.get(url, { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const { data } = await axios.get(link.url, { timeout: 7000, headers: { 'User-Agent': 'Mozilla/5.0' } });
       const $ = cheerio.load(data);
-      let metin = '';
-      $('p').each((i, el) => { if (i < 5) metin += $(el).text() + ' '; });
-      if (metin.length > 50) icerikler.push(metin.substring(0, 1500));
+      let sayfaMetni = '';
+      $('p, article, .content').each((i, el) => {
+        if (i < 5) sayfaMetni += $(el).text().trim() + '\n';
+      });
+      if (sayfaMetni.length > 100) icerikler.push(`BAŞLIK: ${link.baslik}\nİÇERİK: ${sayfaMetni.substring(0, 1000)}`);
     } catch (e) {}
   });
   await Promise.allSettled(promises);
-  return icerikler.join('\n\n');
+  return icerikler.join('\n---\n');
 }
 
 /* ══════════════════════════════════════════════════════
-   🧠 AKILLI KARAR MEKANİZMASI VE ANA İŞLEYİCİ
+   🧠 AKILLI KARAR VE PARSE DÜZELTME
    ══════════════════════════════════════════════════════ */
 
 async function anaIsleyici(soru, kullaniciId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   
-  // 1. ADIM: Arama Gerekli mi Karar Ver
-  const kararPrompt = [
-    { role: 'system', content: 'Kullanıcının sorusu güncel bilgi (haber, hava durumu, fiyat, 2025/2026 olayları) gerektiriyor mu? Sadece "EVET" veya "HAYIR" yaz.' },
+  // 1. ADIM: Niyet Analizi ve Parse (Ahmet'in mantığı Mehmet'in key sistemiyle)
+  const niyetAnalizi = await groqCall([
+    {
+      role: 'system',
+      content: `Kullanıcı sorusunu analiz et. SADECE aşağıdaki JSON formatında yanıt ver:
+      {
+        "aramaGerekli": true/false,
+        "sorgu": "en iyi arama sorgusu"
+      }`
+    },
     { role: 'user', content: soru }
-  ];
-  const karar = await groqCall(kararPrompt, 10, 0.1);
-  const aramaGerekli = karar?.includes('EVET');
+  ], 300, 0.2);
 
-  let webBilgisi = "";
-  if (aramaGerekli) {
-    console.log(`🔍 Güncel bilgi aranıyor: ${soru}`);
-    const linkler = await googleArama(soru);
-    webBilgisi = await siteZiyaretcisi(linkler);
+  let strateji = { aramaGerekli: false, sorgu: soru };
+  
+  // PARSE HATASINI DÜZELTEN KISIM (Ahmet'in Regex'i)
+  try {
+    const match = niyetAnalizi.match(/\{[\s\S]*\}/);
+    if (match) {
+      strateji = JSON.parse(match[0]);
+    }
+  } catch (e) {
+    console.log("Parse Hatası Düzeldi: Varsayılan değer kullanılıyor.");
+    // Eğer parse edilemezse ama içinde "true" geçiyorsa aramayı zorla
+    if (niyetAnalizi.toLowerCase().includes('true')) strateji.aramaGerekli = true;
   }
 
-  // 2. ADIM: Edward Elric Kişiliği ile Yanıtla
+  let webVerisi = "";
+  if (strateji.aramaGerekli) {
+    const sonuclar = await googleArama(strateji.sorgu);
+    webVerisi = await siteIcerikCek(sonuclar);
+  }
+
+  // 2. ADIM: Yanıt Oluşturma
   const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih: ${suAn}. 
-  ${webBilgisi ? `İnternetten bulduğum güncel bilgiler: ${webBilgisi}` : "Bu genel bir sohbet, simya bilginle yanıt ver."}
-  Kesinlikle kaynak linki paylaşma. Türkçe konuş.`;
+  ${webVerisi ? `İnternetten bulduğum veriler:\n${webVerisi}` : "Kendi bilgilerinle yanıt ver."}
+  Kesinlikle kaynak linki verme. Türkçe konuş.`;
 
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
   
   const cevap = await groqCall([{ role: 'system', content: systemPrompt }, ...gecmis]);
-  const sonCevap = cevap || 'Transmutasyon başarısız oldu...';
+  const sonCevap = cevap || 'Simya döngüsünde hata oluştu.';
   
   gecmis.push({ role: 'assistant', content: sonCevap });
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
@@ -155,7 +178,7 @@ async function anaIsleyici(soru, kullaniciId) {
 }
 
 /* ══════════════════════════════════════════════════════
-   GUARD SİSTEMİ (MEHMET - AYNI KALDI)
+   GUARD SİSTEMİ (MEHMET - DEĞİŞMEDİ)
    ══════════════════════════════════════════════════════ */
 function checkLimit(guildId, userId, action) {
   if (!activeGuilds.has(guildId) || HARIC_ID_LIST.includes(userId)) return true;
@@ -174,7 +197,7 @@ async function banIhlalci(guild, userId, sebep) {
 }
 
 /* ══════════════════════════════════════════════════════
-   DISCORD BAĞLANTISI (MEHMET - AYNI KALDI)
+   DISCORD BAĞLANTISI (MEHMET)
    ══════════════════════════════════════════════════════ */
 const client = new Client({
   intents: [
@@ -188,7 +211,7 @@ client.on('messageCreate', async msg => {
   if (msg.author.bot || !msg.guild) return;
 
   if (msg.content.toLowerCase() === 'eguard') {
-    if (!msg.member.permissions.has('Administrator')) return msg.reply('Yetkin yok.');
+    if (!msg.member.permissions.has('Administrator')) return;
     activeGuilds.add(msg.guild.id);
     saveGuardList();
     return msg.reply('✅ **Guard Aktif!**');
@@ -202,10 +225,10 @@ client.on('messageCreate', async msg => {
     const cevap = await anaIsleyici(soru, msg.author.id);
     
     if (cevap.length > 2000) {
-        const chunks = cevap.match(/[\s\S]{1,1900}/g);
-        for (const chunk of chunks) await msg.channel.send(chunk);
+      const chunks = cevap.match(/[\s\S]{1,1900}/g);
+      for (const chunk of chunks) await msg.channel.send(chunk);
     } else {
-        msg.reply(cevap);
+      msg.reply(cevap);
     }
   }
 });
@@ -244,8 +267,8 @@ client.on('channelDelete', async (channel) => {
 });
 
 client.once('ready', () => {
-  console.log(`✅ ${client.user.tag} hazır! Akıllı Karar Mekanizması aktif.`);
-  client.user.setActivity('Simya ve Web arasında', { type: ActivityType.Watching });
+  console.log(`✅ ${client.user.tag} hazır! Parse sorunu giderildi.`);
+  client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
 client.login(DISCORD_TOKEN);
