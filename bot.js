@@ -36,234 +36,325 @@ function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify([...activeG
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
 
 /* ══════════════════════════════════════════════════════
-   GÜNCEL BİLGİ - API KEY YOK - %100 ÇALIŞAN
+   İNTERNETİ DOLAŞAN BOT - GOOGLE ARA, SİTEYE GİR, OKU
+   API KEY YOK - KAYNAK BELİRTME - %100 ÇALIŞAN
    ══════════════════════════════════════════════════════ */
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
-// 1. ACTUALLY RELEVANT - Key yok, ücretsiz haber API [^2^]
-async function actuallyRelevant(query) {
+// 1. GOOGLE'DA ARA - Sonuçları al
+async function googleAra(query) {
   try {
-    const r = await axios.get('https://actually-relevant-api.onrender.com/api/stories', {
-      headers: { 'User-Agent': UA, 'Accept': 'application/json' },
-      timeout: 15000
-    });
-
-    const stories = r.data?.stories || [];
-    if (stories.length === 0) return [];
-
-    // Query ile ilgili olanları bul
-    const q = query.toLowerCase();
-    const keywords = q.split(' ').filter(w => w.length > 2);
-    
-    let filtered = stories.filter(s => {
-      const text = `${s.title} ${s.summary} ${s.blurb || ''}`.toLowerCase();
-      return keywords.some(k => text.includes(k));
-    });
-
-    // İlgili yoksa hepsini göster
-    const final = filtered.length > 0 ? filtered : stories;
-
-    return final.slice(0, 3).map(s => ({
-      title: s.title,
-      url: s.url || s.link,
-      snippet: s.summary || s.blurb || s.description,
-      source: s.source || 'actuallyrelevant.news',
-      date: s.publishedAt || s.date,
-      type: 'haber'
-    }));
-  } catch (e) {
-    console.log('[AR] Hata:', e.message);
-    return [];
-  }
-}
-
-// 2. WIKIPEDIA - Resmi API, key yok, her zaman açık [^24^]
-async function wikipedia(query) {
-  try {
-    // Türkçe dene
-    let r = await axios.get('https://tr.wikipedia.org/w/api.php', {
-      params: {
-        action: 'query',
-        list: 'search',
-        srsearch: query,
-        format: 'json',
-        srlimit: 5,
-        utf8: 1,
-        origin: '*'
+    const r = await axios.get('https://www.google.com/search', {
+      params: { q: query, hl: 'tr', gl: 'tr', num: 10 },
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
+        'Cookie': 'CONSENT=YES+42'
       },
-      headers: { 'User-Agent': 'EdwardBot/1.0', 'Accept': 'application/json' },
-      timeout: 10000
-    });
-
-    let results = r.data.query?.search || [];
-    
-    // Türkçe yoksa İngilizce
-    if (results.length === 0) {
-      r = await axios.get('https://en.wikipedia.org/w/api.php', {
-        params: {
-          action: 'query',
-          list: 'search',
-          srsearch: query,
-          format: 'json',
-          srlimit: 5,
-          utf8: 1,
-          origin: '*'
-        },
-        headers: { 'User-Agent': 'EdwardBot/1.0', 'Accept': 'application/json' },
-        timeout: 10000
-      });
-      results = r.data.query?.search || [];
-    }
-
-    return results.map(x => ({
-      title: x.title,
-      url: `https://tr.wikipedia.org/wiki/${encodeURIComponent(x.title)}`,
-      snippet: x.snippet?.replace(/<[^>]*>/g, '') || 'Açıklama yok',
-      source: 'wikipedia.org',
-      type: 'bilgi'
-    }));
-  } catch (e) {
-    console.log('[Wiki] Hata:', e.message);
-    return [];
-  }
-}
-
-// 3. GOOGLE TRENDS - Google'ın kendi sitesi, bloklanmaz
-async function googleTrends(query) {
-  try {
-    const r = await axios.get('https://trends.google.com/trends/trendingsearches/daily/rss', {
-      headers: { 'User-Agent': UA, 'Accept': 'application/rss+xml' },
-      timeout: 10000
-    });
-
-    const $ = cheerio.load(r.data, { xmlMode: true });
-    const items = [];
-
-    $('item').each((i, el) => {
-      if (i >= 5) return;
-      const title = $(el).find('title').text().trim();
-      const traffic = $(el).find('ht\\:approx_traffic').text().trim();
-      
-      if (title) {
-        items.push({
-          title: `${title} ${traffic ? `(${traffic} arama)` : ''}`,
-          url: $(el).find('link').text().trim(),
-          snippet: 'Gündemdeki konu',
-          source: 'Google Trends',
-          type: 'trend'
-        });
-      }
-    });
-
-    // Query ile ilgili trend varsa filtrele
-    const q = query.toLowerCase();
-    const filtered = items.filter(i => i.title.toLowerCase().includes(q));
-    return filtered.length > 0 ? filtered : items.slice(0, 3);
-  } catch (e) {
-    console.log('[Trends] Hata:', e.message);
-    return [];
-  }
-}
-
-// 4. SAYFA OKU
-async function sayfaOku(url) {
-  try {
-    if (!url?.startsWith('http')) return null;
-    
-    const r = await axios.get(url, {
-      headers: { 'User-Agent': UA, 'Accept-Language': 'tr-TR,tr;q=0.9' },
-      timeout: 8000,
+      timeout: 15000,
       maxRedirects: 5
     });
 
     const $ = cheerio.load(r.data);
-    const meta = $('meta[name="description"]').attr('content') || 
-                 $('meta[property="og:description"]').attr('content') || '';
+    const sonuclar = [];
+
+    // Tüm olası Google sonuç seçicileri
+    const seciciler = [
+      'div.g', '.g', '.yuRUbf', '.tF2Cxc', 
+      'div[data-sokoban-container]', '.Gx5Zad',
+      'h3', '.LC20lb', '.DKV0Md'
+    ];
+
+    $('div').each((i, el) => {
+      if (sonuclar.length >= 5) return;
+      
+      const baslik = $(el).find('h3').first().text().trim();
+      let link = $(el).find('a[href^="http"]').first().attr('href');
+      
+      // Google redirect URL'lerini temizle
+      if (link && link.includes('/url?q=')) {
+        const match = link.match(/[?&]q=([^&]+)/);
+        if (match) link = decodeURIComponent(match[1]);
+      }
+
+      const aciklama = $(el).find('.VwiC3b, .s3v94d, .st, .aCOpRe').first().text().trim();
+
+      if (baslik && link && link.startsWith('http') && !link.includes('google.com')) {
+        if (!sonuclar.find(s => s.url === link)) {
+          sonuclar.push({ baslik, url: link, aciklama: aciklama || '' });
+        }
+      }
+    });
+
+    console.log(`[Google] ${sonuclar.length} sonuç bulundu`);
+    return sonuclar;
+  } catch (e) {
+    console.log('[Google] Hata:', e.message);
+    return [];
+  }
+}
+
+// 2. GOOGLE HABERLER'DE ARA
+async function googleHaberAra(query) {
+  try {
+    const r = await axios.get('https://www.google.com/search', {
+      params: { q: query, tbm: 'nws', hl: 'tr', gl: 'tr', num: 10 },
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9',
+        'Cookie': 'CONSENT=YES+42'
+      },
+      timeout: 15000
+    });
+
+    const $ = cheerio.load(r.data);
+    const sonuclar = [];
+
+    $('div').each((i, el) => {
+      if (sonuclar.length >= 5) return;
+      
+      const baslik = $(el).find('div.n0jPhd, .mCBkyc, h3').first().text().trim();
+      let link = $(el).find('a').first().attr('href');
+      
+      if (link && link.includes('/url?q=')) {
+        const match = link.match(/[?&]q=([^&]+)/);
+        if (match) link = decodeURIComponent(match[1]);
+      }
+
+      const aciklama = $(el).find('.GI74Re, .Y3v8qd').first().text().trim();
+
+      if (baslik && link && link.startsWith('http') && !link.includes('google.com')) {
+        if (!sonuclar.find(s => s.url === link)) {
+          sonuclar.push({ baslik, url: link, aciklama });
+        }
+      }
+    });
+
+    console.log(`[Google Haber] ${sonuclar.length} sonuç`);
+    return sonuclar;
+  } catch (e) {
+    console.log('[Google Haber] Hata:', e.message);
+    return [];
+  }
+}
+
+// 3. DUCKDUCKGO HTML ARA (Google çökse diye yedek)
+async function ddgAra(query) {
+  try {
+    const r = await axios.get('https://html.duckduckgo.com/html/', {
+      params: { q: query, kl: 'tr-tr' },
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html',
+        'Accept-Language': 'tr-TR,tr;q=0.9'
+      },
+      timeout: 15000
+    });
+
+    const $ = cheerio.load(r.data);
+    const sonuclar = [];
+
+    $('.result').each((i, el) => {
+      if (sonuclar.length >= 5) return;
+      
+      const baslik = $(el).find('.result__title').text().trim();
+      let url = $(el).find('.result__url').text().trim();
+      const aciklama = $(el).find('.result__snippet').text().trim();
+
+      if (!url.startsWith('http')) url = 'https://' + url;
+
+      if (baslik && url && url.startsWith('http')) {
+        sonuclar.push({ baslik, url, aciklama });
+      }
+    });
+
+    return sonuclar;
+  } catch (e) {
+    console.log('[DDG] Hata:', e.message);
+    return [];
+  }
+}
+
+// 4. SİTEYE GİR İÇERİĞİ OKU
+async function siteOku(url) {
+  try {
+    if (!url?.startsWith('http')) return null;
     
-    let text = '';
-    for (const s of ['article', 'main', '.content', '.post-content', 'body']) {
+    const r = await axios.get(url, {
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
+        'Referer': 'https://www.google.com/'
+      },
+      timeout: 10000,
+      maxRedirects: 5,
+      validateStatus: () => true
+    });
+
+    if (r.status >= 400) return null;
+
+    const $ = cheerio.load(r.data);
+    
+    // Meta açıklama
+    let metin = $('meta[name="description"]').attr('content') || 
+                $('meta[property="og:description"]').attr('content') || '';
+    
+    // Ana içerik seçicileri
+    const seciciler = [
+      'article', 'main', '[role="main"]',
+      '.content', '.post-content', '.entry-content',
+      '.article-body', '.news-content', '.story-content',
+      '#content', '.main-content'
+    ];
+
+    for (const s of seciciler) {
       const el = $(s).first();
-      if (el.length && el.text().length > 200) {
-        text = el.find('script, style, nav, footer').remove().end().text();
+      if (el.length && el.text().length > 300) {
+        metin = el.find('script, style, nav, footer, header, .ad, .sidebar, .comments').remove().end().text();
         break;
       }
     }
 
-    const clean = (meta + ' ' + text).replace(/\s+/g, ' ').trim().substring(0, 1000);
-    return clean.length > 100 ? clean : null;
+    // Hâlâ boşsa body'den al
+    if (!metin || metin.length < 200) {
+      const body = $('body');
+      body.find('script, style, nav, footer, header, .ad, .sidebar, .menu, .comments').remove();
+      metin = body.text();
+    }
+
+    const temiz = metin
+      .replace(/\s+/g, ' ')
+      .replace(/[\r\n]+/g, ' ')
+      .trim()
+      .substring(0, 2000);
+
+    return temiz.length > 100 ? temiz : null;
   } catch (e) {
     return null;
   }
 }
 
-// ANA ARAMA
-async function aramaYap(query) {
-  console.log(`[ARA] "${query}" aranıyor...`);
+// 5. BÜTÜN SİSTEM - ARA, BUL, OKU, ÖZETLE
+async function internetteAra(query) {
+  console.log(`[NET] "${query}" aranıyor...`);
 
-  // Hepsini paralel çalıştır
-  const [haberler, bilgiler, trendler] = await Promise.allSettled([
-    actuallyRelevant(query),
-    wikipedia(query),
-    googleTrends(query)
-  ]);
-
-  let sonuclar = [];
+  // Önce Google dene, olmazsa DDG
+  let sonuclar = await googleAra(query);
   
-  if (haberler.status === 'fulfilled') sonuclar = sonuclar.concat(haberler.value);
-  if (bilgiler.status === 'fulfilled') {
-    bilgiler.value.forEach(b => {
-      if (!sonuclar.find(s => s.url === b.url)) sonuclar.push(b);
-    });
+  if (sonuclar.length === 0) {
+    sonuclar = await googleHaberAra(query);
   }
-  if (trendler.status === 'fulfilled') {
-    trendler.value.forEach(t => {
-      if (!sonuclar.find(s => s.title === t.title)) sonuclar.push(t);
-    });
+  
+  if (sonuclar.length === 0) {
+    sonuclar = await ddgAra(query);
   }
 
   if (sonuclar.length === 0) {
-    console.log('[ARA] Sonuç yok');
+    console.log('[NET] Hiç sonuç yok');
     return null;
   }
 
-  console.log(`[ARA] ${sonuclar.length} sonuç`);
+  console.log(`[NET] ${sonuclar.length} site bulundu, okunuyor...`);
 
-  let ozet = `**📰 Bulunan Bilgiler (${sonuclar.length}):**\n`;
-  let detay = '';
-
-  for (let i = 0; i < Math.min(3, sonuclar.length); i++) {
-    const s = sonuclar[i];
-    ozet += `\n**${i + 1}. ${s.title}**\n`;
-    ozet += `📍 ${s.source}${s.date ? ` | ${s.date}` : ''}\n`;
-    ozet += `${s.snippet}\n`;
-
-    if (i < 2 && s.type !== 'trend') {
-      const icerik = await sayfaOku(s.url);
-      if (icerik) {
-        detay += `\n---\n📄 ${s.title}\n🔗 ${s.url}\n---\n${icerik}\n`;
-      }
+  // İlk 3 siteyi oku
+  let bilgiler = [];
+  
+  for (const s of sonuclar.slice(0, 3)) {
+    const icerik = await siteOku(s.url);
+    if (icerik) {
+      bilgiler.push({
+        baslik: s.baslik,
+        icerik: icerik,
+        url: s.url // Groq prompt'unda kullan, cevapta gösterme
+      });
+      console.log(`[NET] ${s.baslik} - OKUNDU (${icerik.length} karakter)`);
     }
   }
 
-  return { ozet, detay: detay.substring(0, 2000), sonuclar };
+  if (bilgiler.length === 0) {
+    // Site okunamazsa en azından başlık ve açıklamaları kullan
+    bilgiler = sonuclar.slice(0, 3).map(s => ({
+      baslik: s.baslik,
+      icerik: s.aciklama || s.baslik,
+      url: s.url
+    }));
+  }
+
+  // Prompt için bilgileri birleştir (kaynak belirtmeden)
+  let arastirma = '';
+  bilgiler.forEach((b, i) => {
+    arastirma += `\n\n[${i + 1}] ${b.baslik}\n${b.icerik}`;
+  });
+
+  return arastirma.substring(0, 4000);
 }
 
-// SORU ANALİZİ - Her soruda araştırma yap
-function aramaGerekli(soru) {
-  // HER SORU güncel olabilir, her zaman ara
-  // Ama bazıları kesinlikle güncel
-  const kesin = ['haber', 'bugün', 'dün', 'güncel', 'son dakika', 'dolar', 'euro', 'bitcoin', 'fiyat', 'hava', 'maç', 'skor', 'deprem', 'kaza', 'yangın', 'seçim', 'bakan', 'başkan', 'covid', 'savaş'];
-  const muhtemel = ['nedir', 'kimdir', 'nasıl', 'nerede', 'kaç', 'hangi', 'ne zaman', 'neden'];
+/* ══════════════════════════════════════════════════════
+   SORU ANALİZİ - NE ZAMAN ARAŞTIRMA YAPILACAK?
+   ══════════════════════════════════════════════════════ */
+
+function arastirmaGerekli(soru) {
+  const s = soru.toLowerCase().trim();
   
-  const s = soru.toLowerCase();
-  return kesin.some(k => s.includes(k)) || muhtemel.some(k => s.includes(k)) || soru.length > 5;
+  // KESİNLİKLE ARAŞTIRMA GEREKTİREN (güncel/gerçek veri)
+  const kesinArastirma = [
+    'bugün', 'dün', 'bu hafta', 'bu ay', 'son dakika', 'güncel', 'haber',
+    'dolar', 'euro', 'bitcoin', 'altın', 'borsa', 'fiyat', 'kur', 'tl',
+    'hava durumu', 'hava', 'sıcaklık', 'yağmur', 'kar', 'rüzgar',
+    'maç', 'skor', 'gol', 'lig', 'futbol', 'basketbol', 'spor',
+    'deprem', 'kaza', 'yangın', 'savaş', 'patlama', 'sel',
+    'seçim', 'başkan', 'bakan', 'meclis', 'hükümet', 'oy',
+    'covid', 'korona', 'aşı', 'virüs', 'salgın',
+    'film', 'dizi', 'konser', 'etkinlik', 'gösteri',
+    'yeni çıkan', 'yeni model', 'yeni versiyon', 'yeni güncelleme'
+  ];
+
+  // MUHTEMELEN ARAŞTIRMA GEREKTİREN (bilgi sorusu)
+  const muhtemelArastirma = [
+    'nedir', 'kimdir', 'nasıl', 'nerede', 'ne zaman', 'kaç', 'hangi',
+    'neden', 'niçin', 'kim', 'ne', 'nereden', 'nereye',
+    'tarihi', 'geçmişi', 'hakkında', 'bilgi', 'özellikleri'
+  ];
+
+  // SOHBET/ŞAHİSİ KONULAR (Groq kendi zekasıyla cevaplasın)
+  const sohbet = [
+    'naber', 'nasılsın', 'merhaba', 'selam', 'günaydın', 'iyi akşamlar',
+    'teşekkür', 'sağol', 'eyvallah', 'teşekkürler',
+    'senin', 'sen', 'seni', 'sana', 'seninle', 'sizin',
+    'seviyorum', 'sevmiyorum', 'nefret', 'aşk', 'aşık',
+    'şaka', 'espri', 'gül', 'komik', 'güldür',
+    'sence', 'düşünüyorum', 'sanırım', 'galiba', 'bence',
+    'neden öyle', 'niye', 'nasıl yani', 'anlamadım', 'ne demek',
+    'fullmetal', 'fma', 'edward', 'elric', 'al', 'winry', 'mustang',
+    'anime', 'manga', 'naruto', 'one piece', 'attack on titan',
+    'oyun öner', 'film öner', 'dizi öner', 'müzik öner', 'kitap öner',
+    'rastgele', 'random', 'şanslı', 'tahmin', 'tahmin et'
+  ];
+
+  // Önce sohbet mi kontrol et
+  if (sohbet.some(k => s.includes(k))) return false;
+  
+  // Kesin araştırma
+  if (kesinArastirma.some(k => s.includes(k))) return true;
+  
+  // Muhtemel araştırma
+  if (muhtemelArastirma.some(k => s.includes(k))) return true;
+  
+  // Uzun sorular genelde araştırma gerektirir
+  if (s.length > 15) return true;
+  
+  // Kısa sorular sohbet olabilir
+  return false;
 }
 
 /* ══════════════════════════════════════════════════════
    GROQ
    ══════════════════════════════════════════════════════ */
-async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0, keyIndex = 0) {
+async function groqCall(messages, max_tokens = 1500, temperature = 0.7, deneme = 0, keyIndex = 0) {
   try {
     const key = GROQ_KEYS[keyIndex];
     if (!key) return null;
@@ -292,30 +383,35 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
 async function cevapla(soru, userId) {
   const suAn = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   
-  let webBilgi = '';
+  const arastir = arastirmaGerekli(soru);
+  let internetBilgisi = '';
   
-  // HER SORUDA ARAŞTIRMA YAP
-  if (aramaGerekli(soru)) {
-    console.log(`[AI] Araştırma: "${soru}"`);
-    const veri = await aramaYap(soru);
+  if (arastir) {
+    console.log(`[AI] İnternet araştırması: "${soru}"`);
+    const veri = await internetteAra(soru);
     if (veri) {
-      webBilgi = `\n\n${veri.ozet}\n\n${veri.detay}`;
-      console.log(`[AI] ${veri.sonuclar.length} sonuç`);
+      internetBilgisi = veri;
+      console.log(`[AI] İnternetten bilgi alındı`);
     }
+  } else {
+    console.log(`[AI] Groq kendi zekasıyla cevaplayacak`);
   }
 
-  const prompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}.
-Türkçe konuş, kısa ve net cevaplar ver.
+  const prompt = arastir 
+    ? `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}. Türkçe konuş, doğal ve samimi cevaplar ver.
 
-Aşağıdaki web bilgilerini kullan. Kaynakları belirt.
-${webBilgi}`;
+Aşağıdaki internet araştırması bilgilerini kullanarak cevap ver. Bu bilgiler güncel ve gerçek verilerdir. Kendi bilgine güvenme, sadece bu verilere dayanarak cevap ver. Kaynak belirtme, sadece cevabı ver.
+
+İNTERNET ARAŞTIRMASI:
+${internetBilgisi}`
+    : `Sen Edward Elric'sin. Geliştiricin Batuhan. Saat: ${suAn}. Türkçe konuş, doğal ve samimi cevaplar ver. Sohbet et, fikirlerini ve kişiliğini yansıt.`;
 
   if (!mem.has(userId)) mem.set(userId, []);
   const gecmis = mem.get(userId);
   gecmis.push({ role: 'user', content: soru });
 
   const cevap = await groqCall([{ role: 'system', content: prompt }, ...gecmis]);
-  const sonuc = cevap || 'Bilgiye ulaşamadım, tekrar dene.';
+  const sonuc = cevap || 'Bir şeyler ters gitti, tekrar dene.';
   gecmis.push({ role: 'assistant', content: sonuc });
 
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
@@ -383,7 +479,7 @@ client.on('messageCreate', async msg => {
     if (!soru) return;
     
     try {
-      const bekleyen = await msg.reply('🔍 Araştırılıyor...');
+      const bekleyen = await msg.reply('⏳ Düşünüyor...');
       const cevap = await cevapla(soru, msg.author.id);
       
       if (cevap.length > 1990) {
@@ -443,7 +539,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Bot Hazır!`);
   console.log(`📡 Groq Keys: ${GROQ_KEYS.length}`);
-  console.log(`🌐 Web: ActuallyRelevant + Wikipedia + Google Trends`);
+  console.log(`🌐 İnternet: Google + Google Haberler + DuckDuckGo`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
