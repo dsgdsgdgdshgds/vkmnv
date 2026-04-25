@@ -67,112 +67,96 @@ function saveWhiteList() {
 }
 
 /* ══════════════════════════════════════════════════════
-   WEB ARAMA - API KEY GEREKTIRMIYOR
+   GÜNCEL BİLGİ SİSTEMİ - API KEY GEREKTİRMEZ
+   Çoklu kaynak + yedekleme + hata toleransı
    ══════════════════════════════════════════════════════ */
 
-// User-Agent listesi (bot algılanmayı önlemek için)
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1.2 Safari/605.1.15'
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15'
 ];
 
 function randomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-// DuckDuckGo arama (en güvenilir - API key yok)
-async function duckduckgoArama(query) {
-  try {
-    console.log(`[DuckDuckGo] "${query}" araması yapılıyor...`);
-    
-    const response = await axios.get('https://api.duckduckgo.com/', {
-      params: {
-        q: query,
-        format: 'json',
-        no_html: 1,
-        t: 'Edward Bot',
-        kl: 'tr-tr'
-      },
-      headers: {
-        'User-Agent': randomUserAgent(),
-        'Accept-Language': 'tr-TR,tr;q=0.9'
-      },
-      timeout: 10000
-    });
+// Cache sistemi
+const searchCache = new Map();
+const CACHE_SURE = 5 * 60 * 1000; // 5 dakika
 
-    if (!response.data.Results || response.data.Results.length === 0) {
-      console.log(`[DuckDuckGo] Sonuç bulunamadı`);
-      return [];
-    }
-
-    const results = response.data.Results.slice(0, 5).map(r => ({
-      title: r.Title || 'Başlık Yok',
-      url: r.FirstURL || r.URL || '',
-      snippet: r.Text || '',
-      source: r.FirstURL ? new URL(r.FirstURL).hostname : 'unknown'
-    })).filter(r => r.url && r.snippet);
-
-    console.log(`[DuckDuckGo] ${results.length} sonuç bulundu`);
-    return results;
-  } catch (e) {
-    console.error("[DuckDuckGo] Hata:", e.message);
-    return [];
-  }
-}
-
-// Wikipedia arama (çok güvenilir)
+/* ── 1. WIKIPEDIA API (En güvenilir, resmi API) ── */
 async function wikipediaArama(query) {
   try {
-    console.log(`[Wikipedia] "${query}" araması yapılıyor...`);
+    console.log(`[Wikipedia] "${query}" aranıyor...`);
     
-    const response = await axios.get('https://tr.wikipedia.org/w/api.php', {
+    // Önce Türkçe dene
+    let response = await axios.get('https://tr.wikipedia.org/w/api.php', {
       params: {
         action: 'query',
         list: 'search',
         srsearch: query,
         format: 'json',
-        srlimit: 5
+        srlimit: 5,
+        utf8: 1
       },
-      headers: {
-        'User-Agent': randomUserAgent()
+      headers: { 
+        'User-Agent': randomUserAgent(),
+        'Accept': 'application/json'
       },
-      timeout: 10000
+      timeout: 8000
     });
 
-    if (!response.data.query?.search || response.data.query.search.length === 0) {
-      console.log(`[Wikipedia] Sonuç bulunamadı`);
-      return [];
+    let results = response.data.query?.search || [];
+    
+    // Türkçe sonuç yoksa İngilizce dene
+    if (results.length === 0) {
+      response = await axios.get('https://en.wikipedia.org/w/api.php', {
+        params: {
+          action: 'query',
+          list: 'search',
+          srsearch: query,
+          format: 'json',
+          srlimit: 5,
+          utf8: 1
+        },
+        headers: { 
+          'User-Agent': randomUserAgent(),
+          'Accept': 'application/json'
+        },
+        timeout: 8000
+      });
+      results = response.data.query?.search || [];
     }
 
-    const results = response.data.query.search.map(r => ({
+    if (results.length === 0) return [];
+
+    return results.map(r => ({
       title: r.title,
       url: `https://tr.wikipedia.org/wiki/${encodeURIComponent(r.title)}`,
       snippet: r.snippet.replace(/<\/?[^>]+(>|$)/g, ''),
-      source: 'wikipedia.org'
+      source: 'wikipedia.org',
+      type: 'wiki'
     }));
-
-    console.log(`[Wikipedia] ${results.length} sonuç bulundu`);
-    return results;
   } catch (e) {
     console.error("[Wikipedia] Hata:", e.message);
     return [];
   }
 }
 
-// Bing arama (alternatif)
-async function bingArama(query) {
+/* ── 2. DUCKDUCKGO HTML SCRAPING (JSON API yerine HTML) ── */
+async function duckduckgoScrape(query) {
   try {
-    console.log(`[Bing] "${query}" araması yapılıyor...`);
+    console.log(`[DuckDuckGo HTML] "${query}" aranıyor...`);
     
-    const response = await axios.get('https://www.bing.com/search', {
+    const response = await axios.get('https://html.duckduckgo.com/html/', {
       params: { q: query },
       headers: {
         'User-Agent': randomUserAgent(),
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml'
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8'
       },
       timeout: 10000
     });
@@ -180,24 +164,79 @@ async function bingArama(query) {
     const $ = cheerio.load(response.data);
     const results = [];
 
-    $('li.b_algo').each((i, elem) => {
-      if (results.length >= 5) return;
+    $('.result').each((i, elem) => {
+      if (i >= 5) return;
       
-      const title = $(elem).find('h2 a').text().trim();
-      const url = $(elem).find('h2 a').attr('href');
-      const snippet = $(elem).find('.b_caption p').text().trim();
+      const title = $(elem).find('.result__title').text().trim();
+      const url = $(elem).find('.result__url').text().trim() || $(elem).find('.result__a').attr('href');
+      const snippet = $(elem).find('.result__snippet').text().trim();
 
-      if (title && url && snippet) {
+      if (title && url) {
         results.push({
           title,
-          url,
-          snippet: snippet.substring(0, 200),
-          source: new URL(url).hostname
+          url: url.startsWith('http') ? url : `https://${url}`,
+          snippet: snippet || 'Açıklama yok',
+          source: 'duckduckgo.com',
+          type: 'web'
         });
       }
     });
 
-    console.log(`[Bing] ${results.length} sonuç bulundu`);
+    console.log(`[DuckDuckGo HTML] ${results.length} sonuç`);
+    return results;
+  } catch (e) {
+    console.error("[DuckDuckGo HTML] Hata:", e.message);
+    return [];
+  }
+}
+
+/* ── 3. BİNG HTML SCRAPING ── */
+async function bingScrape(query) {
+  try {
+    console.log(`[Bing] "${query}" aranıyor...`);
+    
+    const response = await axios.get('https://www.bing.com/search', {
+      params: { q: query, setmkt: 'tr-TR', setlang: 'tr' },
+      headers: {
+        'User-Agent': randomUserAgent(),
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9',
+        'Referer': 'https://www.bing.com/'
+      },
+      timeout: 10000
+    });
+
+    const $ = cheerio.load(response.data);
+    const results = [];
+
+    // Bing'in farklı layout'ları için çoklu seçici
+    const selectors = [
+      'li.b_algo',
+      '.b_algo',
+      '[data-bm]'
+    ];
+
+    for (const selector of selectors) {
+      $(selector).each((i, elem) => {
+        if (results.length >= 5) return;
+        
+        const title = $(elem).find('h2 a, .b_title a').first().text().trim();
+        const url = $(elem).find('h2 a, .b_title a').first().attr('href');
+        const snippet = $(elem).find('.b_caption p, .b_snippet').first().text().trim();
+
+        if (title && url && !results.find(r => r.url === url)) {
+          results.push({
+            title,
+            url,
+            snippet: snippet || 'Açıklama yok',
+            source: 'bing.com',
+            type: 'web'
+          });
+        }
+      });
+    }
+
+    console.log(`[Bing] ${results.length} sonuç`);
     return results;
   } catch (e) {
     console.error("[Bing] Hata:", e.message);
@@ -205,84 +244,134 @@ async function bingArama(query) {
   }
 }
 
-// Google arama (en son çare - Cheerio ile parse)
-async function googleArama(query) {
+/* ── 4. GOOGLE NEWS RSS (API key yok, RSS feed) ── */
+async function googleNewsRSS(query) {
   try {
-    console.log(`[Google] "${query}" araması yapılıyor...`);
+    console.log(`[Google News RSS] "${query}" aranıyor...`);
     
-    const response = await axios.get('https://www.google.com/search', {
-      params: { q: query },
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=tr&gl=TR&ceid=TR:tr`;
+    
+    const response = await axios.get(rssUrl, {
       headers: {
         'User-Agent': randomUserAgent(),
-        'Accept-Language': 'tr-TR,tr;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9'
+        'Accept': 'application/rss+xml,application/xml,text/xml'
       },
       timeout: 10000
     });
 
-    const $ = cheerio.load(response.data);
+    const $ = cheerio.load(response.data, { xmlMode: true });
     const results = [];
 
-    $('div.g').each((i, elem) => {
-      if (results.length >= 5) return;
+    $('item').each((i, elem) => {
+      if (i >= 5) return;
       
-      const titleElem = $(elem).find('h3').first();
-      const title = titleElem.text().trim();
-      
-      const linkElem = $(elem).find('a').first();
-      const url = linkElem.attr('href');
-      
-      const snippetElem = $(elem).find('div').filter((i, el) => {
-        const text = $(el).text();
-        return text.length > 50 && text.length < 300;
-      }).first();
-      const snippet = snippetElem.text().trim();
+      const title = $(elem).find('title').text().trim();
+      const url = $(elem).find('link').text().trim();
+      const snippet = $(elem).find('description').text().trim();
+      const pubDate = $(elem).find('pubDate').text().trim();
 
-      if (title && url && snippet) {
+      if (title && url) {
         results.push({
           title,
           url,
-          snippet: snippet.substring(0, 200),
-          source: url ? new URL(url).hostname : 'google'
+          snippet: snippet.replace(/<[^>]*>/g, '').substring(0, 200),
+          source: 'news.google.com',
+          date: pubDate,
+          type: 'news'
         });
       }
     });
 
-    console.log(`[Google] ${results.length} sonuç bulundu`);
+    console.log(`[Google News RSS] ${results.length} sonuç`);
     return results;
   } catch (e) {
-    console.error("[Google] Hata:", e.message);
+    console.error("[Google News RSS] Hata:", e.message);
     return [];
   }
 }
 
-// Sayfa içeriği çek (Cheerio ile)
+/* ── 5. ACTUALLY RELEVANT API (Key yok, ücretsiz) ── */
+async function actuallyRelevantAPI(query) {
+  try {
+    console.log(`[ActuallyRelevant] "${query}" aranıyor...`);
+    
+    // Konuyu İngilizce'ye çevirmeye çalış (basit)
+    const issueMap = {
+      'iklim': 'planet-climate',
+      'climate': 'planet-climate',
+      'teknoloji': 'science-technology',
+      'technology': 'science-technology',
+      'bilim': 'science-technology',
+      'science': 'science-technology',
+      'insan': 'human-development',
+      'human': 'human-development',
+      'gelişme': 'human-development',
+      'tehdit': 'existential-threats',
+      'threat': 'existential-threats'
+    };
+    
+    let issueSlug = null;
+    const lowerQuery = query.toLowerCase();
+    for (const [key, value] of Object.entries(issueMap)) {
+      if (lowerQuery.includes(key)) {
+        issueSlug = value;
+        break;
+      }
+    }
+
+    const url = issueSlug 
+      ? `https://actually-relevant-api.onrender.com/api/stories?issueSlug=${issueSlug}`
+      : 'https://actually-relevant-api.onrender.com/api/stories';
+
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': randomUserAgent(),
+        'Accept': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    const stories = response.data?.stories || response.data || [];
+    
+    return stories.slice(0, 3).map(s => ({
+      title: s.title || 'Başlık Yok',
+      url: s.url || s.link || '',
+      snippet: s.summary || s.blurb || s.description || 'Özet yok',
+      source: s.source || 'actuallyrelevant.news',
+      type: 'news'
+    }));
+  } catch (e) {
+    console.error("[ActuallyRelevant] Hata:", e.message);
+    return [];
+  }
+}
+
+/* ── SAYFA İÇERİĞİ ÇEK (Geliştirilmiş) ── */
 async function sayfaIcekGeter(url) {
   try {
-    if (!url || !url.startsWith('http')) {
-      return null;
-    }
+    if (!url || !url.startsWith('http')) return null;
 
     console.log(`[OKUMA] ${url} okunuyor...`);
 
     const response = await axios.get(url, {
       headers: {
         'User-Agent': randomUserAgent(),
-        'Accept-Language': 'tr-TR,tr;q=0.9'
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
+        'Referer': 'https://www.google.com/'
       },
       timeout: 8000,
-      maxRedirects: 5
+      maxRedirects: 5,
+      validateStatus: (status) => status < 500
     });
 
     const $ = cheerio.load(response.data);
     
-    // Meta description'ı al
-    let metaDesc = $('meta[name="description"]').attr('content') || '';
+    // Meta description
+    let metaDesc = $('meta[name="description"]').attr('content') || 
+                   $('meta[property="og:description"]').attr('content') || '';
     
-    // Ana içeriği bul
-    let content = '';
-    
-    // Yaygın content seçicileri
+    // Ana içerik seçicileri (genişletilmiş)
     const selectors = [
       'article',
       'main',
@@ -291,33 +380,35 @@ async function sayfaIcekGeter(url) {
       '.post-content',
       '.entry-content',
       '.article-body',
-      '.news-content'
+      '.news-content',
+      '.story-content',
+      '#content',
+      '.main-content'
     ];
 
+    let content = '';
     for (const selector of selectors) {
       const elem = $(selector).first();
-      if (elem.length > 0) {
+      if (elem.length > 0 && elem.text().length > 200) {
         content = elem.text();
         break;
       }
     }
 
-    // Eğer bulunmazsa body'den al
-    if (!content) {
+    // Fallback
+    if (!content || content.length < 200) {
       const body = $('body');
-      body.find('script, style, nav, footer, .ad, .advertisement').remove();
+      body.find('script, style, nav, footer, header, .ad, .advertisement, .sidebar, .menu, .comments').remove();
       content = body.text();
     }
 
-    // Temizle
     let cleanContent = content
       .replace(/\s+/g, ' ')
       .replace(/[\r\n]+/g, ' ')
       .trim()
       .substring(0, 1500);
 
-    // Meta desc'ten başla
-    if (metaDesc) {
+    if (metaDesc && metaDesc.length > 50) {
       cleanContent = metaDesc + '\n\n' + cleanContent;
     }
 
@@ -328,41 +419,51 @@ async function sayfaIcekGeter(url) {
   }
 }
 
-// Ana arama fonksiyonu - hepsini dene
+/* ── ANA ARAMA FONKSİYONU (Yedekli + Cache) ── */
 async function guncelBilgiAl(query) {
   try {
+    // Cache kontrolü
+    const cacheKey = query.toLowerCase().trim();
+    if (searchCache.has(cacheKey)) {
+      const cached = searchCache.get(cacheKey);
+      if (Date.now() - cached.time < CACHE_SURE) {
+        console.log(`[CACHE] Cache'den döndürülüyor: "${query}"`);
+        return cached.data;
+      }
+    }
+
     console.log(`[ARAMA] "${query}" için başlatılıyor...`);
     
     let allResults = [];
+    const errors = [];
 
-    // 1. DuckDuckGo dene (en güvenilir)
-    let results = await duckduckgoArama(query);
-    allResults = allResults.concat(results);
+    // Kaynakları paralel çalıştır (hepsini aynı anda dene)
+    const promises = [
+      wikipediaArama(query).catch(e => { errors.push(`Wiki: ${e.message}`); return []; }),
+      duckduckgoScrape(query).catch(e => { errors.push(`DDG: ${e.message}`); return []; }),
+      bingScrape(query).catch(e => { errors.push(`Bing: ${e.message}`); return []; }),
+      googleNewsRSS(query).catch(e => { errors.push(`GNews: ${e.message}`); return []; }),
+      actuallyRelevantAPI(query).catch(e => { errors.push(`AR: ${e.message}`); return []; })
+    ];
 
-    // 2. Eğer yeterli sonuç yoksa Wikipedia dene
-    if (allResults.length < 3) {
-      results = await wikipediaArama(query);
-      allResults = allResults.concat(results);
-    }
+    const results = await Promise.allSettled(promises);
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        allResults = allResults.concat(result.value);
+      }
+    });
 
-    // 3. Hala yoksa Bing dene
-    if (allResults.length < 3) {
-      results = await bingArama(query);
-      allResults = allResults.concat(results);
-    }
-
-    // 4. Son çare: Google
-    if (allResults.length < 3) {
-      results = await googleArama(query);
-      allResults = allResults.concat(results);
+    if (errors.length > 0) {
+      console.log(`[ARAMA] Bazı kaynaklar hata verdi:`, errors);
     }
 
     // Duplikatları kaldır
-    const uniqueResults = [];
     const seenUrls = new Set();
+    const uniqueResults = [];
     
     for (const result of allResults) {
-      if (!seenUrls.has(result.url)) {
+      if (result.url && !seenUrls.has(result.url)) {
         seenUrls.add(result.url);
         uniqueResults.push(result);
       }
@@ -373,19 +474,19 @@ async function guncelBilgiAl(query) {
       return null;
     }
 
-    console.log(`[ARAMA] Toplam ${uniqueResults.length} sonuç bulundu`);
+    console.log(`[ARAMA] Toplam ${uniqueResults.length} benzersiz sonuç`);
 
-    // Sayfa içeriği çek
+    // Sonuçları özetle
     let ozet = `**📰 Güncel Bilgi Kaynakları (${uniqueResults.length} sonuç):**\n`;
     let detay = '';
 
+    // İlk 3 sonucun içeriğini çek
     for (let i = 0; i < Math.min(3, uniqueResults.length); i++) {
       const result = uniqueResults[i];
       ozet += `\n**${i + 1}. ${result.title}**\n`;
-      ozet += `📍 ${result.source}\n`;
+      ozet += `📍 ${result.source}${result.date ? ` | ${result.date}` : ''}\n`;
       ozet += `${result.snippet}\n`;
 
-      // İçerik çek
       if (i < 2) {
         const icerik = await sayfaIcekGeter(result.url);
         if (icerik) {
@@ -398,40 +499,51 @@ async function guncelBilgiAl(query) {
       }
     }
 
-    return {
+    const finalData = {
       ozet: ozet,
       detay: detay.substring(0, 2500),
-      results: uniqueResults
+      results: uniqueResults,
+      timestamp: Date.now()
     };
+
+    // Cache'e kaydet
+    searchCache.set(cacheKey, { data: finalData, time: Date.now() });
+    
+    // Cache boyutunu sınırla (max 50)
+    if (searchCache.size > 50) {
+      const firstKey = searchCache.keys().next().value;
+      searchCache.delete(firstKey);
+    }
+
+    return finalData;
   } catch (e) {
     console.error("[ARAMA] Genel hata:", e.message);
     return null;
   }
 }
 
-// Güncel konuları kontrol et
+// Güncel konu kontrolü (genişletilmiş)
 function konuGuncelMi(konu) {
   const guncelKonular = [
-    'haber', 'haberler', 'bugün', 'bu hafta', 'bu ay', 'son dakika', 'öğlen', 'sabah', 'akşam',
-    'güncel', 'geçen', 'yeni', 'dün', 'yetkili', 'açıkladı', 'derya',
-    'dolar', 'euro', 'borsa', 'piyasa', 'bitcoin', 'kripto', 'coin', 'fiyat', 'kur', 'tl',
-    'hava durumu', 'iklim', 'sıcaklık', 'yağmur', 'kar', 'rüzgar', 'hava', 'mevsim',
-    'covid', 'koronavirus', 'aşı', 'salgın', 'pandemi', 'hastalık', 'grip',
-    'futbol', 'maç', 'sonuç', 'gol', 'lig', 'turnuva', 'skor', 'oyun', 'spor', 'basketbol', 'voleybol',
-    'müzik', 'konser', 'etkinlik', 'festival', 'film', 'dizi', 'oyuncu', 'yönetmen', 'tiyatro',
-    'teknoloji', 'yazılım', 'oyun', 'telefon', 'bilgisayar', 'uygulama', 'yapay zeka', 'ai',
-    'politika', 'seçim', 'başkan', 'cumhuriyet', 'bakanlik', 'vali', 'kaymakam', 'belediye',
-    'eğitim', 'okul', 'üniversite', 'sınav', 'sonuçlar', 'öss', 'yks', 'tyt', 'ayt', 'kpss',
-    'sağlık', 'doktor', 'hastane', 'tedavi', 'ilaç', 'aşı', 'eczane',
-    'ulaştırma', 'yol', 'trafik', 'kazası', 'metro', 'otobüs', 'ucak',
-    'hukuk', 'davası', 'mahkeme', 'gözaltı', 'tutuklu', 'ceza', 'kanun'
+    'haber', 'bugün', 'bu hafta', 'bu ay', 'son dakika', 'güncel', 'yeni', 'dün',
+    'dolar', 'euro', 'borsa', 'bitcoin', 'fiyat', 'kur', 'tl', 'altın', ' petrol',
+    'hava durumu', 'sıcaklık', 'yağmur', 'kar',
+    'maç', 'sonuç', 'gol', 'lig', 'skor', 'spor', 'futbol', 'basketbol',
+    'film', 'dizi', 'konser', 'etkinlik', 'müzik',
+    'teknoloji', 'yazılım', 'telefon', 'yapay zeka', 'ai', 'chatgpt',
+    'seçim', 'başkan', 'bakan', 'meclis', 'hükümet',
+    'sınav', 'ösym', 'yks', 'tyt', 'ayt',
+    'covid', 'korona', 'aşı', 'salgın',
+    'kaza', 'yangın', 'deprem', 'felaket',
+    'savaş', 'barış', 'anlaşma', 'görüşme',
+    'nedir', 'kimdir', 'nasıl', 'nerede', 'ne zaman'
   ];
 
   return guncelKonular.some(anahtar => konu.toLowerCase().includes(anahtar));
 }
 
 /* ══════════════════════════════════════════════════════
-   GROQ API FONKSIYONLARI
+   GROQ API FONKSİYONLARI (Geliştirilmiş)
    ══════════════════════════════════════════════════════ */
 async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme = 0, keyIndex = 0) {
   try {
@@ -443,16 +555,25 @@ async function groqCall(messages, max_tokens = 1500, temperature = 0.5, deneme =
 
     const r = await axios.post('https://api.groq.com/openai/v1/chat/completions',
       { model: SMART, messages, temperature, max_tokens },
-      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+      { 
+        headers: { 
+          Authorization: `Bearer ${apiKey}`, 
+          'Content-Type': 'application/json' 
+        }, 
+        timeout: 60000 
+      }
     );
 
     currentGroqIndex = keyIndex;
     return r.data.choices[0].message.content.trim();
   } catch (e) {
-    const isRateLimitOrServerError = e.response?.status === 429 || e.response?.status >= 500;
+    const status = e.response?.status;
+    const isRateLimit = status === 429;
+    const isServerError = status >= 500;
+    const isTimeout = e.message.includes('timeout') || e.code === 'ECONNRESET';
 
-    if (isRateLimitOrServerError || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
-      console.warn(`[Groq ${keyIndex}] Hata: ${e.response?.status || e.message}`);
+    if (isRateLimit || isServerError || isTimeout) {
+      console.warn(`[Groq ${keyIndex}] Hata: ${status || e.message}`);
 
       const nextKeyIndex = (keyIndex + 1) % GROQ_KEYS.length;
       if (nextKeyIndex !== keyIndex) {
@@ -477,9 +598,11 @@ async function anaIsleyici(soru, kullaniciId) {
   let guncelBilgiEklentisi = '';
   let guncelBilgiDetay = '';
   
-  // Konu güncel mi kontrol et
-  if (konuGuncelMi(soru)) {
-    console.log(`[AI] Güncel konuda soru: "${soru.substring(0, 50)}..."`);
+  // Her soruda güncel bilgi ara (daha agresif)
+  const aramaGerekli = konuGuncelMi(soru) || soru.length > 10;
+  
+  if (aramaGerekli) {
+    console.log(`[AI] Web araştırması başlatılıyor: "${soru.substring(0, 50)}..."`);
     const guncelBilgi = await guncelBilgiAl(soru);
     
     if (guncelBilgi) {
@@ -488,21 +611,26 @@ async function anaIsleyici(soru, kullaniciId) {
         guncelBilgiDetay = `\n\n${guncelBilgi.detay}`;
       }
       console.log(`[AI] Web araştırması tamamlandı`);
+    } else {
+      console.log(`[AI] Web araştırması sonuçsuz`);
     }
   }
 
-  const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. Güncel Tarih ve Saat: ${suAn}. 
+  const systemPrompt = `Sen Edward Elric'sin. Geliştiricin Batuhan. 
+Güncel Tarih ve Saat: ${suAn}.
 Türkçe konuş ve yakın cevaplar ver.
 
-Aşağıda web araştırması yapıldıysa, bu bilgileri kullanarak cevap ver.
-${guncelBilgiEklentisi}`;
+Aşağıdaki web araştırması bilgilerini kullanarak cevap ver. 
+Eğer web bilgisi varsa kesinlikle ona göre cevapla.
+Kaynakları belirt.
+${guncelBilgiEklentisi}${guncelBilgiDetay}`;
 
   if (!mem.has(kullaniciId)) mem.set(kullaniciId, []);
   const gecmis = mem.get(kullaniciId);
   gecmis.push({ role: 'user', content: soru });
 
   const cevap = await groqCall([{ role: 'system', content: systemPrompt }, ...gecmis]);
-  const sonCevap = cevap || 'Simya enerjim düşük.';
+  const sonCevap = cevap || 'Simya enerjim düşük. Tekrar dene.';
   gecmis.push({ role: 'assistant', content: sonCevap });
 
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
@@ -574,11 +702,11 @@ client.on('messageCreate', async msg => {
     if (!soru) return;
     
     try {
-      const gonderiMsg = await msg.reply('⏳ Araştırılıyor...');
+      const gonderiMsg = await msg.reply('🔍 Araştırılıyor...');
       
       const cevap = await anaIsleyici(soru, msg.author.id);
       
-      // Mesaj bölme
+      // Mesaj bölme (Discord 2000 karakter limiti)
       if (cevap.length > 1990) {
         const chunks = [];
         let currentChunk = '';
@@ -650,7 +778,7 @@ client.on('channelDelete', async (channel) => {
 client.once('ready', () => {
   console.log(`✅ Edward Bot Hazır!`);
   console.log(`📡 Groq Keys: ${GROQ_KEYS.length}`);
-  console.log(`🌐 Web Arama: DuckDuckGo + Wikipedia + Bing + Google (API KEY YOK!)`);
+  console.log(`🌐 Web Arama: Wikipedia + DuckDuckGo + Bing + Google News + ActuallyRelevant`);
   client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
 });
 
