@@ -34,6 +34,9 @@ const saveWhite  = () => fs.writeFileSync(WHITE_FILE, JSON.stringify([...whiteLi
 
 /* ═══════════════════════════════════════════
    GOOGLE SCRAPING
+   Class isimleri sürekli değiştiği için
+   h3 tag'ına ve yapıya göre parse ediyoruz.
+   Son çare: body'nin tüm temiz metni.
 ═══════════════════════════════════════════ */
 const UA_LIST = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -45,21 +48,20 @@ const UA_LIST = [
 async function webAra(query) {
   try {
     const url = 'https://www.google.com/search?' + new URLSearchParams({
-      q: query, hl: 'tr', gl: 'tr', num: '8', ie: 'UTF-8',
+      q: query, hl: 'tr', gl: 'tr', num: '8',
     });
 
     const { data: html, status } = await axios.get(url, {
       headers: {
-        'User-Agent'      : UA_LIST[Math.floor(Math.random() * UA_LIST.length)],
-        'Accept'          : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language' : 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding' : 'gzip, deflate, br',
-        'Sec-Fetch-Dest'  : 'document',
-        'Sec-Fetch-Mode'  : 'navigate',
-        'Sec-Fetch-Site'  : 'none',
-        'Sec-Fetch-User'  : '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control'   : 'max-age=0',
+        'User-Agent'     : UA_LIST[Math.floor(Math.random() * UA_LIST.length)],
+        'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Fetch-Dest' : 'document',
+        'Sec-Fetch-Mode' : 'navigate',
+        'Sec-Fetch-Site' : 'none',
+        'Sec-Fetch-User' : '?1',
+        'Cache-Control'  : 'max-age=0',
       },
       timeout: 10000,
       decompress: true,
@@ -69,50 +71,61 @@ async function webAra(query) {
     if (status === 429) { console.warn('[Google] Rate limit'); return null; }
     if (status !== 200) { console.warn('[Google] HTTP', status); return null; }
 
-    const $       = cheerio.load(html);
-    const satirlar = [];
+    const $ = cheerio.load(html);
+    $('script, style, noscript').remove();
 
-    // 1) Döviz / anlık bilgi kutusu
-    const doviz = $('div.BNeawe.iBp4i.AP7Wnd').first().text().trim();
-    if (doviz) satirlar.push(`📌 ${doviz}`);
+    const sonuclar = [];
 
-    // 2) Hava durumu
-    const sicaklik  = $('span#wob_tm').first().text().trim();
-    const havaDurum = $('div.VQF4g').first().text().trim();
-    if (sicaklik) satirlar.push(`🌤️ ${sicaklik}°C — ${havaDurum}`);
+    // 1) Hava durumu — id hiç değişmiyor
+    const sicaklik  = $('#wob_tm').text().trim();
+    const havaDurum = $('#wob_dc').text().trim();
+    const havaYer   = $('#wob_loc').text().trim();
+    if (sicaklik) sonuclar.push(`🌤️ ${havaYer} ${sicaklik}°C, ${havaDurum}`);
 
-    // 3) Featured snippet
-    const snippet = $('div.IZ6rdc').first().text().trim()
-                 || $('span.hgKElc').first().text().trim()
-                 || $('div.LGOjhe').first().text().trim();
-    if (snippet && snippet.length > 15) satirlar.push(`💡 ${snippet.substring(0, 400)}`);
+    // 2) h3 etiketlerine bakarak organik sonuçları çek
+    // Google hangi class kullanırsa kullansın h3 her zaman başlık
+    $('h3').each((_, h3) => {
+      if (sonuclar.length >= 6) return false;
 
-    // 4) Organik arama sonuçları
-    $('div.g').each((_, el) => {
-      if (satirlar.filter(s => s.startsWith('🔹')).length >= 4) return false;
-      const baslik = $(el).find('h3').first().text().trim();
-      const ozet   = $(el).find('div.VwiC3b').first().text().trim()
-                  || $(el).find('span.aCOpRe').first().text().trim();
-      const href   = $(el).find('a').first().attr('href') || '';
-      let domain   = '';
-      try { domain = new URL(href).hostname.replace('www.', ''); } catch {}
-      if (baslik && ozet) {
-        satirlar.push(`🔹 **${baslik}**${domain ? ` (${domain})` : ''}\n${ozet.substring(0, 220)}`);
+      const baslik = $(h3).text().trim();
+      if (!baslik || baslik.length < 4 || baslik.length > 200) return;
+
+      // h3'ün üst kapsayıcısını bul
+      const kapsayici = $(h3).parents().filter((_, el) => {
+        return $(el).find('a[href]').length > 0 && $(el).text().length > baslik.length + 10;
+      }).first();
+
+      // Özet metni: kapsayıcı içindeki tüm metinden başlığı çıkar
+      const tumMetin = kapsayici.text().replace(baslik, '').replace(/\s+/g, ' ').trim();
+      const ozet = tumMetin.substring(0, 280);
+
+      // Domain
+      let domain = '';
+      try {
+        const href = kapsayici.find('a[href^="http"]').first().attr('href') || '';
+        domain = new URL(href).hostname.replace('www.', '');
+      } catch {}
+
+      if (ozet.length > 15) {
+        sonuclar.push(`🔹 **${baslik}**${domain ? ` (${domain})` : ''}\n${ozet}`);
       }
     });
 
-    // 5) Haber kutusu
-    $('div.SoaBEf, g-card').each((_, el) => {
-      if (satirlar.filter(s => s.startsWith('📰')).length >= 2) return false;
-      const baslik = $(el).find('div.mCBkyc, div.n0jPhd').first().text().trim();
-      const kaynak = $(el).find('div.CEMjEf span').first().text().trim();
-      if (baslik) satirlar.push(`📰 **${baslik}**${kaynak ? ` — ${kaynak}` : ''}`);
-    });
+    // 3) Sonuç yoksa son çare: body'den anlamlı metin çek
+    if (sonuclar.length === 0) {
+      console.warn('[Google] h3 parse başarısız, body fallback deneniyor...');
+      const bodyMetin = $('body').text().replace(/\s+/g, ' ').trim();
+      if (bodyMetin.length > 200) {
+        console.log('[Google] Body fallback ✅');
+        return bodyMetin.substring(0, 2000);
+      }
+      console.warn('[Google] Tamamen boş, büyük ihtimal CAPTCHA');
+      return null;
+    }
 
-    if (satirlar.length === 0) { console.warn('[Google] Parse sonucu boş'); return null; }
+    console.log(`[Google] ${sonuclar.length} sonuç ✅`);
+    return sonuclar.join('\n\n');
 
-    console.log(`[Google] ${satirlar.length} sonuç ✅`);
-    return satirlar.join('\n\n');
   } catch (e) {
     console.error('[Google] Hata:', e.message);
     return null;
@@ -153,7 +166,7 @@ async function cevapla(soru, userId) {
   if (!mem.has(userId)) mem.set(userId, []);
   const history = mem.get(userId);
 
-  // Groq'a "web araması gerekiyor mu?" diye sor
+  // Web araması gerekiyor mu?
   const karar = await groq([
     {
       role: 'system',
@@ -164,7 +177,6 @@ async function cevapla(soru, userId) {
 
   let webBlok = '';
   if (karar?.toUpperCase().includes('EVET')) {
-    // Arama sorgusunu Groq üretsin
     const sorgu = await groq([
       {
         role: 'system',
