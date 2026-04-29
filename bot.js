@@ -249,7 +249,7 @@ function createBot(token) {
 
   client.once('ready', () => {
     console.log(`✅ ${client.user.tag} Hazır!`);
-    client.user.setActivity('Firuze ile Fmab izliyor', { type: ActivityType.Watching });
+    client.user.setActivity('', { type: ActivityType.Watching });
   });
 
   client.login(token);
