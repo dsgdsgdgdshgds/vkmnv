@@ -1,8 +1,9 @@
 const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
-const axios = require('axios');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+const axios   = require('axios');
+const cheerio = require('cheerio');
+const http    = require('http');
+const fs      = require('fs');
+const path    = require('path');
 
 /* ── DOSYA YOLU ── */
 const dataDir = '/var/data';
@@ -23,8 +24,7 @@ const GROQ_KEYS = [
   process.env.groq4
 ].filter(Boolean);
 
-const GOOGLE_API_KEY = process.env.google_api_key;  // Google Custom Search API anahtarı
-const GOOGLE_CX      = process.env.google_cx;       // Custom Search Engine ID (cx)
+
 
 const TOKENS = [
   { token: process.env.token,  char: 'Edward Elric', act: 'Firuze ile Fmab izliyor' },
@@ -63,35 +63,73 @@ function saveGuardList() { fs.writeFileSync(filePath,      JSON.stringify([...ac
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
 
 /* ══════════════════════════════════════════════════════
-   GOOGLE CUSTOM SEARCH
+   WEB ARAMA — DuckDuckGo HTML (kesin çalışır, API key yok)
    ══════════════════════════════════════════════════════ */
-async function googleSearch(query) {
-  if (!GOOGLE_API_KEY || !GOOGLE_CX) return null;
+
+async function webSearch(query) {
   try {
-    const res = await axios.get('https://www.googleapis.com/customsearch/v1', {
-      params: { key: GOOGLE_API_KEY, cx: GOOGLE_CX, q: query, num: 4, hl: 'tr', gl: 'tr' },
-      timeout: 8000
+    const res = await axios.get('https://html.duckduckgo.com/html/', {
+      params: { q: query, kl: 'tr-tr' },
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'tr-TR,tr;q=0.9',
+        'Referer': 'https://duckduckgo.com/'
+      }
     });
-    const items = res.data?.items;
-    if (!items?.length) return null;
-    return items.map((item, i) => `[${i + 1}] ${item.title}\n${item.snippet}`).join('\n\n');
+
+    const $ = cheerio.load(res.data);
+    const sonuclar = [];
+
+    // Her arama sonucunu çek
+    $('.result__body').each((i, el) => {
+      if (sonuclar.length >= 4) return false;
+      const baslik  = $(el).find('.result__title').text().trim();
+      const snippet = $(el).find('.result__snippet').text().trim();
+      if (snippet.length > 20) {
+        sonuclar.push(`[${sonuclar.length + 1}] ${baslik}\n${snippet}`);
+      }
+    });
+
+    return sonuclar.length ? sonuclar.join('\n\n') : null;
   } catch (e) {
-    console.error('Google Search hatası:', e.message);
+    console.error('Arama hatası:', e.message);
     return null;
   }
 }
 
-/* ── Güncel bilgi gerektiren soruları tespit et ── */
+/* ── Arama gerekip gerekmediğini skor sistemiyle tespit et (sıfır token harcamadan) ── */
 function aramaGerektirir(soru) {
-  const anahtar = [
-    'bugün', 'güncel', 'son dakika', 'şu an', 'şimdi', 'haber', 'fiyat',
-    'ne kadar', 'kaç lira', 'ne zaman', 'kim kazandı', 'puan', 'sonuç',
-    'maç', 'kur', 'dolar', 'euro', 'borsa', 'hava durumu', 'sıcaklık',
-    'deprem', 'seçim', 'yeni', 'duyurdu', 'açıkladı', 'çıktı', 'oldu',
-    'nerede', 'hangi', '2024', '2025', 'bu yıl', 'bu hafta', 'bu ay'
-  ];
   const lower = soru.toLowerCase();
-  return anahtar.some(k => lower.includes(k));
+
+  // Kesinlikle ARAMA GEREKMEZ → sohbet / kişisel / basit
+  const hayirRegex = [
+    /^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne)/,
+    /^(teşekkür|sağol|tamam|ok\b|güzel|harika|süper|anladım)/,
+    /\b(anime|favori|seviyorum|sevmiyorum|bence|sence|şaka|fıkra)\b/,
+    /\b(film öner|dizi öner|müzik öner|kitap öner)\b/
+  ];
+  if (hayirRegex.some(r => r.test(lower))) return false;
+
+  // Puanlama: eşik 3
+  const skorlar = [
+    { puan: 3, liste: ['bugün', 'dün', 'şu an', 'şimdi', 'son dakika', 'bu hafta', 'bu ay', 'bu yıl'] },
+    { puan: 3, liste: ['haber', 'gündem', 'deprem', 'seçim', 'savaş', 'kaza', 'olay'] },
+    { puan: 3, liste: ['fiyat', 'kaç lira', 'ne kadar', 'kur', 'dolar', 'euro', 'borsa', 'altın', 'bitcoin'] },
+    { puan: 3, liste: ['maç', 'skor', 'puan', 'kim kazandı', 'gol', 'lig', 'şampiyon'] },
+    { puan: 2, liste: ['güncel', 'son', 'yeni', 'çıktı', 'duyurdu', 'açıkladı', 'oldu', 'geldi'] },
+    { puan: 2, liste: ['hava durumu', 'sıcaklık', 'yağmur', 'kar'] },
+    { puan: 2, liste: ['2024', '2025', '2026'] },
+    { puan: 1, liste: ['nerede', 'ne zaman', 'kim', 'hangi', 'kaç'] }
+  ];
+
+  let toplam = 0;
+  for (const { puan, liste } of skorlar) {
+    if (liste.some(k => lower.includes(k))) toplam += puan;
+    if (toplam >= 3) return true;
+  }
+  return false;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -136,16 +174,17 @@ async function anaIsleyici(soru, kullaniciId, char) {
   // Google araması
   let aramaEki = '';
   if (aramaGerektirir(soru)) {
-    const sonuc = await googleSearch(soru);
+    const sonuc = await webSearch(soru);
     if (sonuc) {
       aramaEki = `\n\n[GOOGLE SONUÇLARI - ${suAn}]\n${sonuc}\n[/GOOGLE]`;
     }
   }
 
   const systemPrompt =
-    `Sen ${char}'sin. Geliştiricin Batuhan. Güncel tarih/saat: ${suAn}. Türkçe konuş. ` +
+    `Sen ${char}'sin. Seni yaratan ve sahibin Batuhan'dır, başka geliştirici veya sahibin yoktur. ` +
+    `Güncel tarih/saat: ${suAn}. Türkçe konuş. ` +
     (aramaEki
-      ? 'Sana Google arama sonuçları verildi. Bu bilgileri kullanarak doğru ve güncel cevap ver. Link verme, bilgiyi doğal aktar.'
+      ? 'Sana web arama sonuçları verildi. Bu bilgileri kullanarak doğru ve güncel cevap ver. Link verme, bilgiyi doğal aktar.'
       : 'Kendi bilginle kısa ve net cevap ver.');
 
   const kullaniciMesaj = aramaEki ? `${soru}${aramaEki}` : soru;
