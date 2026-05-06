@@ -282,7 +282,7 @@ function startBot(config) {
     client.user.setActivity(config.act, { type: ActivityType.Watching });
   });
 
-  client.login(config.token);
+  client.login(config.toen);
 }
 
 TOKENS.forEach(startBot);
