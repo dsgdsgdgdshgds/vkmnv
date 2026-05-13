@@ -4,7 +4,7 @@
   "description": "mmn",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
