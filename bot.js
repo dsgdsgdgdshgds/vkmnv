@@ -5,6 +5,7 @@ const express = require('express');
 const cron    = require('node-cron');
 const fs      = require('fs');
 const path    = require('path');
+const crypto  = require('crypto');
 
 /* ── DOSYA YOLLARI ── */
 const dataDir       = '/var/data';
@@ -13,8 +14,19 @@ const whiteListPath = path.join(dataDir, 'whitelist.json');
 const dbPath        = path.join(dataDir, 'deprem.json');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
+/* ── TWILIO ── */
+const TWILIO_SID   = process.env.TWILIO_SID;
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN;
+const TWILIO_FROM  = process.env.TWILIO_FROM   || '+18777804236';
+
+/* ── ADMIN ── */
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'afad2024';
+function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
+const adminTokens = new Map(); // token -> { username, exp }
+
 /* ══════════════════════════════════════════════════════
-   JSON VERİTABANI (better-sqlite3 yerine)
+   JSON VERİTABANI
    ══════════════════════════════════════════════════════ */
 function loadDb() {
   try { return JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch(e) {}
@@ -32,6 +44,7 @@ const db = {
   },
   getUserById(id) { return loadDb().users.find(u => u.id == id); },
   getUsersByCity(city) { return loadDb().users.filter(u => u.city?.toLowerCase().includes(city.toLowerCase())); },
+  getAllUsers() { return loadDb().users; },
   updateUserLocation(id, lat, lng) {
     const data = loadDb();
     const u = data.users.find(u => u.id == id);
@@ -50,6 +63,15 @@ const db = {
       const u = data.users.find(u => u.id == a.userId) || {};
       return { ...a, name: u.name, phone: u.phone, lastLat: u.lastLat, lastLng: u.lastLng };
     });
+  },
+  getAllAlerts() {
+    const data = loadDb();
+    return data.alerts.map(a => {
+      const u = data.users.find(u => u.id == a.userId) || {};
+      return { ...a, name: u.name||'', surname: u.surname||'', phone: u.phone||'',
+               city: u.city||a.city||'', address: u.address||'',
+               lastLat: u.lastLat, lastLng: u.lastLng };
+    }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt));
   },
   updateAlertStatus(uid, eqId, status) {
     const data = loadDb();
@@ -80,23 +102,37 @@ const db = {
    ══════════════════════════════════════════════════════ */
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.post('/api/send-code', (req, res) => {
+/* ── SMS GÖNDER (Twilio) ── */
+app.post('/api/send-code', async (req, res) => {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: 'Telefon eksik' });
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   db.saveCode(phone, code);
-  console.log(`[SMS] ${phone} → KOD: ${code}`);
-  res.json({ success: true });
+  try {
+    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+    await axios.post(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
+      new URLSearchParams({ From: TWILIO_FROM, To: phone, Body: `Deprem Yardim dogrulama kodunuz: ${code}` }),
+      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    console.log(`[SMS] ${phone} → gonderildi`);
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[SMS HATA]', e.response?.data || e.message);
+    res.status(500).json({ error: 'SMS gonderilemedi: ' + (e.response?.data?.message || e.message) });
+  }
 });
 
+/* ── KOD DOĞRULA ── */
 app.post('/api/verify-code', (req, res) => {
   const { phone, code, name, surname, address, city } = req.body;
   if (!phone || !code) return res.status(400).json({ error: 'Eksik alan' });
   const session = db.getCode(phone);
-  if (!session) return res.status(400).json({ error: 'Önce kod gönderin' });
-  if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod süresi doldu' });
-  if (session.code !== code) return res.status(400).json({ error: 'Yanlış kod' });
+  if (!session) return res.status(400).json({ error: 'Once kod gonderin' });
+  if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod suresi doldu' });
+  if (session.code !== code) return res.status(400).json({ error: 'Yanlis kod' });
   db.deleteCode(phone);
   const user = db.createUser({ name: name||'', surname: surname||'', phone, address: address||'', city: city||'' });
   res.json({ success: true, userId: user.id });
@@ -107,6 +143,16 @@ app.post('/api/register', (req, res) => {
   if (!name || !phone || !city) return res.status(400).json({ error: 'Eksik alan' });
   const user = db.createUser({ name, surname, phone, address, city, fcmToken });
   res.json({ success: true, userId: user.id });
+});
+
+app.post('/api/fcm-token', (req, res) => {
+  const { userId, fcmToken } = req.body;
+  if (userId && fcmToken) {
+    const data = loadDb();
+    const u = data.users.find(u => u.id == userId);
+    if (u) { u.fcmToken = fcmToken; saveDb(data); }
+  }
+  res.json({ success: true });
 });
 
 app.post('/api/status', (req, res) => {
@@ -124,7 +170,61 @@ app.post('/api/location', (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/notif-dismissed', (req, res) => {
+  const { userId, eqId } = req.body;
+  if (userId && eqId) db.updateAlertStatus(userId, eqId, 'dismissed');
+  res.json({ success: true });
+});
+
 app.get('/api/alerts/:city', (req, res) => res.json(db.getAlertsByCity(req.params.city)));
+
+/* ── ADMİN GİRİŞ ── */
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Eksik alan' });
+  if (username !== ADMIN_USER || sha256(password) !== sha256(ADMIN_PASS)) {
+    return res.status(401).json({ error: 'Kullanici adi veya sifre yanlis' });
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  adminTokens.set(token, { username, exp: Date.now() + 8 * 60 * 60 * 1000 });
+  res.json({ success: true, token });
+});
+
+/* ── ADMİN MIDDLEWARE ── */
+function requireAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'];
+  if (!token) return res.status(401).json({ error: 'Token gerekli' });
+  const t = adminTokens.get(token);
+  if (!t || Date.now() > t.exp) return res.status(401).json({ error: 'Gecersiz token' });
+  next();
+}
+
+/* ── ADMİN YANIT LİSTESİ ── */
+app.get('/api/admin/responses', requireAdmin, (req, res) => {
+  const responses = db.getAllAlerts().map(a => ({
+    userId: a.userId,
+    name: a.name,
+    surname: a.surname,
+    phone: a.phone,
+    city: a.city,
+    address: a.address,
+    status: a.status,
+    eqId: a.eqId,
+    lat: a.lastLat || 0,
+    lng: a.lastLng || 0,
+    updatedAt: a.sentAt || ''
+  }));
+  res.json({ success: true, responses });
+});
+
+app.get('/api/admin/users', requireAdmin, (req, res) => res.json({ success: true, users: db.getAllUsers() }));
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+  const all = loadDb().alerts;
+  res.json({ success: true, total: all.length,
+    pending: all.filter(a=>a.status==='pending').length,
+    safe: all.filter(a=>a.status==='safe').length,
+    help: all.filter(a=>a.status==='help').length });
+});
 
 function triggerEmergency(alert) {
   const user = db.getUserById(alert.userId);
