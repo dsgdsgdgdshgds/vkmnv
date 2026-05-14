@@ -269,8 +269,18 @@ app.post('/api/verify-code', (req, res) => {
   if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod süresi doldu' });
   if (session.code !== code) return res.status(400).json({ error: 'Yanlış kod' });
   db.deleteEmailCode(email);
-  const user = db.createUser({ name: name||'', surname: surname||'', phone: phone||'', email, address: address||'', city: city||'', createdAt: new Date().toISOString() });
-  res.json({ success: true, userId: user.id });
+
+  // Eğer name/city geldiyse yeni kayıt, yoksa mevcut kullanıcıyı bul (giriş)
+  if (name) {
+    const user = db.createUser({ name, surname: surname||'', phone: phone||'', email, address: address||'', city: city||'', createdAt: new Date().toISOString() });
+    return res.json({ success: true, userId: user.id });
+  } else {
+    // Giriş: mevcut kullanıcıyı e-posta ile bul
+    const data = loadDb();
+    const existing = data.users.find(u => u.email === email);
+    if (!existing) return res.status(400).json({ error: 'Bu e-posta ile kayıtlı kullanıcı bulunamadı' });
+    return res.json({ success: true, userId: existing.id });
+  }
 });
 
 app.post('/api/register', (req, res) => {
