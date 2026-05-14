@@ -14,10 +14,10 @@ const whiteListPath = path.join(dataDir, 'whitelist.json');
 const dbPath        = path.join(dataDir, 'deprem.json');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-/* ── TWILIO ── */
-const TWILIO_SID   = process.env.TWILIO_SID;
-const TWILIO_TOKEN = process.env.TWILIO_TOKEN;
-const TWILIO_FROM  = process.env.TWILIO_FROM   || '+18777804236';
+/* ── VONAGE SMS ── */
+const VONAGE_KEY    = process.env.VONAGE_KEY    || 'RaTRxZYQIor1z4Bm';
+const VONAGE_SECRET = process.env.VONAGE_SECRET || 'BURAYA_KOYMA_ENV_KULLAN';
+const VONAGE_FROM   = 'DepremYardim';
 
 /* ── ADMIN ── */
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -111,17 +111,20 @@ app.post('/api/send-code', async (req, res) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   db.saveCode(phone, code);
   try {
-    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
-    await axios.post(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
-      new URLSearchParams({ From: TWILIO_FROM, To: phone, Body: `Deprem Yardim dogrulama kodunuz: ${code}` }),
-      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+    await axios.post('https://rest.nexmo.com/sms/json', null, {
+      params: {
+        api_key: VONAGE_KEY,
+        api_secret: VONAGE_SECRET,
+        from: VONAGE_FROM,
+        to: phone.replace('+',''),
+        text: `Deprem Yardim dogrulama kodunuz: ${code}`
+      }
+    });
     console.log(`[SMS] ${phone} → gonderildi`);
     res.json({ success: true });
   } catch(e) {
     console.error('[SMS HATA]', e.response?.data || e.message);
-    res.status(500).json({ error: 'SMS gonderilemedi: ' + (e.response?.data?.message || e.message) });
+    res.status(500).json({ error: 'SMS gonderilemedi' });
   }
 });
 
