@@ -104,34 +104,25 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── SMS GÖNDER (Twilio) ── */
-app.post('/api/send-code', async (req, res) => {
+/* ── SMS GÖNDER ── */
+app.post('/api/send-code', (req, res) => {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: 'Telefon eksik' });
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   db.saveCode(phone, code);
-  try {
-    await axios.post('https://rest.nexmo.com/sms/json', null, {
-      params: {
-        api_key: VONAGE_KEY,
-        api_secret: VONAGE_SECRET,
-        from: VONAGE_FROM,
-        to: phone.replace('+',''),
-        text: `Deprem Yardim dogrulama kodunuz: ${code}`
-      }
-    });
-    console.log(`[SMS] ${phone} → gonderildi`);
-    res.json({ success: true });
-  } catch(e) {
-    console.error('[SMS HATA]', e.response?.data || e.message);
-    res.status(500).json({ error: 'SMS gonderilemedi' });
-  }
+  console.log(`[SMS] ${phone} → KOD: ${code}`);
+  res.json({ success: true });
 });
 
-/* ── KOD DOĞRULA ── */
+/* ── KOD DOĞRULA / KAYIT ── */
 app.post('/api/verify-code', (req, res) => {
   const { phone, code, name, surname, address, city } = req.body;
-  if (!phone || !code) return res.status(400).json({ error: 'Eksik alan' });
+  if (!phone) return res.status(400).json({ error: 'Eksik alan' });
+  // bypass: direkt kayıt
+  if (code === 'bypass') {
+    const user = db.createUser({ name: name||'', surname: surname||'', phone, address: address||'', city: city||'' });
+    return res.json({ success: true, userId: user.id });
+  }
   const session = db.getCode(phone);
   if (!session) return res.status(400).json({ error: 'Once kod gonderin' });
   if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod suresi doldu' });
