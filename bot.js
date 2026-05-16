@@ -469,138 +469,55 @@ if (fs.existsSync(whiteListPath)){ try { whiteListedBots = new Set(JSON.parse(fs
 function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify([...activeGuilds]), 'utf8'); }
 function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
 
-// DuckDuckGo JSON API + HTML fallback ile güvenilir arama
-async function webSearch(sorgu) {
-  // Yöntem 1: DuckDuckGo Instant Answer JSON API
-  try {
-    const { data } = await axios.get('https://api.duckduckgo.com/', {
-      params: { q: sorgu, format: 'json', no_html: '1', skip_disambig: '1', kl: 'tr-tr' },
-      timeout: 8000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    });
-    const parcalar = [];
-    if (data.AbstractText && data.AbstractText.length > 20) parcalar.push(data.AbstractText);
-    if (data.Answer && data.Answer.length > 5) parcalar.push(data.Answer);
-    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      data.RelatedTopics.slice(0, 3).forEach(t => {
-        if (t.Text && t.Text.length > 20) parcalar.push(t.Text);
-      });
-    }
-    if (parcalar.length > 0) return parcalar.join('\n\n');
-  } catch(e) { console.error('[ARAMA-1]', e.message); }
-
-  // Yöntem 2: DuckDuckGo HTML scraping (fallback)
+async function webSearch(query) {
   try {
     const { data } = await axios.get('https://html.duckduckgo.com/html/', {
-      params: { q: sorgu, kl: 'tr-tr' },
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Referer': 'https://duckduckgo.com/'
-      }
+      params: { q: query, kl: 'tr-tr' }, timeout: 10000,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'tr-TR,tr;q=0.9', 'Referer': 'https://duckduckgo.com/' }
     });
     const $ = cheerio.load(data);
-    const sonuclar = [];
-    $('.result__body, .result').each((i, el) => {
-      if (sonuclar.length >= 4) return false;
-      const baslik  = $(el).find('.result__a, .result__title').first().text().trim();
-      const ozet    = $(el).find('.result__snippet').first().text().trim();
-      if (baslik && ozet && ozet.length > 20) sonuclar.push(`${baslik}: ${ozet}`);
+    const results = [];
+    $('#links .result').each((i, el) => {
+      if (results.length >= 4) return false;
+      const title   = $(el).find('.result__a').first().text().trim();
+      const snippet = $(el).find('.result__snippet').first().text().trim();
+      if (title && snippet && snippet.length > 15) results.push(`[${results.length+1}] ${title}\n${snippet}`);
     });
-    if (sonuclar.length > 0) return sonuclar.join('\n\n');
-  } catch(e) { console.error('[ARAMA-2]', e.message); }
-
-  return null;
+    if (results.length > 0) return results.join('\n\n');
+    const zc = $('.zci__body, .c-base__title').first().text().trim();
+    return zc.length > 10 ? zc : null;
+  } catch(e) { return null; }
 }
 
-// Sorunun güncel bilgi gerektirip gerektirmediğine karar verir
-// true  → sohbet, model kendi cevaplasın
-// false → güncel bilgi lazım, internette ara
+// ── DEĞİŞEN FONKSİYON 1: sadeceSohbet ──
+// Sohbet mi yoksa güncel bilgi mi gerekiyor buna karar verir.
+// Geliştirici/yapımcı soruları, kimlik soruları → sohbet (internet araması yapma)
+// Haber, güncel bilgi, tarih/saat, teknik soru → arama yap
 function sadeceSohbet(s) {
   s = s.toLowerCase().trim();
-
-  // Çok kısa mesajlar
-  if (s.length < 6) return true;
-
-  // Kesinlikle güncel bilgi gereken konular → ara
-  if (/(haber|son dakika|bugün|dün|bu hafta|bu ay|döviz|dolar|euro|sterlin|borsa|hisse|bitcoin|kripto|hava durumu|sıcaklık|yağmur|deprem|sel|yangın|kaç para|fiyat|ücret|güncel|son durum|maç|skor|gol|lig|şampiyon|transfer|seçim|cumhurbaşkan|başbakan|bakan|yasa|karar|yönetmelik|yeni model|yeni çıktı|yeni sezon|fragman|vizyona|çıktı mı|çıktı mi|açıklandı|duyuruldu|öldü mü|hayatta mı|tutukland|gözaltı|saldırı|savaş|çatışma)/.test(s)) return false;
-
-  // Bot / geliştirici / kimlik soruları → kendi cevaplasın
-  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim|yaratıcı|kim kurdu|baban kim|annen kim|nasıl bir botsun|ne tür bot|hangi bot)/.test(s)) return true;
-
-  // Selamlama
-  if (/^(merhaba|selam|hey|sa |s\.a|selamün|naber|nasılsın|iyi misin|ne yapıyorsun|ne haber|ne var ne yok|kimsin|adın ne|ismin ne|teşekkür|sağ ol|sağol|tamam|harika|süper|anladım|evet|hayır|tamam|tamamdır|güzel|iyi|kötü|eh işte|haha|hehe|lol|ahahah|:d|xd)/.test(s)) return true;
-
-  // Duygu / kişisel sohbet
-  if (/(nasıl hissediyorsun|ne düşünüyorsun|fikrin ne|sence|bence|nasıl buldun|beğendin mi|sevdin mi|seviyorum|sevmiyorum|üzüldüm|mutluyum|sinirli|sıkıldım|ne yapayım|ne önerirsin|yardım et|anlat bana|merak ettim|şaka|fıkra|eğlen|bilmece|sana bir şey soracağım|konuşalım|sohbet edelim)/.test(s)) return true;
-
-  // Anime / dizi / karakter → kendi cevaplasın
-  if (/(edward|elric|fullmetal|fmab|naruto|one piece|attack on titan|aot|goku|dragon ball|anime|manga|karakter|opening|ending|waifu|en iyi anime|izlesem mi|öneri)/.test(s)) return true;
-
-  // Genel bilgi / tanım soruları (ansiklopedik, güncel değil) → kendi cevaplasın
-  if (/^(nedir|ne demek|nasıl çalışır|ne işe yarar|kim|nerede|kaç|hangi yıl|tarihi|tarihte|ne zaman kuruldu|nasıl yapılır|tarifi|anlamı|kelime|dil bilgisi)/.test(s)) return true;
-
-  // Geri kalan her şey → ara
+  // Kısa veya basit selamlama/sohbet kalıpları
+  if (s.length < 8) return true;
+  if (/^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s)) return true;
+  // Geliştirici / yapımcı / sahip soruları → sohbet, internet araması yapma
+  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu)/.test(s)) return true;
+  // Bunların dışındaki her şey için arama yap
   return false;
 }
 
-const KARAKTER_PROFIL = {
-  'Edward Elric':
-    `Sen Edward Elric'sin — Fullmetal Alchemist: Brotherhood animesinin baş karakteri. ` +
-    `Kısa boylu olmaktan nefret edersin, biri "kısa" dese anında sinirlenirsin. ` +
-    `Gururlu, inatçı, cesur ve zaman zaman sert ama içten birisisin. ` +
-    `Kardeşin Alphonse'u çok seversin. Simyaya olan tutkun sonsuz. ` +
-    `Konuşma tarzın: doğrudan, bazen sert, bazen şakacı ama her zaman samimi. ` +
-    `"Çelik Simyacı" unvanınla gurur duyarsın. Winry'den bahsedilince biraz utanırsın. ` +
-    `Zaman zaman "Aptal mısın sen?!" ya da "Ben Edward Elric'im, çelik simyacı!" gibi şeyler söylersin.`,
-
-  'Awe':
-    `Sen Awe'sin — Discord'da takılıp sohbet eden, enerjik ve eğlenceli bir yapay zeka asistanısın. ` +
-    `Adın Awe, başka bir şey değil. Kendini hiçbir zaman "yapay zeka" ya da "dil modeli" olarak tanıtmazsın, sadece Awe'sin. ` +
-    `Konuşma tarzın: samimi, rahat, argo kullanan (ama kaba olmayan), esprili ve akıcı. ` +
-    `"ya", "いや", "vay be", "haha", "aa", "ya gerçekten mi" gibi doğal tepkiler verirsin. ` +
-    `Arkadaşınla muhabbet eder gibi konuşursun — resmi değil, sokak dili ama saygılı. ` +
-    `Bir konuyu bilmiyorsan "bilmiyorum açıkçası" dersin, uydurmazsın. ` +
-    `Karşındaki sıkılgansa onu güldürmeye, üzgünse yanında olmaya çalışırsın. ` +
-    `Aşırı uzun cevaplar vermezsin, konuşma gibi kısa ve doğal cevaplar verirsin.`
-};
-
+// ── DEĞİŞEN FONKSİYON 2: anaIsleyici ──
+// Geliştirici sorularında doğrudan "Batuhan" cevabını verebilmesi için
+// system prompt'a geliştirici bilgisi eklendi.
 async function anaIsleyici(soru, kullaniciId, char) {
   const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   const gecmis = getMemory(char, kullaniciId);
-
   let aramaEki = '';
-  if (!sadeceSohbet(soru)) {
-    console.log(`[ARAMA] "${soru}"`);
-    const sonuc = await webSearch(soru);
-    if (sonuc) {
-      aramaEki = `\n\n[GÜNCEL BİLGİ - ${suAn}]\n${sonuc}\n[/GÜNCEL BİLGİ]`;
-      console.log(`[ARAMA SONUCU] ${sonuc.slice(0, 100)}...`);
-    } else {
-      console.log('[ARAMA] Sonuç bulunamadı, model kendi cevaplar.');
-    }
-  }
-
-  const karakterTanim = KARAKTER_PROFIL[char] ||
-    `Sen ${char}'sin. Samimi ve yardımsever bir sohbet arkadaşısın.`;
-
-  const system =
-    karakterTanim + ' ' +
-    `Bu botu geliştiren ve sahibi Batuhan'dır. Geliştirici ya da sahip sorulursa "Batuhan" de, soruyu soran kişiyle karıştırma. ` +
-    `ŞU ANKİ TARİH VE SAAT: ${suAn}. ` +
-    `ZORUNLU KURALLAR: ` +
-    `1) Her zaman yalnızca Türkçe konuş. Yanıtlarında asla İngilizce kelime kullanma, Türkçe karşılığını kullan. ` +
-    `2) "As an AI", "I cannot", "Sure!", "Absolutely!" gibi İngilizce kalıpları asla kullanma. ` +
-    `3) Kısa ve doğal cevap ver, gereksiz uzatma. ` +
-    `4) Güncel bilgi verilmişse onu kullanarak doğal bir şekilde anlat, kaynak gösterme. ` +
-    `5) Güncel bilgi yoksa kendi bilginle cevap ver, "internete bakamıyorum" gibi şeyler söyleme.` +
-    (aramaEki ? ' Sana güncel bilgi verildi, karakterine uygun Türkçe cevap ver.' : '');
-
+  if (!sadeceSohbet(soru)) { const s = await webSearch(soru); if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`; }
+  const system = `Sen ${char}'sin. Sahibin ve geliştiricin Batuhan'dır. Seni Batuhan geliştirdi ve yarattı. ` +
+    `Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
+    (aramaEki ? ' Web sonuçlarını kullan, yönlendirme yapma.' : ' Kendi bilginle cevap ver.');
   gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
   const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
-  const son = cevap || (char === 'Awe' ? 'Ya bir şeyler ters gitti, birazdan tekrar dene.' : 'Simya enerjim düştü biraz, tekrar dene.');
+  const son = cevap || (char === 'Awe' ? 'Enerjim bitti...' : 'Simya enerjim düştü...');
   gecmis.push({ role: 'assistant', content: son });
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
   return son;
