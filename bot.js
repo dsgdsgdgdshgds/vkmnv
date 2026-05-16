@@ -489,37 +489,31 @@ async function webSearch(query) {
   } catch(e) { return null; }
 }
 
+// ── DEĞİŞEN FONKSİYON 1: sadeceSohbet ──
+// Sohbet mi yoksa güncel bilgi mi gerekiyor buna karar verir.
+// Geliştirici/yapımcı soruları, kimlik soruları → sohbet (internet araması yapma)
+// Haber, güncel bilgi, tarih/saat, teknik soru → arama yap
 function sadeceSohbet(s) {
   s = s.toLowerCase().trim();
-  return s.length < 8 || /^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s);
+  // Kısa veya basit selamlama/sohbet kalıpları
+  if (s.length < 8) return true;
+  if (/^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s)) return true;
+  // Geliştirici / yapımcı / sahip soruları → sohbet, internet araması yapma
+  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu)/.test(s)) return true;
+  // Bunların dışındaki her şey için arama yap
+  return false;
 }
 
-async function groqCall(messages, keyIndex=0, deneme=0) {
-  const apiKey = GROQ_KEYS[keyIndex];
-  if (!apiKey) return null;
-  try {
-    const res = await axios.post('https://api.groq.com/openai/v1/chat/completions',
-      { model: MODEL, messages, temperature: 0.6, max_tokens: 1500 },
-      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
-    );
-    return res.data.choices[0].message.content.trim();
-  } catch(e) {
-    const status = e.response?.status;
-    if (status === 429 || status >= 500 || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
-      const next = (keyIndex+1) % GROQ_KEYS.length;
-      if (next !== keyIndex) { await new Promise(r=>setTimeout(r,1000)); return groqCall(messages,next,deneme); }
-      if (deneme < 3) { await new Promise(r=>setTimeout(r,(deneme+1)*4000)); return groqCall(messages,0,deneme+1); }
-    }
-    return null;
-  }
-}
-
+// ── DEĞİŞEN FONKSİYON 2: anaIsleyici ──
+// Geliştirici sorularında doğrudan "Batuhan" cevabını verebilmesi için
+// system prompt'a geliştirici bilgisi eklendi.
 async function anaIsleyici(soru, kullaniciId, char) {
   const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   const gecmis = getMemory(char, kullaniciId);
   let aramaEki = '';
   if (!sadeceSohbet(soru)) { const s = await webSearch(soru); if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`; }
-  const system = `Sen ${char}'sin. Sahibin Batuhan. Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
+  const system = `Sen ${char}'sin. Sahibin ve geliştiricin Batuhan'dır. Seni Batuhan geliştirdi ve yarattı. ` +
+    `Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
     (aramaEki ? ' Web sonuçlarını kullan, yönlendirme yapma.' : ' Kendi bilginle cevap ver.');
   gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
   const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
@@ -527,6 +521,24 @@ async function anaIsleyici(soru, kullaniciId, char) {
   gecmis.push({ role: 'assistant', content: son });
   if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
   return son;
+}
+
+function groqCall(messages, keyIndex=0, deneme=0) {
+  const apiKey = GROQ_KEYS[keyIndex];
+  if (!apiKey) return Promise.resolve(null);
+  return axios.post('https://api.groq.com/openai/v1/chat/completions',
+    { model: MODEL, messages, temperature: 0.6, max_tokens: 1500 },
+    { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+  ).then(res => res.data.choices[0].message.content.trim())
+  .catch(async e => {
+    const status = e.response?.status;
+    if (status === 429 || status >= 500 || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
+      const next = (keyIndex+1) % GROQ_KEYS.length;
+      if (next !== keyIndex) { await new Promise(r=>setTimeout(r,1000)); return groqCall(messages,next,deneme); }
+      if (deneme < 3) { await new Promise(r=>setTimeout(r,(deneme+1)*4000)); return groqCall(messages,0,deneme+1); }
+    }
+    return null;
+  });
 }
 
 function checkLimit(guildId, userId, action) {
