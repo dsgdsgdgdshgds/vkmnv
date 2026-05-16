@@ -490,30 +490,17 @@ async function webSearch(query) {
 }
 
 // ── DEĞİŞEN FONKSİYON 1: sadeceSohbet ──
-// true  → internet araması YAPMA, model kendi cevaplasın
-// false → güncel bilgi gerekiyor, internette ara
+// Sohbet mi yoksa güncel bilgi mi gerekiyor buna karar verir.
+// Geliştirici/yapımcı soruları, kimlik soruları → sohbet (internet araması yapma)
+// Haber, güncel bilgi, tarih/saat, teknik soru → arama yap
 function sadeceSohbet(s) {
   s = s.toLowerCase().trim();
-
-  // Çok kısa mesajlar
+  // Kısa veya basit selamlama/sohbet kalıpları
   if (s.length < 8) return true;
-
-  // Güncel bilgi kesin gereken durumlar → hemen false döndür (arama yap)
-  if (/(haber|son dakika|bugün ne oldu|döviz|dolar|euro|borsa|hava durumu|deprem oldu mu|kaç para|fiyat[ıi]|güncel|2024|2025|yeni çıktı|yeni sezon|maç sonucu|skor|transfer|seçim sonuç)/.test(s)) return false;
-
-  // Geliştirici / yapımcı / sahip / kimlik soruları → sohbet
-  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu|baban kim|annen kim)/.test(s)) return true;
-
-  // Selamlama ve basit sohbet kalıpları (başlangıç kontrolü)
-  if (/^(merhaba|selam|hey|sa |selamün|naber|nasılsın|iyi misin|ne yapıyorsun|ne haber|ne var ne yok|kimsin|adın ne|ismin ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok |tamamdır|güzel|iyi|kötü|eh işte)/.test(s)) return true;
-
-  // Genel sohbet / kişisel sorular → kendi cevaplasın
-  if (/(en sevdiğin|favorin|hangi dizi|hangi film|hangi müzik|ne düşünüyorsun|fikrin ne|sence|bence|nasıl buldun|beğendin mi|sevdin mi|seviyorum|sevmiyorum|güldüm|üzüldüm|mutluyum|sinirli|sıkıldım|ne yapayım|ne önerirsin|tavsiye|yardım et|anlat bana|bana anlat|merak ettim|şaka|fıkra|eğlen|oyun oynayalım|bilmece|soru sorayım|sana bir şey soracağım)/.test(s)) return true;
-
-  // Anime / dizi / film / karakter konuşmaları → kendi cevaplasın (web'e gerek yok)
-  if (/(edward|elric|fullmetal|fmab|naruto|attack on titan|aot|one piece|goku|anime|manga|karakter|bölüm izledim|sahne|opening|ending|op|ed|waifu|best karakter)/.test(s)) return true;
-
-  // Geri kalan her şey için arama yap
+  if (/^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s)) return true;
+  // Geliştirici / yapımcı / sahip soruları → sohbet, internet araması yapma
+  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu)/.test(s)) return true;
+  // Bunların dışındaki her şey için arama yap
   return false;
 }
 
@@ -525,7 +512,7 @@ async function anaIsleyici(soru, kullaniciId, char) {
   const gecmis = getMemory(char, kullaniciId);
   let aramaEki = '';
   if (!sadeceSohbet(soru)) { const s = await webSearch(soru); if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`; }
-  const system = `Sen ${char}'sin. Bu botu (seni) kim yaptı, kim geliştirdi, geliştirici kim, sahibin kim gibi sorular sorulursa: bu botun geliştiricisi ve sahibi Batuhan'dır, bunu net söyle. "Senin geliştiricin" ifadesindeki "sen" kelimesi her zaman bu bot için geçerlidir, soruyu soran kişi için değil. ` +
+  const system = `Sen ${char}'sin. Sahibin ve geliştiricin Batuhan'dır. Seni Batuhan geliştirdi ve yarattı. ` +
     `Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
     (aramaEki ? ' Web sonuçlarını kullan, yönlendirme yapma.' : ' Kendi bilginle cevap ver.');
   gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
