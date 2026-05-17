@@ -146,7 +146,18 @@ const db = {
     const data = loadDb();
     return data.alerts.filter(a => ['help','timeout'].includes(a.status)).map(a => {
       const u = data.users.find(u => u.id == a.userId) || {};
-      return { ...a, name: a.name || u.name, surname: a.surname || u.surname, phone: a.phone || u.phone, address: a.address || u.address, lastLat: a.lastLat || u.lastLat, lastLng: a.lastLng || u.lastLng };
+      return {
+        ...a,
+        alertId:  a.id,
+        name:     a.name     || u.name     || '',
+        surname:  a.surname  || u.surname  || '',
+        phone:    a.phone    || u.phone    || '',
+        address:  a.address  || u.address  || '',
+        city:     a.city     || u.city     || '',
+        lastLat:  (a.lastLat  && a.lastLat  != 0) ? a.lastLat  : (u.lastLat  || 0),
+        lastLng:  (a.lastLng  && a.lastLng  != 0) ? a.lastLng  : (u.lastLng  || 0),
+        updatedAt: a.sentAt  || ''
+      };
     }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt));
   },
   getAllAlerts() {
@@ -394,6 +405,20 @@ app.get('/api/admin/stats',         requireAdmin, (req, res) => res.json(db.getS
 // Android app getResponses() bu endpoint'i çağırıyor
 app.get('/api/admin/responses', requireAdmin, (req, res) => {
   res.json({ success: true, responses: db.getHelpAlerts() });
+});
+
+// Alert'i çözümlendi olarak işaretle (admin ilgilendi)
+app.post('/api/admin/resolve-alert', requireAdmin, (req, res) => {
+  const { alertId } = req.body;
+  if (!alertId) return res.status(400).json({ error: 'alertId gerekli' });
+  const data = loadDb();
+  const idx = data.alerts.findIndex(a => a.id == alertId);
+  if (idx === -1) return res.status(404).json({ error: 'Alert bulunamadi' });
+  data.alerts[idx].status = 'resolved';
+  data.alerts[idx].resolvedAt = new Date().toISOString();
+  saveDb(data);
+  console.log('[COZUMLENDI] alertId=' + alertId);
+  res.json({ success: true });
 });
 
 app.post('/api/admin/create-admin', requireAdmin, (req, res) => {
