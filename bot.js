@@ -451,7 +451,14 @@ cron.schedule('*/5 * * * *', () => {
   for (const alert of db.getPendingAlerts()) {
     const diffMin = (now - new Date(alert.sentAt)) / 1000 / 60;
     if (diffMin >= 30) {
-      console.log(`[TIMEOUT] userId=${alert.userId} -> otomatik yardim cagrisi`);
+      // Son bilinen konumu alert'e yaz
+      const tUser = db.getUserById(alert.userId);
+      if (tUser && (tUser.lastLat || tUser.lastLng)) {
+        const data = loadDb();
+        const a = data.alerts.find(a => a.userId == alert.userId && a.eqId == alert.eqId);
+        if (a) { a.lastLat = tUser.lastLat; a.lastLng = tUser.lastLng; saveDb(data); }
+      }
+      console.log('[TIMEOUT] userId=' + alert.userId + ' -> otomatik yardim cagrisi');
       db.updateAlertStatus(alert.userId, alert.eqId, 'timeout');
       triggerEmergency(alert, 'ZAMAN_ASIMI');
     }
