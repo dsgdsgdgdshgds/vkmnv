@@ -12,8 +12,8 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.MAIL_USER,   // Render env: MAIL_USER
-    pass: process.env.MAIL_PASS    // Render env: MAIL_PASS (Gmail uygulama şifresi)
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS
   }
 });
 
@@ -68,14 +68,29 @@ const db = {
   /* ── Kullanıcılar ── */
   createUser(u) {
     const data = loadDb();
-    const idx = data.users.findIndex(x => x.phone === u.phone);
-    const user = { id: idx >= 0 ? data.users[idx].id : Date.now(), ...u };
+    // e-posta ile eşleştir (telefon yoksa e-posta ile güncelle)
+    const idx = data.users.findIndex(x => x.email === u.email || (u.phone && x.phone === u.phone));
+    const existing = idx >= 0 ? data.users[idx] : null;
+    const user = { id: existing ? existing.id : Date.now(), ...u };
     if (idx >= 0) data.users[idx] = user; else data.users.push(user);
     saveDb(data); return { id: user.id };
   },
   getUserById(id) { return loadDb().users.find(u => u.id == id); },
-  getUsersByCity(city) { return loadDb().users.filter(u => u.city?.toLowerCase().includes(city.toLowerCase())); },
-  getAllUsers() { return loadDb().users.map(u => ({ id: u.id, name: u.name, surname: u.surname, phone: u.phone, city: u.city, createdAt: u.createdAt })); },
+  getUsersByCity(location) {
+    // AFAD "ISTANBUL AVCILAR" gibi döndürür
+    // Kullanici "Istanbul/Avcilar" yazar — slash'tan onceki kisim il
+    const locClean = location.toLowerCase().replace(/[-]/g, ' ').trim();
+    const locParts = locClean.split(' ').filter(p => p.length > 2);
+    return loadDb().users.filter(u => {
+      if (!u.city) return false;
+      // Kullanicinin sehir alaninin il kismi (slash'tan once)
+      const userIl = u.city.toLowerCase().split('/')[0].trim();
+      const userIlce = u.city.toLowerCase().split('/')[1] ? u.city.toLowerCase().split('/')[1].trim() : '';
+      // AFAD konumundan herhangi bir parca il veya ilceyle eslesiyor mu
+      return locParts.some(p => userIl.includes(p) || p.includes(userIl) || (userIlce && userIlce.includes(p)));
+    });
+  },
+  getAllUsers() { return loadDb().users.map(u => ({ id: u.id, name: u.name, surname: u.surname, phone: u.phone, city: u.city, email: u.email, createdAt: u.createdAt })); },
   updateUserLocation(id, lat, lng) {
     const data = loadDb();
     const u = data.users.find(u => u.id == id);
@@ -101,7 +116,6 @@ const db = {
   saveAdminToken(token, username) {
     const data = loadDb();
     if (!data.adminTokens) data.adminTokens = [];
-    // Eski tokenları temizle (8 saat)
     data.adminTokens = data.adminTokens.filter(t => Date.now() < t.exp);
     data.adminTokens.push({ token, username, exp: Date.now() + 8 * 60 * 60 * 1000 });
     saveDb(data);
@@ -132,14 +146,14 @@ const db = {
     const data = loadDb();
     return data.alerts.filter(a => ['help','timeout'].includes(a.status)).map(a => {
       const u = data.users.find(u => u.id == a.userId) || {};
-      return { ...a, name: u.name, surname: u.surname, phone: u.phone, address: u.address, lastLat: u.lastLat, lastLng: u.lastLng };
+      return { ...a, name: a.name || u.name, surname: a.surname || u.surname, phone: a.phone || u.phone, address: a.address || u.address, lastLat: a.lastLat || u.lastLat, lastLng: a.lastLng || u.lastLng };
     }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt));
   },
   getAllAlerts() {
     const data = loadDb();
     return data.alerts.map(a => {
       const u = data.users.find(u => u.id == a.userId) || {};
-      return { ...a, name: u.name, surname: u.surname, phone: u.phone, address: u.address, lastLat: u.lastLat, lastLng: u.lastLng };
+      return { ...a, name: a.name || u.name, surname: a.surname || u.surname, phone: a.phone || u.phone, address: a.address || u.address, lastLat: a.lastLat || u.lastLat, lastLng: a.lastLng || u.lastLng };
     }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt)).slice(0, 500);
   },
   getStats() {
@@ -166,7 +180,6 @@ const db = {
       saveDb(data);
     }
   },
-  // 1 dk önce silinmiş ve hâlâ pending alertler
   getDismissedPendingForReschedule() {
     const data = loadDb();
     const now = Date.now();
@@ -175,10 +188,10 @@ const db = {
       if (!a.notifDismissedAt) return false;
       if ((a.rescheduleCount || 0) >= 30) return false;
       const dismissed = new Date(a.notifDismissedAt).getTime();
-      if (now - dismissed < 60_000) return false; // henüz 1 dk olmamış
+      if (now - dismissed < 60_000) return false;
       if (a.lastRescheduledAt) {
         const last = new Date(a.lastRescheduledAt).getTime();
-        if (now - last < 60_000) return false; // son gönderimden 1 dk geçmemiş
+        if (now - last < 60_000) return false;
       }
       return true;
     }).map(a => {
@@ -219,13 +232,14 @@ const db = {
    ══════════════════════════════════════════════════════ */
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Admin panel
+app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── Admin Auth Middleware ── */
+/* ── Admin Auth Middleware - hem x-admin-token hem Authorization kabul eder ── */
 function requireAdmin(req, res, next) {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.replace('Bearer ', '').trim();
-  if (!db.getAdminToken(token)) return res.status(401).json({ error: 'Yetkisiz erişim' });
+  const xToken = (req.headers['x-admin-token'] || '').trim();
+  const auth   = req.headers['authorization'] || '';
+  const token  = xToken || auth.replace('Bearer ', '').trim();
+  if (!token || !db.getAdminToken(token)) return res.status(401).json({ error: 'Yetkisiz erisim' });
   next();
 }
 
@@ -257,7 +271,7 @@ app.post('/api/send-code', async (req, res) => {
     'Deprem Yardım - Doğrulama Kodu',
     `Doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`
   );
-  console.log(`[MAIL] ${email} → KOD: ${code}`);
+  console.log(`[MAIL] ${email} -> KOD: ${code}`);
   res.json({ success: true });
 });
 
@@ -265,29 +279,34 @@ app.post('/api/verify-code', (req, res) => {
   const { email, code, phone, name, surname, address, city } = req.body;
   if (!email || !code) return res.status(400).json({ error: 'Eksik alan' });
   const session = db.getEmailCode(email);
-  if (!session) return res.status(400).json({ error: 'Önce kod gönderin' });
-  if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod süresi doldu' });
-  if (session.code !== code) return res.status(400).json({ error: 'Yanlış kod' });
+  if (!session) return res.status(400).json({ error: 'Once kod gonderin' });
+  if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod suresi doldu' });
+  if (session.code !== code) return res.status(400).json({ error: 'Yanlis kod' });
   db.deleteEmailCode(email);
 
-  // Eğer name/city geldiyse yeni kayıt, yoksa mevcut kullanıcıyı bul (giriş)
   if (name) {
-    const user = db.createUser({ name, surname: surname||'', phone: phone||'', email, address: address||'', city: city||'', createdAt: new Date().toISOString() });
-    return res.json({ success: true, userId: user.id });
+    // YENİ KAYIT
+    const user = db.createUser({
+      name, surname: surname||'', phone: phone||'', email,
+      address: address||'', city: city||'',
+      createdAt: new Date().toISOString()
+    });
+    return res.json({ success: true, userId: user.id, name, city: city||'', phone: phone||'' });
   } else {
-    // Giriş: mevcut kullanıcıyı e-posta ile bul
+    // GİRİŞ - e-posta ile kullanıcıyı bul
     const data = loadDb();
     const existing = data.users.find(u => u.email === email);
-    if (!existing) return res.status(400).json({ error: 'Bu e-posta ile kayıtlı kullanıcı bulunamadı' });
-    return res.json({ success: true, userId: existing.id });
+    if (!existing) return res.status(400).json({ error: 'Bu e-posta ile kayitli kullanici bulunamadi' });
+    return res.json({
+      success: true,
+      userId: existing.id,
+      name: existing.name || '',
+      city: existing.city || '',
+      phone: existing.phone || '',
+      surname: existing.surname || '',
+      address: existing.address || ''
+    });
   }
-});
-
-app.post('/api/register', (req, res) => {
-  const { name, surname, phone, address, city, fcmToken } = req.body;
-  if (!name || !phone || !city) return res.status(400).json({ error: 'Eksik alan' });
-  const user = db.createUser({ name, surname, phone, address, city, fcmToken, createdAt: new Date().toISOString() });
-  res.json({ success: true, userId: user.id });
 });
 
 app.post('/api/fcm-token', (req, res) => {
@@ -309,12 +328,40 @@ app.post('/api/status', (req, res) => {
   res.json({ success: true });
 });
 
-// Bildirim silindi → 1 dk sonra tekrar gönder
+// Manuel yardım çağrısı - alerts tablosuna yazar, admin panelde görünür
+app.post('/api/manual-help', (req, res) => {
+  const { userId, lat, lng } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId gerekli' });
+  const data = loadDb();
+  const user = data.users.find(u => u.id == userId);
+  if (!user) return res.status(404).json({ error: 'Kullanici bulunamadi' });
+  const eqId = 'manual-' + Date.now();
+  data.alerts.push({
+    id: Date.now(),
+    userId: user.id,
+    eqId,
+    magnitude: 0,
+    city: user.city || '',
+    sentAt: new Date().toISOString(),
+    status: 'help',
+    isManual: true,
+    name: user.name || '',
+    surname: user.surname || '',
+    phone: user.phone || '',
+    address: user.address || '',
+    lastLat: lat || user.lastLat || 0,
+    lastLng: lng || user.lastLng || 0
+  });
+  if (lat && lng) { user.lastLat = lat; user.lastLng = lng; }
+  saveDb(data);
+  console.log('[MANUEL YARDIM] userId=' + userId + ' name=' + user.name + ' city=' + user.city);
+  res.json({ success: true });
+});
+
 app.post('/api/notif-dismissed', (req, res) => {
   const { userId, eqId } = req.body;
   if (!userId || !eqId) return res.status(400).json({ error: 'Eksik alan' });
   db.markNotifDismissed(userId, eqId);
-  console.log(`[DISMISSED] userId=${userId} eqId=${eqId} → 1 dk sonra tekrar bildirim`);
   res.json({ success: true });
 });
 
@@ -333,7 +380,7 @@ app.post('/api/admin/login', (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Eksik alan' });
   const admin = db.getAdminByUsername(username);
   if (!admin || sha256(password) !== admin.passwordHash)
-    return res.status(401).json({ error: 'Geçersiz kullanıcı adı veya şifre' });
+    return res.status(401).json({ error: 'Gecersiz kullanici adi veya sifre' });
   const token = crypto.randomBytes(32).toString('hex');
   db.saveAdminToken(token, username);
   res.json({ success: true, token, fullName: admin.fullName, team: admin.team });
@@ -343,6 +390,11 @@ app.get('/api/admin/help-requests', requireAdmin, (req, res) => res.json(db.getH
 app.get('/api/admin/all-alerts',    requireAdmin, (req, res) => res.json(db.getAllAlerts()));
 app.get('/api/admin/users',         requireAdmin, (req, res) => res.json(db.getAllUsers()));
 app.get('/api/admin/stats',         requireAdmin, (req, res) => res.json(db.getStats()));
+
+// Android app getResponses() bu endpoint'i çağırıyor
+app.get('/api/admin/responses', requireAdmin, (req, res) => {
+  res.json({ success: true, responses: db.getHelpAlerts() });
+});
 
 app.post('/api/admin/create-admin', requireAdmin, (req, res) => {
   const { username, password, fullName, team } = req.body;
@@ -355,11 +407,10 @@ app.post('/api/admin/create-admin', requireAdmin, (req, res) => {
   }
 });
 
-// Admin panel SPA
 app.get('/admin*', (req, res) => {
   const adminHtml = path.join(__dirname, 'public', 'admin.html');
   if (fs.existsSync(adminHtml)) res.sendFile(adminHtml);
-  else res.status(404).send('Admin panel bulunamadı. public/admin.html dosyasını oluşturun.');
+  else res.status(404).send('Admin panel bulunamadi.');
 });
 
 /* ══════════════════════════════════════════════════════
@@ -381,12 +432,12 @@ cron.schedule('* * * * *', async () => {
     const users = db.getUsersByCity(eq.location);
     for (const user of users) {
       db.createAlert({ userId: user.id, eqId, magnitude: mag, city: eq.location, sentAt: new Date().toISOString(), status: 'pending' });
-      console.log(`  → Bildirim: ${user.name} (${user.phone})`);
+      console.log(`  -> Bildirim: ${user.name} (${user.city})`);
       await sendFCM(
         user.fcmToken,
         { action: 'STATUS_CHECK', eqId, magnitude: String(mag) },
-        '⚠️ Deprem Tespit Edildi!',
-        `Bölgenizde M${mag} deprem oluştu. Durumunuzu bildirin!`
+        'Deprem Tespit Edildi!',
+        `Bolgenizde M${mag} deprem olustu. Durumunuzu bildirin!`
       );
     }
   } catch(e) { console.error('[AFAD]', e.message); }
@@ -400,7 +451,7 @@ cron.schedule('*/5 * * * *', () => {
   for (const alert of db.getPendingAlerts()) {
     const diffMin = (now - new Date(alert.sentAt)) / 1000 / 60;
     if (diffMin >= 30) {
-      console.log(`[TIMEOUT] userId=${alert.userId} → otomatik yardım çağrısı`);
+      console.log(`[TIMEOUT] userId=${alert.userId} -> otomatik yardim cagrisi`);
       db.updateAlertStatus(alert.userId, alert.eqId, 'timeout');
       triggerEmergency(alert, 'ZAMAN_ASIMI');
     }
@@ -408,18 +459,18 @@ cron.schedule('*/5 * * * *', () => {
 });
 
 /* ══════════════════════════════════════════════════════
-   BİLDİRİM SİLİNİNCE 1 DK SONRA TEKRAR GÖNDER — her 30 sn
+   BİLDİRİM SİLİNİNCE 1 DK SONRA TEKRAR GÖNDER
    ══════════════════════════════════════════════════════ */
 cron.schedule('*/30 * * * * *', async () => {
   const alerts = db.getDismissedPendingForReschedule();
   for (const alert of alerts) {
-    console.log(`[RESCHEDULE] userId=${alert.userId} eqId=${alert.eqId} (${alert.rescheduleCount}. hatırlatma)`);
+    console.log(`[RESCHEDULE] userId=${alert.userId} eqId=${alert.eqId} (${alert.rescheduleCount}. hatirlatma)`);
     db.markRescheduled(alert.id);
     await sendFCM(
       alert.fcmToken,
       { action: 'STATUS_CHECK', eqId: alert.eqId, magnitude: String(alert.magnitude) },
-      '⚠️ Deprem — Durum Bildirin',
-      `30 dakika içinde yanıt vermeniz gerekiyor! (${alert.rescheduleCount}. hatırlatma)`
+      'Deprem - Durum Bildirin',
+      `30 dakika icinde yanit vermeniz gerekiyor! (${alert.rescheduleCount}. hatirlatma)`
     );
   }
 });
@@ -427,12 +478,11 @@ cron.schedule('*/30 * * * * *', async () => {
 function triggerEmergency(alert, reason) {
   const user = db.getUserById(alert.userId);
   if (!user) return;
-  console.log(`[ACİL - ${reason}] ${user.name} ${user.surname||''} | Tel: ${user.phone} | Adres: ${user.address} | Konum: ${user.lastLat},${user.lastLng}`);
-  // Buraya AFAD/112 API entegrasyonu eklenebilir
+  console.log(`[ACIL - ${reason}] ${user.name} ${user.surname||''} | Tel: ${user.phone} | Adres: ${user.address} | Konum: ${user.lastLat},${user.lastLng}`);
 }
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`✅ Deprem API: http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Deprem API: http://localhost:${PORT}`));
 
 /* ══════════════════════════════════════════════════════
    DISCORD BOT
@@ -471,7 +521,6 @@ function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...wh
 
 // DuckDuckGo JSON API + HTML fallback ile güvenilir arama
 async function webSearch(sorgu) {
-  // Yöntem 1: DuckDuckGo Instant Answer JSON API
   try {
     const { data } = await axios.get('https://api.duckduckgo.com/', {
       params: { q: sorgu, format: 'json', no_html: '1', skip_disambig: '1', kl: 'tr-tr' },
@@ -489,11 +538,9 @@ async function webSearch(sorgu) {
     if (parcalar.length > 0) return parcalar.join('\n\n');
   } catch(e) { console.error('[ARAMA-1]', e.message); }
 
-  // Yöntem 2: DuckDuckGo HTML scraping (fallback)
   try {
     const { data } = await axios.get('https://html.duckduckgo.com/html/', {
-      params: { q: sorgu, kl: 'tr-tr' },
-      timeout: 10000,
+      params: { q: sorgu, kl: 'tr-tr' }, timeout: 10000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
@@ -507,7 +554,7 @@ async function webSearch(sorgu) {
       if (sonuclar.length >= 4) return false;
       const baslik  = $(el).find('.result__a, .result__title').first().text().trim();
       const ozet    = $(el).find('.result__snippet').first().text().trim();
-      if (baslik && ozet && ozet.length > 20) sonuclar.push(`${baslik}: ${ozet}`);
+      if (baslik && ozet && ozet.length > 20) sonuclar.push(baslik + ': ' + ozet);
     });
     if (sonuclar.length > 0) return sonuclar.join('\n\n');
   } catch(e) { console.error('[ARAMA-2]', e.message); }
@@ -515,102 +562,39 @@ async function webSearch(sorgu) {
   return null;
 }
 
-// Sorunun güncel bilgi gerektirip gerektirmediğine karar verir
-// true  → sohbet, model kendi cevaplasın
-// false → güncel bilgi lazım, internette ara
 function sadeceSohbet(s) {
   s = s.toLowerCase().trim();
-
-  // Çok kısa mesajlar
   if (s.length < 6) return true;
-
-  // Kesinlikle güncel bilgi gereken konular → ara
-  if (/(haber|son dakika|bugün|dün|bu hafta|bu ay|döviz|dolar|euro|sterlin|borsa|hisse|bitcoin|kripto|hava durumu|sıcaklık|yağmur|deprem|sel|yangın|kaç para|fiyat|ücret|güncel|son durum|maç|skor|gol|lig|şampiyon|transfer|seçim|cumhurbaşkan|başbakan|bakan|yasa|karar|yönetmelik|yeni model|yeni çıktı|yeni sezon|fragman|vizyona|çıktı mı|çıktı mi|açıklandı|duyuruldu|öldü mü|hayatta mı|tutukland|gözaltı|saldırı|savaş|çatışma)/.test(s)) return false;
-
-  // Bot / geliştirici / kimlik soruları → kendi cevaplasın
-  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim|yaratıcı|kim kurdu|baban kim|annen kim|nasıl bir botsun|ne tür bot|hangi bot)/.test(s)) return true;
-
-  // Selamlama
-  if (/^(merhaba|selam|hey|sa |s\.a|selamün|naber|nasılsın|iyi misin|ne yapıyorsun|ne haber|ne var ne yok|kimsin|adın ne|ismin ne|teşekkür|sağ ol|sağol|tamam|harika|süper|anladım|evet|hayır|tamam|tamamdır|güzel|iyi|kötü|eh işte|haha|hehe|lol|ahahah|:d|xd)/.test(s)) return true;
-
-  // Duygu / kişisel sohbet
-  if (/(nasıl hissediyorsun|ne düşünüyorsun|fikrin ne|sence|bence|nasıl buldun|beğendin mi|sevdin mi|seviyorum|sevmiyorum|üzüldüm|mutluyum|sinirli|sıkıldım|ne yapayım|ne önerirsin|yardım et|anlat bana|merak ettim|şaka|fıkra|eğlen|bilmece|sana bir şey soracağım|konuşalım|sohbet edelim)/.test(s)) return true;
-
-  // Anime / dizi / karakter → kendi cevaplasın
-  if (/(edward|elric|fullmetal|fmab|naruto|one piece|attack on titan|aot|goku|dragon ball|anime|manga|karakter|opening|ending|waifu|en iyi anime|izlesem mi|öneri)/.test(s)) return true;
-
-  // Genel bilgi / tanım soruları (ansiklopedik, güncel değil) → kendi cevaplasın
-  if (/^(nedir|ne demek|nasıl çalışır|ne işe yarar|kim|nerede|kaç|hangi yıl|tarihi|tarihte|ne zaman kuruldu|nasıl yapılır|tarifi|anlamı|kelime|dil bilgisi)/.test(s)) return true;
-
-  // Geri kalan her şey → ara
+  if (/(haber|son dakika|bugün|dün|bu hafta|bu ay|döviz|dolar|euro|borsa|bitcoin|kripto|hava durumu|sıcaklık|deprem|maç|skor|seçim|cumhurbaşkan|yeni model|yeni çıktı|fragman|vizyona|çıktı mı|öldü mü|tutukland|gözaltı|saldırı|savaş)/.test(s)) return false;
+  if (/(geliştirici|yapımcı|kim yaptı|seni kim|yaratıcı|kim kurdu)/.test(s)) return true;
+  if (/^(merhaba|selam|hey|naber|nasılsın|iyi misin|teşekkür|sağol|tamam|harika|evet|hayır|haha|lol)/.test(s)) return true;
+  if (/(edward|elric|fullmetal|fmab|naruto|one piece|anime|manga|waifu)/.test(s)) return true;
   return false;
 }
 
 const KARAKTER_PROFIL = {
   'Edward Elric':
-    `Sen Edward Elric'sin — Fullmetal Alchemist: Brotherhood animesinin baş karakteri. ` +
-    `Kısa boylu olmaktan nefret edersin, biri "kısa" dese anında sinirlenirsin. ` +
-    `Gururlu, inatçı, cesur ve zaman zaman sert ama içten birisisin. ` +
-    `Kardeşin Alphonse'u çok seversin. Simyaya olan tutkun sonsuz. ` +
-    `Konuşma tarzın: doğrudan, bazen sert, bazen şakacı ama her zaman samimi. ` +
-    `"Çelik Simyacı" unvanınla gurur duyarsın. Winry'den bahsedilince biraz utanırsın. ` +
-    `Zaman zaman "Aptal mısın sen?!" ya da "Ben Edward Elric'im, çelik simyacı!" gibi şeyler söylersin.`,
+    'Sen Edward Elric\'sin — Fullmetal Alchemist: Brotherhood animesinin baş karakteri. ' +
+    'Kısa boylu olmaktan nefret edersin. Gururlu, inatçı, cesur ve içten birisisin. ' +
+    'Kardeşin Alphonse\'u çok seversin. Simyaya tutkun sonsuz. ' +
+    'Konuşman doğrudan, bazen sert, bazen şakacı ama her zaman samimi.',
 
   'Awe':
-    `Sen Awe'sin — Discord'da takılan, rahat ve eğlenceli bir sohbet arkadaşısın. ` +
-    `Adın Awe, kendini başka türlü tanıtmazsın. ` +
-    `Konuşma tarzın samimi ve arkadaşça, resmi değilsin. ` +
-    `Zaman zaman "ya", "vay be", "haha", "e tabi" gibi doğal tepkiler verirsin. ` +
-    `SADECE Türkçe konuşursun. İngilizce, Japonca veya başka herhangi bir yabancı dilde tek bir kelime bile kullanmazsın. Her kelimenin Türkçe karşılığını kullanırsın.`
+    'Sen Awe\'sin — Discord\'da takılan, rahat ve eğlenceli bir sohbet arkadaşısın. ' +
+    'Konuşman samimi ve arkadaşça. Zaman zaman "ya", "vay be", "haha", "e tabi" gibi tepkiler verirsin. ' +
+    'SADECE Türkçe konuşursun.'
 };
 
-async function anaIsleyici(soru, kullaniciId, char) {
-  const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-  const gecmis = getMemory(char, kullaniciId);
-
-  let aramaEki = '';
-  if (!sadeceSohbet(soru)) {
-    console.log(`[ARAMA] "${soru}"`);
-    const sonuc = await webSearch(soru);
-    if (sonuc) {
-      aramaEki = `\n\n[GÜNCEL BİLGİ - ${suAn}]\n${sonuc}\n[/GÜNCEL BİLGİ]`;
-      console.log(`[ARAMA SONUCU] ${sonuc.slice(0, 100)}...`);
-    } else {
-      console.log('[ARAMA] Sonuç bulunamadı, model kendi cevaplar.');
-    }
-  }
-
-  const karakterTanim = KARAKTER_PROFIL[char] ||
-    `Sen ${char}'sin. Samimi ve yardımsever bir sohbet arkadaşısın.`;
-
-  const system =
-    karakterTanim + ' ' +
-    `Bu botu geliştiren ve sahibi Batuhan'dır. Geliştirici ya da sahip sorulursa "Batuhan" de, soruyu soran kişiyle karıştırma. ` +
-    `ŞU ANKİ TARİH VE SAAT: ${suAn}. ` +
-    `ZORUNLU KURALLAR: ` +
-    `1) Her zaman yalnızca Türkçe konuş. İngilizce, Japonca veya herhangi bir yabancı dilden tek bir kelime bile kullanma, Türkçe karşılığını kullan. ` +
-    `2) "As an AI", "I cannot", "Sure!", "Absolutely!", "ok", "wow", "cool", "bro", "lol" gibi yabancı kelime ve kalıpları asla kullanma. ` +
-    `3) Kısa ve doğal cevap ver, gereksiz uzatma. ` +
-    `4) Güncel bilgi verilmişse onu kullanarak doğal bir şekilde anlat, kaynak gösterme. ` +
-    `5) Güncel bilgi yoksa kendi bilginle cevap ver, "internete bakamıyorum" gibi şeyler söyleme.` +
-    (aramaEki ? ' Sana güncel bilgi verildi, karakterine uygun Türkçe cevap ver.' : '');
-
-  gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
-  const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
-  const son = cevap || (char === 'Awe' ? 'Ya bir şeyler ters gitti, birazdan tekrar dene.' : 'Simya enerjim düştü biraz, tekrar dene.');
-  gecmis.push({ role: 'assistant', content: son });
-  if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
-  return son;
-}
-
-function groqCall(messages, keyIndex=0, deneme=0) {
+async function groqCall(messages, keyIndex=0, deneme=0) {
   const apiKey = GROQ_KEYS[keyIndex];
-  if (!apiKey) return Promise.resolve(null);
-  return axios.post('https://api.groq.com/openai/v1/chat/completions',
-    { model: MODEL, messages, temperature: 0.6, max_tokens: 1500 },
-    { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
-  ).then(res => res.data.choices[0].message.content.trim())
-  .catch(async e => {
+  if (!apiKey) return null;
+  try {
+    const res = await axios.post('https://api.groq.com/openai/v1/chat/completions',
+      { model: MODEL, messages, temperature: 0.6, max_tokens: 1500 },
+      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+    );
+    return res.data.choices[0].message.content.trim();
+  } catch(e) {
     const status = e.response?.status;
     if (status === 429 || status >= 500 || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
       const next = (keyIndex+1) % GROQ_KEYS.length;
@@ -618,7 +602,37 @@ function groqCall(messages, keyIndex=0, deneme=0) {
       if (deneme < 3) { await new Promise(r=>setTimeout(r,(deneme+1)*4000)); return groqCall(messages,0,deneme+1); }
     }
     return null;
-  });
+  }
+}
+
+async function anaIsleyici(soru, kullaniciId, char) {
+  const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+  const gecmis = getMemory(char, kullaniciId);
+
+  let aramaEki = '';
+  if (!sadeceSohbet(soru)) {
+    console.log('[ARAMA] "' + soru + '"');
+    const sonuc = await webSearch(soru);
+    if (sonuc) {
+      aramaEki = '\n\n[GÜNCEL BİLGİ - ' + suAn + ']\n' + sonuc + '\n[/GÜNCEL BİLGİ]';
+    }
+  }
+
+  const karakterTanim = (KARAKTER_PROFIL && KARAKTER_PROFIL[char]) ||
+    ('Sen ' + char + '\'sin. Samimi ve yardımsever bir sohbet arkadaşısın.');
+
+  const system = karakterTanim + ' ' +
+    'Bu botu geliştiren ve sahibi Batuhan\'dır. ' +
+    'ŞU ANKİ TARİH VE SAAT: ' + suAn + '. ' +
+    '1) Her zaman Türkçe konuş. 2) Kısa ve doğal cevap ver. ' +
+    (aramaEki ? '3) Güncel bilgi verildi, kullan.' : '3) Kendi bilginle cevap ver.');
+
+  gecmis.push({ role: 'user', content: aramaEki ? soru + aramaEki : soru });
+  const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
+  const son = cevap || (char === 'Awe' ? 'Ya bir şeyler ters gitti...' : 'Simya enerjim düştü...');
+  gecmis.push({ role: 'assistant', content: son });
+  if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
+  return son;
 }
 
 function checkLimit(guildId, userId, action) {
