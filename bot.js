@@ -439,78 +439,21 @@ app.get('/admin*', (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════
-   DEPREM KAYNAĞI — AFAD önce, başarısız olursa Kandilli
-   ══════════════════════════════════════════════════════ */
-
-async function fetchAfad() {
-  const r = await axios.get(
-    'https://deprem.afad.gov.tr/apiv2/event/filter?orderby=timedesc&limit=1&format=json',
-    { timeout: 8000 }
-  );
-  const eq = r.data[0];
-  if (!eq) return null;
-  return {
-    eqId:      String(eq.eventID),
-    magnitude: parseFloat(eq.magnitude),
-    location:  eq.location || '',
-    source:    'AFAD'
-  };
-}
-
-async function fetchKandilli() {
-  // Kandilli KOERI düz metin listesi — her satır bir deprem
-  const { data } = await axios.get(
-    'http://www.koeri.boun.edu.tr/scripts/lst0.asp',
-    { timeout: 10000, responseType: 'arraybuffer' }
-  );
-  // Sayfa ISO-8859-9 kodlamalı, Buffer üzerinden latin1 oku
-  const text = Buffer.from(data).toString('latin1');
-  const lines = text.split('\n');
-  // Veri satırları "2024.05.17" formatıyla başlar
-  const dataLines = lines.filter(l => /^\d{4}\.\d{2}\.\d{2}/.test(l.trim()));
-  if (!dataLines.length) return null;
-  const line = dataLines[0].trim();
-  // Format: Tarih Saat Enlem Boylam Derinlik MD ML Mw Yer İl-İlçe Çözüm
-  const parts = line.split(/\s+/);
-  // parts[0]=Tarih parts[1]=Saat parts[2]=Lat parts[3]=Lon parts[4]=Dep
-  // parts[5]=MD parts[6]=ML parts[7]=Mw  parts[8..]=Yer
-  const mag = parseFloat(parts[6]) || parseFloat(parts[7]) || parseFloat(parts[5]) || 0;
-  // Yer adı: 8. indeksten itibaren, son 2 token (il-ilçe + çözüm) hariç
-  const locationParts = parts.slice(8, parts.length - 1);
-  const location = locationParts.join(' ').toUpperCase();
-  // Benzersiz ID: tarih+saat+enlem birleşimi
-  const eqId = 'K_' + parts[0] + '_' + parts[1] + '_' + parts[2];
-  return { eqId, magnitude: mag, location, source: 'KANDİLLİ' };
-}
-
-async function fetchDeprem() {
-  // 1) AFAD'ı dene
-  try {
-    const eq = await fetchAfad();
-    if (eq) { console.log('[KAYNAK] AFAD'); return eq; }
-  } catch(e) {
-    console.warn('[AFAD HATA]', e.message, '→ Kandilli\'ye geçiliyor...');
-  }
-  // 2) Kandilli yedek
-  try {
-    const eq = await fetchKandilli();
-    if (eq) { console.log('[KAYNAK] KANDİLLİ (yedek)'); return eq; }
-  } catch(e) {
-    console.error('[KANDİLLİ HATA]', e.message);
-  }
-  return null;
-}
-
-/* ══════════════════════════════════════════════════════
    DEPREM KONTROLÜ — her 1 dakikada
    ══════════════════════════════════════════════════════ */
 cron.schedule('* * * * *', async () => {
   try {
-    const eq = await fetchDeprem();
-    if (!eq) return;
-    const { eqId, magnitude: mag, location, source } = eq;
+    const { data } = await axios.get(
+      'https://api.orhanaydogdu.com.tr/deprem/kandilli/live?limit=1',
+      { timeout: 10000 }
+    );
+    if (!data.status || !data.result || !data.result.length) return;
+    const eq = data.result[0];
+    const mag = parseFloat(eq.mag) || 0;
+    const location = (eq.title || '').toUpperCase();
+    const eqId = 'KL_' + (eq.earthquake_id || eq.date_time || location);
     if (mag < 4.0 || db.getNotifiedEq(eqId)) return;
-    console.log(`[DEPREM - ${source}] ${location} - M${mag}`);
+    console.log(`[DEPREM] ${location} - M${mag}`);
     db.saveNotifiedEq(eqId);
     const users = db.getUsersByCity(location);
     for (const user of users) {
