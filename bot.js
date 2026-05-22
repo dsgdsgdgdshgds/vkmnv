@@ -63,12 +63,35 @@ const ATLA_KELIMELER = [
   "burç","falı","diyet","kilo","güzellik","makyaj",
   "dizi","film","oyuncu","magazin","ünlü","şarkı","albüm",
   "tarifi","nasıl yapılır","tüyo","ipucu",
+  "galeri","foto haber","video haber","izle","izlendi",
+  "evlendi","ayrıldı","hamile","doğum","nişanlandı",
+  "instagram","sosyal medya","paylaşım","yorum yaptı","açıkladı ki",
+  "en iyi","en kötü","sıralama","liste","top 10",
 ];
 
 function haberOnemliMi(baslik) {
   const k = baslik.toLowerCase();
   if (ATLA_KELIMELER.some(w => k.includes(w))) return false;
   return ONEMLI_KELIMELER.some(w => k.includes(w));
+}
+
+// ─── RSS'TEN KISA AÇIKLAMA ÇEK ────────────────────────────────────────────────
+function aciklamaCek(item) {
+  // RSS'in kendi description/summary alanını dene
+  let ham = item.contentSnippet || item.summary || item.description || "";
+
+  // HTML taglarını temizle
+  ham = ham.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+  // Çok kısaysa (sadece başlığı tekrarlıyorsa) boş döndür
+  if (ham.length < 30) return "";
+
+  // İlk 2 cümleyi al, max 200 karakter
+  const cumleler = ham.split(/(?<=[.!?])\s+/);
+  let ozet = cumleler.slice(0, 2).join(" ").trim();
+  if (ozet.length > 200) ozet = ozet.substring(0, 200).trim() + "...";
+
+  return ozet;
 }
 
 // ─── GEÇMİŞ ──────────────────────────────────────────────────────────────────
@@ -169,7 +192,10 @@ async function haberleriKontrolEt(gecmis) {
         }
 
         const hashtagler = hashtagSec(baslik);
-        const mesaj = `🔴 *SON DAKİKA*\n\n${baslik}\n\n${hashtagler.join(" ")}`;
+        const aciklama   = aciklamaCek(item);
+        const mesaj = aciklama
+          ? `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${aciklama}\n\n${hashtagler.join(" ")}`
+          : `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${hashtagler.join(" ")}`;
 
         try {
           const gorselUrl = await gorselCek(link);
