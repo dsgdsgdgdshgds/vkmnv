@@ -126,7 +126,7 @@ const LOGO_BLACKLIST = [
 async function gorselCek(haberUrl) {
   try {
     const { data } = await axios.get(haberUrl, {
-      timeout: 8000,
+      timeout: 7600,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
       maxRedirects: 3,
     });
