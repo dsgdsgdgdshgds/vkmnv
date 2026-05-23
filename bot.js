@@ -114,6 +114,24 @@ const LOGO_BLACKLIST = [
   "trthaber.com/img/logo","milliyet.com.tr/Images/logo","aa.com.tr/img/logo",
 ];
 
+// ─── BAŞLIĞI TEMİZLE (- Kaynak Adı kısmını at) ───────────────────────────────
+function baslikTemizle(baslik) {
+  // "Haber başlığı - TRT Haber" → "Haber başlığı"
+  return baslik.replace(/\s*[-–|]\s*[^-–|]+$/, "").trim();
+}
+
+// ─── GOOGLE NEWS LİNKİNİ GERÇEK HABER SİTESİNE ÇEVİR ────────────────────────
+async function gercekUrlBul(googleUrl) {
+  try {
+    const { request } = await axios.get(googleUrl, {
+      timeout: 12000,
+      maxRedirects: 5,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+    });
+    return request.res?.responseUrl || request.responseURL || googleUrl;
+  } catch (_) { return googleUrl; }
+}
+
 // ─── TEK İSTEKLE GÖRSEL + AÇIKLAMA ───────────────────────────────────────────
 async function sayfaBilgisiCek(haberUrl) {
   try {
@@ -195,7 +213,7 @@ async function haberleriKontrolEt(gecmis) {
       const feed = await rssCek(kaynak.url);
 
       for (const item of feed.items.slice(0, 10)) {
-        const baslik = (item.title || "").trim();
+        const baslik = baslikTemizle((item.title || "").trim());
         const link   = item.link || item.url || "";
         if (!baslik || !link) continue;
 
@@ -207,7 +225,9 @@ async function haberleriKontrolEt(gecmis) {
           continue;
         }
 
-        const { aciklama, gorsel } = await sayfaBilgisiCek(link);
+        // Google News linkini asıl haber sitesine çevir
+        const gercekLink = await gercekUrlBul(link);
+        const { aciklama, gorsel } = await sayfaBilgisiCek(gercekLink);
         const hashtagler = hashtagSec(baslik);
 
         const mesaj = aciklama
