@@ -118,10 +118,24 @@ const LOGO_BLACKLIST = [
   "trthaber.com/img/logo","milliyet.com.tr/Images/logo","aa.com.tr/img/logo",
 ];
 
-// ─── BAŞLIĞI TEMİZLE (- Kaynak Adı kısmını at) ───────────────────────────────
+// ─── BAŞLIĞI TEMİZLE ─────────────────────────────────────────────────────────
 function baslikTemizle(baslik) {
-  // "Haber başlığı - TRT Haber" → "Haber başlığı"
   return baslik.replace(/\s*[-–|]\s*[^-–|]+$/, "").trim();
+}
+
+// ─── AÇIKLAMAYI AKILLICA KES ──────────────────────────────────────────────────
+function aciklamaKes(metin, maksKarakter = 800) {
+  if (!metin || metin.length <= maksKarakter) return metin;
+
+  const kisaltilmis = metin.substring(0, maksKarakter);
+  // Son tam cümleyi bul (. ! ? ile biten)
+  const sonCumleIndex = kisaltilmis.search(/[.!?][^.!?]*$/);
+  if (sonCumleIndex > 100) {
+    return kisaltilmis.substring(0, sonCumleIndex + 1).trim();
+  }
+  // Cümle bulunamazsa son boşlukta kes
+  const sonBosluk = kisaltilmis.lastIndexOf(" ");
+  return (sonBosluk > 100 ? kisaltilmis.substring(0, sonBosluk) : kisaltilmis).trim() + "…";
 }
 
 // ─── GOOGLE NEWS LİNKİNİ GERÇEK HABER SİTESİNE ÇEVİR ────────────────────────
@@ -146,7 +160,7 @@ async function sayfaBilgisiCek(haberUrl) {
     });
     const $ = cheerio.load(data);
 
-    // Açıklama — olduğu gibi al, kesme
+    // Açıklama
     let aciklama = "";
     const acAdaylar = [
       $('meta[property="og:description"]').attr("content"),
@@ -161,7 +175,7 @@ async function sayfaBilgisiCek(haberUrl) {
       break;
     }
 
-    // Görsel — logo/banner içermeyenler
+    // Görsel
     let gorsel = null;
     const gAdaylar = [
       $('meta[property="og:image"]').attr("content"),
@@ -205,6 +219,34 @@ function hashtagSec(baslik) {
   return HASHTAG_HAVUZU.default;
 }
 
+// ─── TELEGRAM GÖNDER ──────────────────────────────────────────────────────────
+async function telegramGonder(gorsel, mesaj) {
+  const CAPTION_LIMIT = 1024;
+
+  if (gorsel) {
+    if (mesaj.length <= CAPTION_LIMIT) {
+      // Fotoğraf + caption birlikte
+      await bot.sendPhoto(CHANNEL_ID, gorsel, {
+        caption: mesaj,
+        parse_mode: "Markdown",
+      });
+    } else {
+      // Caption sığmaz: önce fotoğraf, sonra metin ayrı mesaj
+      await bot.sendPhoto(CHANNEL_ID, gorsel, {});
+      await new Promise(r => setTimeout(r, 1000));
+      await bot.sendMessage(CHANNEL_ID, mesaj, {
+        parse_mode: "Markdown",
+        disable_web_page_preview: true,
+      });
+    }
+  } else {
+    await bot.sendMessage(CHANNEL_ID, mesaj, {
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    });
+  }
+}
+
 // ─── ANA DÖNGÜ ────────────────────────────────────────────────────────────────
 async function haberleriKontrolEt(gecmis) {
   console.log(`🔍 Taranıyor... [${new Date().toLocaleTimeString("tr-TR")}]`);
@@ -226,39 +268,47 @@ async function haberleriKontrolEt(gecmis) {
           continue;
         }
 
-        // Google News linkini asıl haber sitesine çevir
-        const gercekLink = await gercekUrlBul(link);
-        const { aciklama, gorsel } = await sayfaBilgisiCek(gercekLink);
-        const hashtagler = hashtagSec(baslik);
+        const gercekLink               = await gercekUrlBul(link);
+        const { aciklama, gorsel }     = await sayfaBilgisiCek(gercekLink);
+        const aciklamaTemiz            = aciklamaKes(aciklama);
+        const hashtagler               = hashtagSec(baslik);
 
-        const mesaj = aciklama
-          ? `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${aciklama}\n\n${hashtagler.join(" ")}`
+        const mesaj = aciklamaTemiz
+          ? `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${aciklamaTemiz}\n\n${hashtagler.join(" ")}`
           : `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${hashtagler.join(" ")}`;
 
         try {
-          if (gorsel) {
-            await bot.sendPhoto(CHANNEL_ID, gorsel, {
-              caption: mesaj,
-              parse_mode: "Markdown",
-            });
-          } else {
-            await bot.sendMessage(CHANNEL_ID, mesaj, {
-              parse_mode: "Markdown",
-              disable_web_page_preview: true,
-            });
-          }
+          await telegramGonder(gorsel, mesaj);
 
           gecmis.gonderilen.push(id);
           gecmis.toplam++;
           gecmisKaydet(gecmis);
 
           console.log(`✅ [#${gecmis.toplam}] ${kaynak.ad}: ${baslik.substring(0, 60)}`);
-          await new Promise(r => setTimeout(r, 3000));
+          await new Promise(r => setTimeout(r, 5000)); // flood önlemi
 
         } catch (gonderiHata) {
-          console.error(`❌ Gönderim hatası [${kaynak.ad}]:`, gonderiHata.message);
-          gecmis.gonderilen.push(id);
-          gecmisKaydet(gecmis);
+          const retryMatch = gonderiHata.message?.match(/retry after (\d+)/i);
+          if (retryMatch) {
+            const bekle = (parseInt(retryMatch[1]) + 2) * 1000;
+            console.warn(`⏳ Telegram bekleme: ${retryMatch[1]} sn bekleniyor...`);
+            await new Promise(r => setTimeout(r, bekle));
+            try {
+              await telegramGonder(gorsel, mesaj);
+              gecmis.gonderilen.push(id);
+              gecmis.toplam++;
+              gecmisKaydet(gecmis);
+              console.log(`✅ [#${gecmis.toplam}] (retry) ${baslik.substring(0, 60)}`);
+            } catch (retryHata) {
+              console.error(`❌ Retry de başarısız:`, retryHata.message);
+              gecmis.gonderilen.push(id);
+              gecmisKaydet(gecmis);
+            }
+          } else {
+            console.error(`❌ Gönderim hatası [${kaynak.ad}]:`, gonderiHata.message);
+            gecmis.gonderilen.push(id);
+            gecmisKaydet(gecmis);
+          }
         }
       }
 
@@ -277,7 +327,6 @@ async function main() {
   console.log("🤖 Son Dakika Haber Botu başlatılıyor...");
   const gecmis = gecmisYukle();
 
-  // Render Web Service port açık olmazsa öldürüyor — basit HTTP server açıyoruz
   const PORT = process.env.PORT || 3000;
   http.createServer((req, res) => res.end("OK")).listen(PORT, () => {
     console.log(`🌐 HTTP server port ${PORT} dinliyor`);
