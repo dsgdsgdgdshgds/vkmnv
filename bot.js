@@ -146,7 +146,7 @@ async function sayfaBilgisiCek(haberUrl) {
     });
     const $ = cheerio.load(data);
 
-    // Açıklama — tam cümlede biten, temiz metin
+    // Açıklama — olduğu gibi al, kesme
     let aciklama = "";
     const acAdaylar = [
       $('meta[property="og:description"]').attr("content"),
@@ -157,23 +157,7 @@ async function sayfaBilgisiCek(haberUrl) {
     for (const metin of acAdaylar) {
       const temiz = metin.replace(/\s+/g, " ").trim();
       if (temiz.length < 40) continue;
-      // 350 karaktere kadar olduğu gibi al, daha uzunsa son tam cümlede kes
-      if (temiz.length <= 350) { aciklama = temiz; break; }
-      // Son nokta/ünlem/soru işaretini bul
-      const kisaltilmis = temiz.substring(0, 350);
-      const son = Math.max(
-        kisaltilmis.lastIndexOf(". "),
-        kisaltilmis.lastIndexOf("! "),
-        kisaltilmis.lastIndexOf("? ")
-      );
-      // Uygun bir nokta bulunamazsa olduğu gibi bırak, kelime ortasında kesme
-      if (son > 60) {
-        aciklama = kisaltilmis.substring(0, son + 1).trim();
-      } else {
-        // Nokta yok ama en azından kelime ortasında kesme
-        const sonBosluk = kisaltilmis.lastIndexOf(" ");
-        aciklama = kisaltilmis.substring(0, sonBosluk).trim();
-      }
+      aciklama = temiz;
       break;
     }
 
