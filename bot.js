@@ -23,7 +23,7 @@ const TOKEN          = process.env.TELEGRAM_TOKEN || "BOT_TOKEN_BURAYA";
 const CHANNEL_ID     = process.env.CHANNEL_ID     || "-100KANAL_ID_BURAYA";
 const GECMIS         = "/var/data/gecmis_haber.json";
 const KONTROL_SURESI = "*/8 * * * *";
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 const parser = new RSSParser({
   timeout: 20000,
