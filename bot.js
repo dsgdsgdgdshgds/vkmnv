@@ -31,16 +31,13 @@ const parser = new RSSParser({
 });
 const bot = new TelegramBot(TOKEN, { polling: false });
 
-// ─── RSS KAYNAKLARI ───────────────────────────────────────────────────────────
+// ─── RSS KAYNAKLARI (Google News — stabil, timeout yok) ───────────────────────
 const KAYNAKLAR = [
-  { ad: "NTV",       url: "https://www.ntv.com.tr/son-dakika.rss" },
-  { ad: "CNN Türk",  url: "https://www.cnnturk.com/feed/rss/all/news" },
-  { ad: "Hürriyet",  url: "https://www.hurriyet.com.tr/rss/anasayfa" },
-  { ad: "Sabah",     url: "https://www.sabah.com.tr/rss/anasayfa.xml" },
-  { ad: "Sözcü",     url: "https://www.sozcu.com.tr/rss/son-dakika.xml" },
-  { ad: "AA",        url: "https://www.aa.com.tr/tr/rss/default?cat=guncel" },
-  { ad: "TRT Haber", url: "https://www.trthaber.com/sondakika.rss" },
-  { ad: "Milliyet",  url: "https://www.milliyet.com.tr/rss/rssNew/sondakikaarsiv.xml" },
+  { ad: "Google Gündem",  url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google Dünya",   url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google Türkiye", url: "https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtUnZLQUFQAQ?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google Ekonomi", url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google Sağlık",  url: "https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtUnZLQUFQAQ?hl=tr&gl=TR&ceid=TR:tr" },
 ];
 
 // ─── FİLTRE ───────────────────────────────────────────────────────────────────
@@ -68,7 +65,7 @@ const ATLA_KELIMELER = [
   "galeri","foto haber","video haber","izle","izlendi",
   "evlendi","ayrıldı","hamile","doğum","nişanlandı",
   "instagram","sosyal medya","paylaşım yaptı",
-  "en iyi","en kötü","sıralama","top 10"
+  "en iyi","en kötü","sıralama","top 10",
 ];
 
 function haberOnemliMi(baslik) {
