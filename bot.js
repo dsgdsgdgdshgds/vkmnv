@@ -2,9 +2,9 @@
  * 🤖 Son Dakika Haber Botu
  *
  * Haber kaynakları: RSS feed (key'siz, açık)
- * Görsel: Haberin og:image — logo/watermark içerenleri filtreler
- * Filtre: Sıradan haberler atlanır, sadece önemli olanlar paylaşılır
- * Depolama: /var/data/gecmis_haber.json (otomatik oluşturulur)
+ * Görsel + Açıklama: og:image / og:description (tek HTTP isteği, temiz)
+ * Filtre: Magazin/dizi/reklam atlanır, sadece önemli haberler paylaşılır
+ * Depolama: /var/data/gecmis_haber.json
  *
  * Kurulum:
  *   npm install node-telegram-bot-api axios node-cron rss-parser cheerio
@@ -22,16 +22,16 @@ const cheerio     = require("cheerio");
 const TOKEN          = process.env.TELEGRAM_TOKEN || "BOT_TOKEN_BURAYA";
 const CHANNEL_ID     = process.env.CHANNEL_ID     || "-100KANAL_ID_BURAYA";
 const GECMIS         = "/var/data/gecmis_haber.json";
-const KONTROL_SURESI = "*/8 * * * *"; // Her 8 dakikada bir kontrol
+const KONTROL_SURESI = "*/8 * * * *";
 // ──────────────────────────────────────────────────────────────────────────────
 
 const parser = new RSSParser({
   timeout: 20000,
   headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
 });
-const bot    = new TelegramBot(TOKEN, { polling: false });
+const bot = new TelegramBot(TOKEN, { polling: false });
 
-// ─── HABER RSS KAYNAKLARI ─────────────────────────────────────────────────────
+// ─── RSS KAYNAKLARI ───────────────────────────────────────────────────────────
 const KAYNAKLAR = [
   { ad: "NTV",       url: "https://www.ntv.com.tr/son-dakika.rss" },
   { ad: "CNN Türk",  url: "https://www.cnnturk.com/feed/rss/all/news" },
@@ -43,13 +43,13 @@ const KAYNAKLAR = [
   { ad: "Milliyet",  url: "https://www.milliyet.com.tr/rss/rssNew/sondakikaarsiv.xml" },
 ];
 
-// ─── ÖNEMLİLİK FİLTRESİ ──────────────────────────────────────────────────────
+// ─── FİLTRE ───────────────────────────────────────────────────────────────────
 const ONEMLI_KELIMELER = [
   "son dakika","acil","flaş","kritik","alarm","uyarı","tehlike","tahliye",
   "deprem","sel","yangın","tsunami","kasırga","fırtına","heyelan","volkan",
   "cumhurbaşkanı","erdoğan","meclis","kabine","seçim","referandum","istifa","atandı","görevden",
   "kanun","yasa","karar","yönetmelik","anayasa","hükümet","bakan","başbakan",
-  "dolar","euro","enflasyon","faiz","merkez bankası","borsa","bütçe","zam","indirim",
+  "dolar","euro","enflasyon","faiz","merkez bankası","borsa","bütçe","zam",
   "işsizlik","büyüme","kriz","iflas","haciz","konkordato",
   "saldırı","bomba","patlama","terör","operasyon","gözaltı","tutuklama","şüpheli",
   "silahlı","çatışma","rehin","kaçırma",
@@ -57,8 +57,7 @@ const ONEMLI_KELIMELER = [
   "savaş","ateşkes","müzakere","yaptırım","ambargo",
   "salgın","pandemi","koronavirüs","aşı","ölü","yaralı","hastane",
   "kaza","çarpışma","çarpıştı","düştü","devrildi","yaralandı","hayatını kaybetti",
-  "ölü","ölüm","kayıp","enkaz",
-  "rekor","tarihi","ilk kez","dünya birincisi","nobel","büyük",
+  "ölüm","kayıp","enkaz","rekor","tarihi","ilk kez",
 ];
 
 const ATLA_KELIMELER = [
@@ -68,33 +67,14 @@ const ATLA_KELIMELER = [
   "tarifi","nasıl yapılır","tüyo","ipucu",
   "galeri","foto haber","video haber","izle","izlendi",
   "evlendi","ayrıldı","hamile","doğum","nişanlandı",
-  "instagram","sosyal medya","paylaşım","yorum yaptı","açıkladı ki",
-  "en iyi","en kötü","sıralama","liste","top 10",
+  "instagram","sosyal medya","paylaşım yaptı",
+  "en iyi","en kötü","sıralama","top 10"
 ];
 
 function haberOnemliMi(baslik) {
   const k = baslik.toLowerCase();
   if (ATLA_KELIMELER.some(w => k.includes(w))) return false;
   return ONEMLI_KELIMELER.some(w => k.includes(w));
-}
-
-// ─── RSS'TEN KISA AÇIKLAMA ÇEK ────────────────────────────────────────────────
-function aciklamaCek(item) {
-  // RSS'in kendi description/summary alanını dene
-  let ham = item.contentSnippet || item.summary || item.description || "";
-
-  // HTML taglarını temizle
-  ham = ham.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-
-  // Çok kısaysa (sadece başlığı tekrarlıyorsa) boş döndür
-  if (ham.length < 30) return "";
-
-  // İlk 2 cümleyi al, max 200 karakter
-  const cumleler = ham.split(/(?<=[.!?])\s+/);
-  let ozet = cumleler.slice(0, 2).join(" ").trim();
-  if (ozet.length > 200) ozet = ozet.substring(0, 200).trim() + "...";
-
-  return ozet;
 }
 
 // ─── GEÇMİŞ ──────────────────────────────────────────────────────────────────
@@ -106,7 +86,6 @@ function gecmisYukle() {
       return icerik;
     }
   } catch (_) {}
-  // Dosya yoksa sıfırdan oluştur
   const bos = { gonderilen: [], toplam: 0 };
   fs.writeFileSync(GECMIS, JSON.stringify(bos, null, 2));
   console.log(`📄 Geçmiş dosyası oluşturuldu: ${GECMIS}`);
@@ -118,6 +97,7 @@ function gecmisKaydet(g) {
   fs.writeFileSync(GECMIS, JSON.stringify(g, null, 2));
 }
 
+// ─── RSS RETRY ────────────────────────────────────────────────────────────────
 async function rssCek(url) {
   for (let i = 0; i < 2; i++) {
     try {
@@ -128,6 +108,8 @@ async function rssCek(url) {
     }
   }
 }
+
+// ─── LOGO BLACKLIST ───────────────────────────────────────────────────────────
 const LOGO_BLACKLIST = [
   "logo","watermark","favicon","icon","banner","header","footer",
   "ntv.com.tr/Assets","cnnturk.com/img/logo","hurriyet.com.tr/images/logo",
@@ -135,7 +117,8 @@ const LOGO_BLACKLIST = [
   "trthaber.com/img/logo","milliyet.com.tr/Images/logo","aa.com.tr/img/logo",
 ];
 
-async function gorselCek(haberUrl) {
+// ─── TEK İSTEKLE GÖRSEL + AÇIKLAMA ───────────────────────────────────────────
+async function sayfaBilgisiCek(haberUrl) {
   try {
     const { data } = await axios.get(haberUrl, {
       timeout: 12000,
@@ -143,19 +126,43 @@ async function gorselCek(haberUrl) {
       maxRedirects: 3,
     });
     const $ = cheerio.load(data);
-    const adaylar = [
+
+    // Açıklama — tam cümlede biten, temiz metin
+    let aciklama = "";
+    const acAdaylar = [
+      $('meta[property="og:description"]').attr("content"),
+      $('meta[name="description"]').attr("content"),
+      $('meta[name="twitter:description"]').attr("content"),
+    ].filter(Boolean);
+
+    for (const metin of acAdaylar) {
+      const temiz = metin.replace(/\s+/g, " ").trim();
+      if (temiz.length < 40) continue;
+      if (temiz.length <= 220) { aciklama = temiz; break; }
+      const k = temiz.substring(0, 220);
+      const son = Math.max(k.lastIndexOf(". "), k.lastIndexOf("! "), k.lastIndexOf("? "));
+      aciklama = son > 80 ? k.substring(0, son + 1) : k.trim() + "...";
+      break;
+    }
+
+    // Görsel — logo/banner içermeyenler
+    let gorsel = null;
+    const gAdaylar = [
       $('meta[property="og:image"]').attr("content"),
       $('meta[name="twitter:image"]').attr("content"),
       $('meta[name="twitter:image:src"]').attr("content"),
     ].filter(Boolean);
 
-    for (const url of adaylar) {
-      const temizUrl = url.startsWith("//") ? "https:" + url : url;
-      const logoMu = LOGO_BLACKLIST.some(k => temizUrl.toLowerCase().includes(k));
-      if (!logoMu && temizUrl.startsWith("http")) return temizUrl;
+    for (const url of gAdaylar) {
+      const u = url.startsWith("//") ? "https:" + url : url;
+      if (!u.startsWith("http")) continue;
+      if (LOGO_BLACKLIST.some(k => u.toLowerCase().includes(k))) continue;
+      gorsel = u;
+      break;
     }
-    return null;
-  } catch (_) { return null; }
+
+    return { aciklama, gorsel };
+  } catch (_) { return { aciklama: "", gorsel: null }; }
 }
 
 // ─── HASHTAG ──────────────────────────────────────────────────────────────────
@@ -182,9 +189,9 @@ function hashtagSec(baslik) {
   return HASHTAG_HAVUZU.default;
 }
 
-// ─── GÖNDER ───────────────────────────────────────────────────────────────────
+// ─── ANA DÖNGÜ ────────────────────────────────────────────────────────────────
 async function haberleriKontrolEt(gecmis) {
-  console.log(`🔍 Haberler taranıyor... [${new Date().toLocaleTimeString("tr-TR")}]`);
+  console.log(`🔍 Taranıyor... [${new Date().toLocaleTimeString("tr-TR")}]`);
 
   for (const kaynak of KAYNAKLAR) {
     try {
@@ -203,17 +210,16 @@ async function haberleriKontrolEt(gecmis) {
           continue;
         }
 
+        const { aciklama, gorsel } = await sayfaBilgisiCek(link);
         const hashtagler = hashtagSec(baslik);
-        const aciklama   = aciklamaCek(item);
+
         const mesaj = aciklama
           ? `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${aciklama}\n\n${hashtagler.join(" ")}`
           : `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${hashtagler.join(" ")}`;
 
         try {
-          const gorselUrl = await gorselCek(link);
-
-          if (gorselUrl) {
-            await bot.sendPhoto(CHANNEL_ID, gorselUrl, {
+          if (gorsel) {
+            await bot.sendPhoto(CHANNEL_ID, gorsel, {
               caption: mesaj,
               parse_mode: "Markdown",
             });
@@ -228,7 +234,7 @@ async function haberleriKontrolEt(gecmis) {
           gecmis.toplam++;
           gecmisKaydet(gecmis);
 
-          console.log(`✅ [#${gecmis.toplam}] ${kaynak.ad}: ${baslik.substring(0, 60)}...`);
+          console.log(`✅ [#${gecmis.toplam}] ${kaynak.ad}: ${baslik.substring(0, 60)}`);
           await new Promise(r => setTimeout(r, 3000));
 
         } catch (gonderiHata) {
@@ -240,24 +246,21 @@ async function haberleriKontrolEt(gecmis) {
 
     } catch (rssHata) {
       const sebep = rssHata.message?.includes("Timed out") || rssHata.code === "ECONNABORTED"
-        ? "zaman aşımı"
-        : rssHata.message;
-      console.warn(`⚠️ RSS atlandı [${kaynak.ad}]: ${sebep}`);
+        ? "zaman aşımı" : rssHata.message;
+      console.warn(`⚠️ Atlandı [${kaynak.ad}]: ${sebep}`);
     }
   }
 
-  console.log(`✔️  Tarama tamamlandı. Toplam: ${gecmis.toplam}`);
+  console.log(`✔️  Tamamlandı. Toplam: ${gecmis.toplam}`);
 }
 
 // ─── BAŞLAT ───────────────────────────────────────────────────────────────────
 async function main() {
   console.log("🤖 Son Dakika Haber Botu başlatılıyor...");
   const gecmis = gecmisYukle();
-
   cron.schedule(KONTROL_SURESI, () => haberleriKontrolEt(gecmis));
   await haberleriKontrolEt(gecmis);
-
-  console.log("✅ Bot aktif. Her 8 dakikada bir haberler taranacak.");
+  console.log("✅ Bot aktif. Her 8 dakikada bir taranacak.");
 }
 
 main().catch(err => { console.error("💥 Kritik hata:", err); process.exit(1); });
