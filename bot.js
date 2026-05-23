@@ -33,11 +33,11 @@ const bot = new TelegramBot(TOKEN, { polling: false });
 
 // ─── RSS KAYNAKLARI (Google News — stabil, timeout yok) ───────────────────────
 const KAYNAKLAR = [
-  { ad: "Google Gündem",  url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google Dünya",   url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google Türkiye", url: "https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtUnZLQUFQAQ?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google Ekonomi", url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtUnZHZ0pVVWlnQVAB?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google Sağlık",  url: "https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtUnZLQUFQAQ?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google TR Gündem", url: "https://news.google.com/rss?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google TR Dünya",  url: "https://news.google.com/rss/headlines/section/topic/WORLD?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google TR Ekonomi",url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google TR Bilim",  url: "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "Google TR Sağlık", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=tr&gl=TR&ceid=TR:tr" },
 ];
 
 // ─── FİLTRE ───────────────────────────────────────────────────────────────────
@@ -256,8 +256,9 @@ async function main() {
   console.log("🤖 Son Dakika Haber Botu başlatılıyor...");
   const gecmis = gecmisYukle();
   cron.schedule(KONTROL_SURESI, () => haberleriKontrolEt(gecmis));
-  await haberleriKontrolEt(gecmis);
-  console.log("✅ Bot aktif. Her 8 dakikada bir taranacak.");
+  // İlk taramayı 10 sn sonra başlat — Render deploy timeout'u önler
+  setTimeout(() => haberleriKontrolEt(gecmis), 10000);
+  console.log("✅ Bot aktif. İlk tarama 10 sn sonra başlayacak.");
 }
 
 main().catch(err => { console.error("💥 Kritik hata:", err); process.exit(1); });
