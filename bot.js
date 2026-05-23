@@ -25,7 +25,10 @@ const GECMIS         = "/var/data/gecmis_haber.json";
 const KONTROL_SURESI = "*/8 * * * *"; // Her 8 dakikada bir kontrol
 // ──────────────────────────────────────────────────────────────────────────────
 
-const parser = new RSSParser({ timeout: 10000 });
+const parser = new RSSParser({
+  timeout: 20000,
+  headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
+});
 const bot    = new TelegramBot(TOKEN, { polling: false });
 
 // ─── HABER RSS KAYNAKLARI ─────────────────────────────────────────────────────
@@ -115,7 +118,16 @@ function gecmisKaydet(g) {
   fs.writeFileSync(GECMIS, JSON.stringify(g, null, 2));
 }
 
-// ─── GÖRSEL ÇEK ───────────────────────────────────────────────────────────────
+async function rssCek(url) {
+  for (let i = 0; i < 2; i++) {
+    try {
+      return await parser.parseURL(url);
+    } catch (e) {
+      if (i === 1) throw e;
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
 const LOGO_BLACKLIST = [
   "logo","watermark","favicon","icon","banner","header","footer",
   "ntv.com.tr/Assets","cnnturk.com/img/logo","hurriyet.com.tr/images/logo",
@@ -126,7 +138,7 @@ const LOGO_BLACKLIST = [
 async function gorselCek(haberUrl) {
   try {
     const { data } = await axios.get(haberUrl, {
-      timeout: 7600,
+      timeout: 12000,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
       maxRedirects: 3,
     });
@@ -176,7 +188,7 @@ async function haberleriKontrolEt(gecmis) {
 
   for (const kaynak of KAYNAKLAR) {
     try {
-      const feed = await parser.parseURL(kaynak.url);
+      const feed = await rssCek(kaynak.url);
 
       for (const item of feed.items.slice(0, 10)) {
         const baslik = (item.title || "").trim();
@@ -227,7 +239,10 @@ async function haberleriKontrolEt(gecmis) {
       }
 
     } catch (rssHata) {
-      console.warn(`⚠️ RSS hatası [${kaynak.ad}]:`, rssHata.message);
+      const sebep = rssHata.message?.includes("Timed out") || rssHata.code === "ECONNABORTED"
+        ? "zaman aşımı"
+        : rssHata.message;
+      console.warn(`⚠️ RSS atlandı [${kaynak.ad}]: ${sebep}`);
     }
   }
 
