@@ -15,6 +15,7 @@ const TelegramBot = require("node-telegram-bot-api");
 const axios       = require("axios");
 const cron        = require("node-cron");
 const fs          = require("fs");
+const http        = require("http");
 const RSSParser   = require("rss-parser");
 const cheerio     = require("cheerio");
 
@@ -23,7 +24,7 @@ const TOKEN          = process.env.TELEGRAM_TOKEN || "BOT_TOKEN_BURAYA";
 const CHANNEL_ID     = process.env.CHANNEL_ID     || "-100KANAL_ID_BURAYA";
 const GECMIS         = "/var/data/gecmis_haber.json";
 const KONTROL_SURESI = "*/8 * * * *";
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 
 const parser = new RSSParser({
   timeout: 20000,
@@ -31,13 +32,16 @@ const parser = new RSSParser({
 });
 const bot = new TelegramBot(TOKEN, { polling: false });
 
-// ─── RSS KAYNAKLARI (Google News — stabil, timeout yok) ───────────────────────
+// ─── RSS KAYNAKLARI ───────────────────────────────────────────────────────────
 const KAYNAKLAR = [
-  { ad: "Google TR Gündem", url: "https://news.google.com/rss?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google TR Dünya",  url: "https://news.google.com/rss/headlines/section/topic/WORLD?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google TR Ekonomi",url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google TR Bilim",  url: "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=tr&gl=TR&ceid=TR:tr" },
-  { ad: "Google TR Sağlık", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=tr&gl=TR&ceid=TR:tr" },
+  { ad: "NTV",       url: "https://www.ntv.com.tr/son-dakika.rss" },
+  { ad: "CNN Türk",  url: "https://www.cnnturk.com/feed/rss/all/news" },
+  { ad: "AA",        url: "https://www.aa.com.tr/tr/rss/default?cat=guncel" },
+  { ad: "TRT Haber", url: "https://www.trthaber.com/sondakika.rss" },
+  { ad: "Sabah",     url: "https://www.sabah.com.tr/rss/anasayfa.xml" },
+  { ad: "Hürriyet",  url: "https://www.hurriyet.com.tr/rss/anasayfa" },
+  { ad: "Sözcü",     url: "https://www.sozcu.com.tr/rss/son-dakika.xml" },
+  { ad: "Milliyet",  url: "https://www.milliyet.com.tr/rss/rssNew/sondakikaarsiv.xml" },
 ];
 
 // ─── FİLTRE ───────────────────────────────────────────────────────────────────
@@ -275,10 +279,16 @@ async function haberleriKontrolEt(gecmis) {
 async function main() {
   console.log("🤖 Son Dakika Haber Botu başlatılıyor...");
   const gecmis = gecmisYukle();
+
+  // Render Web Service port açık olmazsa öldürüyor — basit HTTP server açıyoruz
+  const PORT = process.env.PORT || 3000;
+  http.createServer((req, res) => res.end("OK")).listen(PORT, () => {
+    console.log(`🌐 HTTP server port ${PORT} dinliyor`);
+  });
+
   cron.schedule(KONTROL_SURESI, () => haberleriKontrolEt(gecmis));
-  // İlk taramayı 10 sn sonra başlat — Render deploy timeout'u önler
-  setTimeout(() => haberleriKontrolEt(gecmis), 10000);
-  console.log("✅ Bot aktif. İlk tarama 10 sn sonra başlayacak.");
+  setTimeout(() => haberleriKontrolEt(gecmis), 5000);
+  console.log("✅ Bot aktif. Her 8 dakikada bir taranacak.");
 }
 
 main().catch(err => { console.error("💥 Kritik hata:", err); process.exit(1); });
