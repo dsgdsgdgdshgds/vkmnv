@@ -1,340 +1,631 @@
-/**
- * 🤖 Son Dakika Haber Botu
- *
- * Haber kaynakları: RSS feed (key'siz, açık)
- * Görsel + Açıklama: og:image / og:description (tek HTTP isteği, temiz)
- * Filtre: Magazin/dizi/reklam atlanır, sadece önemli haberler paylaşılır
- * Depolama: /var/data/gecmis_haber.json
- *
- * Kurulum:
- *   npm install node-telegram-bot-api axios node-cron rss-parser cheerio
- *   TELEGRAM_TOKEN=xxx CHANNEL_ID=-100xxx node telegram-news-bot.js
- */
+const { Client, GatewayIntentBits, Partials, ActivityType } = require('discord.js');
+const axios      = require('axios');
+const cheerio    = require('cheerio');
+const express    = require('express');
+const cron       = require('node-cron');
+const fs         = require('fs');
+const path       = require('path');
+const crypto     = require('crypto');
+const nodemailer = require('nodemailer');
 
-const TelegramBot = require("node-telegram-bot-api");
-const axios       = require("axios");
-const cron        = require("node-cron");
-const fs          = require("fs");
-const http        = require("http");
-const RSSParser   = require("rss-parser");
-const cheerio     = require("cheerio");
-
-// ─── AYARLAR ──────────────────────────────────────────────────────────────────
-const TOKEN          = process.env.TELEGRAM_TOKEN || "BOT_TOKEN_BURAYA";
-const CHANNEL_ID     = process.env.CHANNEL_ID     || "-100KANAL_ID_BURAYA";
-const GECMIS         = "/var/data/gecmis_haber.json";
-const KONTROL_SURESI = "*/8 * * * *";
-// ──────────────────────────────────────────────────────────────────────────────
-
-const parser = new RSSParser({
-  timeout: 20000,
-  headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
+/* ── NODEMAILER ── */
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.MAIL_USER,   // Render env: MAIL_USER
+    pass: process.env.MAIL_PASS    // Render env: MAIL_PASS (Gmail uygulama şifresi)
+  }
 });
-const bot = new TelegramBot(TOKEN, { polling: false });
 
-// ─── RSS KAYNAKLARI ───────────────────────────────────────────────────────────
-const KAYNAKLAR = [
-  { ad: "NTV",       url: "https://www.ntv.com.tr/son-dakika.rss" },
-  { ad: "CNN Türk",  url: "https://www.cnnturk.com/feed/rss/all/news" },
-  { ad: "AA",        url: "https://www.aa.com.tr/tr/rss/default?cat=guncel" },
-  { ad: "TRT Haber", url: "https://www.trthaber.com/sondakika.rss" },
-  { ad: "Sabah",     url: "https://www.sabah.com.tr/rss/anasayfa.xml" },
-  { ad: "Hürriyet",  url: "https://www.hurriyet.com.tr/rss/anasayfa" },
-  { ad: "Sözcü",     url: "https://www.sozcu.com.tr/rss/son-dakika.xml" },
-  { ad: "Milliyet",  url: "https://www.milliyet.com.tr/rss/rssNew/sondakikaarsiv.xml" },
-];
-
-// ─── FİLTRE ───────────────────────────────────────────────────────────────────
-const ONEMLI_KELIMELER = [
-  "son dakika","acil","flaş","kritik","alarm","uyarı","tehlike","tahliye",
-  "deprem","sel","yangın","tsunami","kasırga","fırtına","heyelan","volkan",
-  "cumhurbaşkanı","erdoğan","meclis","kabine","seçim","referandum","istifa","atandı","görevden",
-  "kanun","yasa","karar","yönetmelik","anayasa","hükümet","bakan","başbakan",
-  "dolar","euro","enflasyon","faiz","merkez bankası","borsa","bütçe","zam",
-  "işsizlik","büyüme","kriz","iflas","haciz","konkordato",
-  "saldırı","bomba","patlama","terör","operasyon","gözaltı","tutuklama","şüpheli",
-  "silahlı","çatışma","rehin","kaçırma",
-  "rusya","ukrayna","abd","çin","nato","bm","ab","suriye","irak","iran",
-  "savaş","ateşkes","müzakere","yaptırım","ambargo",
-  "salgın","pandemi","koronavirüs","aşı","ölü","yaralı","hastane",
-  "kaza","çarpışma","çarpıştı","düştü","devrildi","yaralandı","hayatını kaybetti",
-  "ölüm","kayıp","enkaz","rekor","tarihi","ilk kez",
-];
-
-const ATLA_KELIMELER = [
-  "indirim fırsatı","alışveriş","kampanya","reklam","sponsor",
-  "burç","falı","diyet","kilo","güzellik","makyaj",
-  "dizi","film","oyuncu","magazin","ünlü","şarkı","albüm",
-  "tarifi","nasıl yapılır","tüyo","ipucu",
-  "galeri","foto haber","video haber","izle","izlendi",
-  "evlendi","ayrıldı","hamile","doğum","nişanlandı",
-  "instagram","sosyal medya","paylaşım yaptı",
-  "en iyi","en kötü","sıralama","top 10",
-];
-
-function haberOnemliMi(baslik) {
-  const k = baslik.toLowerCase();
-  if (ATLA_KELIMELER.some(w => k.includes(w))) return false;
-  return ONEMLI_KELIMELER.some(w => k.includes(w));
+function sendMail(to, subject, text) {
+  return transporter.sendMail({
+    from: `"Deprem Yardım" <${process.env.MAIL_USER}>`,
+    to, subject, text
+  }).catch(e => console.error('[MAIL HATA]', e.message));
 }
 
-// ─── GEÇMİŞ ──────────────────────────────────────────────────────────────────
-function gecmisYukle() {
-  try {
-    if (fs.existsSync(GECMIS)) {
-      const icerik = JSON.parse(fs.readFileSync(GECMIS, "utf8"));
-      console.log(`📂 Geçmiş yüklendi: ${icerik.toplam} haber`);
-      return icerik;
-    }
-  } catch (_) {}
-  const bos = { gonderilen: [], toplam: 0 };
-  fs.writeFileSync(GECMIS, JSON.stringify(bos, null, 2));
-  console.log(`📄 Geçmiş dosyası oluşturuldu: ${GECMIS}`);
-  return bos;
+/* ── DOSYA YOLLARI ── */
+const dataDir       = '/var/data';
+const filePath      = path.join(dataDir, 'guardlist.json');
+const whiteListPath = path.join(dataDir, 'whitelist.json');
+const dbPath        = path.join(dataDir, 'deprem.json');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+/* ══════════════════════════════════════════════════════
+   JSON VERİTABANI
+   ══════════════════════════════════════════════════════ */
+function loadDb() {
+  try { return JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch(e) {}
+  return { users: [], alerts: [], notified: [], emailCodes: [], admins: [], adminTokens: [] };
 }
+function saveDb(data) { fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8'); }
 
-function gecmisKaydet(g) {
-  if (g.gonderilen.length > 500) g.gonderilen = g.gonderilen.slice(-500);
-  fs.writeFileSync(GECMIS, JSON.stringify(g, null, 2));
-}
-
-// ─── RSS RETRY ────────────────────────────────────────────────────────────────
-async function rssCek(url) {
-  for (let i = 0; i < 2; i++) {
-    try {
-      return await parser.parseURL(url);
-    } catch (e) {
-      if (i === 1) throw e;
-      await new Promise(r => setTimeout(r, 3000));
-    }
-  }
-}
-
-// ─── LOGO BLACKLIST ───────────────────────────────────────────────────────────
-const LOGO_BLACKLIST = [
-  "logo","watermark","favicon","icon","banner","header","footer",
-  "ntv.com.tr/Assets","cnnturk.com/img/logo","hurriyet.com.tr/images/logo",
-  "sabah.com.tr/foto/logo","sozcu.com.tr/wp-content/themes",
-  "trthaber.com/img/logo","milliyet.com.tr/Images/logo","aa.com.tr/img/logo",
-];
-
-// ─── BAŞLIĞI TEMİZLE ─────────────────────────────────────────────────────────
-function baslikTemizle(baslik) {
-  return baslik.replace(/\s*[-–|]\s*[^-–|]+$/, "").trim();
-}
-
-// ─── AÇIKLAMAYI AKILLICA KES ──────────────────────────────────────────────────
-function aciklamaKes(metin, maksKarakter = 800) {
-  if (!metin || metin.length <= maksKarakter) return metin;
-
-  const kisaltilmis = metin.substring(0, maksKarakter);
-  // Son tam cümleyi bul (. ! ? ile biten)
-  const sonCumleIndex = kisaltilmis.search(/[.!?][^.!?]*$/);
-  if (sonCumleIndex > 100) {
-    return kisaltilmis.substring(0, sonCumleIndex + 1).trim();
-  }
-  // Cümle bulunamazsa son boşlukta kes
-  const sonBosluk = kisaltilmis.lastIndexOf(" ");
-  return (sonBosluk > 100 ? kisaltilmis.substring(0, sonBosluk) : kisaltilmis).trim() + "…";
-}
-
-// ─── GOOGLE NEWS LİNKİNİ GERÇEK HABER SİTESİNE ÇEVİR ────────────────────────
-async function gercekUrlBul(googleUrl) {
-  try {
-    const { request } = await axios.get(googleUrl, {
-      timeout: 12000,
-      maxRedirects: 5,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+/* İlk çalıştırmada varsayılan admin oluştur */
+(function initAdmin() {
+  const data = loadDb();
+  if (!data.admins) data.admins = [];
+  if (!data.adminTokens) data.adminTokens = [];
+  if (!data.users) data.users = [];
+  if (!data.alerts) data.alerts = [];
+  if (!data.notified) data.notified = [];
+  if (!data.emailCodes) data.emailCodes = [];
+  if (!data.admins.find(a => a.username === 'admin')) {
+    data.admins.push({
+      id: Date.now(),
+      username: 'admin',
+      passwordHash: sha256('afad2024'),
+      fullName: 'Sistem Yöneticisi',
+      team: 'AFAD'
     });
-    return request.res?.responseUrl || request.responseURL || googleUrl;
-  } catch (_) { return googleUrl; }
-}
+    console.log('[DB] Varsayılan admin oluşturuldu: admin / afad2024');
+  }
+  saveDb(data);
+})();
 
-// ─── TEK İSTEKLE GÖRSEL + AÇIKLAMA ───────────────────────────────────────────
-async function sayfaBilgisiCek(haberUrl) {
-  try {
-    const { data } = await axios.get(haberUrl, {
-      timeout: 12000,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; TelegramBot/1.0)" },
-      maxRedirects: 3,
+function sha256(str) { return crypto.createHash('sha256').update(str).digest('hex'); }
+
+const db = {
+  /* ── Kullanıcılar ── */
+  createUser(u) {
+    const data = loadDb();
+    const idx = data.users.findIndex(x => x.phone === u.phone);
+    const user = { id: idx >= 0 ? data.users[idx].id : Date.now(), ...u };
+    if (idx >= 0) data.users[idx] = user; else data.users.push(user);
+    saveDb(data); return { id: user.id };
+  },
+  getUserById(id) { return loadDb().users.find(u => u.id == id); },
+  getUsersByCity(city) { return loadDb().users.filter(u => u.city?.toLowerCase().includes(city.toLowerCase())); },
+  getAllUsers() { return loadDb().users.map(u => ({ id: u.id, name: u.name, surname: u.surname, phone: u.phone, city: u.city, createdAt: u.createdAt })); },
+  updateUserLocation(id, lat, lng) {
+    const data = loadDb();
+    const u = data.users.find(u => u.id == id);
+    if (u) { u.lastLat = lat; u.lastLng = lng; saveDb(data); }
+  },
+  updateUserFcmToken(id, fcmToken) {
+    const data = loadDb();
+    const u = data.users.find(u => u.id == id);
+    if (u) { u.fcmToken = fcmToken; saveDb(data); }
+  },
+
+  /* ── Admin ── */
+  getAdminByUsername(username) { return loadDb().admins?.find(a => a.username === username); },
+  createAdmin({ username, passwordHash, fullName, team }) {
+    const data = loadDb();
+    if (!data.admins) data.admins = [];
+    if (data.admins.find(a => a.username === username)) throw new Error('Kullanıcı adı zaten var');
+    data.admins.push({ id: Date.now(), username, passwordHash, fullName, team });
+    saveDb(data);
+  },
+
+  /* ── Admin Token ── */
+  saveAdminToken(token, username) {
+    const data = loadDb();
+    if (!data.adminTokens) data.adminTokens = [];
+    // Eski tokenları temizle (8 saat)
+    data.adminTokens = data.adminTokens.filter(t => Date.now() < t.exp);
+    data.adminTokens.push({ token, username, exp: Date.now() + 8 * 60 * 60 * 1000 });
+    saveDb(data);
+  },
+  getAdminToken(token) {
+    const data = loadDb();
+    const t = data.adminTokens?.find(t => t.token === token);
+    if (!t || Date.now() > t.exp) return null;
+    return t;
+  },
+
+  /* ── Alertler ── */
+  createAlert(a) {
+    const data = loadDb();
+    data.alerts.push({ id: Date.now(), rescheduleCount: 0, ...a });
+    saveDb(data);
+  },
+  getPendingAlerts() { return loadDb().alerts.filter(a => a.status === 'pending'); },
+  getAlertByUserAndEq(uid, eqId) { return loadDb().alerts.find(a => a.userId == uid && a.eqId == eqId); },
+  getAlertsByCity(city) {
+    const data = loadDb();
+    return data.alerts.filter(a => a.city?.toLowerCase().includes(city.toLowerCase())).map(a => {
+      const u = data.users.find(u => u.id == a.userId) || {};
+      return { ...a, name: u.name, surname: u.surname, phone: u.phone, address: u.address, lastLat: u.lastLat, lastLng: u.lastLng };
     });
-    const $ = cheerio.load(data);
-
-    // Açıklama
-    let aciklama = "";
-    const acAdaylar = [
-      $('meta[property="og:description"]').attr("content"),
-      $('meta[name="description"]').attr("content"),
-      $('meta[name="twitter:description"]').attr("content"),
-    ].filter(Boolean);
-
-    for (const metin of acAdaylar) {
-      const temiz = metin.replace(/\s+/g, " ").trim();
-      if (temiz.length < 40) continue;
-      aciklama = temiz;
-      break;
+  },
+  getHelpAlerts() {
+    const data = loadDb();
+    return data.alerts.filter(a => ['help','timeout'].includes(a.status)).map(a => {
+      const u = data.users.find(u => u.id == a.userId) || {};
+      return { ...a, name: u.name, surname: u.surname, phone: u.phone, address: u.address, lastLat: u.lastLat, lastLng: u.lastLng };
+    }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt));
+  },
+  getAllAlerts() {
+    const data = loadDb();
+    return data.alerts.map(a => {
+      const u = data.users.find(u => u.id == a.userId) || {};
+      return { ...a, name: u.name, surname: u.surname, phone: u.phone, address: u.address, lastLat: u.lastLat, lastLng: u.lastLng };
+    }).sort((a,b) => new Date(b.sentAt) - new Date(a.sentAt)).slice(0, 500);
+  },
+  getStats() {
+    const all = loadDb().alerts;
+    return {
+      total: all.length,
+      pending: all.filter(a => a.status === 'pending').length,
+      safe: all.filter(a => a.status === 'safe').length,
+      help: all.filter(a => a.status === 'help').length,
+      timeout: all.filter(a => a.status === 'timeout').length,
+    };
+  },
+  updateAlertStatus(uid, eqId, status) {
+    const data = loadDb();
+    const a = data.alerts.find(a => a.userId == uid && a.eqId == eqId);
+    if (a) { a.status = status; saveDb(data); }
+  },
+  markNotifDismissed(uid, eqId) {
+    const data = loadDb();
+    const a = data.alerts.find(a => a.userId == uid && a.eqId == eqId);
+    if (a) {
+      a.notifDismissedAt = new Date().toISOString();
+      a.rescheduleCount = (a.rescheduleCount || 0) + 1;
+      saveDb(data);
     }
+  },
+  // 1 dk önce silinmiş ve hâlâ pending alertler
+  getDismissedPendingForReschedule() {
+    const data = loadDb();
+    const now = Date.now();
+    return data.alerts.filter(a => {
+      if (a.status !== 'pending') return false;
+      if (!a.notifDismissedAt) return false;
+      if ((a.rescheduleCount || 0) >= 30) return false;
+      const dismissed = new Date(a.notifDismissedAt).getTime();
+      if (now - dismissed < 60_000) return false; // henüz 1 dk olmamış
+      if (a.lastRescheduledAt) {
+        const last = new Date(a.lastRescheduledAt).getTime();
+        if (now - last < 60_000) return false; // son gönderimden 1 dk geçmemiş
+      }
+      return true;
+    }).map(a => {
+      const u = data.users.find(u => u.id == a.userId) || {};
+      return { ...a, fcmToken: u.fcmToken };
+    });
+  },
+  markRescheduled(alertId) {
+    const data = loadDb();
+    const a = data.alerts.find(a => a.id == alertId);
+    if (a) { a.lastRescheduledAt = new Date().toISOString(); saveDb(data); }
+  },
 
-    // Görsel
-    let gorsel = null;
-    const gAdaylar = [
-      $('meta[property="og:image"]').attr("content"),
-      $('meta[name="twitter:image"]').attr("content"),
-      $('meta[name="twitter:image:src"]').attr("content"),
-    ].filter(Boolean);
+  /* ── E-Posta Kodları ── */
+  saveEmailCode(email, code) {
+    const data = loadDb();
+    data.emailCodes = data.emailCodes.filter(c => c.email !== email);
+    data.emailCodes.push({ email, code, expiresAt: Date.now() + 10 * 60 * 1000 });
+    saveDb(data);
+  },
+  getEmailCode(email) { return loadDb().emailCodes.find(c => c.email === email); },
+  deleteEmailCode(email) {
+    const data = loadDb();
+    data.emailCodes = data.emailCodes.filter(c => c.email !== email);
+    saveDb(data);
+  },
 
-    for (const url of gAdaylar) {
-      const u = url.startsWith("//") ? "https:" + url : url;
-      if (!u.startsWith("http")) continue;
-      if (LOGO_BLACKLIST.some(k => u.toLowerCase().includes(k))) continue;
-      gorsel = u;
-      break;
-    }
-
-    return { aciklama, gorsel };
-  } catch (_) { return { aciklama: "", gorsel: null }; }
-}
-
-// ─── HASHTAG ──────────────────────────────────────────────────────────────────
-const HASHTAG_HAVUZU = {
-  afet:     ["#sondakika","#deprem","#acil","#haber"],
-  ekonomi:  ["#sondakika","#ekonomi","#dolar","#borsa","#haber"],
-  siyaset:  ["#sondakika","#siyaset","#türkiye","#haber"],
-  guvenlik: ["#sondakika","#güvenlik","#operasyon","#haber"],
-  saglik:   ["#sondakika","#sağlık","#haber"],
-  dunya:    ["#sondakika","#dünya","#uluslararası","#haber"],
-  kaza:     ["#sondakika","#kaza","#haber"],
-  default:  ["#sondakika","#haber","#türkiye","#gündem"],
+  /* ── Deprem Bildirimleri ── */
+  saveNotifiedEq(eqId) {
+    const data = loadDb();
+    if (!data.notified.includes(eqId)) { data.notified.push(eqId); saveDb(data); }
+  },
+  getNotifiedEq(eqId) { return loadDb().notified.includes(eqId); },
 };
 
-function hashtagSec(baslik) {
-  const k = baslik.toLowerCase();
-  if (k.includes("deprem")||k.includes("sel")||k.includes("yangın")||k.includes("afet")) return HASHTAG_HAVUZU.afet;
-  if (k.includes("dolar")||k.includes("euro")||k.includes("enflasyon")||k.includes("faiz")||k.includes("borsa")) return HASHTAG_HAVUZU.ekonomi;
-  if (k.includes("cumhurbaşkan")||k.includes("meclis")||k.includes("seçim")||k.includes("bakan")) return HASHTAG_HAVUZU.siyaset;
-  if (k.includes("saldırı")||k.includes("terör")||k.includes("operasyon")||k.includes("patlama")) return HASHTAG_HAVUZU.guvenlik;
-  if (k.includes("salgın")||k.includes("hastane")||k.includes("sağlık")||k.includes("aşı")) return HASHTAG_HAVUZU.saglik;
-  if (k.includes("rusya")||k.includes("abd")||k.includes("nato")||k.includes("savaş")) return HASHTAG_HAVUZU.dunya;
-  if (k.includes("kaza")||k.includes("çarpış")||k.includes("devrildi")||k.includes("düştü")) return HASHTAG_HAVUZU.kaza;
-  return HASHTAG_HAVUZU.default;
+/* ══════════════════════════════════════════════════════
+   EXPRESS API
+   ══════════════════════════════════════════════════════ */
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public'))); // Admin panel
+
+/* ── Admin Auth Middleware ── */
+function requireAdmin(req, res, next) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.replace('Bearer ', '').trim();
+  if (!db.getAdminToken(token)) return res.status(401).json({ error: 'Yetkisiz erişim' });
+  next();
 }
 
-// ─── TELEGRAM GÖNDER ──────────────────────────────────────────────────────────
-async function telegramGonder(gorsel, mesaj) {
-  const CAPTION_LIMIT = 1024;
-
-  if (gorsel) {
-    if (mesaj.length <= CAPTION_LIMIT) {
-      // Fotoğraf + caption birlikte
-      await bot.sendPhoto(CHANNEL_ID, gorsel, {
-        caption: mesaj,
-        parse_mode: "Markdown",
-      });
-    } else {
-      // Caption sığmaz: önce fotoğraf, sonra metin ayrı mesaj
-      await bot.sendPhoto(CHANNEL_ID, gorsel, {});
-      await new Promise(r => setTimeout(r, 1000));
-      await bot.sendMessage(CHANNEL_ID, mesaj, {
-        parse_mode: "Markdown",
-        disable_web_page_preview: true,
-      });
-    }
-  } else {
-    await bot.sendMessage(CHANNEL_ID, mesaj, {
-      parse_mode: "Markdown",
-      disable_web_page_preview: true,
+/* ── FCM Gönderici ── */
+async function sendFCM(fcmToken, data, title, body) {
+  if (!fcmToken || !process.env.FCM_SERVER_KEY) {
+    console.log(`[FCM MOCK] ${title}: ${body}`);
+    return;
+  }
+  try {
+    await axios.post('https://fcm.googleapis.com/fcm/send', {
+      to: fcmToken, priority: 'high', data,
+      notification: { title, body, sound: 'alarm' }
+    }, {
+      headers: { Authorization: `key=${process.env.FCM_SERVER_KEY}`, 'Content-Type': 'application/json' }
     });
-  }
+  } catch(e) { console.error('[FCM Hata]', e.message); }
 }
 
-// ─── ANA DÖNGÜ ────────────────────────────────────────────────────────────────
-async function haberleriKontrolEt(gecmis) {
-  console.log(`🔍 Taranıyor... [${new Date().toLocaleTimeString("tr-TR")}]`);
+/* ─── KULLANICI ENDPOINTLERİ ──────────────────────────────────────────── */
 
-  for (const kaynak of KAYNAKLAR) {
-    try {
-      const feed = await rssCek(kaynak.url);
+app.post('/api/send-code', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'E-posta eksik' });
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  db.saveEmailCode(email, code);
+  await sendMail(
+    email,
+    'Deprem Yardım - Doğrulama Kodu',
+    `Doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`
+  );
+  console.log(`[MAIL] ${email} → KOD: ${code}`);
+  res.json({ success: true });
+});
 
-      for (const item of feed.items.slice(0, 10)) {
-        const baslik = baslikTemizle((item.title || "").trim());
-        const link   = item.link || item.url || "";
-        if (!baslik || !link) continue;
+app.post('/api/verify-code', (req, res) => {
+  const { email, code, phone, name, surname, address, city } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Eksik alan' });
+  const session = db.getEmailCode(email);
+  if (!session) return res.status(400).json({ error: 'Önce kod gönderin' });
+  if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod süresi doldu' });
+  if (session.code !== code) return res.status(400).json({ error: 'Yanlış kod' });
+  db.deleteEmailCode(email);
 
-        const id = Buffer.from(link).toString("base64").substring(0, 40);
-        if (gecmis.gonderilen.includes(id)) continue;
+  // Eğer name/city geldiyse yeni kayıt, yoksa mevcut kullanıcıyı bul (giriş)
+  if (name) {
+    const user = db.createUser({ name, surname: surname||'', phone: phone||'', email, address: address||'', city: city||'', createdAt: new Date().toISOString() });
+    return res.json({ success: true, userId: user.id });
+  } else {
+    // Giriş: mevcut kullanıcıyı e-posta ile bul
+    const data = loadDb();
+    const existing = data.users.find(u => u.email === email);
+    if (!existing) return res.status(400).json({ error: 'Bu e-posta ile kayıtlı kullanıcı bulunamadı' });
+    return res.json({ success: true, userId: existing.id });
+  }
+});
 
-        if (!haberOnemliMi(baslik)) {
-          gecmis.gonderilen.push(id);
-          continue;
-        }
+app.post('/api/register', (req, res) => {
+  const { name, surname, phone, address, city, fcmToken } = req.body;
+  if (!name || !phone || !city) return res.status(400).json({ error: 'Eksik alan' });
+  const user = db.createUser({ name, surname, phone, address, city, fcmToken, createdAt: new Date().toISOString() });
+  res.json({ success: true, userId: user.id });
+});
 
-        const gercekLink               = await gercekUrlBul(link);
-        const { aciklama, gorsel }     = await sayfaBilgisiCek(gercekLink);
-        const aciklamaTemiz            = aciklamaKes(aciklama);
-        const hashtagler               = hashtagSec(baslik);
+app.post('/api/fcm-token', (req, res) => {
+  const { userId, fcmToken } = req.body;
+  if (!userId || !fcmToken) return res.status(400).json({ error: 'Eksik alan' });
+  db.updateUserFcmToken(userId, fcmToken);
+  res.json({ success: true });
+});
 
-        const mesaj = aciklamaTemiz
-          ? `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${aciklamaTemiz}\n\n${hashtagler.join(" ")}`
-          : `🔴 *SON DAKİKA*\n\n*${baslik}*\n\n${hashtagler.join(" ")}`;
+app.post('/api/status', (req, res) => {
+  const { userId, eqId, status, lat, lng } = req.body;
+  if (!userId || !status) return res.status(400).json({ error: 'Eksik alan' });
+  db.updateAlertStatus(userId, eqId, status);
+  if (lat && lng) db.updateUserLocation(userId, lat, lng);
+  if (status === 'help') {
+    const a = db.getAlertByUserAndEq(userId, eqId);
+    if (a) triggerEmergency(a, 'KULLANICI_EVET');
+  }
+  res.json({ success: true });
+});
 
-        try {
-          await telegramGonder(gorsel, mesaj);
+// Bildirim silindi → 1 dk sonra tekrar gönder
+app.post('/api/notif-dismissed', (req, res) => {
+  const { userId, eqId } = req.body;
+  if (!userId || !eqId) return res.status(400).json({ error: 'Eksik alan' });
+  db.markNotifDismissed(userId, eqId);
+  console.log(`[DISMISSED] userId=${userId} eqId=${eqId} → 1 dk sonra tekrar bildirim`);
+  res.json({ success: true });
+});
 
-          gecmis.gonderilen.push(id);
-          gecmis.toplam++;
-          gecmisKaydet(gecmis);
+app.post('/api/location', (req, res) => {
+  const { userId, lat, lng } = req.body;
+  if (userId && lat && lng) db.updateUserLocation(userId, lat, lng);
+  res.json({ success: true });
+});
 
-          console.log(`✅ [#${gecmis.toplam}] ${kaynak.ad}: ${baslik.substring(0, 60)}`);
-          await new Promise(r => setTimeout(r, 5000)); // flood önlemi
+app.get('/api/alerts/:city', (req, res) => res.json(db.getAlertsByCity(req.params.city)));
 
-        } catch (gonderiHata) {
-          const retryMatch = gonderiHata.message?.match(/retry after (\d+)/i);
-          if (retryMatch) {
-            const bekle = (parseInt(retryMatch[1]) + 2) * 1000;
-            console.warn(`⏳ Telegram bekleme: ${retryMatch[1]} sn bekleniyor...`);
-            await new Promise(r => setTimeout(r, bekle));
-            try {
-              await telegramGonder(gorsel, mesaj);
-              gecmis.gonderilen.push(id);
-              gecmis.toplam++;
-              gecmisKaydet(gecmis);
-              console.log(`✅ [#${gecmis.toplam}] (retry) ${baslik.substring(0, 60)}`);
-            } catch (retryHata) {
-              console.error(`❌ Retry de başarısız:`, retryHata.message);
-              gecmis.gonderilen.push(id);
-              gecmisKaydet(gecmis);
-            }
-          } else {
-            console.error(`❌ Gönderim hatası [${kaynak.ad}]:`, gonderiHata.message);
-            gecmis.gonderilen.push(id);
-            gecmisKaydet(gecmis);
-          }
-        }
-      }
+/* ─── ADMİN ENDPOINTLERİ ─────────────────────────────────────────────── */
 
-    } catch (rssHata) {
-      const sebep = rssHata.message?.includes("Timed out") || rssHata.code === "ECONNABORTED"
-        ? "zaman aşımı" : rssHata.message;
-      console.warn(`⚠️ Atlandı [${kaynak.ad}]: ${sebep}`);
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Eksik alan' });
+  const admin = db.getAdminByUsername(username);
+  if (!admin || sha256(password) !== admin.passwordHash)
+    return res.status(401).json({ error: 'Geçersiz kullanıcı adı veya şifre' });
+  const token = crypto.randomBytes(32).toString('hex');
+  db.saveAdminToken(token, username);
+  res.json({ success: true, token, fullName: admin.fullName, team: admin.team });
+});
+
+app.get('/api/admin/help-requests', requireAdmin, (req, res) => res.json(db.getHelpAlerts()));
+app.get('/api/admin/all-alerts',    requireAdmin, (req, res) => res.json(db.getAllAlerts()));
+app.get('/api/admin/users',         requireAdmin, (req, res) => res.json(db.getAllUsers()));
+app.get('/api/admin/stats',         requireAdmin, (req, res) => res.json(db.getStats()));
+
+app.post('/api/admin/create-admin', requireAdmin, (req, res) => {
+  const { username, password, fullName, team } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Eksik alan' });
+  try {
+    db.createAdmin({ username, passwordHash: sha256(password), fullName: fullName||'', team: team||'' });
+    res.json({ success: true });
+  } catch(e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Admin panel SPA
+app.get('/admin*', (req, res) => {
+  const adminHtml = path.join(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(adminHtml)) res.sendFile(adminHtml);
+  else res.status(404).send('Admin panel bulunamadı. public/admin.html dosyasını oluşturun.');
+});
+
+/* ══════════════════════════════════════════════════════
+   AFAD DEPREM KONTROLÜ — her 1 dakikada
+   ══════════════════════════════════════════════════════ */
+cron.schedule('* * * * *', async () => {
+  try {
+    const r = await axios.get(
+      'https://deprem.afad.gov.tr/apiv2/event/filter?orderby=timedesc&limit=1&format=json',
+      { timeout: 8000 }
+    );
+    const eq = r.data[0];
+    if (!eq) return;
+    const mag = parseFloat(eq.magnitude);
+    const eqId = eq.eventID;
+    if (mag < 4.0 || db.getNotifiedEq(eqId)) return;
+    console.log(`[DEPREM] ${eq.location} - M${mag}`);
+    db.saveNotifiedEq(eqId);
+    const users = db.getUsersByCity(eq.location);
+    for (const user of users) {
+      db.createAlert({ userId: user.id, eqId, magnitude: mag, city: eq.location, sentAt: new Date().toISOString(), status: 'pending' });
+      console.log(`  → Bildirim: ${user.name} (${user.phone})`);
+      await sendFCM(
+        user.fcmToken,
+        { action: 'STATUS_CHECK', eqId, magnitude: String(mag) },
+        '⚠️ Deprem Tespit Edildi!',
+        `Bölgenizde M${mag} deprem oluştu. Durumunuzu bildirin!`
+      );
+    }
+  } catch(e) { console.error('[AFAD]', e.message); }
+});
+
+/* ══════════════════════════════════════════════════════
+   30 DAKİKA ZAMAN AŞIMI — her 5 dakikada
+   ══════════════════════════════════════════════════════ */
+cron.schedule('*/5 * * * *', () => {
+  const now = new Date();
+  for (const alert of db.getPendingAlerts()) {
+    const diffMin = (now - new Date(alert.sentAt)) / 1000 / 60;
+    if (diffMin >= 30) {
+      console.log(`[TIMEOUT] userId=${alert.userId} → otomatik yardım çağrısı`);
+      db.updateAlertStatus(alert.userId, alert.eqId, 'timeout');
+      triggerEmergency(alert, 'ZAMAN_ASIMI');
     }
   }
+});
 
-  console.log(`✔️  Tamamlandı. Toplam: ${gecmis.toplam}`);
+/* ══════════════════════════════════════════════════════
+   BİLDİRİM SİLİNİNCE 1 DK SONRA TEKRAR GÖNDER — her 30 sn
+   ══════════════════════════════════════════════════════ */
+cron.schedule('*/30 * * * * *', async () => {
+  const alerts = db.getDismissedPendingForReschedule();
+  for (const alert of alerts) {
+    console.log(`[RESCHEDULE] userId=${alert.userId} eqId=${alert.eqId} (${alert.rescheduleCount}. hatırlatma)`);
+    db.markRescheduled(alert.id);
+    await sendFCM(
+      alert.fcmToken,
+      { action: 'STATUS_CHECK', eqId: alert.eqId, magnitude: String(alert.magnitude) },
+      '⚠️ Deprem — Durum Bildirin',
+      `30 dakika içinde yanıt vermeniz gerekiyor! (${alert.rescheduleCount}. hatırlatma)`
+    );
+  }
+});
+
+function triggerEmergency(alert, reason) {
+  const user = db.getUserById(alert.userId);
+  if (!user) return;
+  console.log(`[ACİL - ${reason}] ${user.name} ${user.surname||''} | Tel: ${user.phone} | Adres: ${user.address} | Konum: ${user.lastLat},${user.lastLng}`);
+  // Buraya AFAD/112 API entegrasyonu eklenebilir
 }
 
-// ─── BAŞLAT ───────────────────────────────────────────────────────────────────
-async function main() {
-  console.log("🤖 Son Dakika Haber Botu başlatılıyor...");
-  const gecmis = gecmisYukle();
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`✅ Deprem API: http://localhost:${PORT}`));
 
-  const PORT = process.env.PORT || 3000;
-  http.createServer((req, res) => res.end("OK")).listen(PORT, () => {
-    console.log(`🌐 HTTP server port ${PORT} dinliyor`);
+/* ══════════════════════════════════════════════════════
+   DISCORD BOT
+   ══════════════════════════════════════════════════════ */
+const GROQ_KEYS = [
+  process.env.groq, process.env.groq1, process.env.groq2,
+  process.env.groq3, process.env.groq4
+].filter(Boolean);
+
+const TOKENS = [
+  { token: process.env.token,  char: 'Edward Elric', act: 'Firuze ile Fmab izliyor' },
+  { token: process.env.token2, char: 'Awe',          act: 'Aweeeeeee! izliyor' }
+].filter(t => t.token);
+
+const MODEL    = 'llama-3.3-70b-versatile';
+const memories = new Map();
+const MAX_MESAJ = 6;
+
+function getMemory(char, userId) {
+  if (!memories.has(char)) memories.set(char, new Map());
+  const m = memories.get(char);
+  if (!m.has(userId)) m.set(userId, []);
+  return m.get(userId);
+}
+
+const guardData      = new Map();
+let activeGuilds     = new Set();
+let whiteListedBots  = new Set();
+const HARIC_ID_LIST  = [];
+
+if (fs.existsSync(filePath))     { try { activeGuilds    = new Set(JSON.parse(fs.readFileSync(filePath, 'utf8'))); }     catch(e) {} }
+if (fs.existsSync(whiteListPath)){ try { whiteListedBots = new Set(JSON.parse(fs.readFileSync(whiteListPath, 'utf8'))); } catch(e) {} }
+
+function saveGuardList() { fs.writeFileSync(filePath, JSON.stringify([...activeGuilds]), 'utf8'); }
+function saveWhiteList() { fs.writeFileSync(whiteListPath, JSON.stringify([...whiteListedBots]), 'utf8'); }
+
+async function webSearch(query) {
+  try {
+    const { data } = await axios.get('https://html.duckduckgo.com/html/', {
+      params: { q: query, kl: 'tr-tr' }, timeout: 10000,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'tr-TR,tr;q=0.9', 'Referer': 'https://duckduckgo.com/' }
+    });
+    const $ = cheerio.load(data);
+    const results = [];
+    $('#links .result').each((i, el) => {
+      if (results.length >= 4) return false;
+      const title   = $(el).find('.result__a').first().text().trim();
+      const snippet = $(el).find('.result__snippet').first().text().trim();
+      if (title && snippet && snippet.length > 15) results.push(`[${results.length+1}] ${title}\n${snippet}`);
+    });
+    if (results.length > 0) return results.join('\n\n');
+    const zc = $('.zci__body, .c-base__title').first().text().trim();
+    return zc.length > 10 ? zc : null;
+  } catch(e) { return null; }
+}
+
+// ── DEĞİŞEN FONKSİYON 1: sadeceSohbet ──
+// Sohbet mi yoksa güncel bilgi mi gerekiyor buna karar verir.
+// Geliştirici/yapımcı soruları, kimlik soruları → sohbet (internet araması yapma)
+// Haber, güncel bilgi, tarih/saat, teknik soru → arama yap
+function sadeceSohbet(s) {
+  s = s.toLowerCase().trim();
+  // Kısa veya basit selamlama/sohbet kalıpları
+  if (s.length < 8) return true;
+  if (/^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s)) return true;
+  // Geliştirici / yapımcı / sahip soruları → sohbet, internet araması yapma
+  if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu)/.test(s)) return true;
+  // Bunların dışındaki her şey için arama yap
+  return false;
+}
+
+// ── DEĞİŞEN FONKSİYON 2: anaIsleyici ──
+// Geliştirici sorularında doğrudan "Batuhan" cevabını verebilmesi için
+// system prompt'a geliştirici bilgisi eklendi.
+async function anaIsleyici(soru, kullaniciId, char) {
+  const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+  const gecmis = getMemory(char, kullaniciId);
+  let aramaEki = '';
+  if (!sadeceSohbet(soru)) { const s = await webSearch(soru); if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`; }
+  const system = `Sen ${char}'sin. Sahibin ve geliştiricin Batuhan'dır. Seni Batuhan geliştirdi ve yarattı. ` +
+    `Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
+    (aramaEki ? ' Web sonuçlarını kullan, yönlendirme yapma.' : ' Kendi bilginle cevap ver.');
+  gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
+  const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
+  const son = cevap || (char === 'Awe' ? 'Enerjim bitti...' : 'Simya enerjim düştü...');
+  gecmis.push({ role: 'assistant', content: son });
+  if (gecmis.length > MAX_MESAJ) gecmis.splice(0, 2);
+  return son;
+}
+
+function groqCall(messages, keyIndex=0, deneme=0) {
+  const apiKey = GROQ_KEYS[keyIndex];
+  if (!apiKey) return Promise.resolve(null);
+  return axios.post('https://api.groq.com/openai/v1/chat/completions',
+    { model: MODEL, messages, temperature: 0.6, max_tokens: 1500 },
+    { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+  ).then(res => res.data.choices[0].message.content.trim())
+  .catch(async e => {
+    const status = e.response?.status;
+    if (status === 429 || status >= 500 || e.message.includes('ECONNRESET') || e.message.includes('timeout')) {
+      const next = (keyIndex+1) % GROQ_KEYS.length;
+      if (next !== keyIndex) { await new Promise(r=>setTimeout(r,1000)); return groqCall(messages,next,deneme); }
+      if (deneme < 3) { await new Promise(r=>setTimeout(r,(deneme+1)*4000)); return groqCall(messages,0,deneme+1); }
+    }
+    return null;
+  });
+}
+
+function checkLimit(guildId, userId, action) {
+  if (!activeGuilds.has(guildId) || HARIC_ID_LIST.includes(userId)) return true;
+  const now = Date.now(), key = `${guildId}-${userId}`;
+  if (!guardData.has(key)) guardData.set(key, { ban: [], channelDelete: [] });
+  const logs = guardData.get(key);
+  logs[action] = logs[action].filter(t => now - t < 12*60*60*1000);
+  if (logs[action].length >= 2) return false;
+  logs[action].push(now); return true;
+}
+
+async function banIhlalci(guild, userId, sebep) {
+  try { await guild.members.ban(userId, { reason: `[Guard] ${sebep}` }); } catch(e) {}
+}
+
+function startBot(config) {
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildModeration, GatewayIntentBits.GuildPresences
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
   });
 
-  cron.schedule(KONTROL_SURESI, () => haberleriKontrolEt(gecmis));
-  setTimeout(() => haberleriKontrolEt(gecmis), 5000);
-  console.log("✅ Bot aktif. Her 8 dakikada bir taranacak.");
+  client.on('messageCreate', async msg => {
+    if (msg.author.bot || !msg.guild) return;
+
+    if (msg.content.toLowerCase() === 'eguard') {
+      if (!msg.member.permissions.has('Administrator')) return msg.reply('Yetkin yok.');
+      activeGuilds.add(msg.guild.id); saveGuardList();
+      return msg.reply('✅ **Guard Aktif!**');
+    }
+
+    if (msg.content.toLowerCase().startsWith('ebeyazliste')) {
+      if (msg.author.id !== msg.guild.ownerId) return msg.reply('Bunu sadece sunucu sahibi yapabilir.');
+      const [, islem, botId] = msg.content.split(' ');
+      if (!botId) return msg.reply('Bot ID belirtmelisin.');
+      if (islem === 'ekle') { whiteListedBots.add(botId); saveWhiteList(); return msg.reply(`✅ \`${botId}\` eklendi.`); }
+      if (islem === 'cikar' || islem === 'çıkar') { whiteListedBots.delete(botId); saveWhiteList(); return msg.reply(`❌ \`${botId}\` çıkarıldı.`); }
+    }
+
+    if (msg.mentions.has(client.user) && !msg.mentions.everyone) {
+      const soru = msg.content.replace(/<@!?\d+>/g, '').trim();
+      if (!soru) return;
+      await msg.channel.sendTyping();
+      msg.reply(await anaIsleyici(soru, msg.author.id, config.char));
+    }
+  });
+
+  client.on('guildMemberAdd', async member => {
+    if (!activeGuilds.has(member.guild.id) || !member.user.bot || whiteListedBots.has(member.id)) return;
+    const audit = await member.guild.fetchAuditLogs({ limit: 1, type: 28 }).catch(() => null);
+    const entry = audit?.entries.first();
+    if (entry && entry.executor.id !== member.guild.ownerId)
+      await member.ban({ reason: '[Guard] İzinsiz Bot.' }).catch(() => {});
+  });
+
+  client.on('guildBanAdd', async ban => {
+    if (!activeGuilds.has(ban.guild.id)) return;
+    const audit = await ban.guild.fetchAuditLogs({ limit: 1, type: 22 }).catch(() => null);
+    const entry = audit?.entries.first();
+    if (!entry || entry.executor.id === client.user.id) return;
+    if (!checkLimit(ban.guild.id, entry.executor.id, 'ban')) {
+      await ban.guild.members.unban(ban.user).catch(() => {});
+      await banIhlalci(ban.guild, entry.executor.id, 'Ban limiti aşıldı.');
+    }
+  });
+
+  client.on('channelDelete', async channel => {
+    if (!activeGuilds.has(channel.guild.id)) return;
+    const audit = await channel.guild.fetchAuditLogs({ limit: 1, type: 12 }).catch(() => null);
+    const entry = audit?.entries.first();
+    if (!entry || entry.executor.id === client.user.id) return;
+    if (!checkLimit(channel.guild.id, entry.executor.id, 'channelDelete')) {
+      await channel.clone().catch(() => {});
+      await banIhlalci(channel.guild, entry.executor.id, 'Kanal silme limiti aşıldı.');
+    }
+  });
+
+  client.once('ready', () => {
+    console.log(`✅ ${config.char} (${client.user.tag}) hazır!`);
+    client.user.setActivity(config.act, { type: ActivityType.Watching });
+  });
+
+  client.login(config.token);
 }
 
-main().catch(err => { console.error("💥 Kritik hata:", err); process.exit(1); });
+TOKENS.forEach(startBot);
