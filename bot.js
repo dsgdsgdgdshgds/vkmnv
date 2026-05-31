@@ -12,8 +12,8 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.MAIL_USER,   // Render env: MAIL_USER
-    pass: process.env.MAIL_PASS    // Render env: MAIL_PASS (Gmail uygulama şifresi)
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS
   }
 });
 
@@ -101,7 +101,6 @@ const db = {
   saveAdminToken(token, username) {
     const data = loadDb();
     if (!data.adminTokens) data.adminTokens = [];
-    // Eski tokenları temizle (8 saat)
     data.adminTokens = data.adminTokens.filter(t => Date.now() < t.exp);
     data.adminTokens.push({ token, username, exp: Date.now() + 8 * 60 * 60 * 1000 });
     saveDb(data);
@@ -166,7 +165,6 @@ const db = {
       saveDb(data);
     }
   },
-  // 1 dk önce silinmiş ve hâlâ pending alertler
   getDismissedPendingForReschedule() {
     const data = loadDb();
     const now = Date.now();
@@ -175,10 +173,10 @@ const db = {
       if (!a.notifDismissedAt) return false;
       if ((a.rescheduleCount || 0) >= 30) return false;
       const dismissed = new Date(a.notifDismissedAt).getTime();
-      if (now - dismissed < 60_000) return false; // henüz 1 dk olmamış
+      if (now - dismissed < 60_000) return false;
       if (a.lastRescheduledAt) {
         const last = new Date(a.lastRescheduledAt).getTime();
-        if (now - last < 60_000) return false; // son gönderimden 1 dk geçmemiş
+        if (now - last < 60_000) return false;
       }
       return true;
     }).map(a => {
@@ -219,7 +217,7 @@ const db = {
    ══════════════════════════════════════════════════════ */
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Admin panel
+app.use(express.static(path.join(__dirname, 'public')));
 
 /* ── Admin Auth Middleware ── */
 function requireAdmin(req, res, next) {
@@ -269,13 +267,10 @@ app.post('/api/verify-code', (req, res) => {
   if (Date.now() > session.expiresAt) return res.status(400).json({ error: 'Kod süresi doldu' });
   if (session.code !== code) return res.status(400).json({ error: 'Yanlış kod' });
   db.deleteEmailCode(email);
-
-  // Eğer name/city geldiyse yeni kayıt, yoksa mevcut kullanıcıyı bul (giriş)
   if (name) {
     const user = db.createUser({ name, surname: surname||'', phone: phone||'', email, address: address||'', city: city||'', createdAt: new Date().toISOString() });
     return res.json({ success: true, userId: user.id });
   } else {
-    // Giriş: mevcut kullanıcıyı e-posta ile bul
     const data = loadDb();
     const existing = data.users.find(u => u.email === email);
     if (!existing) return res.status(400).json({ error: 'Bu e-posta ile kayıtlı kullanıcı bulunamadı' });
@@ -309,7 +304,6 @@ app.post('/api/status', (req, res) => {
   res.json({ success: true });
 });
 
-// Bildirim silindi → 1 dk sonra tekrar gönder
 app.post('/api/notif-dismissed', (req, res) => {
   const { userId, eqId } = req.body;
   if (!userId || !eqId) return res.status(400).json({ error: 'Eksik alan' });
@@ -355,7 +349,6 @@ app.post('/api/admin/create-admin', requireAdmin, (req, res) => {
   }
 });
 
-// Admin panel SPA
 app.get('/admin*', (req, res) => {
   const adminHtml = path.join(__dirname, 'public', 'admin.html');
   if (fs.existsSync(adminHtml)) res.sendFile(adminHtml);
@@ -428,7 +421,6 @@ function triggerEmergency(alert, reason) {
   const user = db.getUserById(alert.userId);
   if (!user) return;
   console.log(`[ACİL - ${reason}] ${user.name} ${user.surname||''} | Tel: ${user.phone} | Adres: ${user.address} | Konum: ${user.lastLat},${user.lastLng}`);
-  // Buraya AFAD/112 API entegrasyonu eklenebilir
 }
 
 const PORT = process.env.PORT || 10000;
@@ -489,32 +481,32 @@ async function webSearch(query) {
   } catch(e) { return null; }
 }
 
-// ── DEĞİŞEN FONKSİYON 1: sadeceSohbet ──
-// Sohbet mi yoksa güncel bilgi mi gerekiyor buna karar verir.
-// Geliştirici/yapımcı soruları, kimlik soruları → sohbet (internet araması yapma)
-// Haber, güncel bilgi, tarih/saat, teknik soru → arama yap
 function sadeceSohbet(s) {
   s = s.toLowerCase().trim();
-  // Kısa veya basit selamlama/sohbet kalıpları
   if (s.length < 8) return true;
   if (/^(merhaba|selam|naber|nasılsın|iyi misin|ne yapıyorsun|kimsin|adın ne|teşekkür|sağol|tamam|harika|süper|anladım|evet|hayır|ok\b)/.test(s)) return true;
-  // Geliştirici / yapımcı / sahip soruları → sohbet, internet araması yapma
   if (/(geliştirici|yapımcı|kurucu|kim yaptı|kim geliştirdi|sahibin kim|seni kim yaptı|seni kim geliştirdi|seni kim kurdu|yaratıcın kim|yaratıcı|kim kurdu)/.test(s)) return true;
-  // Bunların dışındaki her şey için arama yap
   return false;
 }
 
-// ── DEĞİŞEN FONKSİYON 2: anaIsleyici ──
-// Geliştirici sorularında doğrudan "Batuhan" cevabını verebilmesi için
-// system prompt'a geliştirici bilgisi eklendi.
+// ── DÜZELTİLDİ: Awe için web araması kapatıldı ──
 async function anaIsleyici(soru, kullaniciId, char) {
   const suAn   = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
   const gecmis = getMemory(char, kullaniciId);
   let aramaEki = '';
-  if (!sadeceSohbet(soru)) { const s = await webSearch(soru); if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`; }
+
+  // Awe sohbet karakteri — web araması yapma, sadece kendi bilgisiyle cevap ver
+  const aramaYap = char !== 'Awe' && !sadeceSohbet(soru);
+
+  if (aramaYap) {
+    const s = await webSearch(soru);
+    if (s) aramaEki = `\n\n[WEB - ${suAn}]\n${s}\n[/WEB]`;
+  }
+
   const system = `Sen ${char}'sin. Sahibin ve geliştiricin Batuhan'dır. Seni Batuhan geliştirdi ve yarattı. ` +
     `Tarih: ${suAn}. Türkçe, kısa cevap ver.` +
     (aramaEki ? ' Web sonuçlarını kullan, yönlendirme yapma.' : ' Kendi bilginle cevap ver.');
+
   gecmis.push({ role: 'user', content: aramaEki ? `${soru}${aramaEki}` : soru });
   const cevap = await groqCall([{ role: 'system', content: system }, ...gecmis]);
   const son = cevap || (char === 'Awe' ? 'Enerjim bitti...' : 'Simya enerjim düştü...');
