@@ -42,7 +42,7 @@ function createBot() {
         console.log('[→] Login sırası başlatılıyor...');
 
         try {
-            await sleep(12000);
+            await sleep(30000);
             bot.chat(`/login ${process.env.SIFRE}`);
             console.log('[→] /login gönderildi');
 
