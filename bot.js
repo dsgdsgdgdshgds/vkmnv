@@ -46,15 +46,15 @@ function createBot() {
             bot.chat(`/login ${process.env.SIFRE}`);
             console.log('[→] /login gönderildi');
 
-            await sleep(12000);
+            await sleep(20000);
             bot.chat('/skyblock');
             console.log('[→] /skyblock gönderildi');
 
-            await sleep(12000);
+            await sleep(20000);
             bot.chat('/warp Yoncatarla');
             console.log('[→] /warp Yoncatarla gönderildi');
 
-            await sleep(18000);
+            await sleep(20000);
 
             console.log('[!] Sistemler aktif ediliyor...');
             systemsStarted = true;
