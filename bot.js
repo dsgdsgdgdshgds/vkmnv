@@ -48,17 +48,25 @@ function createBot() {
     // böylece "dur → hemen tekrar tehlikeye doğru hedef al" çakışması engellenir.
     let dangerAhead = false;
 
-    // entityId -> { time, entity } : son zamanlarda bir oyuncuya vurduğu tespit edilen moblar
+    // Can eşikleri (sarılma/çoklu mob durumlarında daha güvenli olmak için biraz yükseltildi)
+    const HEALTH_RETREAT = 3;   // bu canın altına düşünce acil çekil
+    const HEALTH_RESUME = 16;   // bu cana ulaşınca tekrar dövüşe dön
+
+    // entityId -> { time, entity } : son zamanlarda bir oyuncuya/bota vurduğu tespit edilen moblar
     const recentAttackers = new Map();
+
+    // entityId -> { lastPos, lastTime, lastSeen, aggressive } :
+    // bir mobun türüne bakmadan, hareketinden "gerçekten saldırgan mı" anlamak için takip
+    const mobMovementTrack = new Map();
 
     async function performLoginSequence() {
         if (systemsStarted) return;
         console.log('[→] Login başlatılıyor...');
         try {
             await sleep(30000);
-            bot.chat(`/login Batuhan78`);
+            bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(30000);
-            bot.chat('/login Batuhan78');
+            bot.chat('/skyblock');
             await sleep(30000);
             systemsStarted = true;
             startSystems();
@@ -94,8 +102,10 @@ function createBot() {
         bot.pathfinder.setMovements(movements);
         console.log('[✓] Savaş sistemi başlatıldı.');
 
-        // Kılıcı koy eline
+        // Kılıcı koy eline, kalkan ve zırhı tak
         equipSword();
+        equipShieldIfAvailable();
+        equipArmorIfAvailable();
 
         // Ana döngüler
         combatLoop();
@@ -118,6 +128,40 @@ function createBot() {
         }
     }
 
+    function equipShieldIfAvailable() {
+        const shield = bot.inventory.items().find(i => i.name === 'shield');
+        if (shield) {
+            bot.equip(shield, 'off-hand').catch(() => {});
+        }
+    }
+
+    // Zırh giyme — materyal önceliğine göre (netherite > diamond > iron > ...).
+    // Liste yok: item adının sonundaki "_helmet/_chestplate/_leggings/_boots"
+    // ekine göre slotu otomatik tespit eder.
+    const ARMOR_SLOTS = {
+        helmet: 'head',
+        chestplate: 'torso',
+        leggings: 'legs',
+        boots: 'feet'
+    };
+
+    function equipArmorIfAvailable() {
+        for (const [piece, slot] of Object.entries(ARMOR_SLOTS)) {
+            const candidates = bot.inventory.items()
+                .filter(i => i.name.endsWith(piece))
+                .sort((a, b) => swordPriority(b.name) - swordPriority(a.name));
+            if (candidates.length === 0) continue;
+
+            const equipped = bot.inventory.slots[bot.getEquipmentDestSlot(slot)];
+            const best = candidates[0];
+            // Üstündeki zaten aynı veya daha iyi materyaldeyse tekrar giymeye çalışma
+            if (equipped && equipped.name.endsWith(piece) && swordPriority(equipped.name) >= swordPriority(best.name)) {
+                continue;
+            }
+            bot.equip(best, slot).catch(() => {});
+        }
+    }
+
     function swordPriority(name) {
         if (name.includes('netherite')) return 5;
         if (name.includes('diamond'))   return 4;
@@ -131,6 +175,69 @@ function createBot() {
     // oyunun kendi verisine (mcData kategorisi) dayanıyor.
     function isHostile(entity) {
         return entity?.kind === 'Hostile mobs';
+    }
+
+    // Bir mobun şu an bota/oyuncuya yaklaşıp yaklaşmadığını (yani gerçekten
+    // saldırgan davranıp davranmadığını) tür adına bakmadan, hareketinden anlar.
+    // Piglin gibi normalde nötr olan moblar sakin durdukça/uzaklaştıkça hedefe alınmaz;
+    // yaklaşmaya başlarsa veya zaten yakına gelmişse otomatik tehdit sayılır.
+    function getNearestThreatTarget(fromPos) {
+        let nearest = null, minDist = Infinity;
+        const candidates = [bot.entity, ...Object.values(bot.players).map(p => p.entity).filter(Boolean)];
+        for (const c of candidates) {
+            if (!c?.position) continue;
+            const d = fromPos.distanceTo(c.position);
+            if (d < minDist) { minDist = d; nearest = c; }
+        }
+        return nearest;
+    }
+
+    function updateAggressionTracking() {
+        const now = Date.now();
+        for (const entity of Object.values(bot.entities)) {
+            if (!isHostile(entity) || !entity.position) continue;
+            let track = mobMovementTrack.get(entity.id);
+            if (!track) {
+                track = { lastPos: entity.position.clone(), lastTime: now, lastSeen: now, aggressive: false };
+                mobMovementTrack.set(entity.id, track);
+                continue;
+            }
+            track.lastSeen = now;
+            if (now - track.lastTime > 400) {
+                const ref = getNearestThreatTarget(entity.position);
+                if (ref?.position) {
+                    const distBefore = track.lastPos.distanceTo(ref.position);
+                    const distNow = entity.position.distanceTo(ref.position);
+                    if (distNow < distBefore - 0.05 && distNow < 12) {
+                        track.aggressive = true; // bize doğru yaklaşıyor → gerçek tehdit
+                    } else if (distNow > distBefore + 0.3) {
+                        track.aggressive = false; // uzaklaşıyor → tehdit değil
+                    }
+                }
+                track.lastPos = entity.position.clone();
+                track.lastTime = now;
+            }
+        }
+        // Artık görünmeyen mobların kaydını temizle
+        for (const [id, data] of mobMovementTrack) {
+            if (now - data.lastSeen > 5000) mobMovementTrack.delete(id);
+        }
+    }
+
+    function isActivelyAggressive(entity) {
+        return !!mobMovementTrack.get(entity.id)?.aggressive;
+    }
+
+    // Yakındaki "gerçek" tehdit sayısı (saldırgan olarak hareket eden ya da
+    // zaten temas mesafesinde olan moblar) — sarılma durumunu tespit etmek için.
+    function countActiveThreatsNear(radius) {
+        let count = 0;
+        for (const entity of Object.values(bot.entities)) {
+            if (!isHostile(entity) || !entity.position) continue;
+            const dist = bot.entity.position.distanceTo(entity.position);
+            if (dist <= radius && (isActivelyAggressive(entity) || dist <= 3.5)) count++;
+        }
+        return count;
     }
 
     function entityHealth(entity) {
@@ -198,8 +305,11 @@ function createBot() {
         return nearest;
     }
 
-    // En yakın düşman mob — önce "az önce bir oyuncuya vurmuş" moblara öncelik verir,
-    // bulamazsa botun kendi etrafındaki en yakın düşmana bakar.
+    // En yakın düşman mob — önce "az önce birine vurmuş" moblara öncelik verir.
+    // Bulamazsa, sadece GERÇEKTEN saldırgan davranan (yaklaşan) veya zaten temas
+    // mesafesinde olan mobları tehdit sayar (piglin gibi nötr moblara öylece
+    // saldırmaz). Birden fazla tehdit varsa en az canlı olanı önce seçer ki
+    // hızlıca temizlenip çoklu mob baskısı azalsın.
     function getNearestHostile(maxDist = 20) {
         const now = Date.now();
         let bestAttacker = null;
@@ -224,7 +334,21 @@ function createBot() {
 
         if (bestAttacker) return bestAttacker;
 
-        return getHostileNear(bot.entity.position, maxDist);
+        const activeThreats = [];
+        for (const entity of Object.values(bot.entities)) {
+            if (!isHostile(entity) || !entity.position) continue;
+            const dist = bot.entity.position.distanceTo(entity.position);
+            if (dist > maxDist) continue;
+            if (isActivelyAggressive(entity) || dist <= 3.5) {
+                activeThreats.push(entity);
+            }
+        }
+
+        if (activeThreats.length === 0) return null;
+        if (activeThreats.length > 1) {
+            activeThreats.sort((a, b) => entityHealth(a) - entityHealth(b));
+        }
+        return activeThreats[0];
     }
 
     // En yakın oyuncu (kendisi hariç)
@@ -243,16 +367,18 @@ function createBot() {
         return nearest;
     }
 
-    // Bir oyuncu hasar aldığında: yakınındaki düşman mobu tespit edip
+    // Bir oyuncu YA DA bot hasar aldığında: yakınındaki düşman mobu tespit edip
     // "saldırgan" olarak işaretle, böylece bot ona öncelik verip saldırsın.
+    // (Önceden bot kendi hasarını atlıyordu, bu yüzden bota vuran mob bazen
+    // hemen hedefe alınmıyordu — düzeltildi.)
     bot.on('entityHurt', (entity) => {
-        if (!entity || entity === bot.entity) return;
-        if (entity.type !== 'player') return;
+        if (!entity || entity.type !== 'player') return;
 
         const attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
         if (attacker) {
             recentAttackers.set(attacker.id, { time: Date.now(), entity: attacker });
-            console.log(`[👁] ${attacker.name} bir oyuncuya vurmuş olabilir → hedefe alındı.`);
+            const who = entity === bot.entity ? 'bota' : 'bir oyuncuya';
+            console.log(`[👁] ${attacker.name} ${who} vurmuş olabilir → hedefe alındı.`);
         }
     });
 
@@ -263,8 +389,10 @@ function createBot() {
         while (true) {
             await sleep(100);
 
+            updateAggressionTracking();
+
             // Can düşükse çekil
-            if (botHealth() < 6) {
+            if (botHealth() < HEALTH_RETREAT) {
                 if (!isRetreating) {
                     console.log('[⚠] Can kritik! Çekiliyorum...');
                     isRetreating = true;
@@ -276,7 +404,20 @@ function createBot() {
                 continue;
             }
 
-            if (botHealth() > 14) isRetreating = false;
+            // Sarılma koruması: 3+ gerçek tehdit yakındaysa ve can güvenli aralıkta değilse
+            // önce kısa bir çekiliş yap, hepsiyle aynı anda dövüşüp ölmesin.
+            const threatCount = countActiveThreatsNear(5);
+            if (threatCount >= 3 && botHealth() < HEALTH_RESUME && !isRetreating) {
+                console.log(`[⚠] ${threatCount} mob tarafından sarıldım! Kısa çekiliş...`);
+                isRetreating = true;
+                isAttacking = false;
+                currentTarget = null;
+                try { bot.pathfinder.setGoal(null); } catch {}
+                await retreat();
+                continue;
+            }
+
+            if (botHealth() > HEALTH_RESUME) isRetreating = false;
             if (isRetreating) continue;
 
             // Kılıç elde mi?
@@ -285,7 +426,7 @@ function createBot() {
                 equipSword();
             }
 
-            // Hedef belirle: önce oyuncuya vuran mob, yoksa botun yakınındaki herhangi bir düşman mob
+            // Hedef belirle: önce birine vuran mob, yoksa gerçekten saldırgan/temas mesafesindeki mob
             const hostile = getNearestHostile(18);
 
             if (hostile) {
@@ -333,7 +474,8 @@ function createBot() {
             return;
         }
 
-        // Yakın mesafede: yüz çevir + vur
+        // Yakın mesafede: kalkanı indir, yüz çevir + vur
+        try { bot.deactivateItem(); } catch {}
         try {
             await bot.lookAt(pos.offset(0, entity.height * 0.9, 0), true);
         } catch {}
@@ -352,6 +494,28 @@ function createBot() {
             lastAttackTime = Date.now();
             console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
         } catch {}
+
+        // Birden fazla tehdit varsa, vuruşlar arasındaki boşlukta kalkanı kaldır (ekstra koruma)
+        const threatCount = countActiveThreatsNear(6);
+        if (threatCount >= 2) {
+            try { bot.activateItem(true); } catch {}
+
+            // KITING: 2+ mob aynı anda üstümüzdeyse, vurduktan sonra hedeften
+            // geriye doğru kısa bir adım at. Böylece moblar arkamızdan tek
+            // sıra halinde gelir, aynı anda hepsi vuramaz.
+            // Önce arkada güvenli mi (uçurum/lav yok mu) diye bak — değilse geri çekilme,
+            // sadece kalkanla savun.
+            const behind = getAheadPosition(-1.5);
+            const behindSafe = getDropDepthAt(behind) <= MAX_SAFE_DROP && !hasHazardAt(behind);
+
+            if (behindSafe) {
+                try { bot.pathfinder.setGoal(null); } catch {}
+                bot.setControlState('sprint', false);
+                bot.setControlState('back', true);
+                await sleep(220);
+                bot.setControlState('back', false);
+            }
+        }
 
         // W-tap (sprint reset): vur → dur → sprint → yaklaş
         bot.setControlState('sprint', false);
@@ -572,8 +736,12 @@ function createBot() {
         }
     }
 
-    // Envanter değişince kılıç kontrol
-    bot.on('playerCollect', () => equipSword());
+    // Envanter değişince kılıç/kalkan/zırh kontrol
+    bot.on('playerCollect', () => {
+        equipSword();
+        equipShieldIfAvailable();
+        equipArmorIfAvailable();
+    });
 
     bot.on('end', reason => {
         console.log(`[!] Bağlantı kesildi: ${reason}`);
