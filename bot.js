@@ -54,7 +54,7 @@ function createBot() {
             await sleep(30000);
             bot.chat(`/login Batuhan78`);
             await sleep(30000);
-            bot.chat('/skyblock');
+            bot.chat('/login Batuhan78');
             await sleep(30000);
             systemsStarted = true;
             startSystems();
