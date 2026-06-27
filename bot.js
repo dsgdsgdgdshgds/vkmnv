@@ -16,6 +16,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ATTACKER_TTL = 6000;          // bir mob "oyuncuya vurdu" olarak kaç ms hatırlanır
 const ATTACKER_DETECT_RADIUS = 6;   // vurulan oyuncunun etrafında mob aranacak yarıçap
 
+const ATTACK_RANGE = 3.0;     // bu mesafeye girince vur
+const SAFE_RANGE = 3.4;       // mobun bize vuramayacağı mesafe (cooldown beklerken buraya çekil)
+const APPROACH_RANGE = 5.0;   // bu mesafenin üstünde pathfinder ile hızlı yaklaş
+const ATTACK_COOLDOWN = 580;  // ms — 1.21 sweep cooldown
+
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
 
@@ -46,9 +51,9 @@ function createBot() {
         console.log('[→] Login başlatılıyor...');
         try {
             await sleep(30000);
-            bot.chat(`/login Batuhan78`);
+            bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(30000);
-            bot.chat('Merhaba Emir');
+            bot.chat('/skyblock');
             await sleep(30000);
             systemsStarted = true;
             startSystems();
@@ -214,7 +219,7 @@ function createBot() {
     // ─────────────────────────────────────────
     async function combatLoop() {
         while (true) {
-            await sleep(100);
+            await sleep(50);
 
             // Can düşükse çekil
             if (botHealth() < 6) {
@@ -248,6 +253,8 @@ function createBot() {
             } else {
                 isAttacking = false;
                 currentTarget = null;
+                bot.setControlState('forward', false);
+                bot.setControlState('back', false);
             }
         }
     }
@@ -258,59 +265,75 @@ function createBot() {
     async function fightEntity(entity) {
         if (!entity || !entity.isValid) return;
 
-        const pos = entity.position;
         const myPos = bot.entity.position;
+        const pos = entity.position;
         const dist = myPos.distanceTo(pos);
 
         // Güvenli zemin kontrolü
         if (!isSafeGround(myPos)) {
             console.log('[⚠] Tehlikeli zemin! Geri çekiliyorum.');
+            bot.setControlState('forward', false);
+            bot.setControlState('back', false);
             await retreat();
             return;
         }
 
-        // 3.5 bloktan uzaksa yaklaş
-        if (dist > 3.5) {
+        // Uzaktaysa pathfinder ile hızlı yaklaş, mikro-kontrolü devre dışı bırak
+        if (dist > APPROACH_RANGE) {
+            bot.setControlState('forward', false);
+            bot.setControlState('back', false);
             try {
-                bot.pathfinder.setGoal(
-                    new goals.GoalFollow(entity, 2),
-                    true // dinamik — sürekli güncelle
-                );
+                bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
             } catch {}
-            await sleep(300);
             return;
         }
 
-        // Yakın mesafede: yüz çevir + vur
+        // Yakın mesafe: pathfinder kapalı, anlık manuel kontrol devrede (daha hızlı tepki)
+        try { bot.pathfinder.setGoal(null); } catch {}
+
         try {
-            await bot.lookAt(pos.offset(0, entity.height * 0.9, 0), true);
+            await bot.lookAt(pos.offset(0, entity.height * 0.85, 0), true);
         } catch {}
 
-        // Sweep attack cooldown: 1.21'de tam cooldown ~600ms
         const now = Date.now();
-        const cooldown = 580;
-        if (now - lastAttackTime < cooldown) {
-            await sleep(cooldown - (now - lastAttackTime));
+        const readyToAttack = (now - lastAttackTime) >= ATTACK_COOLDOWN;
+
+        if (dist <= ATTACK_RANGE) {
+            if (readyToAttack) {
+                // Menzile girdiği/girer girmez hemen vur
+                bot.setControlState('forward', false);
+                try {
+                    await bot.attack(entity);
+                    lastAttackTime = Date.now();
+                    console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
+                } catch {}
+
+                // Vurduktan hemen sonra geri adım at — mob karşılık veremeden mesafe aç
+                bot.setControlState('back', true);
+                await sleep(180);
+                bot.setControlState('back', false);
+            } else if (dist < SAFE_RANGE) {
+                // Cooldown henüz bitmedi: mobun vuruş menzilinden çık, kendine vurdurma
+                bot.setControlState('forward', false);
+                bot.setControlState('back', true);
+            } else {
+                // Güvenli mesafedeyiz, bekle
+                bot.setControlState('back', false);
+            }
+        } else {
+            // Menzile gir
+            bot.setControlState('back', false);
+            bot.setControlState('forward', true);
+            bot.setControlState('sprint', true);
         }
-
-        if (!entity.isValid) return;
-
-        try {
-            await bot.attack(entity);
-            lastAttackTime = Date.now();
-            console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
-        } catch {}
-
-        // W-tap (sprint reset): vur → dur → sprint → yaklaş
-        bot.setControlState('sprint', false);
-        await sleep(60);
-        bot.setControlState('sprint', true);
 
         // Öldü mü?
         if (!entity.isValid || entityHealth(entity) <= 0) {
             console.log(`[✓] ${entity.name} öldürüldü!`);
             recentAttackers.delete(entity.id);
             currentTarget = null;
+            bot.setControlState('forward', false);
+            bot.setControlState('back', false);
             try { bot.pathfinder.setGoal(null); } catch {}
         }
     }
