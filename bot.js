@@ -21,9 +21,9 @@ function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
 
     const bot = mineflayer.createBot({
-        host: 'play.reborncraft.pw',
+        host: '78.167.243.121:25565',
         port: 25565,
-        username: 'Hateke',
+        username: 'Awe',
         version: '1.21'
     });
 
@@ -43,11 +43,11 @@ function createBot() {
 
         try {
             await sleep(30000);
-            bot.chat(`/login ${process.env.SIFRE}`);
+            bot.chat(`/register Batuhan7878 Batuhan7878`);
             console.log('[→] /login gönderildi');
 
             await sleep(30000);
-            bot.chat('/skyblock');
+            bot.chat('/login Batuhan7878');
             console.log('[→] /skyblock gönderildi');
 
             await sleep(30000);
