@@ -140,6 +140,16 @@ function createBot() {
         return true;
     }
 
+    // Belirtilen yönde (1 = ileri, -1 = geri) bir adım atmak güvenli mi?
+    // Uçurum/kenar varsa false döner — bu yöne sneaksiz koşmak düşmeye sebep olur.
+    function groundAheadSafe(direction) {
+        const yaw = bot.entity.yaw;
+        const dx = -Math.sin(yaw) * direction;
+        const dz = -Math.cos(yaw) * direction;
+        const checkPos = bot.entity.position.offset(dx, 0, dz);
+        return isSafeGround(checkPos);
+    }
+
     // Belirli bir noktanın etrafındaki en yakın düşman mob
     function getHostileNear(position, maxDist) {
         let nearest = null;
@@ -228,6 +238,9 @@ function createBot() {
                     isRetreating = true;
                     isAttacking = false;
                     currentTarget = null;
+                    bot.setControlState('forward', false);
+                    bot.setControlState('back', false);
+                    bot.setControlState('sneak', false);
                     try { bot.pathfinder.setGoal(null); } catch {}
                     await retreat();
                 }
@@ -255,6 +268,7 @@ function createBot() {
                 currentTarget = null;
                 bot.setControlState('forward', false);
                 bot.setControlState('back', false);
+                bot.setControlState('sneak', false);
             }
         }
     }
@@ -274,14 +288,16 @@ function createBot() {
             console.log('[⚠] Tehlikeli zemin! Geri çekiliyorum.');
             bot.setControlState('forward', false);
             bot.setControlState('back', false);
+            bot.setControlState('sneak', false);
             await retreat();
             return;
         }
 
-        // Uzaktaysa pathfinder ile hızlı yaklaş, mikro-kontrolü devre dışı bırak
+        // Uzaktaysa pathfinder ile hızlı yaklaş (parkur açık), mikro-kontrolü devre dışı bırak
         if (dist > APPROACH_RANGE) {
             bot.setControlState('forward', false);
             bot.setControlState('back', false);
+            bot.setControlState('sneak', false);
             try {
                 bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
             } catch {}
@@ -298,33 +314,52 @@ function createBot() {
         const now = Date.now();
         const readyToAttack = (now - lastAttackTime) >= ATTACK_COOLDOWN;
 
+        // Geri/ileri adım atmak güvenli mi? (uçurum kenarı varsa false)
+        const backSafe = groundAheadSafe(-1);
+        const forwardSafe = groundAheadSafe(1);
+
         if (dist <= ATTACK_RANGE) {
             if (readyToAttack) {
                 // Menzile girdiği/girer girmez hemen vur
                 bot.setControlState('forward', false);
+                bot.setControlState('sneak', false);
                 try {
                     await bot.attack(entity);
                     lastAttackTime = Date.now();
                     console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
                 } catch {}
 
-                // Vurduktan hemen sonra geri adım at — mob karşılık veremeden mesafe aç
+                // Vurduktan hemen sonra geri adım at — kenar varsa sneak ile düşmeden çekil
+                bot.setControlState('sneak', !backSafe);
                 bot.setControlState('back', true);
                 await sleep(180);
                 bot.setControlState('back', false);
+                bot.setControlState('sneak', false);
             } else if (dist < SAFE_RANGE) {
                 // Cooldown henüz bitmedi: mobun vuruş menzilinden çık, kendine vurdurma
                 bot.setControlState('forward', false);
+                bot.setControlState('sneak', !backSafe);
                 bot.setControlState('back', true);
             } else {
                 // Güvenli mesafedeyiz, bekle
                 bot.setControlState('back', false);
+                bot.setControlState('sneak', false);
             }
         } else {
             // Menzile gir
             bot.setControlState('back', false);
-            bot.setControlState('forward', true);
-            bot.setControlState('sprint', true);
+            if (forwardSafe) {
+                bot.setControlState('sneak', false);
+                bot.setControlState('forward', true);
+                bot.setControlState('sprint', true);
+            } else {
+                // İlerisi boşluk — körlemesine atlama, pathfinder'a (parkur dahil) bırak
+                bot.setControlState('forward', false);
+                bot.setControlState('sprint', false);
+                try {
+                    bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
+                } catch {}
+            }
         }
 
         // Öldü mü?
@@ -334,6 +369,7 @@ function createBot() {
             currentTarget = null;
             bot.setControlState('forward', false);
             bot.setControlState('back', false);
+            bot.setControlState('sneak', false);
             try { bot.pathfinder.setGoal(null); } catch {}
         }
     }
