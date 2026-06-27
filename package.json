@@ -17,7 +17,7 @@
     "rss-parser": "^3.13.0",
     "node-telegram-bot-api": "^0.66.0",
     "node-cron": "^3.0.3",
-    "mineflayer": "^2.1",
+    "mineflayer": "^^4.23.0",
     "mineflayer-pathfinder": "^2.4.5"
   },
     "engines": {
