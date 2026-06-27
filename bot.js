@@ -21,7 +21,7 @@ function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
 
     const bot = mineflayer.createBot({
-        host: '78.167.243.121:25565',
+        host: '78.167.243.121',
         port: 25565,
         username: 'Awe'
     });
