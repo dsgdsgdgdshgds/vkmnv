@@ -23,8 +23,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: '78.167.243.121:25565',
         port: 25565,
-        username: 'Awe',
-        version: '1.21.4'
+        username: 'Awe'
     });
 
     bot.loadPlugin(pathfinder);
@@ -43,11 +42,11 @@ function createBot() {
 
         try {
             await sleep(30000);
-            bot.chat(`/register Batuhan7878 Batuhan7878`);
+            bot.chat(`/register Batuhan78 Batuhan78`);
             console.log('[→] /login gönderildi');
 
             await sleep(30000);
-            bot.chat('/login Batuhan7878');
+            bot.chat('/login Batuhan78');
             console.log('[→] /skyblock gönderildi');
 
             await sleep(30000);
