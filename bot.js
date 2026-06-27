@@ -27,7 +27,7 @@ function createBot() {
     const bot = mineflayer.createBot({
         host: '78.167.243.121',
         port: 25565,
-        username: 'Awe',
+        username: 'Hateke',
         version: '1.21'
     });
 
@@ -42,6 +42,7 @@ function createBot() {
     let isRetreating = false;
     let lastAttackTime = 0;
     let followingPlayer = null;
+    let manualControlActive = false; // yakın mesafe mikro-kontrol mü, yoksa pathfinder mi sürüyor
 
     // entityId -> { time, entity } : son zamanlarda bir oyuncuya vurduğu tespit edilen moblar
     const recentAttackers = new Map();
@@ -51,9 +52,9 @@ function createBot() {
         console.log('[→] Login başlatılıyor...');
         try {
             await sleep(30000);
-            bot.chat(`/register Batuhan78 Batuhan78`);
+            bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(30000);
-            bot.chat('/login Batuha78');
+            bot.chat('/skyblock');
             await sleep(30000);
             systemsStarted = true;
             startSystems();
@@ -228,6 +229,8 @@ function createBot() {
     //   SAVAŞ DÖNGÜSÜ
     // ─────────────────────────────────────────
     async function combatLoop() {
+        let wasFighting = false; // dövüşten çıkışta bir kerelik temizlik için
+
         while (true) {
             await sleep(50);
 
@@ -238,6 +241,8 @@ function createBot() {
                     isRetreating = true;
                     isAttacking = false;
                     currentTarget = null;
+                    wasFighting = false;
+                    manualControlActive = false;
                     bot.setControlState('forward', false);
                     bot.setControlState('back', false);
                     bot.setControlState('sneak', false);
@@ -262,13 +267,20 @@ function createBot() {
             if (hostile) {
                 currentTarget = hostile;
                 isAttacking = true;
+                wasFighting = true;
                 await fightEntity(hostile);
             } else {
                 isAttacking = false;
                 currentTarget = null;
-                bot.setControlState('forward', false);
-                bot.setControlState('back', false);
-                bot.setControlState('sneak', false);
+                // Sadece dövüşten ÇIKARKEN bir kez temizle — her turda yaparsak
+                // pathfinder'ın takip için verdiği forward komutunu eziyor ve bot yerinde sayıyor.
+                if (wasFighting) {
+                    bot.setControlState('forward', false);
+                    bot.setControlState('back', false);
+                    bot.setControlState('sneak', false);
+                    wasFighting = false;
+                    manualControlActive = false;
+                }
             }
         }
     }
@@ -289,15 +301,19 @@ function createBot() {
             bot.setControlState('forward', false);
             bot.setControlState('back', false);
             bot.setControlState('sneak', false);
+            manualControlActive = false;
             await retreat();
             return;
         }
 
         // Uzaktaysa pathfinder ile hızlı yaklaş (parkur açık), mikro-kontrolü devre dışı bırak
         if (dist > APPROACH_RANGE) {
-            bot.setControlState('forward', false);
-            bot.setControlState('back', false);
-            bot.setControlState('sneak', false);
+            if (manualControlActive) {
+                bot.setControlState('forward', false);
+                bot.setControlState('back', false);
+                bot.setControlState('sneak', false);
+                manualControlActive = false;
+            }
             try {
                 bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
             } catch {}
@@ -306,6 +322,7 @@ function createBot() {
 
         // Yakın mesafe: pathfinder kapalı, anlık manuel kontrol devrede (daha hızlı tepki)
         try { bot.pathfinder.setGoal(null); } catch {}
+        manualControlActive = true;
 
         try {
             await bot.lookAt(pos.offset(0, entity.height * 0.85, 0), true);
@@ -370,6 +387,7 @@ function createBot() {
             bot.setControlState('forward', false);
             bot.setControlState('back', false);
             bot.setControlState('sneak', false);
+            manualControlActive = false;
             try { bot.pathfinder.setGoal(null); } catch {}
         }
     }
