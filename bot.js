@@ -21,13 +21,16 @@ const MAX_SAFE_DROP = 3;            // bu kadar bloktan fazla boşluk varsa iler
 // Yeni bir tehlikeli blok eklenmek istenirse buraya pattern eklemek yeterli.
 const HAZARD_REGEX = /lava|fire|magma_block|soul_campfire|campfire/i;
 
+// Ghast ve blaze'in attığı ateş topları — bunlar entity olarak uçar, mob değil.
+const PROJECTILE_REGEX = /fireball/i;
+
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
 
     const bot = mineflayer.createBot({
         host: '78.167.243.121',
         port: 25565,
-        username: 'Awe',
+        username: 'Hateke',
         version: '1.21'
     });
 
@@ -49,7 +52,7 @@ function createBot() {
     let dangerAhead = false;
 
     // Can eşikleri (sarılma/çoklu mob durumlarında daha güvenli olmak için biraz yükseltildi)
-    const HEALTH_RETREAT = 3;   // bu canın altına düşünce acil çekil
+    const HEALTH_RETREAT = 8;   // bu canın altına düşünce acil çekil
     const HEALTH_RESUME = 16;   // bu cana ulaşınca tekrar dövüşe dön
 
     // entityId -> { time, entity } : son zamanlarda bir oyuncuya/bota vurduğu tespit edilen moblar
@@ -113,6 +116,7 @@ function createBot() {
         safetyLoop();
         fallGuardLoop();
         eatLoop();
+        projectileDefenseLoop();
     }
 
     // ─────────────────────────────────────────
@@ -374,7 +378,13 @@ function createBot() {
     bot.on('entityHurt', (entity) => {
         if (!entity || entity.type !== 'player') return;
 
-        const attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
+        let attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
+        if (!attacker) {
+            // Yakında mob yoksa menzilli bir saldırı olabilir (ghast ateş topu,
+            // iskelet oku vb.) — daha geniş yarıçapta tekrar ara.
+            attacker = getHostileNear(entity.position, 24);
+        }
+
         if (attacker) {
             recentAttackers.set(attacker.id, { time: Date.now(), entity: attacker });
             const who = entity === bot.entity ? 'bota' : 'bir oyuncuya';
@@ -692,6 +702,50 @@ function createBot() {
                 // Diğer döngülerin hemen aynı yöne tekrar hedef vermesini engellemek için kısa bekleme
                 await sleep(300);
                 dangerAhead = false;
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //   ATEŞ TOPU SAVUNMASI (Ghast / Blaze)
+    //   Yakınsa kılıçla vurup geri yansıtır, uzaksa yana kaçar.
+    // ─────────────────────────────────────────
+    async function projectileDefenseLoop() {
+        while (true) {
+            await sleep(80);
+
+            let nearest = null;
+            let minDist = 16;
+            for (const entity of Object.values(bot.entities)) {
+                if (!entity?.name || !PROJECTILE_REGEX.test(entity.name) || !entity.position) continue;
+                const dist = bot.entity.position.distanceTo(entity.position);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = entity;
+                }
+            }
+            if (!nearest) continue;
+
+            // Bize doğru geliyor mu? (hız vektörü ile bota olan yön örtüşüyor mu)
+            const toBot = bot.entity.position.minus(nearest.position);
+            const vel = nearest.velocity ?? { x: 0, y: 0, z: 0 };
+            const approaching = (vel.x * toBot.x + vel.z * toBot.z) > 0;
+            if (!approaching) continue;
+
+            if (minDist <= 4) {
+                // Yakınsa kılıçla vur — Minecraft'ta bu ateş topunu kaynağına geri yansıtır
+                try {
+                    await bot.lookAt(nearest.position, true);
+                    await bot.attack(nearest);
+                    console.log('[🔥] Ateş topu yansıtıldı!');
+                } catch {}
+            } else if (minDist <= 12) {
+                // Uzaktaysa yansıtmak riskli, yana kaçarak kaçın
+                try { bot.pathfinder.setGoal(null); } catch {}
+                const side = Math.random() < 0.5 ? 'left' : 'right';
+                bot.setControlState(side, true);
+                await sleep(300);
+                bot.setControlState(side, false);
             }
         }
     }
