@@ -70,6 +70,24 @@ function createBot() {
             }
         });
 
+        // Düşen elmas item'larını otomatik topla
+        bot.on('entitySpawn', (entity) => {
+            if (entity.name === 'item') {
+                const meta = entity.metadata;
+                // item entity'sinin adını kontrol et
+                try {
+                    const itemData = meta?.find(m => m?.value?.itemId !== undefined);
+                    if (itemData) {
+                        // elmas mı diye yakın mı diye kontrol
+                        const dist = bot.entity.position.distanceTo(entity.position);
+                        if (dist < 10) {
+                            collectNearbyItems();
+                        }
+                    }
+                } catch {}
+            }
+        });
+
         miningLoop();
         dropDiamondsLoop();
     }
@@ -90,36 +108,86 @@ function createBot() {
         if (pick) bot.equip(pick, 'hand').catch(() => {});
     }
 
-    // Tek blok kaz — hata sessiz
+    // Yakındaki item'ları topla (en fazla 3 sn bekle)
+    async function collectNearbyItems() {
+        const items = Object.values(bot.entities).filter(e =>
+            e.name === 'item' &&
+            bot.entity.position.distanceTo(e.position) < 8
+        );
+        if (items.length === 0) return;
+
+        // En yakın item'a git
+        items.sort((a, b) =>
+            bot.entity.position.distanceTo(a.position) -
+            bot.entity.position.distanceTo(b.position)
+        );
+
+        for (const item of items.slice(0, 5)) {
+            try {
+                await bot.pathfinder.goto(
+                    new goals.GoalNear(
+                        item.position.x,
+                        item.position.y,
+                        item.position.z,
+                        1
+                    ),
+                    { timeout: 3000 }
+                );
+                await sleep(200);
+            } catch {}
+        }
+    }
+
+    // Tek blok kaz
     async function digBlock(block) {
-        if (!block || !block.diggable) return false;
+        if (!block || !block.diggable || block.name === 'air') return false;
         try {
             await bot.lookAt(block.position.offset(0.5, 0.5, 0.5), false);
-            await sleep(60);
-            // blok hâlâ orada mı?
+            await sleep(50);
             const check = bot.blockAt(block.position);
-            if (!check || check.type !== block.type) return false;
+            if (!check || check.name === 'air' || check.type !== block.type) return false;
             await bot.dig(check, true);
+            await sleep(100); // drop'un spawn olması için bekle
             return true;
         } catch (e) {
             const m = e.message || '';
-            if (!m.includes('diggable') && !m.includes('No block') && !m.includes('aborted') && !m.includes('dig')) {
+            if (!m.includes('diggable') && !m.includes('No block') &&
+                !m.includes('aborted') && !m.includes('dig')) {
                 console.log('[dig]', m.slice(0, 60));
             }
             return false;
         }
     }
 
+    // Pathfinder ile git, takılırsa force move
+    async function moveTo(x, y, z, range = 2, timeout = 6000) {
+        try {
+            await bot.pathfinder.goto(
+                new goals.GoalNear(x, y, z, range),
+                { timeout }
+            );
+            return true;
+        } catch {
+            // Takıldı — durumu sıfırla
+            try { bot.pathfinder.setGoal(null); } catch {}
+            // Küçük zıplama
+            bot.setControlState('jump', true);
+            await sleep(300);
+            bot.setControlState('jump', false);
+            return false;
+        }
+    }
+
     // ─────────────────────────────────────────
     //   ANA MADENCİLİK DÖNGÜSÜ
-    //   Strip mining: X yönünde düz tünel, her
-    //   adımda yan/üst/alt elmas taraması
     // ─────────────────────────────────────────
     const TARGET_Y = -58;
+    let stripDir = 1;
+    let stripStep = 0;
+    const STRIP_LENGTH = 60;
 
     async function miningLoop() {
         while (true) {
-            // Kazma kontrolü
             if (!hasDiamondPickaxe()) {
                 if (!waitingForPickaxe) {
                     console.log('[kazma] Kazma yok → bekleniyor...');
@@ -133,10 +201,10 @@ function createBot() {
             equipPickaxe();
 
             try {
-                // 1. Önce görünen elmasa bak (chunk yüklüyse)
+                // Görünür elmas var mı?
                 const visible = bot.findBlocks({
                     matching: b => b.name === 'diamond_ore' || b.name === 'deepslate_diamond_ore',
-                    maxDistance: 16,
+                    maxDistance: 12,
                     count: 5
                 });
 
@@ -144,11 +212,12 @@ function createBot() {
                     const pos = bot.entity.position;
                     visible.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
                     await mineOreVein(visible[0]);
-                    continue;
+                } else {
+                    await stripMineStep();
                 }
 
-                // 2. Elmas yok → strip mining
-                await stripMineStep();
+                // Her adımdan sonra yakın item topla
+                await collectNearbyItems();
 
             } catch (err) {
                 console.log('[loop hata]', err.message?.slice(0, 80));
@@ -158,20 +227,9 @@ function createBot() {
     }
 
     // ─────────────────────────────────────────
-    //   DAMAR KAZMA: Elmasa git + komşuları da kaz
+    //   DAMAR KAZMA
     // ─────────────────────────────────────────
     async function mineOreVein(startPos) {
-        // Önce elmasa yaklaş
-        try {
-            await bot.pathfinder.goto(
-                new goals.GoalNear(startPos.x, startPos.y, startPos.z, 2),
-                { timeout: 12000 }
-            );
-        } catch {
-            return;
-        }
-
-        // Komşu elmasları da topla (damar kazma)
         const toMine = [startPos];
         const mined = new Set();
 
@@ -186,27 +244,27 @@ function createBot() {
             const block = bot.blockAt(pos);
             if (!block || (block.name !== 'diamond_ore' && block.name !== 'deepslate_diamond_ore')) continue;
 
-            // 1 blok içine gel
-            try {
-                await bot.pathfinder.goto(
-                    new goals.GoalNear(pos.x, pos.y, pos.z, 2),
-                    { timeout: 8000 }
-                );
-            } catch {}
+            // Yaklaş
+            const reached = await moveTo(pos.x, pos.y, pos.z, 2, 6000);
+            if (!reached) {
+                // Uzaktan dene
+                await moveTo(pos.x, pos.y, pos.z, 3, 4000);
+            }
 
             const ok = await digBlock(block);
             if (ok) {
-                console.log(`[✓] Elmas kazıldı! Toplam: ${getDiamondCount()}`);
-                // Komşuları kontrol et
-                const neighbors = [
-                    pos.offset(1,0,0), pos.offset(-1,0,0),
-                    pos.offset(0,1,0), pos.offset(0,-1,0),
-                    pos.offset(0,0,1), pos.offset(0,0,-1),
+                console.log(`[✓] Elmas! Toplam: ${getDiamondCount()}`);
+                await sleep(300); // item toplamak için
+                await collectNearbyItems();
+
+                // Komşuları kontrol
+                const offsets = [
+                    [1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]
                 ];
-                for (const n of neighbors) {
-                    const nb = bot.blockAt(n);
+                for (const [dx,dy,dz] of offsets) {
+                    const nb = bot.blockAt(pos.offset(dx,dy,dz));
                     if (nb && (nb.name === 'diamond_ore' || nb.name === 'deepslate_diamond_ore')) {
-                        toMine.push(n);
+                        toMine.push(nb.position);
                     }
                 }
             }
@@ -214,74 +272,60 @@ function createBot() {
     }
 
     // ─────────────────────────────────────────
-    //   STRİP MİNİNG: 2 blok yüksek tünel kaz
-    //   Her adımda yan duvarları tara
+    //   STRİP MİNİNG
     // ─────────────────────────────────────────
-    let stripDir = 1; // +X yönü, karşıya gelince -X
-    let stripStep = 0;
-    const STRIP_LENGTH = 50;
-
     async function stripMineStep() {
         const pos = bot.entity.position;
 
-        // Y=-58'e in (gerekirse)
+        // Y=-58'e in
         if (Math.abs(pos.y - TARGET_Y) > 2) {
-            console.log(`[strip] Y=${Math.floor(pos.y)} → ${TARGET_Y}'e iniliyor`);
-            try {
-                await bot.pathfinder.goto(
-                    new goals.GoalY(TARGET_Y),
-                    { timeout: 30000 }
-                );
-            } catch {
-                // İnemezse önündeki bloğu kaz
-                const down = bot.blockAt(pos.offset(0, -1, 0));
-                if (down && down.diggable) await digBlock(down);
+            console.log(`[strip] Y=${Math.floor(pos.y)} → -58`);
+            // Aşağı dog bloğu kaz
+            for (let dy = -1; dy >= TARGET_Y - Math.floor(pos.y); dy--) {
+                const b = bot.blockAt(pos.offset(0, dy, 0));
+                if (b && b.diggable && b.name !== 'air') await digBlock(b);
             }
+            try {
+                await bot.pathfinder.goto(new goals.GoalY(TARGET_Y), { timeout: 20000 });
+            } catch {}
             return;
         }
 
-        // İleri doğru 1 adım kazan (2 blok yüksek tünel)
         const cx = Math.floor(pos.x);
         const cy = TARGET_Y;
         const cz = Math.floor(pos.z);
-
         const nx = cx + stripDir;
 
-        // Ayak hizası + baş hizası
-        const footBlock = bot.blockAt({ x: nx, y: cy, z: cz });
-        const headBlock = bot.blockAt({ x: nx, y: cy + 1, z: cz });
+        // İki blok yüksek tünel kaz
+        const foot = bot.blockAt({ x: nx, y: cy,   z: cz });
+        const head = bot.blockAt({ x: nx, y: cy+1, z: cz });
 
-        let dug = false;
-        if (footBlock && footBlock.diggable && footBlock.name !== 'air') {
-            await digBlock(footBlock);
-            dug = true;
-        }
-        if (headBlock && headBlock.diggable && headBlock.name !== 'air') {
-            await digBlock(headBlock);
-            dug = true;
-        }
+        if (foot && foot.diggable && foot.name !== 'air') await digBlock(foot);
+        if (head && head.diggable && head.name !== 'air') await digBlock(head);
 
-        // İleri git
+        // İleri git (kısa timeout, takılınca geç)
         try {
             await bot.pathfinder.goto(
                 new goals.GoalBlock(nx, cy, cz),
-                { timeout: 5000 }
+                { timeout: 3000 }
             );
-        } catch {}
+        } catch {
+            // Takıldı — zıpla ve devam et
+            bot.setControlState('jump', true);
+            await sleep(400);
+            bot.setControlState('jump', false);
+            bot.setControlState('forward', true);
+            await sleep(400);
+            bot.setControlState('forward', false);
+        }
 
-        // Yan duvarlara bak (elmas taraması — 3 kat)
-        for (let dy = -1; dy <= 2; dy++) {
-            for (const side of [-1, 1]) {
-                const sideBlock = bot.blockAt({ x: nx, y: cy + dy, z: cz + side });
-                if (sideBlock && (sideBlock.name === 'diamond_ore' || sideBlock.name === 'deepslate_diamond_ore')) {
-                    console.log('[scan] Yanda elmas!');
-                    await mineOreVein(sideBlock.position);
-                }
-                // Z yönünde de tara
-                const sideBlock2 = bot.blockAt({ x: nx + side, y: cy + dy, z: cz });
-                if (sideBlock2 && (sideBlock2.name === 'diamond_ore' || sideBlock2.name === 'deepslate_diamond_ore')) {
-                    console.log('[scan] Önde elmas!');
-                    await mineOreVein(sideBlock2.position);
+        // Yan duvarları tara (3 kat: -1, 0, +1, +2)
+        for (const side of [-1, 1]) {
+            for (let dy = -1; dy <= 2; dy++) {
+                const sb = bot.blockAt({ x: nx, y: cy+dy, z: cz+side });
+                if (sb && (sb.name === 'diamond_ore' || sb.name === 'deepslate_diamond_ore')) {
+                    console.log('[scan] Yan elmas!');
+                    await mineOreVein(sb.position);
                 }
             }
         }
@@ -292,13 +336,10 @@ function createBot() {
             stripDir *= -1;
             console.log('[strip] Yön değişti');
         }
-
-        // Dug olmadıysa (hava tünel) hızlıca geç
-        if (!dug) await sleep(50);
     }
 
     // ─────────────────────────────────────────
-    //   ELMAS ATMA — 10 olunca
+    //   ELMAS ATMA — oyuncunun tam dibine git
     // ─────────────────────────────────────────
     async function dropDiamondsLoop() {
         while (true) {
@@ -317,22 +358,31 @@ function createBot() {
             const nearest = players[0];
             console.log(`[elmas] ${getDiamondCount()} elmas → ${nearest.username}`);
 
+            // Oyuncunun TAM yanına git (1 blok mesafe)
             try {
                 await bot.pathfinder.goto(
                     new goals.GoalNear(
                         nearest.entity.position.x,
                         nearest.entity.position.y,
-                        nearest.entity.position.z, 2
+                        nearest.entity.position.z,
+                        1
                     ),
                     { timeout: 20000 }
                 );
-            } catch { console.log('[elmas] Gidilemedi'); }
+            } catch { console.log('[elmas] Gidilemedi, yerinde at'); }
 
+            // Oyuncuya yüz çevir
+            try {
+                await bot.lookAt(nearest.entity.position.offset(0, 1, 0), true);
+                await sleep(300);
+            } catch {}
+
+            // Elmasları at
             for (const item of bot.inventory.items().filter(i => i.name === 'diamond')) {
                 try {
                     await bot.toss(item.type, null, item.count);
                     console.log(`[elmas] ${item.count} atıldı → ${nearest.username}`);
-                    await sleep(300);
+                    await sleep(200);
                 } catch (e) { console.log('[toss]', e.message); }
             }
         }
