@@ -15,11 +15,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // ─────────────────────────────────────────
 const ATTACKER_TTL = 6000;          // bir mob "oyuncuya vurdu" olarak kaç ms hatırlanır
 const ATTACKER_DETECT_RADIUS = 6;   // vurulan oyuncunun etrafında mob aranacak yarıçap
+const MAX_SAFE_DROP = 3;            // bu kadar bloktan fazla boşluk varsa ilerlemez
 
-const ATTACK_RANGE = 3.0;     // bu mesafeye girince vur
-const SAFE_RANGE = 3.4;       // mobun bize vuramayacağı mesafe (cooldown beklerken buraya çekil)
-const APPROACH_RANGE = 5.0;   // bu mesafenin üstünde pathfinder ile hızlı yaklaş
-const ATTACK_COOLDOWN = 580;  // ms — 1.21 sweep cooldown
+// Lav, ateş, magma, kampfire vb. — isim bazlı genel tehlike tespiti.
+// Yeni bir tehlikeli blok eklenmek istenirse buraya pattern eklemek yeterli.
+const HAZARD_REGEX = /lava|fire|magma_block|soul_campfire|campfire/i;
 
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
@@ -42,7 +42,11 @@ function createBot() {
     let isRetreating = false;
     let lastAttackTime = 0;
     let followingPlayer = null;
-    let manualControlActive = false; // yakın mesafe mikro-kontrol mü, yoksa pathfinder mi sürüyor
+
+    // Tehlike (boşluk/lav/ateş) tespit edildiğinde true olur.
+    // Diğer döngüler bu süre içinde yeni pathfinder hedefi vermekten kaçınır,
+    // böylece "dur → hemen tekrar tehlikeye doğru hedef al" çakışması engellenir.
+    let dangerAhead = false;
 
     // entityId -> { time, entity } : son zamanlarda bir oyuncuya vurduğu tespit edilen moblar
     const recentAttackers = new Map();
@@ -80,8 +84,12 @@ function createBot() {
         movements.allowSprinting = true;
         movements.allowParkour = true;   // parkur açık
         movements.allow1by1 = true;
-        movements.maxDropDown = 3;       // boşluğa düşme engeli (3 bloktan fazla atlamaz)
+        movements.maxDropDown = MAX_SAFE_DROP; // boşluğa düşme engeli
         movements.scafoldingBlocks = []; // scaffold yok
+
+        // Pathfinder'ın kendisi de lav/ateş gibi blokların üstünden/yanından
+        // geçen yolları yüksek maliyetli görüp mümkünse kaçınsın.
+        movements.exclusionAreasStep.push(block => (HAZARD_REGEX.test(block.name) ? 100 : 0));
 
         bot.pathfinder.setMovements(movements);
         console.log('[✓] Savaş sistemi başlatıldı.');
@@ -93,6 +101,7 @@ function createBot() {
         combatLoop();
         followNearestPlayerLoop();
         safetyLoop();
+        fallGuardLoop();
         eatLoop();
     }
 
@@ -120,8 +129,6 @@ function createBot() {
 
     // Düşman tespiti artık sabit bir isim listesine değil,
     // oyunun kendi verisine (mcData kategorisi) dayanıyor.
-    // mineflayer her entity'e mcData'dan gelen kategoriyi "kind" olarak atar
-    // (örn: "Hostile mobs", "Passive mobs", "Player", "Animals"...).
     function isHostile(entity) {
         return entity?.kind === 'Hostile mobs';
     }
@@ -134,21 +141,45 @@ function createBot() {
         return bot.health ?? 20;
     }
 
+    // Bir blok lav/ateş/magma vb. tehlikeli mi? (genel, isim bazlı)
+    function isHazardBlock(block) {
+        if (!block) return false;
+        return HAZARD_REGEX.test(block.name);
+    }
+
+    // Belirli bir noktada (ayak, kafa ve zemin seviyesinde) tehlike var mı?
+    function hasHazardAt(pos) {
+        const feet = bot.blockAt(pos);
+        const head = bot.blockAt(pos.offset(0, 1, 0));
+        const ground = bot.blockAt(pos.offset(0, -1, 0));
+        return isHazardBlock(feet) || isHazardBlock(head) || isHazardBlock(ground);
+    }
+
     // Boşluk kontrolü: hedefin yolu güvenli mi?
     function isSafeGround(pos) {
         const below = bot.blockAt(pos.offset(0, -1, 0));
         if (!below || below.name === 'air' || below.name === 'void_air') return false;
+        if (isHazardBlock(below)) return false;
         return true;
     }
 
-    // Belirtilen yönde (1 = ileri, -1 = geri) bir adım atmak güvenli mi?
-    // Uçurum/kenar varsa false döner — bu yöne sneaksiz koşmak düşmeye sebep olur.
-    function groundAheadSafe(direction) {
+    // Belirtilen noktanın altında kaç blok boşluk var, ölçer (düşme derinliği).
+    function getDropDepthAt(pos, maxCheck = 6) {
+        for (let dy = 1; dy <= maxCheck; dy++) {
+            const b = bot.blockAt(pos.offset(0, -dy, 0));
+            if (b && b.name !== 'air' && b.name !== 'void_air' && b.name !== 'cave_air') {
+                return dy - 1; // bu kadar blok düşer, sonra zemine basar
+            }
+        }
+        return maxCheck; // dipsiz / çok derin sayılır
+    }
+
+    // Botun şu an baktığı yönde belirli bir mesafe ilerideki noktayı verir
+    function getAheadPosition(distance = 1) {
         const yaw = bot.entity.yaw;
-        const dx = -Math.sin(yaw) * direction;
-        const dz = -Math.cos(yaw) * direction;
-        const checkPos = bot.entity.position.offset(dx, 0, dz);
-        return isSafeGround(checkPos);
+        const dx = -Math.sin(yaw) * distance;
+        const dz = -Math.cos(yaw) * distance;
+        return bot.entity.position.offset(dx, 0, dz);
     }
 
     // Belirli bir noktanın etrafındaki en yakın düşman mob
@@ -229,10 +260,8 @@ function createBot() {
     //   SAVAŞ DÖNGÜSÜ
     // ─────────────────────────────────────────
     async function combatLoop() {
-        let wasFighting = false; // dövüşten çıkışta bir kerelik temizlik için
-
         while (true) {
-            await sleep(50);
+            await sleep(100);
 
             // Can düşükse çekil
             if (botHealth() < 6) {
@@ -241,11 +270,6 @@ function createBot() {
                     isRetreating = true;
                     isAttacking = false;
                     currentTarget = null;
-                    wasFighting = false;
-                    manualControlActive = false;
-                    bot.setControlState('forward', false);
-                    bot.setControlState('back', false);
-                    bot.setControlState('sneak', false);
                     try { bot.pathfinder.setGoal(null); } catch {}
                     await retreat();
                 }
@@ -267,20 +291,10 @@ function createBot() {
             if (hostile) {
                 currentTarget = hostile;
                 isAttacking = true;
-                wasFighting = true;
                 await fightEntity(hostile);
             } else {
                 isAttacking = false;
                 currentTarget = null;
-                // Sadece dövüşten ÇIKARKEN bir kez temizle — her turda yaparsak
-                // pathfinder'ın takip için verdiği forward komutunu eziyor ve bot yerinde sayıyor.
-                if (wasFighting) {
-                    bot.setControlState('forward', false);
-                    bot.setControlState('back', false);
-                    bot.setControlState('sneak', false);
-                    wasFighting = false;
-                    manualControlActive = false;
-                }
             }
         }
     }
@@ -291,103 +305,64 @@ function createBot() {
     async function fightEntity(entity) {
         if (!entity || !entity.isValid) return;
 
-        const myPos = bot.entity.position;
         const pos = entity.position;
+        const myPos = bot.entity.position;
         const dist = myPos.distanceTo(pos);
 
         // Güvenli zemin kontrolü
         if (!isSafeGround(myPos)) {
             console.log('[⚠] Tehlikeli zemin! Geri çekiliyorum.');
-            bot.setControlState('forward', false);
-            bot.setControlState('back', false);
-            bot.setControlState('sneak', false);
-            manualControlActive = false;
             await retreat();
             return;
         }
 
-        // Uzaktaysa pathfinder ile hızlı yaklaş (parkur açık), mikro-kontrolü devre dışı bırak
-        if (dist > APPROACH_RANGE) {
-            if (manualControlActive) {
-                bot.setControlState('forward', false);
-                bot.setControlState('back', false);
-                bot.setControlState('sneak', false);
-                manualControlActive = false;
+        // 3.5 bloktan uzaksa yaklaş
+        if (dist > 3.5) {
+            // Tehlike algılandıysa (fallGuard/safety döngüsü çalışıyorsa) yeni hedef vermeyip bekle
+            if (dangerAhead) {
+                await sleep(200);
+                return;
             }
             try {
-                bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
+                bot.pathfinder.setGoal(
+                    new goals.GoalFollow(entity, 2),
+                    true // dinamik — sürekli güncelle
+                );
             } catch {}
+            await sleep(300);
             return;
         }
 
-        // Yakın mesafe: pathfinder kapalı, anlık manuel kontrol devrede (daha hızlı tepki)
-        try { bot.pathfinder.setGoal(null); } catch {}
-        manualControlActive = true;
-
+        // Yakın mesafede: yüz çevir + vur
         try {
-            await bot.lookAt(pos.offset(0, entity.height * 0.85, 0), true);
+            await bot.lookAt(pos.offset(0, entity.height * 0.9, 0), true);
         } catch {}
 
+        // Sweep attack cooldown: 1.21'de tam cooldown ~600ms
         const now = Date.now();
-        const readyToAttack = (now - lastAttackTime) >= ATTACK_COOLDOWN;
-
-        // Geri/ileri adım atmak güvenli mi? (uçurum kenarı varsa false)
-        const backSafe = groundAheadSafe(-1);
-        const forwardSafe = groundAheadSafe(1);
-
-        if (dist <= ATTACK_RANGE) {
-            if (readyToAttack) {
-                // Menzile girdiği/girer girmez hemen vur
-                bot.setControlState('forward', false);
-                bot.setControlState('sneak', false);
-                try {
-                    await bot.attack(entity);
-                    lastAttackTime = Date.now();
-                    console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
-                } catch {}
-
-                // Vurduktan hemen sonra geri adım at — kenar varsa sneak ile düşmeden çekil
-                bot.setControlState('sneak', !backSafe);
-                bot.setControlState('back', true);
-                await sleep(180);
-                bot.setControlState('back', false);
-                bot.setControlState('sneak', false);
-            } else if (dist < SAFE_RANGE) {
-                // Cooldown henüz bitmedi: mobun vuruş menzilinden çık, kendine vurdurma
-                bot.setControlState('forward', false);
-                bot.setControlState('sneak', !backSafe);
-                bot.setControlState('back', true);
-            } else {
-                // Güvenli mesafedeyiz, bekle
-                bot.setControlState('back', false);
-                bot.setControlState('sneak', false);
-            }
-        } else {
-            // Menzile gir
-            bot.setControlState('back', false);
-            if (forwardSafe) {
-                bot.setControlState('sneak', false);
-                bot.setControlState('forward', true);
-                bot.setControlState('sprint', true);
-            } else {
-                // İlerisi boşluk — körlemesine atlama, pathfinder'a (parkur dahil) bırak
-                bot.setControlState('forward', false);
-                bot.setControlState('sprint', false);
-                try {
-                    bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
-                } catch {}
-            }
+        const cooldown = 580;
+        if (now - lastAttackTime < cooldown) {
+            await sleep(cooldown - (now - lastAttackTime));
         }
+
+        if (!entity.isValid) return;
+
+        try {
+            await bot.attack(entity);
+            lastAttackTime = Date.now();
+            console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))} | Dist: ${dist.toFixed(1)}`);
+        } catch {}
+
+        // W-tap (sprint reset): vur → dur → sprint → yaklaş
+        bot.setControlState('sprint', false);
+        await sleep(60);
+        bot.setControlState('sprint', true);
 
         // Öldü mü?
         if (!entity.isValid || entityHealth(entity) <= 0) {
             console.log(`[✓] ${entity.name} öldürüldü!`);
             recentAttackers.delete(entity.id);
             currentTarget = null;
-            bot.setControlState('forward', false);
-            bot.setControlState('back', false);
-            bot.setControlState('sneak', false);
-            manualControlActive = false;
             try { bot.pathfinder.setGoal(null); } catch {}
         }
     }
@@ -432,7 +407,7 @@ function createBot() {
         while (true) {
             await sleep(500);
 
-            if (isAttacking || isRetreating) continue;
+            if (isAttacking || isRetreating || dangerAhead) continue;
 
             const player = getNearestPlayer(48);
             if (!player || !player.entity) {
@@ -475,13 +450,17 @@ function createBot() {
                 continue;
             }
 
-            // Lav kontrolü
+            // Lav / ateş kontrolü (genel tehlike regex'i ile)
             const standingIn = bot.blockAt(pos.offset(0, 0, 0));
             const headIn = bot.blockAt(pos.offset(0, 1, 0));
-            if (standingIn?.name?.includes('lava') || headIn?.name?.includes('lava')) {
-                console.log('[⚠] LAV! Kaçıyorum...');
+            if (isHazardBlock(standingIn) || isHazardBlock(headIn)) {
+                console.log('[⚠] TEHLİKE (lav/ateş)! Kaçıyorum...');
+                dangerAhead = true;
                 isRetreating = true;
+                try { bot.pathfinder.setGoal(null); } catch {}
+                bot.clearControlStates();
                 await retreat();
+                dangerAhead = false;
                 continue;
             }
 
@@ -501,6 +480,54 @@ function createBot() {
                 bot.setControlState('sneak', true);
                 await sleep(600);
                 bot.setControlState('sneak', false);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //   YÜKSEKTEN DÜŞMEYİ VE TEHLİKELİ BLOKLARI ÖNLEYEN KORUMA
+    //   Önünde derin boşluk veya lav/ateş varsa ilerlemez
+    // ─────────────────────────────────────────
+    async function fallGuardLoop() {
+        while (true) {
+            await sleep(100);
+
+            // Havadaysa (zaten düşüyor/zıplıyor) bu kontrolü atla, diğer sistemler halleder
+            if (!bot.entity.onGround) continue;
+
+            // Sprint hızındaysa daha ileriye bak, normalde yakın mesafeye bak
+            const vel = bot.entity.velocity;
+            const horizSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+            const lookDistances = horizSpeed > 0.15 ? [1, 2, 3] : [1, 2];
+
+            let danger = false;
+
+            // Şu anki konumda da lav/ateş var mı (örn. savaşırken üstüne bastıysa)
+            if (hasHazardAt(bot.entity.position)) {
+                danger = true;
+            }
+
+            if (!danger) {
+                for (const d of lookDistances) {
+                    const ahead = getAheadPosition(d);
+                    const dropDepth = getDropDepthAt(ahead);
+                    if (dropDepth > MAX_SAFE_DROP || hasHazardAt(ahead)) {
+                        danger = true;
+                        break;
+                    }
+                }
+            }
+
+            if (danger) {
+                dangerAhead = true;
+                try { bot.pathfinder.setGoal(null); } catch {}
+                bot.clearControlStates();
+                bot.setControlState('sneak', true);
+                await sleep(400);
+                bot.setControlState('sneak', false);
+                // Diğer döngülerin hemen aynı yöne tekrar hedef vermesini engellemek için kısa bekleme
+                await sleep(300);
+                dangerAhead = false;
             }
         }
     }
