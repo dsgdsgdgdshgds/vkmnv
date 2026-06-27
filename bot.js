@@ -10,14 +10,11 @@ http.createServer((req, res) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Düşman mob listesi
-const HOSTILE_MOBS = new Set([
-    'zombie','skeleton','creeper','spider','cave_spider','witch',
-    'blaze','ghast','enderman','endermite','silverfish','wither_skeleton',
-    'husk','stray','drowned','phantom','pillager','vindicator',
-    'evoker','vex','ravager','guardian','elder_guardian','shulker',
-    'hoglin','zoglin','piglin_brute','warden','breeze'
-]);
+// ─────────────────────────────────────────
+//   AYARLAR (liste yok — dinamik tespit)
+// ─────────────────────────────────────────
+const ATTACKER_TTL = 6000;          // bir mob "oyuncuya vurdu" olarak kaç ms hatırlanır
+const ATTACKER_DETECT_RADIUS = 6;   // vurulan oyuncunun etrafında mob aranacak yarıçap
 
 function createBot() {
     console.log('--- [Sistem] Bot Başlatılıyor ---');
@@ -40,6 +37,9 @@ function createBot() {
     let isRetreating = false;
     let lastAttackTime = 0;
     let followingPlayer = null;
+
+    // entityId -> { time, entity } : son zamanlarda bir oyuncuya vurduğu tespit edilen moblar
+    const recentAttackers = new Map();
 
     async function performLoginSequence() {
         if (systemsStarted) return;
@@ -112,8 +112,12 @@ function createBot() {
         return 0;
     }
 
+    // Düşman tespiti artık sabit bir isim listesine değil,
+    // oyunun kendi verisine (mcData kategorisi) dayanıyor.
+    // mineflayer her entity'e mcData'dan gelen kategoriyi "kind" olarak atar
+    // (örn: "Hostile mobs", "Passive mobs", "Player", "Animals"...).
     function isHostile(entity) {
-        return HOSTILE_MOBS.has(entity.name?.toLowerCase());
+        return entity?.kind === 'Hostile mobs';
     }
 
     function entityHealth(entity) {
@@ -131,21 +135,49 @@ function createBot() {
         return true;
     }
 
-    // En yakın düşman mob
-    function getNearestHostile(maxDist = 20) {
+    // Belirli bir noktanın etrafındaki en yakın düşman mob
+    function getHostileNear(position, maxDist) {
         let nearest = null;
         let minDist = maxDist;
 
         for (const entity of Object.values(bot.entities)) {
-            if (!isHostile(entity)) continue;
-            if (!entity.position) continue;
-            const dist = bot.entity.position.distanceTo(entity.position);
+            if (!isHostile(entity) || !entity.position) continue;
+            const dist = position.distanceTo(entity.position);
             if (dist < minDist) {
                 minDist = dist;
                 nearest = entity;
             }
         }
         return nearest;
+    }
+
+    // En yakın düşman mob — önce "az önce bir oyuncuya vurmuş" moblara öncelik verir,
+    // bulamazsa botun kendi etrafındaki en yakın düşmana bakar.
+    function getNearestHostile(maxDist = 20) {
+        const now = Date.now();
+        let bestAttacker = null;
+        let bestAttackerDist = maxDist;
+
+        for (const [id, data] of recentAttackers) {
+            if (now - data.time > ATTACKER_TTL) {
+                recentAttackers.delete(id);
+                continue;
+            }
+            const entity = bot.entities[id];
+            if (!entity || entity.isValid === false || !isHostile(entity) || !entity.position) {
+                recentAttackers.delete(id);
+                continue;
+            }
+            const dist = bot.entity.position.distanceTo(entity.position);
+            if (dist < bestAttackerDist) {
+                bestAttackerDist = dist;
+                bestAttacker = entity;
+            }
+        }
+
+        if (bestAttacker) return bestAttacker;
+
+        return getHostileNear(bot.entity.position, maxDist);
     }
 
     // En yakın oyuncu (kendisi hariç)
@@ -163,6 +195,19 @@ function createBot() {
         }
         return nearest;
     }
+
+    // Bir oyuncu hasar aldığında: yakınındaki düşman mobu tespit edip
+    // "saldırgan" olarak işaretle, böylece bot ona öncelik verip saldırsın.
+    bot.on('entityHurt', (entity) => {
+        if (!entity || entity === bot.entity) return;
+        if (entity.type !== 'player') return;
+
+        const attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
+        if (attacker) {
+            recentAttackers.set(attacker.id, { time: Date.now(), entity: attacker });
+            console.log(`[👁] ${attacker.name} bir oyuncuya vurmuş olabilir → hedefe alındı.`);
+        }
+    });
 
     // ─────────────────────────────────────────
     //   SAVAŞ DÖNGÜSÜ
@@ -193,7 +238,7 @@ function createBot() {
                 equipSword();
             }
 
-            // Hedef belirle: önce düşman mob, yoksa oyuncuya zarar veren mob
+            // Hedef belirle: önce oyuncuya vuran mob, yoksa botun yakınındaki herhangi bir düşman mob
             const hostile = getNearestHostile(18);
 
             if (hostile) {
@@ -224,7 +269,7 @@ function createBot() {
             return;
         }
 
-        // 8 bloktan uzaksa yaklaş
+        // 3.5 bloktan uzaksa yaklaş
         if (dist > 3.5) {
             try {
                 bot.pathfinder.setGoal(
@@ -264,6 +309,7 @@ function createBot() {
         // Öldü mü?
         if (!entity.isValid || entityHealth(entity) <= 0) {
             console.log(`[✓] ${entity.name} öldürüldü!`);
+            recentAttackers.delete(entity.id);
             currentTarget = null;
             try { bot.pathfinder.setGoal(null); } catch {}
         }
@@ -385,22 +431,19 @@ function createBot() {
     // ─────────────────────────────────────────
     //   YEMEK YEME
     // ─────────────────────────────────────────
-    const FOOD_PRIORITY = [
-        'golden_apple','enchanted_golden_apple',
-        'cooked_beef','cooked_porkchop','cooked_mutton',
-        'cooked_chicken','cooked_salmon','cooked_cod',
-        'bread','baked_potato','mushroom_stew','rabbit_stew',
-        'pumpkin_pie','cookie','melon_slice','apple',
-        'carrot','potato','beetroot'
-    ];
-
     function getBestFood() {
-        const items = bot.inventory.items();
-        for (const name of FOOD_PRIORITY) {
-            const f = items.find(i => i.name === name);
-            if (f) return f;
-        }
-        return items.find(i => i.food);
+        // minecraft-data'dan item'ın food değerini oku — listeye gerek yok
+        const mcData = require('minecraft-data')(bot.version);
+        return bot.inventory.items()
+            .filter(i => {
+                const itemData = mcData.itemsByName[i.name];
+                return itemData && itemData.food !== undefined;
+            })
+            .sort((a, b) => {
+                const fa = mcData.itemsByName[a.name].food ?? 0;
+                const fb = mcData.itemsByName[b.name].food ?? 0;
+                return fb - fa; // en doyurucu önce
+            })[0] ?? null;
     }
 
     async function eatLoop() {
