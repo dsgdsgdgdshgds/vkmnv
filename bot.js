@@ -29,9 +29,9 @@ function createBot() {
 
     bot.loadPlugin(pathfinder);
 
-    let isSelling = false;
     let systemsStarted = false;
     let spawnProcessed = false;
+    let waitingForPickaxe = false;
 
     // ──────────────────────────────
     //    GİRİŞ KISMI
@@ -49,10 +49,6 @@ function createBot() {
             await sleep(30000);
             bot.chat('/skyblock');
             console.log('[→] /skyblock gönderildi');
-
-            await sleep(30000);
-            bot.chat('/warp Yoncatarla');
-            console.log('[→] /warp Yoncatarla gönderildi');
 
             await sleep(30000);
 
@@ -90,174 +86,240 @@ function createBot() {
 
         bot.pathfinder.setMovements(movements);
 
-        console.log('[✓] Hasat ve satış sistemleri başlatıldı.');
+        console.log('[✓] Elmas madenciliği sistemi başlatıldı.');
 
-        continuousHarvestAndMoveLoop();
-        sellLoop();
+        // Envanter değişimini izle (kazma gelince uyar)
+        bot.on('playerCollect', () => {
+            if (waitingForPickaxe && hasDiamondPickaxe()) {
+                console.log('[kazma] Elmas kazma envantere geldi, devam ediliyor.');
+                waitingForPickaxe = false;
+            }
+        });
+
+        diamondMiningLoop();
+        dropDiamondsLoop();
     }
 
-    // ───────────────────────────────────────────────
-    //   Küçük rastgele kayma hareketi
-    // ───────────────────────────────────────────────
-    async function randomSmallOffset() {
-        const dx = Math.random() * 5 - 2.5;
-        const dz = Math.random() * 5 - 2.5;
+    // ──────────────────────────────
+    //   YARDIMCI FONKSİYONLAR
+    // ──────────────────────────────
+    function hasDiamondPickaxe() {
+        return bot.inventory.items().some(
+            i => i.name === 'diamond_pickaxe' && i.durabilityUsed < (i.maxDurability || 1561)
+        );
+    }
 
-        try {
-            await bot.pathfinder.goto(
-                new goals.GoalNear(
-                    Math.round(bot.entity.position.x + dx),
-                    Math.round(bot.entity.position.y),
-                    Math.round(bot.entity.position.z + dz),
-                    1.8
-                ),
-                { timeout: 7000 }
-            );
-        } catch {
-            // sessiz geç
+    function getDiamondCount() {
+        return bot.inventory.items()
+            .filter(i => i.name === 'diamond')
+            .reduce((sum, item) => sum + item.count, 0);
+    }
+
+    function equipBestPickaxe() {
+        const pickaxe = bot.inventory.items().find(
+            i => i.name === 'diamond_pickaxe' && i.durabilityUsed < (i.maxDurability || 1561)
+        );
+        if (pickaxe) {
+            bot.equip(pickaxe, 'hand').catch(() => {});
         }
     }
 
-    // ───────────────────────────────────────────────
-    //   HASAT DÖNGÜSÜ
-    //   - lookAt force:false → doğal rotasyon (illegal rotation yok)
-    //   - dig öncesi çift kontrol → başkası kırdıysa atla
-    //   - tüm dig hataları sessiz yakalanır → bağlantı kesilmez
-    // ───────────────────────────────────────────────
-    async function continuousHarvestAndMoveLoop() {
+    // ──────────────────────────────
+    //   ELMAS MADENCİLİĞİ DÖNGÜSÜ
+    //   Y = -58 seviyesinde elmas arar
+    // ──────────────────────────────
+    async function diamondMiningLoop() {
         while (true) {
-            if (isSelling || !bot.entity?.position) {
-                await sleep(400);
+            // Kazma kırıksa bekle
+            if (!hasDiamondPickaxe()) {
+                if (!waitingForPickaxe) {
+                    console.log('[kazma] Elmas kazma yok veya kırık → bekleniyor...');
+                    waitingForPickaxe = true;
+                    bot.pathfinder.setGoal(null);
+                }
+                await sleep(2000);
                 continue;
             }
 
+            waitingForPickaxe = false;
+            equipBestPickaxe();
+
             try {
-                // 1. Geniş alanda olgun buğday ara
-                const candidates = bot.findBlocks({
-                    matching: block => block.name === 'wheat' && block.metadata === 7,
-                    maxDistance: 70,
-                    count: 40
+                // -58 katında elmas ara
+                const diamonds = bot.findBlocks({
+                    matching: block => block.name === 'diamond_ore' || block.name === 'deepslate_diamond_ore',
+                    maxDistance: 32,
+                    count: 10
                 });
 
-                if (candidates.length < 8) {
-                    console.log("[harvest] Çok az olgun buğday → 4-7 sn bekle");
-                    await sleep(4000 + Math.random() * 3000);
+                if (diamonds.length === 0) {
+                    console.log('[maden] Yakında elmas yok → rastgele kazmaya devam...');
+                    await mineRandomly();
                     continue;
                 }
 
+                // En yakın elması seç
                 const pos = bot.entity.position;
-                candidates.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+                diamonds.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+                const target = diamonds[0];
 
-                const targetCenter = candidates[0];
+                console.log(`[maden] Elmas bulundu: ${target.x}, ${target.y}, ${target.z}`);
 
-                console.log(`[→] Hedef bölgeye gidiliyor (${candidates.length} olgun buğday)`);
-
-                // 2. Hedefe yaklaş
-                const goal = new goals.GoalNear(targetCenter.x, targetCenter.y + 1, targetCenter.z, 4);
+                // Elmasa git
                 try {
-                    await bot.pathfinder.goto(goal, { timeout: 10000 });
-                } catch (e) {
-                    console.log("[path kısa] sorun → kayma yapılıyor");
-                    await randomSmallOffset();
+                    await bot.pathfinder.goto(
+                        new goals.GoalNear(target.x, target.y, target.z, 3),
+                        { timeout: 15000 }
+                    );
+                } catch {
+                    console.log('[path] Elmasa gidilemedi, yakındaki kazılabilir bloğu ara');
+                    await mineRandomly();
+                    continue;
                 }
 
-                // 3. Etraftaki buğdayları kır
-                let brokenThisCycle = 0;
-                const maxBreakPerCycle = 4;
+                // Kazma kırıldı mı kontrol et
+                if (!hasDiamondPickaxe()) continue;
 
-                const toBreak = bot.findBlocks({
-                    matching: b => b.name === 'wheat' && b.metadata === 7,
-                    maxDistance: 12,
-                    count: maxBreakPerCycle + 10
-                });
+                // Elmas bloğunu kaz
+                const block = bot.blockAt(target);
+                if (!block || (block.name !== 'diamond_ore' && block.name !== 'deepslate_diamond_ore')) continue;
 
-                toBreak.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+                await bot.lookAt(target.offset(0.5, 0.5, 0.5), false);
+                await sleep(100);
 
-                for (const blockPos of toBreak) {
-                    if (brokenThisCycle >= maxBreakPerCycle) break;
-
-                    // İlk kontrol – döngü başında blok hâlâ orada mı?
-                    const block = bot.blockAt(blockPos);
-                    if (!block || block.name !== 'wheat' || block.metadata !== 7) continue;
-
-                    try {
-                        // force: false → bot yavaşça bakıyor, sunucu illegal rotation saymaz
-                        await bot.lookAt(blockPos.offset(0.5, 0.5, 0.5), false);
-
-                        // Rotasyonun sunucuya ulaşması için insan benzeri bekleme
-                        await sleep(80 + Math.random() * 80);
-
-                        // İkinci kontrol – lookAt sırasında başkası kırmış olabilir
-                        const blockCheck = bot.blockAt(blockPos);
-                        if (!blockCheck || blockCheck.name !== 'wheat' || blockCheck.metadata !== 7) continue;
-
-                        await bot.dig(blockCheck, true);
-                        brokenThisCycle++;
-
-                        // Kırmalar arası normal oyuncu hızı
-                        await sleep(120 + Math.random() * 100);
-
-                    } catch (digErr) {
-                        const msg = digErr.message || '';
-
-                        // Blok yoksa / başkası kırdıysa → sessizce atla, bağlantıyı kesme
-                        if (
-                            msg.includes('is not diggable') ||
-                            msg.includes('No block') ||
-                            msg.includes('block changed') ||
-                            msg.includes('Digging aborted') ||
-                            msg.includes('dig')
-                        ) {
-                            continue;
-                        }
-
-                        // Bilinmeyen hata da sessiz geç
+                try {
+                    await bot.dig(block, true);
+                    console.log('[maden] Elmas kazıldı!');
+                } catch (digErr) {
+                    const msg = digErr.message || '';
+                    if (msg.includes('is not diggable') || msg.includes('No block') || msg.includes('Digging aborted')) {
+                        // sessiz geç
+                    } else {
                         console.log('[dig uyarı]', msg.substring(0, 80));
                     }
                 }
 
-                if (brokenThisCycle > 0) {
-                    console.log(`[hasat] ${brokenThisCycle} buğday kırıldı`);
-                }
-
-                if (brokenThisCycle < 8) {
-                    await randomSmallOffset();
-                }
-
             } catch (err) {
-                console.log("[hasat hata]", err.message?.substring(0, 90) || err);
+                console.log('[maden hata]', err.message?.substring(0, 90) || err);
             }
 
-            await sleep(180 + Math.random() * 400);
+            await sleep(200 + Math.random() * 300);
         }
     }
 
-    // ───────────────────────────────────────────────
-    //   SATIŞ
-    // ───────────────────────────────────────────────
-    async function sellLoop() {
-        while (true) {
-            await sleep(72000 + Math.random() * 18000);
+    // Yakında elmas yoksa -58'de rastgele tünel kaz
+    async function mineRandomly() {
+        if (!hasDiamondPickaxe()) return;
 
-            if (isSelling) continue;
+        const pos = bot.entity.position;
+        const targetY = -58;
 
-            const totalWheat = bot.inventory.items()
-                .filter(i => i.name === 'wheat')
-                .reduce((sum, item) => sum + item.count, 0);
+        // Önce -58 katına in
+        if (Math.abs(pos.y - targetY) > 3) {
+            const directions = [
+                { x: pos.x, z: pos.z },
+                { x: pos.x + 10, z: pos.z },
+                { x: pos.x - 10, z: pos.z },
+                { x: pos.x, z: pos.z + 10 },
+                { x: pos.x, z: pos.z - 10 },
+            ];
 
-            if (totalWheat >= 520) {
-                isSelling = true;
-                console.log(`[sat] ${totalWheat} buğday → /sell all`);
-
-                bot.pathfinder.setGoal(null);
-                await sleep(1800 + Math.random() * 800);
-
-                bot.chat('/sell all');
-                await sleep(720 + Math.random() * 3000);
-
-                isSelling = false;
-                console.log("[satış] tamam");
+            for (const dir of directions) {
+                try {
+                    await bot.pathfinder.goto(
+                        new goals.GoalXZ(dir.x, dir.z),
+                        { timeout: 5000 }
+                    );
+                    break;
+                } catch { continue; }
             }
+        }
+
+        // Önündeki bloğu kaz (tünel)
+        const yaw = bot.entity.yaw;
+        const dx = -Math.sin(yaw);
+        const dz = -Math.cos(yaw);
+
+        const frontBlock = bot.blockAt(
+            bot.entity.position.offset(
+                Math.round(dx) * 2,
+                0,
+                Math.round(dz) * 2
+            )
+        );
+
+        if (frontBlock && frontBlock.diggable) {
+            try {
+                await bot.lookAt(frontBlock.position.offset(0.5, 0.5, 0.5), false);
+                await sleep(80);
+                await bot.dig(frontBlock, true);
+            } catch { /* sessiz */ }
+        } else {
+            // Yön değiştir
+            await sleep(1500 + Math.random() * 1500);
+            bot.entity.yaw = Math.random() * Math.PI * 2;
+        }
+    }
+
+    // ──────────────────────────────
+    //   ELMAS ATMA DÖNGÜSÜ
+    //   10 elmas olunca en yakın oyuncuya git ve at
+    // ──────────────────────────────
+    async function dropDiamondsLoop() {
+        while (true) {
+            await sleep(3000);
+
+            const diamondCount = getDiamondCount();
+            if (diamondCount < 10) continue;
+
+            console.log(`[elmas] ${diamondCount} elmas var → en yakın oyuncuya gidiliyor`);
+
+            // En yakın oyuncuyu bul (kendisi hariç)
+            const players = Object.values(bot.players).filter(
+                p => p.entity && p.username !== bot.username
+            );
+
+            if (players.length === 0) {
+                console.log('[elmas] Yakında oyuncu yok, bekleniyor...');
+                continue;
+            }
+
+            const pos = bot.entity.position;
+            players.sort((a, b) =>
+                pos.distanceTo(a.entity.position) - pos.distanceTo(b.entity.position)
+            );
+
+            const nearest = players[0];
+            console.log(`[elmas] En yakın oyuncu: ${nearest.username}`);
+
+            // Oyuncuya git
+            try {
+                await bot.pathfinder.goto(
+                    new goals.GoalNear(
+                        nearest.entity.position.x,
+                        nearest.entity.position.y,
+                        nearest.entity.position.z,
+                        2
+                    ),
+                    { timeout: 20000 }
+                );
+            } catch {
+                console.log('[elmas] Oyuncuya gidilemedi, yerinde at');
+            }
+
+            // Elmasları at
+            const diamonds = bot.inventory.items().filter(i => i.name === 'diamond');
+            for (const item of diamonds) {
+                try {
+                    await bot.toss(item.type, null, item.count);
+                    console.log(`[elmas] ${item.count} elmas atıldı → ${nearest.username}`);
+                    await sleep(300);
+                } catch (tossErr) {
+                    console.log('[elmas] Atma hatası:', tossErr.message);
+                }
+            }
+
+            console.log('[elmas] Elmaslar teslim edildi, madenciliğe devam...');
         }
     }
 
