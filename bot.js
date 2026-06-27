@@ -24,7 +24,7 @@ function createBot() {
         host: '78.167.243.121:25565',
         port: 25565,
         username: 'Awe',
-        version: '1.21'
+        version: '1.21.4'
     });
 
     bot.loadPlugin(pathfinder);
