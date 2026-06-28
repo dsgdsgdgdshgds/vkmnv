@@ -56,9 +56,9 @@ function createBot() {
         console.log('[→] Login başlatılıyor...');
         try {
             await sleep(30000);
-            bot.chat(`/login Batuha78`);
+            bot.chat(`/login ${process.env.SIFRE}`);
             await sleep(30000);
-            bot.chat('/login Batuhan78');
+            bot.chat('/skyblock');
             await sleep(30000);
             systemsStarted = true;
             startSystems();
