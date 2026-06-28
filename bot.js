@@ -2,6 +2,17 @@ const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const http = require('http');
 
+// ─────────────────────────────────────────
+//   GLOBAL GÜVENLİK AĞI
+//   Yakalanmamış herhangi bir hata process'i çökertmesin.
+// ─────────────────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[!] Yakalanmamış Promise Hatası:', reason?.message ?? reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[!] Yakalanmamış İstisna:', err.message);
+});
+
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -10,19 +21,13 @@ http.createServer((req, res) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-
 // ─────────────────────────────────────────
-//   AYARLAR (liste yok — dinamik tespit)
+//   AYARLAR
 // ─────────────────────────────────────────
-const MAX_SAFE_DROP = 3;            // bu kadar bloktan fazla boşluk varsa ilerlemez
-const ATTACKER_TTL = 6000;          // bir mob "vurdu" olarak kaç ms hatırlanır
-const ATTACKER_DETECT_RADIUS = 6;   // vurulan hedefin etrafında mob aranacak yarıçap
-
-// Lav, ateş, magma, kampfire vb. — isim bazlı genel tehlike tespiti.
-// Yeni bir tehlikeli blok eklenmek istenirse buraya pattern eklemek yeterli.
+const MAX_SAFE_DROP = 3;
+const ATTACKER_TTL = 6000;
+const ATTACKER_DETECT_RADIUS = 6;
 const HAZARD_REGEX = /lava|fire|magma_block|soul_campfire|campfire/i;
-
-// Ghast ve blaze'in attığı ateş topları — bunlar entity olarak uçar, mob değil.
 const PROJECTILE_REGEX = /fireball/i;
 
 function createBot() {
@@ -40,28 +45,15 @@ function createBot() {
     let systemsStarted = false;
     let spawnProcessed = false;
 
-    // Savaş state
     let currentTarget = null;
     let isAttacking = false;
     let isRetreating = false;
     let lastAttackTime = 0;
     let followingPlayer = null;
-
-    // Tehlike (boşluk/lav/ateş) tespit edildiğinde true olur.
-    // Diğer döngüler bu süre içinde yeni pathfinder hedefi vermekten kaçınır,
-    // böylece "dur → hemen tekrar tehlikeye doğru hedef al" çakışması engellenir.
     let dangerAhead = false;
 
-    // Can eşiği — çok kritik anda basit bir güvenlik freni (başka şart yok)
     const HEALTH_RETREAT = 8;
-
-    // entityId -> { time, entity } : bota ya da takip edilen oyuncuya az önce
-    // vurmuş moblar. Bot SADECE buradaki mobları hedef alır — kendiliğinden
-    // hiçbir moba saldırmaz.
     const recentAttackers = new Map();
-
-    // Sadece gerçekten vuruş menzilinde durup dövüşürken true olur
-    // (kovalarken değil) — fallGuard'ın bu sırada araya girmesini engellemek için.
     let isMeleeEngaged = false;
 
     async function performLoginSequence() {
@@ -91,28 +83,22 @@ function createBot() {
         const mcData = require('minecraft-data')(bot.version);
         const movements = new Movements(bot, mcData);
 
-        // Parkur & boşluk algılama için ayarlar
-        movements.canDig = false;        // savaşta kazma yok
+        movements.canDig = false;
         movements.canJump = true;
         movements.allowSprinting = true;
-        movements.allowParkour = true;   // parkur açık
+        movements.allowParkour = true;
         movements.allow1by1 = true;
-        movements.maxDropDown = MAX_SAFE_DROP; // boşluğa düşme engeli
-        movements.scafoldingBlocks = []; // scaffold yok
-
-        // Pathfinder'ın kendisi de lav/ateş gibi blokların üstünden/yanından
-        // geçen yolları yüksek maliyetli görüp mümkünse kaçınsın.
+        movements.maxDropDown = MAX_SAFE_DROP;
+        movements.scafoldingBlocks = [];
         movements.exclusionAreasStep.push(block => (HAZARD_REGEX.test(block.name) ? 100 : 0));
 
         bot.pathfinder.setMovements(movements);
         console.log('[✓] Savaş sistemi başlatıldı.');
 
-        // Kılıcı koy eline, kalkan ve zırhı tak
         equipSword();
         equipShieldIfAvailable();
         equipArmorIfAvailable();
 
-        // Ana döngüler
         combatLoop();
         followNearestPlayerLoop();
         safetyLoop();
@@ -125,25 +111,24 @@ function createBot() {
     //   YARDIMCILAR
     // ─────────────────────────────────────────
     function equipSword() {
-        const swords = bot.inventory.items()
-            .filter(i => i.name.includes('sword'))
-            .sort((a, b) => swordPriority(b.name) - swordPriority(a.name));
-        if (swords.length > 0) {
-            bot.equip(swords[0], 'hand').catch(() => {});
-            console.log('[⚔] Kılıç: ' + swords[0].name);
-        }
+        try {
+            const swords = bot.inventory.items()
+                .filter(i => i.name.includes('sword'))
+                .sort((a, b) => swordPriority(b.name) - swordPriority(a.name));
+            if (swords.length > 0) {
+                bot.equip(swords[0], 'hand').catch(() => {});
+                console.log('[⚔] Kılıç: ' + swords[0].name);
+            }
+        } catch {}
     }
 
     function equipShieldIfAvailable() {
-        const shield = bot.inventory.items().find(i => i.name === 'shield');
-        if (shield) {
-            bot.equip(shield, 'off-hand').catch(() => {});
-        }
+        try {
+            const shield = bot.inventory.items().find(i => i.name === 'shield');
+            if (shield) bot.equip(shield, 'off-hand').catch(() => {});
+        } catch {}
     }
 
-    // Zırh giyme — materyal önceliğine göre (netherite > diamond > iron > ...).
-    // Liste yok: item adının sonundaki "_helmet/_chestplate/_leggings/_boots"
-    // ekine göre slotu otomatik tespit eder.
     const ARMOR_SLOTS = {
         helmet: 'head',
         chestplate: 'torso',
@@ -152,20 +137,21 @@ function createBot() {
     };
 
     function equipArmorIfAvailable() {
-        for (const [piece, slot] of Object.entries(ARMOR_SLOTS)) {
-            const candidates = bot.inventory.items()
-                .filter(i => i.name.endsWith(piece))
-                .sort((a, b) => swordPriority(b.name) - swordPriority(a.name));
-            if (candidates.length === 0) continue;
+        try {
+            for (const [piece, slot] of Object.entries(ARMOR_SLOTS)) {
+                const candidates = bot.inventory.items()
+                    .filter(i => i.name.endsWith(piece))
+                    .sort((a, b) => swordPriority(b.name) - swordPriority(a.name));
+                if (candidates.length === 0) continue;
 
-            const equipped = bot.inventory.slots[bot.getEquipmentDestSlot(slot)];
-            const best = candidates[0];
-            // Üstündeki zaten aynı veya daha iyi materyaldeyse tekrar giymeye çalışma
-            if (equipped && equipped.name.endsWith(piece) && swordPriority(equipped.name) >= swordPriority(best.name)) {
-                continue;
+                const equipped = bot.inventory.slots[bot.getEquipmentDestSlot(slot)];
+                const best = candidates[0];
+                if (equipped && equipped.name.endsWith(piece) && swordPriority(equipped.name) >= swordPriority(best.name)) {
+                    continue;
+                }
+                bot.equip(best, slot).catch(() => {});
             }
-            bot.equip(best, slot).catch(() => {});
-        }
+        } catch {}
     }
 
     function swordPriority(name) {
@@ -177,8 +163,6 @@ function createBot() {
         return 0;
     }
 
-    // Düşman tespiti artık sabit bir isim listesine değil,
-    // oyunun kendi verisine (mcData kategorisi) dayanıyor.
     function isHostile(entity) {
         return entity?.kind === 'Hostile mobs';
     }
@@ -191,203 +175,195 @@ function createBot() {
         return bot.health ?? 20;
     }
 
-    // Bir blok lav/ateş/magma vb. tehlikeli mi? (genel, isim bazlı)
     function isHazardBlock(block) {
         if (!block) return false;
         return HAZARD_REGEX.test(block.name);
     }
 
-    // Belirli bir noktada (ayak, kafa ve zemin seviyesinde) tehlike var mı?
     function hasHazardAt(pos) {
-        const feet = bot.blockAt(pos);
-        const head = bot.blockAt(pos.offset(0, 1, 0));
-        const ground = bot.blockAt(pos.offset(0, -1, 0));
-        return isHazardBlock(feet) || isHazardBlock(head) || isHazardBlock(ground);
+        try {
+            const feet   = bot.blockAt(pos);
+            const head   = bot.blockAt(pos.offset(0, 1, 0));
+            const ground = bot.blockAt(pos.offset(0, -1, 0));
+            return isHazardBlock(feet) || isHazardBlock(head) || isHazardBlock(ground);
+        } catch {
+            return false;
+        }
     }
 
-    // Belirtilen noktanın altında kaç blok boşluk var, ölçer (düşme derinliği).
     function getDropDepthAt(pos, maxCheck = 6) {
-        for (let dy = 1; dy <= maxCheck; dy++) {
-            const b = bot.blockAt(pos.offset(0, -dy, 0));
-            if (b && b.name !== 'air' && b.name !== 'void_air' && b.name !== 'cave_air') {
-                return dy - 1; // bu kadar blok düşer, sonra zemine basar
+        try {
+            for (let dy = 1; dy <= maxCheck; dy++) {
+                const b = bot.blockAt(pos.offset(0, -dy, 0));
+                if (b && b.name !== 'air' && b.name !== 'void_air' && b.name !== 'cave_air') {
+                    return dy - 1;
+                }
             }
+            return maxCheck;
+        } catch {
+            return maxCheck;
         }
-        return maxCheck; // dipsiz / çok derin sayılır
     }
 
-    // Botun şu an baktığı yönde belirli bir mesafe ilerideki noktayı verir
     function getAheadPosition(distance = 1) {
-        const yaw = bot.entity.yaw;
-        const dx = -Math.sin(yaw) * distance;
-        const dz = -Math.cos(yaw) * distance;
-        return bot.entity.position.offset(dx, 0, dz);
+        try {
+            const yaw = bot.entity.yaw;
+            const dx = -Math.sin(yaw) * distance;
+            const dz = -Math.cos(yaw) * distance;
+            return bot.entity.position.offset(dx, 0, dz);
+        } catch {
+            return bot.entity.position;
+        }
     }
 
-    // Belirli bir noktanın etrafındaki en yakın düşman mob (vurulma anında saldırganı bulmak için)
     function getHostileNear(position, maxDist) {
-        let nearest = null;
-        let minDist = maxDist;
-        for (const entity of Object.values(bot.entities)) {
-            if (!isHostile(entity) || !entity.position) continue;
-            const dist = position.distanceTo(entity.position);
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = entity;
+        try {
+            let nearest = null;
+            let minDist = maxDist;
+            for (const entity of Object.values(bot.entities)) {
+                if (!isHostile(entity) || !entity.position) continue;
+                const dist = position.distanceTo(entity.position);
+                if (dist < minDist) { minDist = dist; nearest = entity; }
             }
+            return nearest;
+        } catch {
+            return null;
         }
-        return nearest;
     }
 
-    // En yakın oyuncu (kendisi hariç)
     function getNearestPlayer(maxDist = 64) {
-        let nearest = null;
-        let minDist = maxDist;
-
-        for (const player of Object.values(bot.players)) {
-            if (!player.entity || player.username === bot.username) continue;
-            const dist = bot.entity.position.distanceTo(player.entity.position);
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = player;
+        try {
+            let nearest = null;
+            let minDist = maxDist;
+            for (const player of Object.values(bot.players)) {
+                if (!player.entity || player.username === bot.username) continue;
+                const dist = bot.entity.position.distanceTo(player.entity.position);
+                if (dist < minDist) { minDist = dist; nearest = player; }
             }
+            return nearest;
+        } catch {
+            return null;
         }
-        return nearest;
     }
 
-    // Bota veya takip ettiği oyuncuya bir mob vurduğunda: yakınındaki düşman
-    // mobu tespit edip hedefe al. Bot bunun dışında HİÇBİR moba kendiliğinden
-    // saldırmaz — sadece vurulursa karşılık verir.
     bot.on('entityHurt', (entity) => {
-        if (!entity) return;
-        const isBot = entity === bot.entity;
-        const isFollowedPlayer = followingPlayer && entity === followingPlayer.entity;
-        if (!isBot && !isFollowedPlayer) return;
+        try {
+            if (!entity) return;
+            const isBot = entity === bot.entity;
+            const isFollowedPlayer = followingPlayer && entity === followingPlayer.entity;
+            if (!isBot && !isFollowedPlayer) return;
 
-        const attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
-        if (attacker) {
-            recentAttackers.set(attacker.id, { time: Date.now(), entity: attacker });
-            const who = isBot ? 'bota' : 'takip edilen oyuncuya';
-            console.log(`[👁] ${attacker.name} ${who} vurdu → hedefe alındı.`);
+            const attacker = getHostileNear(entity.position, ATTACKER_DETECT_RADIUS);
+            if (attacker) {
+                recentAttackers.set(attacker.id, { time: Date.now(), entity: attacker });
+                const who = isBot ? 'bota' : 'takip edilen oyuncuya';
+                console.log(`[👁] ${attacker.name} ${who} vurdu → hedefe alındı.`);
+            }
+        } catch (err) {
+            console.error('[!] entityHurt hatası:', err.message);
         }
     });
 
     // ─────────────────────────────────────────
     //   SAVAŞ DÖNGÜSÜ
-    //   KURAL: bot sadece KENDİSİNE veya takip ettiği oyuncuya vurmuş mobu
-    //   hedef alır. Vurulmadıkça hiçbir moba saldırmaz.
     // ─────────────────────────────────────────
     const STRIKE_RANGE = 3.5;
 
     async function combatLoop() {
         while (true) {
-            await sleep(80);
+            try {
+                await sleep(80);
 
-            // Çok kritik can: tek güvenlik freni
-            if (botHealth() < HEALTH_RETREAT) {
-                if (!isRetreating) {
-                    console.log('[⚠] Can kritik! Çekiliyorum...');
-                    isRetreating = true;
+                if (botHealth() < HEALTH_RETREAT) {
+                    if (!isRetreating) {
+                        console.log('[⚠] Can kritik! Çekiliyorum...');
+                        isRetreating = true;
+                        isAttacking = false;
+                        currentTarget = null;
+                        try { bot.pathfinder.setGoal(null); } catch {}
+                        await retreat();
+                        isRetreating = false;
+                    }
+                    continue;
+                }
+
+                const held = bot.heldItem;
+                if (!held || !held.name.includes('sword')) equipSword();
+
+                const now = Date.now();
+                let target = null;
+                let minDist = Infinity;
+                for (const [id, data] of recentAttackers) {
+                    if (now - data.time > ATTACKER_TTL) { recentAttackers.delete(id); continue; }
+                    const entity = bot.entities[id];
+                    if (!entity || entity.isValid === false || !isHostile(entity) || !entity.position) {
+                        recentAttackers.delete(id);
+                        continue;
+                    }
+                    const dist = bot.entity.position.distanceTo(entity.position);
+                    if (dist < minDist) { minDist = dist; target = entity; }
+                }
+
+                if (target) {
+                    currentTarget = target;
+                    isAttacking = true;
+                    await fightEntity(target);
+                } else {
                     isAttacking = false;
+                    isMeleeEngaged = false;
                     currentTarget = null;
-                    try { bot.pathfinder.setGoal(null); } catch {}
-                    await retreat();
-                    isRetreating = false;
                 }
-                continue;
-            }
-
-            // Kılıç elde mi?
-            const held = bot.heldItem;
-            if (!held || !held.name.includes('sword')) {
-                equipSword();
-            }
-
-            // En yakın saldırgan mobu bul (sadece recentAttackers listesinden)
-            const now = Date.now();
-            let target = null;
-            let minDist = Infinity;
-            for (const [id, data] of recentAttackers) {
-                if (now - data.time > ATTACKER_TTL) {
-                    recentAttackers.delete(id);
-                    continue;
-                }
-                const entity = bot.entities[id];
-                if (!entity || entity.isValid === false || !isHostile(entity) || !entity.position) {
-                    recentAttackers.delete(id);
-                    continue;
-                }
-                const dist = bot.entity.position.distanceTo(entity.position);
-                if (dist < minDist) {
-                    minDist = dist;
-                    target = entity;
-                }
-            }
-
-            if (target) {
-                currentTarget = target;
-                isAttacking = true;
-                await fightEntity(target);
-            } else {
-                isAttacking = false;
-                isMeleeEngaged = false;
-                currentTarget = null;
+            } catch (err) {
+                console.error('[!] combatLoop hatası:', err.message);
+                await sleep(500);
             }
         }
     }
 
     // ─────────────────────────────────────────
     //   ENTİTY İLE SAVAŞ
-    //   Saldırgan menzilde değilse ona yaklaşır, menzile girince vurur.
     // ─────────────────────────────────────────
     async function fightEntity(entity) {
-        if (!entity || !entity.isValid) return;
+        try {
+            if (!entity || !entity.isValid) return;
 
-        const dist = bot.entity.position.distanceTo(entity.position);
+            const dist = bot.entity.position.distanceTo(entity.position);
 
-        // Menzil dışındaysa yaklaş (saldırgan, öldürülene kadar kovalanır)
-        if (dist > STRIKE_RANGE) {
-            isMeleeEngaged = false;
-            if (dangerAhead) {
-                await sleep(200);
+            if (dist > STRIKE_RANGE) {
+                isMeleeEngaged = false;
+                if (dangerAhead) { await sleep(200); return; }
+                try { bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true); } catch {}
+                await sleep(250);
                 return;
             }
-            try {
-                bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
-            } catch {}
-            await sleep(250);
-            return;
-        }
 
-        // Menzildeyiz: dur, dön, vur
-        isMeleeEngaged = true;
-        try { bot.pathfinder.setGoal(null); } catch {}
-        try {
-            await bot.lookAt(entity.position.offset(0, entity.height * 0.9, 0), true);
-        } catch {}
-
-        // Sweep attack cooldown: 1.21'de tam cooldown ~600ms
-        const now = Date.now();
-        const cooldown = 580;
-        if (now - lastAttackTime < cooldown) {
-            await sleep(cooldown - (now - lastAttackTime));
-        }
-
-        if (!entity.isValid) return;
-
-        try {
-            await bot.attack(entity);
-            lastAttackTime = Date.now();
-            console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))}`);
-        } catch {}
-
-        // Öldü mü?
-        if (!entity.isValid || entityHealth(entity) <= 0) {
-            console.log(`[✓] ${entity.name} öldürüldü!`);
-            recentAttackers.delete(entity.id);
-            currentTarget = null;
-            isMeleeEngaged = false;
+            isMeleeEngaged = true;
             try { bot.pathfinder.setGoal(null); } catch {}
+            try { await bot.lookAt(entity.position.offset(0, entity.height * 0.9, 0), true); } catch {}
+
+            const now = Date.now();
+            const cooldown = 580;
+            if (now - lastAttackTime < cooldown) {
+                await sleep(cooldown - (now - lastAttackTime));
+            }
+
+            if (!entity.isValid) return;
+
+            try {
+                await bot.attack(entity);
+                lastAttackTime = Date.now();
+                console.log(`[⚔] Vuruldu: ${entity.name} | HP: ${Math.round(entityHealth(entity))}`);
+            } catch {}
+
+            if (!entity.isValid || entityHealth(entity) <= 0) {
+                console.log(`[✓] ${entity.name} öldürüldü!`);
+                recentAttackers.delete(entity.id);
+                currentTarget = null;
+                isMeleeEngaged = false;
+                try { bot.pathfinder.setGoal(null); } catch {}
+            }
+        } catch (err) {
+            console.error('[!] fightEntity hatası:', err.message);
         }
     }
 
@@ -395,271 +371,252 @@ function createBot() {
     //   GERİ ÇEKİLME
     // ─────────────────────────────────────────
     async function retreat() {
-        try { bot.pathfinder.setGoal(null); } catch {}
-
-        const pos = bot.entity.position;
-        // Düşmandan ters yöne koş
-        const target = currentTarget;
-        let dx = 0, dz = 0;
-
-        if (target?.position) {
-            dx = pos.x - target.position.x;
-            dz = pos.z - target.position.z;
-            const len = Math.sqrt(dx*dx + dz*dz) || 1;
-            dx = (dx/len) * 8;
-            dz = (dz/len) * 8;
-        } else {
-            dx = (Math.random() - 0.5) * 10;
-            dz = (Math.random() - 0.5) * 10;
-        }
-
         try {
-            await bot.pathfinder.goto(
-                new goals.GoalNear(pos.x + dx, pos.y, pos.z + dz, 2),
-                { timeout: 4000 }
-            );
-        } catch {}
+            try { bot.pathfinder.setGoal(null); } catch {}
 
-        await sleep(1500);
+            const pos = bot.entity.position;
+            const target = currentTarget;
+            let dx = 0, dz = 0;
+
+            if (target?.position) {
+                dx = pos.x - target.position.x;
+                dz = pos.z - target.position.z;
+                const len = Math.sqrt(dx * dx + dz * dz) || 1;
+                dx = (dx / len) * 8;
+                dz = (dz / len) * 8;
+            } else {
+                dx = (Math.random() - 0.5) * 10;
+                dz = (Math.random() - 0.5) * 10;
+            }
+
+            try {
+                await bot.pathfinder.goto(
+                    new goals.GoalNear(pos.x + dx, pos.y, pos.z + dz, 2),
+                    { timeout: 4000 }
+                );
+            } catch {}
+
+            await sleep(1500);
+        } catch (err) {
+            console.error('[!] retreat hatası:', err.message);
+        }
     }
 
     // ─────────────────────────────────────────
     //   EN YAKIN OYUNCUYU TAKİP ET
-    //   (savaş yoksa)
     // ─────────────────────────────────────────
     async function followNearestPlayerLoop() {
         while (true) {
-            await sleep(500);
-
-            if (isAttacking || isRetreating || dangerAhead) continue;
-
-            const player = getNearestPlayer(48);
-            if (!player || !player.entity) {
-                followingPlayer = null;
-                continue;
-            }
-
-            followingPlayer = player;
-            const dist = bot.entity.position.distanceTo(player.entity.position);
-
-            // 4 bloktan yakınsa dur (üstüne basma)
-            if (dist < 4) continue;
-
             try {
-                bot.pathfinder.setGoal(
-                    new goals.GoalFollow(player.entity, 3),
-                    true
-                );
-            } catch {}
+                await sleep(500);
+
+                if (isAttacking || isRetreating || dangerAhead) continue;
+
+                const player = getNearestPlayer(48);
+                if (!player || !player.entity) { followingPlayer = null; continue; }
+
+                followingPlayer = player;
+                const dist = bot.entity.position.distanceTo(player.entity.position);
+                if (dist < 4) continue;
+
+                try {
+                    bot.pathfinder.setGoal(new goals.GoalFollow(player.entity, 3), true);
+                } catch {}
+            } catch (err) {
+                console.error('[!] followLoop hatası:', err.message);
+                await sleep(500);
+            }
         }
     }
 
     // ─────────────────────────────────────────
     //   GÜVENLİK DÖNGÜSÜ
-    //   Boşluğa düşme, lav, void algılama
     // ─────────────────────────────────────────
     async function safetyLoop() {
         while (true) {
-            await sleep(200);
+            try {
+                await sleep(200);
 
-            const pos = bot.entity.position;
+                const pos = bot.entity.position;
 
-            // Void kontrolü (Y < -60)
-            if (pos.y < -60) {
-                console.log('[⚠] VOID! Acil çıkış...');
-                try { bot.pathfinder.setGoal(null); } catch {}
-                bot.setControlState('jump', true);
-                await sleep(500);
-                bot.setControlState('jump', false);
-                continue;
-            }
-
-            // Lav / ateş kontrolü (genel tehlike regex'i ile)
-            const standingIn = bot.blockAt(pos.offset(0, 0, 0));
-            const headIn = bot.blockAt(pos.offset(0, 1, 0));
-            if (isHazardBlock(standingIn) || isHazardBlock(headIn)) {
-                console.log('[⚠] TEHLİKE (lav/ateş)! Kaçıyorum...');
-                dangerAhead = true;
-                isRetreating = true;
-                try { bot.pathfinder.setGoal(null); } catch {}
-                bot.clearControlStates();
-                await retreat();
-                dangerAhead = false;
-                continue;
-            }
-
-            // Ayağının altında boşluk var mı (3 blok)
-            let solidBelow = false;
-            for (let dy = -1; dy >= -3; dy--) {
-                const b = bot.blockAt(pos.offset(0, dy, 0));
-                if (b && b.name !== 'air' && b.name !== 'void_air') {
-                    solidBelow = true;
-                    break;
+                if (pos.y < -60) {
+                    console.log('[⚠] VOID! Acil çıkış...');
+                    try { bot.pathfinder.setGoal(null); } catch {}
+                    bot.setControlState('jump', true);
+                    await sleep(500);
+                    bot.setControlState('jump', false);
+                    continue;
                 }
-            }
 
-            if (!solidBelow && !bot.entity.onGround) {
-                console.log('[⚠] Boşlukta! Dural...');
-                try { bot.pathfinder.setGoal(null); } catch {}
-                bot.setControlState('sneak', true);
-                await sleep(600);
-                bot.setControlState('sneak', false);
+                const standingIn = bot.blockAt(pos.offset(0, 0, 0));
+                const headIn     = bot.blockAt(pos.offset(0, 1, 0));
+                if (isHazardBlock(standingIn) || isHazardBlock(headIn)) {
+                    console.log('[⚠] TEHLİKE (lav/ateş)! Kaçıyorum...');
+                    dangerAhead = true;
+                    isRetreating = true;
+                    try { bot.pathfinder.setGoal(null); } catch {}
+                    bot.clearControlStates();
+                    await retreat();
+                    isRetreating = false;
+                    dangerAhead = false;
+                    continue;
+                }
+
+                let solidBelow = false;
+                for (let dy = -1; dy >= -3; dy--) {
+                    const b = bot.blockAt(pos.offset(0, dy, 0));
+                    if (b && b.name !== 'air' && b.name !== 'void_air') { solidBelow = true; break; }
+                }
+
+                if (!solidBelow && !bot.entity.onGround) {
+                    console.log('[⚠] Boşlukta! Dural...');
+                    try { bot.pathfinder.setGoal(null); } catch {}
+                    bot.setControlState('sneak', true);
+                    await sleep(600);
+                    bot.setControlState('sneak', false);
+                }
+            } catch (err) {
+                console.error('[!] safetyLoop hatası:', err.message);
+                await sleep(500);
             }
         }
     }
 
     // ─────────────────────────────────────────
-    //   YÜKSEKTEN DÜŞMEYİ VE TEHLİKELİ BLOKLARI ÖNLEYEN KORUMA
-    //   Önünde derin boşluk veya lav/ateş varsa ilerlemez
+    //   DÜŞME KORUMA DÖNGÜSÜ
     // ─────────────────────────────────────────
     async function fallGuardLoop() {
         while (true) {
-            await sleep(100);
+            try {
+                await sleep(100);
 
-            // Sadece durup vuruşurken (kovalarken değil) bu kontrol gereksiz
-            // ve dövüşe araya girip kesintiye sebep olabilir — atla.
-            if (isMeleeEngaged) continue;
+                if (isMeleeEngaged) continue;
+                if (!bot.entity.onGround) continue;
 
-            // Havadaysa (zaten düşüyor/zıplıyor) bu kontrolü atla, diğer sistemler halleder
-            if (!bot.entity.onGround) continue;
+                const vel = bot.entity.velocity;
+                const horizSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+                const lookDistances = horizSpeed > 0.15 ? [1, 2, 3] : [1, 2];
 
-            // Sprint hızındaysa daha ileriye bak, normalde yakın mesafeye bak
-            const vel = bot.entity.velocity;
-            const horizSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-            const lookDistances = horizSpeed > 0.15 ? [1, 2, 3] : [1, 2];
+                let danger = false;
 
-            let danger = false;
+                if (hasHazardAt(bot.entity.position)) danger = true;
 
-            // Şu anki konumda da lav/ateş var mı (örn. savaşırken üstüne bastıysa)
-            if (hasHazardAt(bot.entity.position)) {
-                danger = true;
-            }
-
-            if (!danger) {
-                for (const d of lookDistances) {
-                    const ahead = getAheadPosition(d);
-                    const dropDepth = getDropDepthAt(ahead);
-                    if (dropDepth > MAX_SAFE_DROP || hasHazardAt(ahead)) {
-                        danger = true;
-                        break;
+                if (!danger) {
+                    for (const d of lookDistances) {
+                        const ahead = getAheadPosition(d);
+                        const dropDepth = getDropDepthAt(ahead);
+                        if (dropDepth > MAX_SAFE_DROP || hasHazardAt(ahead)) { danger = true; break; }
                     }
                 }
-            }
 
-            if (danger) {
-                dangerAhead = true;
-                try { bot.pathfinder.setGoal(null); } catch {}
-                bot.clearControlStates();
-                bot.setControlState('sneak', true);
-                await sleep(400);
-                bot.setControlState('sneak', false);
-                // Diğer döngülerin hemen aynı yöne tekrar hedef vermesini engellemek için kısa bekleme
-                await sleep(300);
-                dangerAhead = false;
+                if (danger) {
+                    dangerAhead = true;
+                    try { bot.pathfinder.setGoal(null); } catch {}
+                    bot.clearControlStates();
+                    bot.setControlState('sneak', true);
+                    await sleep(400);
+                    bot.setControlState('sneak', false);
+                    await sleep(300);
+                    dangerAhead = false;
+                }
+            } catch (err) {
+                console.error('[!] fallGuardLoop hatası:', err.message);
+                await sleep(500);
             }
         }
     }
 
     // ─────────────────────────────────────────
-    //   ATEŞ TOPU SAVUNMASI (Ghast / Blaze)
-    //   Yakınsa kılıçla vurup geri yansıtır, uzaksa yana kaçar.
+    //   YİYECEK DÖNGÜSÜ
+    // ─────────────────────────────────────────
+    async function eatLoop() {
+        while (true) {
+            try {
+                await sleep(1000);
+                if (bot.food > 16) continue;
+                if (isAttacking || isRetreating) continue;
+
+                const food = bot.inventory.items().find(i =>
+                    i.name.includes('bread') ||
+                    i.name.includes('cooked') ||
+                    i.name.includes('golden_apple') ||
+                    i.name.includes('apple')
+                );
+                if (!food) continue;
+
+                await bot.equip(food, 'hand').catch(() => {});
+                bot.setControlState('sprint', false);
+                await bot.consume().catch(() => {});
+                equipSword();
+            } catch (err) {
+                console.error('[!] eatLoop hatası:', err.message);
+                await sleep(500);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //   ATEŞ TOPU SAVUNMA DÖNGÜSÜ
     // ─────────────────────────────────────────
     async function projectileDefenseLoop() {
         while (true) {
-            await sleep(80);
-
-            let nearest = null;
-            let minDist = 16;
-            for (const entity of Object.values(bot.entities)) {
-                if (!entity?.name || !PROJECTILE_REGEX.test(entity.name) || !entity.position) continue;
-                const dist = bot.entity.position.distanceTo(entity.position);
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearest = entity;
-                }
-            }
-            if (!nearest) continue;
-
-            // Bize doğru geliyor mu? (hız vektörü ile bota olan yön örtüşüyor mu)
-            const toBot = bot.entity.position.minus(nearest.position);
-            const vel = nearest.velocity ?? { x: 0, y: 0, z: 0 };
-            const approaching = (vel.x * toBot.x + vel.z * toBot.z) > 0;
-            if (!approaching) continue;
-
-            if (minDist <= 4) {
-                // Yakınsa kılıçla vur — Minecraft'ta bu ateş topunu kaynağına geri yansıtır
-                try {
-                    await bot.lookAt(nearest.position, true);
-                    await bot.attack(nearest);
-                    console.log('[🔥] Ateş topu yansıtıldı!');
-                } catch {}
-            } else if (minDist <= 12) {
-                // Uzaktaysa yansıtmak riskli, yana kaçarak kaçın
-                try { bot.pathfinder.setGoal(null); } catch {}
-                const side = Math.random() < 0.5 ? 'left' : 'right';
-                bot.setControlState(side, true);
-                await sleep(300);
-                bot.setControlState(side, false);
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────
-    //   YEMEK YEME
-    // ─────────────────────────────────────────
-    function getBestFood() {
-        // minecraft-data'dan item'ın food değerini oku — listeye gerek yok
-        const mcData = require('minecraft-data')(bot.version);
-        return bot.inventory.items()
-            .filter(i => {
-                const itemData = mcData.itemsByName[i.name];
-                return itemData && itemData.food !== undefined;
-            })
-            .sort((a, b) => {
-                const fa = mcData.itemsByName[a.name].food ?? 0;
-                const fb = mcData.itemsByName[b.name].food ?? 0;
-                return fb - fa; // en doyurucu önce
-            })[0] ?? null;
-    }
-
-    async function eatLoop() {
-        while (true) {
-            await sleep(500);
-            // 4 bar = 8 puan (her görsel bar 2 açlık puanına denk gelir)
-            if (bot.food >= 8) continue;
-
-            const food = getBestFood();
-            if (!food) continue;
-
-            console.log(`[🍖] Açım (${bot.food}/20) → ${food.name}`);
             try {
-                await bot.equip(food, 'hand');
-                await bot.consume();
-                console.log(`[🍖] Yendi! Açlık: ${bot.food}/20`);
-                await sleep(200);
-                equipSword();
-            } catch (e) {
-                console.log('[yemek hata]', e.message);
-                equipSword();
+                await sleep(100);
+
+                const botPos = bot.entity.position;
+                for (const entity of Object.values(bot.entities)) {
+                    if (!PROJECTILE_REGEX.test(entity.name ?? '')) continue;
+                    if (!entity.position || !entity.velocity) continue;
+
+                    const dist = botPos.distanceTo(entity.position);
+                    if (dist > 12) continue;
+
+                    // Fireball bota doğru mu yaklaşıyor?
+                    const rel = botPos.minus(entity.position);
+                    const dot = rel.x * entity.velocity.x + rel.y * entity.velocity.y + rel.z * entity.velocity.z;
+                    if (dot <= 0) continue; // uzaklaşıyor
+
+                    console.log(`[🔥] Ateş topu geliyor (${entity.name}) — kaçıyorum!`);
+                    dangerAhead = true;
+                    try { bot.pathfinder.setGoal(null); } catch {}
+
+                    const yaw = bot.entity.yaw + Math.PI / 2; // sağa kaç
+                    const ex = botPos.x - Math.sin(yaw) * 5;
+                    const ez = botPos.z - Math.cos(yaw) * 5;
+
+                    try {
+                        await bot.pathfinder.goto(
+                            new goals.GoalNear(ex, botPos.y, ez, 1),
+                            { timeout: 2000 }
+                        );
+                    } catch {}
+
+                    dangerAhead = false;
+                    break;
+                }
+            } catch (err) {
+                console.error('[!] projectileDefenseLoop hatası:', err.message);
+                await sleep(500);
             }
         }
     }
 
-    // Envanter değişince kılıç/kalkan/zırh kontrol
-    bot.on('playerCollect', () => {
-        equipSword();
-        equipShieldIfAvailable();
-        equipArmorIfAvailable();
+    // ─────────────────────────────────────────
+    //   BAĞLANTI OLAYLARI
+    // ─────────────────────────────────────────
+    bot.on('kicked', (reason) => {
+        console.log('[!] Sunucudan atıldı:', reason);
+        setTimeout(createBot, 5000);
     });
 
-    bot.on('end', reason => {
-        console.log(`[!] Bağlantı kesildi: ${reason}`);
-        systemsStarted = false;
-        spawnProcessed = false;
-        setTimeout(createBot, 14000);
+    bot.on('error', (err) => {
+        console.error('[!] Bot bağlantı hatası:', err.message);
     });
-    bot.on('kicked', reason => console.log('[ATILDI]', JSON.stringify(reason)));
-    bot.on('error', err => console.log('[HATA]', err.message));
+
+    bot.on('end', (reason) => {
+        console.log('[!] Bağlantı kapandı:', reason, '— 5 sn sonra yeniden bağlanılıyor...');
+        setTimeout(createBot, 5000);
+    });
 }
 
 createBot();
