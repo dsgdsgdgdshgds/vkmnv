@@ -4,9 +4,306 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Survival Evolution — 2D</title>
-<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  #c { image-rendering: pixelated; image-rendering: crisp-edges; background:#5a9c4a; }
+/* ============================================================
+   Survival Evolution — görsel sistem
+   Palet: orman gecesi + parlayan chakra-teal vurgu
+   ============================================================ */
+:root {
+  --bg-0: #0b1410;
+  --bg-1: #101d17;
+  --panel: #142219;
+  --border: #24402f;
+  --text: #eaf3ec;
+  --text-dim: #8ba896;
+  --accent: #4ce0c4;
+  --accent-dim: #2a8c78;
+  --accent-glow: rgba(76, 224, 196, 0.35);
+  --danger: #ff6a5a;
+  --radius: 14px;
+  --font-display: 'Bebas Neue', 'Impact', sans-serif;
+  --font-body: 'Space Grotesk', -apple-system, Segoe UI, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hidden { display: none !important; }
+
+/* ─────────── Auth ekranı ─────────── */
+.screen {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(76, 224, 196, 0.10), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(255, 106, 90, 0.06), transparent 45%),
+    var(--bg-0);
+  padding: 24px;
+  position: relative;
+}
+
+.card {
+  position: relative;
+  background: linear-gradient(180deg, var(--panel), var(--bg-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 26px 26px;
+  width: 340px; max-width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(76, 224, 196, 0.04);
+}
+
+.chakraRing {
+  position: absolute;
+  top: -70px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-glow);
+  box-shadow: 0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76, 224, 196, 0.08);
+  pointer-events: none;
+  z-index: 0;
+  animation: chakraPulse 4.5s ease-in-out infinite;
+}
+@keyframes chakraPulse {
+  0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(0.96); }
+  50% { opacity: 0.9; transform: translateX(-50%) scale(1.04); }
+}
+
+.card h1 {
+  position: relative; z-index: 1;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 0.92;
+  letter-spacing: 0.5px;
+  margin: 0 0 18px;
+  color: var(--text);
+  text-shadow: 0 0 24px var(--accent-glow);
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+  letter-spacing: 0.2px;
+}
+
+.card input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  margin-bottom: 9px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card input::placeholder { color: #5c7568; }
+.card input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.card button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #06231c;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  margin-top: 3px;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
+  box-shadow: 0 8px 20px -8px var(--accent-glow);
+}
+.card button:hover { background: #63e9d0; box-shadow: 0 10px 26px -6px var(--accent-glow); }
+.card button:active { transform: scale(0.98); }
+
+.card button.link {
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding: 8px 0;
+  margin-top: 6px;
+  box-shadow: none;
+  opacity: 0.85;
+}
+.card button.link:hover { opacity: 1; border-bottom-color: var(--accent); background: none; }
+
+.msg {
+  font-size: 12px;
+  color: var(--danger);
+  min-height: 16px;
+  margin: 8px 0 0;
+}
+
+/* ─────────── Oyun ekranı ─────────── */
+#gameScreen { position: relative; width: 100%; height: 100%; background: var(--bg-0); }
+#c { display: block; width: 100%; height: 100%; touch-action: none; }
+
+#hud {
+  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 3;
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: none;
+  font-family: var(--font-body);
+}
+#hpwrap {
+  width: 120px; height: 11px;
+  background: rgba(8, 16, 12, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+#hpbar {
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  box-shadow: 0 0 10px var(--accent-glow);
+  transition: width 0.15s;
+}
+#invBar {
+  background: rgba(10, 20, 15, 0.65);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  padding: 7px 12px;
+  display: flex; gap: 12px;
+  font-size: 13px; font-weight: 600;
+  pointer-events: auto;
+}
+#craftToggle {
+  margin-left: auto;
+  background: var(--accent);
+  border: none;
+  color: #06231c;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -6px var(--accent-glow);
+}
+
+#craftPanel {
+  position: absolute; top: 58px; right: 12px; z-index: 3;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.craftBtn {
+  background: rgba(10, 20, 15, 0.85);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-family: var(--font-body);
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.15s;
+}
+.craftBtn:hover { border-color: var(--accent); }
+.craftBtn small { color: var(--text-dim); font-weight: 400; }
+
+#touchControls { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+#stick {
+  position: absolute; left: 26px; bottom: 26px; width: 104px; height: 104px;
+  border-radius: 50%;
+  background: rgba(10, 20, 15, 0.5);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+#stickKnob {
+  position: absolute; left: 32px; top: 32px; width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+#interactBtn {
+  position: absolute; right: 28px; bottom: 34px; width: 78px; height: 78px;
+  border-radius: 50%; border: none;
+  background: var(--danger);
+  color: #2a0805;
+  font-family: var(--font-body);
+  font-weight: 700; font-size: 11px;
+  pointer-events: auto;
+  box-shadow: 0 10px 26px -6px rgba(255, 106, 90, 0.5);
+}
+
+#toast {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(10, 20, 15, 0.9);
+  border: 1px solid var(--border);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(6, 12, 9, 0.86);
+  backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  font-family: var(--font-body);
+}
+.overlay .big {
+  font-family: var(--font-display);
+  font-size: 34px;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+.overlay button {
+  padding: 11px 24px;
+  border-radius: 10px;
+  border: none;
+  margin-top: 14px;
+  background: var(--accent);
+  color: #06231c;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px -8px var(--accent-glow);
+}
+.overlay button.secondary {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+.rotateIcon { font-size: 40px; margin-bottom: 10px; color: var(--accent); }
+
+@media (max-width: 900px) and (orientation: portrait) {
+  #gameScreen:not(.hidden) ~ #rotateOverlay { display: none; }
+}
+
+#c { image-rendering: pixelated; image-rendering: crisp-edges; background:#1a2a1f; }
 </style>
 </head>
 <body>
@@ -18,7 +315,8 @@
 
 <div id="authScreen" class="screen">
   <div class="card">
-    <h1>Survival Evolution</h1>
+    <div class="chakraRing" aria-hidden="true"></div>
+    <h1>Survival<br>Evolution</h1>
 
     <div id="loginPanel">
       <input type="text" id="loginUser" placeholder="Kahraman adı veya e-posta">
