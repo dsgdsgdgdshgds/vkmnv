@@ -3,113 +3,362 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Survival Evolution — Shinobi Dünyası</title>
+<title>Survival Evolution — 2D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg-0: #0b1410; --bg-1: #101d17; --panel: #142219; --border: #24402f;
-  --text: #eaf3ec; --text-dim: #8ba896; --accent: #4ce0c4; --accent-dim: #2a8c78;
-  --accent-glow: rgba(76,224,196,0.35); --danger: #ff6a5a; --gold: #ffd700;
-  --xp: #7b68ee; --radius: 14px;
+  --bg-0: #0b1410;
+  --bg-1: #101d17;
+  --panel: #142219;
+  --border: #24402f;
+  --text: #eaf3ec;
+  --text-dim: #8ba896;
+  --accent: #4ce0c4;
+  --accent-dim: #2a8c78;
+  --accent-glow: rgba(76, 224, 196, 0.35);
+  --danger: #ff6a5a;
+  --gold: #ffd700;
+  --xp: #7b68ee;
+  --radius: 14px;
   --font-display: 'Bebas Neue', 'Impact', sans-serif;
   --font-body: 'Space Grotesk', -apple-system, Segoe UI, sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0); color:var(--text); font-family:var(--font-body); overflow:hidden; -webkit-tap-highlight-color:transparent; }
-.hidden { display:none !important; }
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.hidden { display: none !important; }
 
-.screen { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at 50% 30%, rgba(76,224,196,0.10), transparent 55%), radial-gradient(circle at 85% 80%, rgba(255,106,90,0.06), transparent 45%), var(--bg-0); padding:24px; position:relative; }
-.card { position:relative; background:linear-gradient(180deg, var(--panel), var(--bg-1)); border:1px solid var(--border); border-radius:var(--radius); padding:32px 26px 26px; width:360px; max-width:100%; text-align:center; box-shadow:0 20px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(76,224,196,0.04); }
-.chakraRing { position:absolute; top:-70px; left:50%; transform:translateX(-50%); width:220px; height:220px; border-radius:50%; border:1.5px solid var(--accent-glow); box-shadow:0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76,224,196,0.08); pointer-events:none; z-index:0; animation:chakraPulse 4.5s ease-in-out infinite; }
-@keyframes chakraPulse { 0%,100%{opacity:0.45;transform:translateX(-50%) scale(0.96);} 50%{opacity:0.9;transform:translateX(-50%) scale(1.04);} }
-.card h1 { position:relative; z-index:1; font-family:var(--font-display); font-size:40px; line-height:0.92; letter-spacing:0.5px; margin:0 0 18px; color:var(--text); text-shadow:0 0 24px var(--accent-glow); }
-.hint { font-size:12.5px; color:var(--text-dim); margin:0 0 14px; letter-spacing:0.2px; }
-.card input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-1); color:var(--text); font-family:var(--font-body); font-size:14px; margin-bottom:9px; outline:none; transition:border-color 0.15s, box-shadow 0.15s; }
-.card input::placeholder { color:#5c7568; }
-.card input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
-.card button { width:100%; padding:12px; border-radius:10px; border:none; background:var(--accent); color:#06231c; font-family:var(--font-body); font-weight:700; font-size:14px; letter-spacing:0.2px; cursor:pointer; margin-top:3px; transition:transform 0.12s, box-shadow 0.15s, background 0.15s; box-shadow:0 8px 20px -8px var(--accent-glow); }
-.card button:hover { background:#63e9d0; box-shadow:0 10px 26px -6px var(--accent-glow); }
-.card button:active { transform:scale(0.98); }
-.card button.link { background:none; color:var(--accent); font-size:12px; font-weight:500; text-decoration:none; border-bottom:1px solid transparent; padding:8px 0; margin-top:6px; box-shadow:none; opacity:0.85; }
-.card button.link:hover { opacity:1; border-bottom-color:var(--accent); background:none; }
-.msg { font-size:12px; color:var(--danger); min-height:16px; margin:8px 0 0; }
+/* ─────────── Auth ekranı (ORIJINAL) ─────────── */
+.screen {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(76, 224, 196, 0.10), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(255, 106, 90, 0.06), transparent 45%),
+    var(--bg-0);
+  padding: 24px;
+  position: relative;
+}
+.card {
+  position: relative;
+  background: linear-gradient(180deg, var(--panel), var(--bg-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 26px 26px;
+  width: 340px; max-width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(76, 224, 196, 0.04);
+}
+.chakraRing {
+  position: absolute;
+  top: -70px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-glow);
+  box-shadow: 0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76, 224, 196, 0.08);
+  pointer-events: none;
+  z-index: 0;
+  animation: chakraPulse 4.5s ease-in-out infinite;
+}
+@keyframes chakraPulse {
+  0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(0.96); }
+  50% { opacity: 0.9; transform: translateX(-50%) scale(1.04); }
+}
+.card h1 {
+  position: relative; z-index: 1;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 0.92;
+  letter-spacing: 0.5px;
+  margin: 0 0 18px;
+  color: var(--text);
+  text-shadow: 0 0 24px var(--accent-glow);
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+  letter-spacing: 0.2px;
+}
+.card input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  margin-bottom: 9px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card input::placeholder { color: #5c7568; }
+.card input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.card button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #06231c;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  margin-top: 3px;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
+  box-shadow: 0 8px 20px -8px var(--accent-glow);
+}
+.card button:hover { background: #63e9d0; box-shadow: 0 10px 26px -6px var(--accent-glow); }
+.card button:active { transform: scale(0.98); }
+.card button.link {
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding: 8px 0;
+  margin-top: 6px;
+  box-shadow: none;
+  opacity: 0.85;
+}
+.card button.link:hover { opacity: 1; border-bottom-color: var(--accent); background: none; }
+.msg {
+  font-size: 12px;
+  color: var(--danger);
+  min-height: 16px;
+  margin: 8px 0 0;
+}
 
-#gameScreen { position:relative; width:100%; height:100%; background:var(--bg-0); }
-#c { display:block; width:100%; height:100%; touch-action:none; image-rendering:pixelated; background:#1a2a1f; }
+/* ─────────── Oyun ekranı ─────────── */
+#gameScreen { position: relative; width: 100%; height: 100%; background: var(--bg-0); }
+#c { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; background:#1a2a1f; }
 
-#hud { position:absolute; top:10px; left:10px; right:10px; z-index:3; display:flex; align-items:flex-start; gap:8px; pointer-events:none; font-family:var(--font-body); flex-wrap:wrap; }
-#hudLeft { display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
-#hudRight { display:flex; gap:8px; align-items:center; pointer-events:auto; }
-.hpwrap { width:140px; height:14px; background:rgba(8,16,12,0.7); border:1px solid var(--border); border-radius:8px; overflow:hidden; backdrop-filter:blur(4px); }
-.hpbar { width:100%; height:100%; background:linear-gradient(90deg, var(--accent-dim), var(--accent)); box-shadow:0 0 10px var(--accent-glow); transition:width 0.2s; }
-.xpwrap { width:140px; height:8px; background:rgba(8,16,12,0.7); border:1px solid var(--border); border-radius:6px; overflow:hidden; backdrop-filter:blur(4px); }
-.xpbar { width:0%; height:100%; background:linear-gradient(90deg, #5a4fcf, var(--xp)); box-shadow:0 0 8px rgba(123,104,238,0.4); transition:width 0.3s; }
-.statBox { background:rgba(10,20,15,0.75); border:1px solid var(--border); backdrop-filter:blur(6px); border-radius:10px; padding:6px 10px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:5px; pointer-events:auto; }
-.statBox.gold { color:var(--gold); } .statBox.level { color:var(--accent); } .statBox.jutsu { color:#ff8c42; }
-#invBar { background:rgba(10,20,15,0.7); border:1px solid var(--border); backdrop-filter:blur(6px); border-radius:10px; padding:6px 10px; display:flex; gap:10px; font-size:12px; font-weight:600; pointer-events:auto; flex-wrap:wrap; }
-.invItem { display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 5px; border-radius:6px; transition:background 0.15s; }
-.invItem:hover { background:rgba(76,224,196,0.1); }
-.invItem.active { background:rgba(76,224,196,0.2); border:1px solid var(--accent-dim); }
-.hudBtn { background:var(--accent); border:none; color:#06231c; font-family:var(--font-body); font-weight:700; font-size:12px; padding:8px 12px; border-radius:10px; pointer-events:auto; cursor:pointer; box-shadow:0 6px 16px -6px var(--accent-glow); }
-.hudBtn.secondary { background:rgba(10,20,15,0.75); border:1px solid var(--border); color:var(--text); box-shadow:none; }
+#hud {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3;
+  display: flex; align-items: flex-start; gap: 8px;
+  pointer-events: none;
+  font-family: var(--font-body);
+  flex-wrap: wrap;
+}
+#hudLeft { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+#hudRight { display: flex; gap: 6px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
+.hpwrap {
+  width: 130px; height: 12px;
+  background: rgba(8, 16, 12, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+.hpbar {
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  box-shadow: 0 0 10px var(--accent-glow);
+  transition: width 0.2s;
+}
+.xpwrap {
+  width: 130px; height: 6px;
+  background: rgba(8, 16, 12, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+.xpbar {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #5a4fcf, var(--xp));
+  box-shadow: 0 0 8px rgba(123,104,238,0.4);
+  transition: width 0.3s;
+}
+.statBox {
+  background: rgba(10, 20, 15, 0.75);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+.statBox.gold { color: var(--gold); }
+.statBox.level { color: var(--accent); }
+.statBox.jutsu { color: #ff8c42; }
 
-#craftPanel { position:absolute; top:110px; right:10px; z-index:3; display:flex; flex-direction:column; gap:6px; }
-.craftBtn { background:rgba(10,20,15,0.85); border:1px solid var(--border); backdrop-filter:blur(6px); color:var(--text); font-family:var(--font-body); padding:9px 14px; border-radius:10px; cursor:pointer; text-align:left; font-size:12.5px; font-weight:600; transition:border-color 0.15s; }
-.craftBtn:hover { border-color:var(--accent); }
-.craftBtn small { color:var(--text-dim); font-weight:400; }
+#invBar {
+  background: rgba(10, 20, 15, 0.7);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  padding: 5px 10px;
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+.invItem { display: flex; align-items: center; gap: 3px; cursor: pointer; padding: 2px 5px; border-radius: 6px; transition: background 0.15s; }
+.invItem:hover { background: rgba(76,224,196,0.1); }
+.invItem.active { background: rgba(76,224,196,0.2); border: 1px solid var(--accent-dim); }
 
-#marketPanel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:320px; max-width:90vw; max-height:70vh; background:linear-gradient(180deg, var(--panel), var(--bg-1)); border:1px solid var(--border); border-radius:var(--radius); z-index:20; display:none; flex-direction:column; box-shadow:0 20px 60px -10px rgba(0,0,0,0.8); }
-#marketPanel.visible { display:flex; }
-.marketHeader { padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.marketHeader h2 { margin:0; font-family:var(--font-display); font-size:24px; }
-.marketClose { background:none; border:none; color:var(--danger); font-size:20px; cursor:pointer; }
-.marketList { overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
-.marketItem { background:rgba(10,20,15,0.6); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
-.marketItemInfo { display:flex; flex-direction:column; gap:2px; }
-.marketItemName { font-weight:600; font-size:13px; }
-.marketItemDesc { font-size:11px; color:var(--text-dim); }
-.marketItemPrice { color:var(--gold); font-weight:700; font-size:13px; }
-.marketBuyBtn { background:var(--accent); border:none; color:#06231c; font-weight:700; font-size:11px; padding:6px 12px; border-radius:8px; cursor:pointer; }
-.marketSellSection { padding:12px; border-top:1px solid var(--border); display:flex; gap:8px; align-items:center; }
-.marketSellSection select, .marketSellSection input { background:var(--bg-1); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:8px; font-size:12px; }
-.marketSellSection button { background:var(--gold); border:none; color:#333; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; }
+.hudBtn {
+  background: var(--accent);
+  border: none;
+  color: #06231c;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -6px var(--accent-glow);
+}
 
-#touchControls { position:absolute; inset:0; z-index:3; pointer-events:none; }
-#stick { position:absolute; left:22px; bottom:22px; width:110px; height:110px; border-radius:50%; background:rgba(10,20,15,0.5); border:1px solid var(--border); backdrop-filter:blur(4px); pointer-events:auto; }
-#stickKnob { position:absolute; left:35px; top:35px; width:40px; height:40px; border-radius:50%; background:var(--accent); box-shadow:0 0 16px var(--accent-glow); }
-.actionButtons { position:absolute; right:18px; bottom:18px; display:flex; flex-direction:column; gap:10px; pointer-events:auto; }
-.actionBtn { width:64px; height:64px; border-radius:50%; border:none; font-family:var(--font-body); font-weight:700; font-size:10px; cursor:pointer; box-shadow:0 8px 20px -4px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; }
-#interactBtn { background:var(--danger); color:#2a0805; }
-#jutsuBtn { background:#ff8c42; color:#2a1505; }
-#itemBtn { background:#7b68ee; color:#fff; }
-#marketBtn { background:var(--gold); color:#333; }
+#craftPanel {
+  position: absolute; top: 100px; right: 10px; z-index: 3;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.craftBtn {
+  background: rgba(10, 20, 15, 0.85);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-family: var(--font-body);
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.15s;
+}
+.craftBtn:hover { border-color: var(--accent); }
+.craftBtn small { color: var(--text-dim); font-weight: 400; }
 
-#toast { position:absolute; bottom:140px; left:50%; transform:translateX(-50%); background:rgba(10,20,15,0.92); border:1px solid var(--border); padding:10px 20px; border-radius:999px; font-size:13px; z-index:4; pointer-events:none; font-weight:600; }
+/* Market */
+#marketPanel {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 300px; max-width: 90vw; max-height: 65vh;
+  background: linear-gradient(180deg, var(--panel), var(--bg-1));
+  border: 1px solid var(--border); border-radius: var(--radius);
+  z-index: 20; display: none; flex-direction: column;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.8);
+}
+#marketPanel.visible { display: flex; }
+.marketHeader { padding: 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.marketHeader h2 { margin: 0; font-family: var(--font-display); font-size: 22px; }
+.marketClose { background: none; border: none; color: var(--danger); font-size: 20px; cursor: pointer; }
+.marketList { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.marketItem { background: rgba(10,20,15,0.6); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+.marketItemInfo { display: flex; flex-direction: column; gap: 2px; }
+.marketItemName { font-weight: 600; font-size: 13px; }
+.marketItemDesc { font-size: 11px; color: var(--text-dim); }
+.marketItemPrice { color: var(--gold); font-weight: 700; font-size: 13px; }
+.marketBuyBtn { background: var(--accent); border: none; color: #06231c; font-weight: 700; font-size: 11px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.marketSellSection { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.marketSellSection select, .marketSellSection input { background: var(--bg-1); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 8px; font-size: 12px; }
+.marketSellSection button { background: var(--gold); border: none; color: #333; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
 
-.overlay { position:absolute; inset:0; z-index:10; background:rgba(6,12,9,0.88); backdrop-filter:blur(6px); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:var(--font-body); }
-.overlay .big { font-family:var(--font-display); font-size:34px; letter-spacing:0.5px; margin:0 0 8px; }
-.overlay button { padding:11px 24px; border-radius:10px; border:none; margin-top:14px; background:var(--accent); color:#06231c; font-weight:700; cursor:pointer; box-shadow:0 8px 20px -8px var(--accent-glow); }
-.overlay button.secondary { background:none; border:1px solid var(--border); color:var(--text); box-shadow:none; }
+/* Touch Controls - FIXED */
+#touchControls { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+#stick {
+  position: absolute; left: 18px; bottom: 18px; width: 100px; height: 100px;
+  border-radius: 50%; background: rgba(10, 20, 15, 0.5); border: 1px solid var(--border);
+  backdrop-filter: blur(4px); pointer-events: auto;
+}
+#stickKnob {
+  position: absolute; left: 30px; top: 30px; width: 40px; height: 40px;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 16px var(--accent-glow);
+}
+.actionButtons {
+  position: absolute; right: 14px; bottom: 14px;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
+}
+.actionBtn {
+  width: 56px; height: 56px; border-radius: 50%; border: none;
+  font-family: var(--font-body); font-weight: 700; font-size: 9px;
+  cursor: pointer; box-shadow: 0 8px 20px -4px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.1;
+  padding: 2px;
+}
+#interactBtn { background: var(--danger); color: #2a0805; }
+#jutsuBtn { background: #ff8c42; color: #2a1505; }
+#itemBtn { background: #7b68ee; color: #fff; }
+#marketBtn { background: var(--gold); color: #333; }
 
-.hudChatBtn { position:absolute; top:10px; right:10px; z-index:3; width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:rgba(10,20,15,0.75); backdrop-filter:blur(6px); font-size:18px; cursor:pointer; color:var(--text); }
-#chatPanel { position:absolute; top:58px; right:10px; z-index:5; width:240px; max-width:calc(100vw - 20px); background:rgba(10,20,15,0.92); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px); display:flex; flex-direction:column; overflow:hidden; }
-#chatLog { max-height:140px; overflow-y:auto; padding:10px 12px; font-size:12px; display:flex; flex-direction:column; gap:4px; }
-.chatLine { color:var(--text); word-break:break-word; }
-.chatName { color:var(--accent); font-weight:700; }
-#chatInputRow { display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
-#chatInputRow input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-1); color:var(--text); font-family:var(--font-body); font-size:12px; outline:none; }
-#chatInputRow input:focus { border-color:var(--accent); }
-#chatInputRow button { padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#06231c; font-weight:700; font-size:12px; cursor:pointer; }
+#toast {
+  position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+  background: rgba(10, 20, 15, 0.92); border: 1px solid var(--border);
+  padding: 10px 20px; border-radius: 999px; font-size: 13px; z-index: 4;
+  pointer-events: none; font-weight: 600;
+}
 
-#fsPrompt { position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; background:rgba(10,20,15,0.9); border:1px solid var(--accent-dim); color:var(--accent); font-size:12px; font-weight:600; padding:8px 16px; border-radius:999px; cursor:pointer; animation:fsPulse 2s ease-in-out infinite; }
-@keyframes fsPulse { 0%,100%{box-shadow:0 0 0 0 var(--accent-glow);} 50%{box-shadow:0 0 0 8px transparent;} }
+.overlay {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(6, 12, 9, 0.88); backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; font-family: var(--font-body);
+}
+.overlay .big { font-family: var(--font-display); font-size: 34px; letter-spacing: 0.5px; margin: 0 0 8px; }
+.overlay button { padding: 11px 24px; border-radius: 10px; border: none; margin-top: 14px; background: var(--accent); color: #06231c; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px -8px var(--accent-glow); }
 
-.levelUpAnim { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:var(--font-display); font-size:48px; color:var(--gold); text-shadow:0 0 30px rgba(255,215,0,0.6); z-index:15; pointer-events:none; animation:levelUpPop 2s ease-out forwards; }
-@keyframes levelUpPop { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);} 20%{opacity:1;transform:translate(-50%,-50%) scale(1.2);} 100%{opacity:0;transform:translate(-50%,-80%) scale(1);} }
+.hudChatBtn {
+  position: absolute; top: 10px; right: 10px; z-index: 3;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--border); background: rgba(10, 20, 15, 0.75);
+  backdrop-filter: blur(6px); font-size: 18px; cursor: pointer; color: var(--text);
+}
+#chatPanel {
+  position: absolute; top: 58px; right: 10px; z-index: 5; width: 240px; max-width: calc(100vw - 20px);
+  background: rgba(10, 20, 15, 0.92); border: 1px solid var(--border); border-radius: 12px;
+  backdrop-filter: blur(8px); display: flex; flex-direction: column; overflow: hidden;
+}
+#chatLog { max-height: 140px; overflow-y: auto; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+.chatLine { color: var(--text); word-break: break-word; }
+.chatName { color: var(--accent); font-weight: 700; }
+#chatInputRow { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+#chatInputRow input { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-1); color: var(--text); font-family: var(--font-body); font-size: 12px; outline: none; }
+#chatInputRow input:focus { border-color: var(--accent); }
+#chatInputRow button { padding: 8px 12px; border-radius: 8px; border: none; background: var(--accent); color: #06231c; font-weight: 700; font-size: 12px; cursor: pointer; }
 
-.npcBubble { position:absolute; background:rgba(10,20,15,0.92); border:1px solid var(--border); padding:8px 14px; border-radius:12px; font-size:12px; z-index:4; pointer-events:none; max-width:160px; text-align:center; }
+#fsPrompt {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6;
+  background: rgba(10, 20, 15, 0.9); border: 1px solid var(--accent-dim); color: var(--accent);
+  font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  animation: fsPulse 2s ease-in-out infinite;
+}
+@keyframes fsPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); } 50% { box-shadow: 0 0 0 8px transparent; } }
+
+.levelUpAnim {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-family: var(--font-display); font-size: 44px; color: var(--gold);
+  text-shadow: 0 0 30px rgba(255,215,0,0.6); z-index: 15; pointer-events: none;
+  animation: levelUpPop 2s ease-out forwards;
+}
+@keyframes levelUpPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
 </style>
 <base target="_blank">
 </head>
@@ -122,9 +371,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
 
 <div id="authScreen" class="screen">
   <div class="card">
-    <div class="chakraRing"></div>
+    <div class="chakraRing" aria-hidden="true"></div>
     <h1>Survival<br>Evolution</h1>
-    <p class="hint">Shinobi dünyasına hoş geldin</p>
+
     <div id="loginPanel">
       <input type="text" id="loginUser" placeholder="Kahraman adı veya e-posta">
       <input type="password" id="loginPass" placeholder="Şifre">
@@ -133,6 +382,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <button class="link" id="toRegister">Hesabın yok mu? Kayıt ol</button>
       <button class="link" id="toForgot">Şifremi unuttum</button>
     </div>
+
     <div id="registerPanel" class="hidden">
       <input type="text" id="regUser" placeholder="Kahraman adı (3-16 karakter)">
       <input type="email" id="regEmail" placeholder="E-posta">
@@ -141,6 +391,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <p id="registerMsg" class="msg"></p>
       <button class="link" id="toLoginFromReg">Zaten hesabın var mı? Giriş yap</button>
     </div>
+
     <div id="verifyPanel" class="hidden">
       <p class="hint">E-postana gelen 6 haneli kodu gir</p>
       <input type="text" id="verifyCode" placeholder="000000" maxlength="6" inputmode="numeric">
@@ -148,18 +399,21 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <p id="verifyMsg" class="msg"></p>
       <button class="link" id="resendBtn">Kodu tekrar gönder</button>
     </div>
+
     <div id="forgotPanel" class="hidden">
       <input type="email" id="forgotEmail" placeholder="Kayıtlı e-posta">
       <button id="forgotBtn">Kod gönder</button>
       <p id="forgotMsg" class="msg"></p>
       <button class="link" id="toLoginFromForgot">Girişe dön</button>
     </div>
+
     <div id="resetCodePanel" class="hidden">
       <p class="hint">E-postana gelen kodu gir</p>
       <input type="text" id="resetCode" placeholder="000000" maxlength="6" inputmode="numeric">
       <button id="resetCodeBtn">Kodu doğrula</button>
       <p id="resetCodeMsg" class="msg"></p>
     </div>
+
     <div id="resetPassPanel" class="hidden">
       <input type="password" id="newPass" placeholder="Yeni şifre (en az 6 karakter)">
       <button id="resetPassBtn">Şifreyi değiştir</button>
@@ -181,21 +435,24 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     </div>
     <div id="hudRight">
       <div id="invBar">
-        <span class="invItem" data-item="wood" title="Odun">🪵 <b id="invWood">0</b></span>
-        <span class="invItem" data-item="stone" title="Taş">🪨 <b id="invStone">0</b></span>
-        <span class="invItem" data-item="sword" title="Kılıç (Ekipman)">🗡️ <b id="invSword">0</b></span>
-        <span class="invItem" data-item="pickaxe" title="Kazma">⛏️ <b id="invPickaxe">0</b></span>
-        <span class="invItem" data-item="axe" title="Balta">🪓 <b id="invAxe">0</b></span>
+        <span class="invItem" data-item="wood">🪵 <b id="invWood">0</b></span>
+        <span class="invItem" data-item="stone">🪨 <b id="invStone">0</b></span>
+        <span class="invItem" data-item="sword">🗡️ <b id="invSword">0</b></span>
+        <span class="invItem" data-item="pickaxe">⛏️ <b id="invPickaxe">0</b></span>
+        <span class="invItem" data-item="axe">🪓 <b id="invAxe">0</b></span>
       </div>
       <button id="craftToggle" class="hudBtn">Üretim</button>
     </div>
   </div>
+
   <div id="craftPanel" class="hidden">
     <button class="craftBtn" data-item="sword">🗡️ Kılıç<br><small>2 odun · 2 taş</small></button>
     <button class="craftBtn" data-item="pickaxe">⛏️ Kazma<br><small>3 odun · 1 taş</small></button>
     <button class="craftBtn" data-item="axe">🪓 Balta<br><small>1 odun · 3 taş</small></button>
   </div>
+
   <canvas id="c"></canvas>
+
   <button id="chatToggle" class="hudChatBtn">💬</button>
   <div id="chatPanel" class="hidden">
     <div id="chatLog"></div>
@@ -204,6 +461,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <button id="chatSendBtn">Gönder</button>
     </div>
   </div>
+
   <div id="marketPanel">
     <div class="marketHeader">
       <h2>🛒 Market</h2>
@@ -216,7 +474,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <button id="sellBtn">Sat</button>
     </div>
   </div>
+
   <div id="fsPrompt" class="hidden">Tam ekran için dokun</div>
+
   <div id="touchControls" class="hidden">
     <div id="stick"><div id="stickKnob"></div></div>
     <div class="actionButtons">
@@ -226,7 +486,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       <button id="marketBtn" class="actionBtn">MARKET</button>
     </div>
   </div>
+
   <div id="toast" class="hidden"></div>
+
   <div id="overScreen" class="overlay hidden">
     <p class="big">Düştün!</p>
     <p class="hint">Seviyen ve envanterin korunuyor, tekrar canlanıyorsun</p>
@@ -246,56 +508,56 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     if(audioCtx.state === 'suspended') audioCtx.resume();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
     const now = audioCtx.currentTime;
+    osc.connect(gain); gain.connect(audioCtx.destination);
     if(type === 'jutsu_fire'){
-      osc.type='sawtooth'; osc.frequency.setValueAtTime(200,now);
-      osc.frequency.exponentialRampToValueAtTime(600,now+0.3);
-      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.4);
-      osc.start(now); osc.stop(now+0.4);
+      osc.type='sawtooth'; osc.frequency.setValueAtTime(180,now);
+      osc.frequency.exponentialRampToValueAtTime(700,now+0.35);
+      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.45);
+      osc.start(now); osc.stop(now+0.45);
     } else if(type === 'jutsu_water'){
-      osc.type='sine'; osc.frequency.setValueAtTime(400,now);
-      osc.frequency.exponentialRampToValueAtTime(200,now+0.4);
-      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.5);
-      osc.start(now); osc.stop(now+0.5);
+      osc.type='sine'; osc.frequency.setValueAtTime(350,now);
+      osc.frequency.exponentialRampToValueAtTime(180,now+0.45);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.55);
+      osc.start(now); osc.stop(now+0.55);
     } else if(type === 'jutsu_lightning'){
-      osc.type='square'; osc.frequency.setValueAtTime(800,now);
-      osc.frequency.exponentialRampToValueAtTime(1200,now+0.1);
-      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
-      osc.start(now); osc.stop(now+0.2);
+      osc.type='square'; osc.frequency.setValueAtTime(900,now);
+      osc.frequency.exponentialRampToValueAtTime(1400,now+0.12);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.18);
+      osc.start(now); osc.stop(now+0.18);
     } else if(type === 'jutsu_wind'){
-      osc.type='triangle'; osc.frequency.setValueAtTime(300,now);
-      osc.frequency.linearRampToValueAtTime(500,now+0.3);
-      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.4);
-      osc.start(now); osc.stop(now+0.4);
+      osc.type='triangle'; osc.frequency.setValueAtTime(280,now);
+      osc.frequency.linearRampToValueAtTime(550,now+0.35);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.45);
+      osc.start(now); osc.stop(now+0.45);
     } else if(type === 'jutsu_earth'){
-      osc.type='sawtooth'; osc.frequency.setValueAtTime(100,now);
-      osc.frequency.exponentialRampToValueAtTime(50,now+0.4);
-      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.5);
-      osc.start(now); osc.stop(now+0.5);
+      osc.type='sawtooth'; osc.frequency.setValueAtTime(90,now);
+      osc.frequency.exponentialRampToValueAtTime(45,now+0.45);
+      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.55);
+      osc.start(now); osc.stop(now+0.55);
     } else if(type === 'hit'){
-      osc.type='square'; osc.frequency.setValueAtTime(150,now);
-      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
+      osc.type='square'; osc.frequency.setValueAtTime(120,now);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
       osc.start(now); osc.stop(now+0.1);
     } else if(type === 'collect'){
-      osc.type='sine'; osc.frequency.setValueAtTime(600,now);
-      osc.frequency.exponentialRampToValueAtTime(900,now+0.15);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
+      osc.type='sine'; osc.frequency.setValueAtTime(500,now);
+      osc.frequency.exponentialRampToValueAtTime(800,now+0.15);
+      gain.gain.setValueAtTime(0.06,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
       osc.start(now); osc.stop(now+0.2);
     } else if(type === 'levelup'){
-      osc.type='sine'; osc.frequency.setValueAtTime(400,now);
-      osc.frequency.setValueAtTime(600,now+0.15);
-      osc.frequency.setValueAtTime(800,now+0.3);
-      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.6);
-      osc.start(now); osc.stop(now+0.6);
+      osc.type='sine'; osc.frequency.setValueAtTime(350,now);
+      osc.frequency.setValueAtTime(550,now+0.15);
+      osc.frequency.setValueAtTime(750,now+0.3);
+      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.7);
+      osc.start(now); osc.stop(now+0.7);
     } else if(type === 'coin'){
-      osc.type='sine'; osc.frequency.setValueAtTime(900,now);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
+      osc.type='sine'; osc.frequency.setValueAtTime(1000,now);
+      gain.gain.setValueAtTime(0.06,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
       osc.start(now); osc.stop(now+0.1);
     }
   }
 
-  // ===== AUTH =====
+  // ===== AUTH (ORIJINAL) =====
   const authScreen = document.getElementById('authScreen');
   const gameScreen = document.getElementById('gameScreen');
   const panels = {
@@ -407,8 +669,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     updateXpBar();
   });
   function updateXpBar(){
-    const pct = myMaxXp > 0 ? (myXp / myMaxXp) * 100 : 0;
-    document.getElementById('xpbar').style.width = pct + '%';
+    document.getElementById('xpbar').style.width = (myMaxXp > 0 ? (myXp/myMaxXp)*100 : 0) + '%';
   }
 
   // ===== INVENTORY & CRAFT =====
@@ -446,7 +707,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     toastEl.textContent = msg; toastEl.classList.remove('hidden');
     toastEl.style.color = color || '#eaf3ec';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 1800);
+    toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 2000);
   }
 
   // ===== HP =====
@@ -456,7 +717,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       myHp = data.hp; myMaxHp = data.maxHp || 100;
       document.getElementById('hpbar').style.width = Math.max(0, (myHp/myMaxHp)*100) + '%';
       document.getElementById('hpbar').style.background = myHp > myMaxHp*0.4 ? '#5dcaa5' : '#e24b4a';
-      shake(10);
+      shake(8);
       if(myHp <= 0) document.getElementById('overScreen').classList.remove('hidden');
     } else if(others[data.id]){
       floatText(others[data.id].x, others[data.id].y, '-' + (data.damage || 'hasar'), '#ff6a5a');
@@ -479,12 +740,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     const list = document.getElementById('marketList');
     list.innerHTML = '';
     items.forEach(item => {
-      let desc = '';
-      if(item.type === 'weapon') desc = 'Hasar +' + item.damage;
-      else if(item.type === 'armor') desc = 'Defans +' + item.defense;
-      else if(item.type === 'jutsu_scroll') desc = 'Jutsu degisimi';
-      else if(item.type === 'consumable') desc = 'Can +' + item.effect;
-      else desc = 'XP +' + item.effect;
+      let desc = item.type === 'weapon' ? 'Hasar +' + item.damage : item.type === 'armor' ? 'Defans +' + item.defense : item.type === 'jutsu_scroll' ? 'Jutsu degisimi' : item.type === 'consumable' ? 'Can +' + item.effect : 'XP +' + item.effect;
       const div = document.createElement('div'); div.className = 'marketItem';
       div.innerHTML = '<div class="marketItemInfo"><span class="marketItemName">' + item.name + '</span><span class="marketItemDesc">' + desc + '</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="marketItemPrice">' + item.price + ' Ryo</span><button class="marketBuyBtn" data-id="' + item.id + '">Satin Al</button></div>';
       list.appendChild(div);
@@ -547,67 +803,89 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     earth: { base:'#a3703f', glow:'#e6c79a', core:'#8b4513' }
   };
 
+  // ── IYILESTIRILMIS KARAKTER SPRITE (32x42) ──
   function makeShinobiSprite(type){
     const styles = {
-      fire: { hair:'#ff6a00', hairShade:'#cc4400', cloth:'#c41e3a', clothShade:'#8b0000', headband:'#20242c', skin:'#f0b98c' },
-      water: { hair:'#1e3a5f', hairShade:'#0f1f3a', cloth:'#2c5f8a', clothShade:'#1a3a5c', headband:'#20242c', skin:'#f0d5b8' },
-      lightning: { hair:'#f0e68c', hairShade:'#b8a642', cloth:'#4a4a4a', clothShade:'#2a2a2a', headband:'#20242c', skin:'#f0b98c' },
-      wind: { hair:'#2e8b57', hairShade:'#1a5c38', cloth:'#3d7a47', clothShade:'#225529', headband:'#20242c', skin:'#f0c8a0' },
-      earth: { hair:'#8b4513', hairShade:'#5c2e0c', cloth:'#6b4423', clothShade:'#4a2e15', headband:'#20242c', skin:'#d4a574' }
+      fire: { hair:'#ff4500', hairShade:'#cc3300', cloth:'#b22222', clothShade:'#8b0000', headband:'#1a1a2e', skin:'#f5c6a0', eye:'#20242c' },
+      water: { hair:'#1e3a5f', hairShade:'#0f1f3a', cloth:'#2c5f8a', clothShade:'#1a3a5c', headband:'#1a1a2e', skin:'#f0d5b8', eye:'#1a3a5f' },
+      lightning: { hair:'#f0e68c', hairShade:'#c4b454', cloth:'#4a4a4a', clothShade:'#2a2a2a', headband:'#1a1a2e', skin:'#f5c6a0', eye:'#20242c' },
+      wind: { hair:'#228b22', hairShade:'#196619', cloth:'#3d7a47', clothShade:'#225529', headband:'#1a1a2e', skin:'#f0c8a0', eye:'#20242c' },
+      earth: { hair:'#8b4513', hairShade:'#5c2e0c', cloth:'#6b4423', clothShade:'#4a2e15', headband:'#1a1a2e', skin:'#d4a574', eye:'#20242c' }
     };
     const s = styles[type] || styles.fire;
-    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 36;
+    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 42;
     let c = cv.getContext('2d');
     function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    function shade(col, amt){
+    function shadeHex(col, amt){
       let num = parseInt(col.replace('#',''), 16);
       let r = Math.min(255, Math.max(0, ((num>>16)&255)*(1+amt)));
       let g = Math.min(255, Math.max(0, ((num>>8)&255)*(1+amt)));
       let b = Math.min(255, Math.max(0, (num&255)*(1+amt)));
       return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
     }
-    // Spiky hair
-    for(let x=5; x<=22; x++) for(let y=1; y<=8; y++){
-      if(Math.hypot(x-13.5,y-5) < 7.5) px(x,y, Math.hypot(x-13.5,y-5)>5.5 ? s.hairShade : s.hair);
+    // Spiky anime hair (better)
+    for(let x=4; x<=27; x++) for(let y=0; y<=10; y++){
+      let d = Math.hypot(x-15.5, y-6);
+      if(d < 9) px(x,y, d>6.5 ? s.hairShade : s.hair);
     }
-    px(6,0,s.hair); px(10,0,s.hair); px(14,0,s.hair); px(18,0,s.hair);
-    px(5,1,s.hairShade); px(20,1,s.hairShade);
-    // Face
-    for(let x=8; x<=19; x++) for(let y=7; y<=16; y++) px(x,y,s.skin);
-    for(let x=8; x<=10; x++) for(let y=10; y<=16; y++) px(x,y,shade(s.skin,-0.15));
+    // Extra spikes
+    px(5,0,s.hair); px(8,0,s.hair); px(12,0,s.hair); px(15,0,s.hair); px(19,0,s.hair); px(23,0,s.hair); px(26,0,s.hair);
+    px(4,1,s.hairShade); px(27,1,s.hairShade);
+    px(3,3,s.hairShade); px(28,3,s.hairShade);
+    // Face (round)
+    for(let x=9; x<=22; x++) for(let y=8; y<=19; y++){
+      if(Math.hypot(x-15.5, y-13.5) < 6.5) px(x,y,s.skin);
+    }
+    // Face shade
+    for(let x=9; x<=11; x++) for(let y=11; y<=19; y++) px(x,y,shadeHex(s.skin,-0.12));
     // Headband
-    for(let x=6; x<=21; x++){ px(x,9,s.headband); px(x,10,s.headband); }
-    px(21,11,s.headband); px(22,12,shade(s.headband,-0.2));
-    px(4,11,s.headband); px(3,13,shade(s.headband,-0.2));
-    for(let x=12; x<=15; x++) px(x,9,'#c9d3da');
-    px(13,9,'#e8eef2');
-    // Eyes
-    px(10,12,'#20242c'); px(11,12,'#20242c'); px(10,13,'#20242c');
-    px(16,12,'#20242c'); px(17,12,'#20242c'); px(17,13,'#20242c');
-    // Eyebrows
-    px(9,11,s.hairShade); px(10,11,s.hairShade);
-    px(16,11,s.hairShade); px(17,11,s.hairShade);
-    // Body
-    for(let x=7; x<=20; x++) for(let y=17; y<=28; y++) px(x,y,s.cloth);
-    for(let x=7; x<=9; x++) for(let y=17; y<=28; y++) px(x,y,s.clothShade);
-    for(let y=17; y<=21; y++){ px(13,y,s.skin); px(14,y,s.skin); }
+    for(let x=7; x<=24; x++){ px(x,10,s.headband); px(x,11,s.headband); }
+    px(25,12,s.headband); px(26,13,shadeHex(s.headband,-0.2));
+    px(5,12,s.headband); px(4,14,shadeHex(s.headband,-0.2));
+    // Metal plate (leaf symbol area)
+    for(let x=13; x<=18; x++) for(let y=10; y<=11; y++) px(x,y,'#d4dde4');
+    px(14,10,'#ffffff'); px(15,10,'#ffffff');
+    // Eyes (large anime style)
+    px(11,14,s.eye); px(12,14,s.eye); px(11,15,s.eye); px(12,15,s.eye);
+    px(19,14,s.eye); px(20,14,s.eye); px(19,15,s.eye); px(20,15,s.eye);
+    // Eye shine
+    px(12,14,'#ffffff'); px(20,14,'#ffffff');
+    // Eyebrows (thick)
+    px(10,13,s.hairShade); px(11,13,s.hairShade); px(12,13,s.hairShade);
+    px(19,13,s.hairShade); px(20,13,s.hairShade); px(21,13,s.hairShade);
+    // Mouth (small line)
+    for(let x=14; x<=17; x++) px(x,17,'#c4956a');
+    // Body (vest)
+    for(let x=8; x<=23; x++) for(let y=20; y<=32; y++) px(x,y,s.cloth);
+    for(let x=8; x<=10; x++) for(let y=20; y<=32; y++) px(x,y,s.clothShade);
+    // V-neck
+    for(let y=20; y<=24; y++){ px(15,y,s.skin); px(16,y,s.skin); }
+    // Zipper line
+    for(let y=20; y<=32; y++) px(15,y,shadeHex(s.cloth,0.3));
     // Arms
-    for(let y=18; y<=25; y++){ px(5,y,s.cloth); px(6,y,s.clothShade); px(21,y,s.skin); px(22,y,shade(s.skin,-0.15)); }
-    px(5,26,s.skin); px(6,26,s.skin);
-    // Sword strap
-    for(let y=16; y<=27; y++) px(17,y,shade(s.cloth,0.3));
-    // Legs
-    for(let y=29; y<=34; y++){ px(10,y,'#1a1a2e'); px(11,y,'#1a1a2e'); px(17,y,'#1a1a2e'); px(18,y,'#1a1a2e'); }
+    for(let y=21; y<=29; y++){ px(6,y,s.cloth); px(7,y,s.clothShade); px(24,y,s.skin); px(25,y,shadeHex(s.skin,-0.15)); }
+    px(6,30,s.skin); px(7,30,s.skin);
+    // Hands
+    px(5,30,s.skin); px(4,31,shadeHex(s.skin,-0.1));
+    px(26,30,s.skin); px(27,31,shadeHex(s.skin,-0.1));
+    // Sword on back
+    for(let y=18; y<=30; y++) px(21,y,'#c9d3da');
+    px(21,18,'#e8eef2');
+    // Legs (pants)
+    for(let y=33; y<=40; y++){ px(11,y,'#1a1a2e'); px(12,y,'#1a1a2e'); px(13,y,'#1a1a2e'); px(18,y,'#1a1a2e'); px(19,y,'#1a1a2e'); px(20,y,'#1a1a2e'); }
+    // Shoes
+    px(10,40,'#333'); px(11,40,'#333'); px(12,40,'#333');
+    px(19,40,'#333'); px(20,40,'#333'); px(21,40,'#333');
     return cv;
   }
 
   function makeWalkFrame(base, legOff){
-    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 36;
+    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 42;
     let c = cv.getContext('2d');
-    c.drawImage(base, 0, 0, 28, 30, 0, 0, 28, 30);
+    c.drawImage(base, 0, 0, 32, 34, 0, 0, 32, 34);
     c.fillStyle = '#1a1a2e';
-    c.fillRect(10, 30+legOff, 2, 6-legOff);
-    c.fillRect(17, 30-legOff, 2, 6+legOff);
+    c.fillRect(11, 34+legOff, 3, 8-legOff);
+    c.fillRect(18, 34-legOff, 3, 8+legOff);
     return cv;
   }
 
@@ -616,55 +894,74 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     return [makeWalkFrame(base,0), makeWalkFrame(base,2), makeWalkFrame(base,0), makeWalkFrame(base,-2)];
   }
 
+  // ── IYILESTIRILMIS MOB SPRITE (36x36) ──
   function makeMobSprite(type){
-    let cv = document.createElement('canvas'); cv.width = 30; cv.height = 30;
+    let cv = document.createElement('canvas'); cv.width = 36; cv.height = 36;
     let c = cv.getContext('2d');
     function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
     const colors = {
-      zombie: { main:'#5a7a5a', dark:'#3a5a3a', eye:'#ff0000' },
-      bandit: { main:'#8b4513', dark:'#5c2e0c', eye:'#ffff00' },
-      rogue_ninja: { main:'#4a0080', dark:'#2a0040', eye:'#ff00ff' },
-      summon_snake: { main:'#2d5a27', dark:'#1a3a15', eye:'#ff6600' },
-      puppet: { main:'#8b7355', dark:'#5c4a35', eye:'#000000' },
-      dark_ninja: { main:'#1a1a2e', dark:'#0a0a1a', eye:'#ff0000' },
-      beast: { main:'#8b0000', dark:'#5c0000', eye:'#ffff00' },
-      boss_akatsuki: { main:'#ff0000', dark:'#8b0000', eye:'#ffffff' }
+      zombie: { body:'#5a7a5a', dark:'#3a5a3a', eye:'#ff0000', detail:'#4a6a4a' },
+      bandit: { body:'#8b4513', dark:'#5c2e0c', eye:'#ffff00', detail:'#6b3503' },
+      rogue_ninja: { body:'#4a0080', dark:'#2a0040', eye:'#ff00ff', detail:'#3a0060' },
+      summon_snake: { body:'#2d5a27', dark:'#1a3a15', eye:'#ff6600', detail:'#3d7a37' },
+      puppet: { body:'#8b7355', dark:'#5c4a35', eye:'#000000', detail:'#7a6345' },
+      dark_ninja: { body:'#1a1a2e', dark:'#0a0a1a', eye:'#ff0000', detail:'#2a2a3e' },
+      beast: { body:'#8b0000', dark:'#5c0000', eye:'#ffff00', detail:'#a01010' },
+      boss_akatsuki: { body:'#ff0000', dark:'#8b0000', eye:'#ffffff', detail:'#cc0000' }
     };
     const col = colors[type] || colors.zombie;
-    for(let x=5; x<=24; x++) for(let y=8; y<=24; y++){
-      if(Math.hypot(x-14.5,y-16) < 8) px(x,y, (x<10||y<12)?col.dark:col.main);
+    // Body
+    for(let x=6; x<=29; x++) for(let y=10; y<=28; y++){
+      let d = Math.hypot(x-17.5, y-19);
+      if(d < 9) px(x,y, (x<11||y<14)?col.dark:(d<5?col.detail:col.body));
     }
-    px(10,12,col.eye); px(11,12,col.eye);
-    px(18,12,col.eye); px(19,12,col.eye);
-    for(let x=12; x<=17; x++) px(x,18,'#000');
-    if(type === 'boss_akatsuki'){ for(let x=5; x<=24; x++){ px(x,6,'#000'); px(x,7,'#fff'); } }
-    if(type === 'summon_snake'){ for(let y=2; y<=8; y++) px(14,y,col.main); px(13,3,col.main); px(15,3,col.main); }
+    // Eyes (glowing)
+    px(11,14,col.eye); px(12,14,col.eye); px(11,15,col.eye); px(12,15,col.eye);
+    px(23,14,col.eye); px(24,14,col.eye); px(23,15,col.eye); px(24,15,col.eye);
+    // Mouth (angry)
+    for(let x=14; x<=21; x++) px(x,20,'#000');
+    px(13,19,'#000'); px(22,19,'#000');
+    // Details
+    if(type === 'boss_akatsuki'){
+      for(let x=6; x<=29; x++){ px(x,8,'#000'); px(x,9,'#fff'); }
+      for(let x=6; x<=29; x++) px(x,10,'#000');
+    }
+    if(type === 'summon_snake'){
+      for(let y=2; y<=9; y++) px(17,y,col.body);
+      px(16,3,col.body); px(18,3,col.body);
+      px(15,4,col.body); px(19,4,col.body);
+      px(17,2,col.eye);
+    }
+    if(type === 'beast'){
+      px(8,10,col.detail); px(9,10,col.detail);
+      px(26,10,col.detail); px(27,10,col.detail);
+    }
     return cv;
   }
 
   const treeSprite = (function(){
-    let cv = document.createElement('canvas'); cv.width = 30; cv.height = 36;
+    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 40;
     let c = cv.getContext('2d');
     function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    for(let x=13; x<=16; x++) for(let y=22; y<=33; y++) px(x,y, x<15?'#5a3f27':'#6b4a2f');
+    for(let x=14; x<=17; x++) for(let y=24; y<=37; y++) px(x,y, x<15.5?'#5a3f27':'#6b4a2f');
     function blob(cx,cy,r,base,hi){
       for(let x=Math.floor(cx-r); x<=cx+r; x++) for(let y=Math.floor(cy-r); y<=cy+r; y++){
         let d=Math.hypot(x-cx,y-cy);
-        if(d<r) px(x,y, d<r*0.55&&(x+y)%3===0?hi:base);
+        if(d<r) px(x,y, d<r*0.5&&(x+y)%3===0?hi:base);
       }
     }
-    blob(10,14,8,'#356e3c','#3f9c4f');
-    blob(20,12,7,'#3a7a43','#4fae5a');
-    blob(15,9,7,'#4a9955','#5cc468');
+    blob(11,16,9,'#356e3c','#3f9c4f');
+    blob(22,14,8,'#3a7a43','#4fae5a');
+    blob(16,10,8,'#4a9955','#5cc468');
     return cv;
   })();
 
   const rockSprite = (function(){
-    let cv = document.createElement('canvas'); cv.width = 24; cv.height = 18;
+    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 20;
     let c = cv.getContext('2d');
     function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    for(let x=1; x<=22; x++) for(let y=3; y<=16; y++){
-      if(Math.hypot((x-11.5)/1.35,y-10) < 6.5) px(x,y, (x<9)?'#7d828c':((x+y)%5===0?'#a7adb8':'#8f95a0'));
+    for(let x=1; x<=24; x++) for(let y=3; y<=18; y++){
+      if(Math.hypot((x-12.5)/1.35,y-11) < 7) px(x,y, (x<9)?'#7d828c':((x+y)%5===0?'#a7adb8':'#8f95a0'));
     }
     return cv;
   })();
@@ -673,7 +970,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
   groundCanvas.width = groundCanvas.height = 64;
   const gctx = groundCanvas.getContext('2d');
   gctx.fillStyle = '#6fae52'; gctx.fillRect(0,0,64,64);
-  for(let i=0; i<50; i++){
+  for(let i=0; i<60; i++){
     gctx.fillStyle = Math.random()<0.5?'#649e49':'#7ab85c';
     gctx.fillRect(Math.floor(Math.random()*64), Math.floor(Math.random()*64), 2, 2);
   }
@@ -696,32 +993,33 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
   let jutsuProjectiles = [];
   let mobSprites = {};
 
-  function floatText(x, y, text, color){ floatTexts.push({ x, y, text, color, life:1.0 }); }
-  function shake(amt){ shakeAmt = Math.min(16, shakeAmt + amt); }
+  function floatText(x, y, text, color){ floatTexts.push({ x, y, text, color, life:1.2 }); }
+  function shake(amt){ shakeAmt = Math.min(14, shakeAmt + amt); }
   let shockwaves = [];
   let flashes = [];
 
   function jutsuEffect(x, y, type){
     const colors = JUTSU_COLORS[type] || JUTSU_COLORS.fire;
-    flashes.push({ x, y, life:0.25, maxLife:0.25, color:colors.glow });
-    shockwaves.push({ x, y, r:4, life:0.5, maxLife:0.5, color:colors.base });
-    const count = type==='fire'?40 : type==='water'?30 : type==='lightning'?25 : type==='wind'?35 : 30;
+    flashes.push({ x, y, life:0.3, maxLife:0.3, color:colors.glow });
+    shockwaves.push({ x, y, r:6, life:0.6, maxLife:0.6, color:colors.base });
+    const count = type==='fire'?50 : type==='water'?40 : type==='lightning'?35 : type==='wind'?45 : 40;
     for(let i=0; i<count; i++){
       let ang = Math.random()*Math.PI*2;
-      let speed = 60 + Math.random()*120;
+      let speed = 80 + Math.random()*140;
       let vx = Math.cos(ang)*speed, vy = Math.sin(ang)*speed;
-      if(type==='fire') vy -= 30;
-      if(type==='water') vy += 20;
-      if(type==='lightning'){ vx*=2; vy*=0.3; }
-      if(type==='wind'){ vx*=1.5; vy*=1.5; }
-      if(type==='earth') vy = -Math.abs(vy)*0.5;
-      effects.push({ x, y, vx, vy, life:0.5+Math.random()*0.5, maxLife:0.5+Math.random()*0.5,
+      if(type==='fire'){ vy -= 40; vx *= 0.8; }
+      if(type==='water'){ vy += 30; vx *= 0.7; }
+      if(type==='lightning'){ vx *= 2.5; vy *= 0.2; }
+      if(type==='wind'){ vx *= 2; vy *= 1.8; }
+      if(type==='earth'){ vy = -Math.abs(vy)*0.6; vx *= 0.6; }
+      effects.push({
+        x, y, vx, vy, life:0.6+Math.random()*0.6, maxLife:0.6+Math.random()*0.6,
         color: Math.random()<0.5?colors.base:colors.glow,
-        size: type==='fire'?3+Math.random()*5 : 2+Math.random()*3, type });
+        size: type==='fire'?4+Math.random()*6 : 3+Math.random()*4, type
+      });
     }
-    shake(type==='earth'?14:10);
-    // Jutsu projectile
-    jutsuProjectiles.push({ x, y, dir: myDir, type, life: 0.6, speed: 200 });
+    shake(type==='earth'?12:8);
+    jutsuProjectiles.push({ x, y, dir: myDir, type, life: 0.8, speed: 180 });
   }
 
   function initGame(){
@@ -771,14 +1069,12 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
   document.getElementById('chatSendBtn').onclick = sendChat;
   chatInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendChat(); e.stopPropagation(); });
   document.getElementById('chatToggle').onclick = () => document.getElementById('chatPanel').classList.toggle('hidden');
-
   document.getElementById('fsPrompt').addEventListener('click', () => {
     tryFullscreen();
     document.getElementById('fsPrompt').classList.add('hidden');
   });
 
   function addOther(p){
-    let hexColor = '#' + (p.color || 0xd8663c).toString(16).padStart(6,'0');
     let jt = p.jutsuType || 'fire';
     others[p.id] = { x:p.x||0, y:p.z||0, tx:p.x||0, ty:p.z||0, dir:1,
       sprites: buildCharacterSet(jt), frame:0, frameT:0, moving:false,
@@ -803,20 +1099,20 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       let t = e.changedTouches[i];
       if(t.identifier !== stickTouchId) continue;
       let dx = t.clientX - stickCenter.x, dy = t.clientY - stickCenter.y;
-      let dist = Math.min(40, Math.hypot(dx, dy));
+      let dist = Math.min(35, Math.hypot(dx, dy));
       let ang = Math.atan2(dy, dx);
-      stickKnob.style.left = (35 + Math.cos(ang)*dist) + 'px';
-      stickKnob.style.top = (35 + Math.sin(ang)*dist) + 'px';
-      move.x = Math.cos(ang)*(dist/40); move.y = Math.sin(ang)*(dist/40);
+      stickKnob.style.left = (30 + Math.cos(ang)*dist) + 'px';
+      stickKnob.style.top = (30 + Math.sin(ang)*dist) + 'px';
+      move.x = Math.cos(ang)*(dist/35); move.y = Math.sin(ang)*(dist/35);
     }
     e.preventDefault();
   });
-  function resetStick(){ stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '35px'; stickKnob.style.top = '35px'; }
+  function resetStick(){ stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '30px'; stickKnob.style.top = '30px'; }
   stick.addEventListener('touchend', resetStick);
   stick.addEventListener('touchcancel', resetStick);
 
   function nearestInteractable(){
-    let best = null, bestDist = 55;
+    let best = null, bestDist = 60;
     resourceNodes.forEach(n => {
       if(!n.alive) return;
       let d = Math.hypot(myPos.x - n.x, myPos.y - n.y);
@@ -825,16 +1121,16 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     mobs.forEach(m => {
       if(!m.alive) return;
       let d = Math.hypot(myPos.x - m.x, myPos.y - m.z);
-      if(d < bestDist + 20){ bestDist = d; best = { kind:'mob', mob:m }; }
+      if(d < bestDist + 25){ bestDist = d; best = { kind:'mob', mob:m }; }
     });
     Object.keys(others).forEach(id => {
       let o = others[id];
       let d = Math.hypot(myPos.x - o.x, myPos.y - o.y);
-      if(d < 60){ bestDist = d; best = { kind:'player', id:id }; }
+      if(d < 65){ bestDist = d; best = { kind:'player', id:id }; }
     });
     npcs.forEach(npc => {
       let d = Math.hypot(myPos.x - npc.x, myPos.y - npc.z);
-      if(d < 70){ bestDist = d; best = { kind:'npc', npc:npc }; }
+      if(d < 75){ bestDist = d; best = { kind:'npc', npc:npc }; }
     });
     return best;
   }
@@ -911,15 +1207,12 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       else { o.frame = 0; }
     });
 
-    // Jutsu projectiles
     for(let i = jutsuProjectiles.length - 1; i >= 0; i--){
       let jp = jutsuProjectiles[i];
       jp.x += jp.dir * jp.speed * dt;
       jp.life -= dt;
       if(jp.life <= 0) jutsuProjectiles.splice(i, 1);
     }
-
-    // Effects
     for(let i = effects.length - 1; i >= 0; i--){
       let e = effects[i];
       e.x += e.vx * dt; e.y += e.vy * dt; e.vx *= 0.92; e.vy *= 0.92; e.life -= dt;
@@ -927,7 +1220,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     }
     for(let i = shockwaves.length - 1; i >= 0; i--){
       let s = shockwaves[i];
-      s.r += dt * 260; s.life -= dt;
+      s.r += dt * 220; s.life -= dt;
       if(s.life <= 0) shockwaves.splice(i, 1);
     }
     for(let i = flashes.length - 1; i >= 0; i--){
@@ -935,7 +1228,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       if(flashes[i].life <= 0) flashes.splice(i, 1);
     }
     for(let j = floatTexts.length - 1; j >= 0; j--){
-      floatTexts[j].y -= dt * 20; floatTexts[j].life -= dt;
+      floatTexts[j].y -= dt * 18; floatTexts[j].life -= dt;
       if(floatTexts[j].life <= 0) floatTexts.splice(j, 1);
     }
     shakeAmt *= 0.88;
@@ -962,7 +1255,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     resourceNodes.forEach(n => {
       if(!n.alive) return;
       let x = n.x + sx, y = n.y + sy;
-      if(x < -40 || x > w+40 || y < -40 || y > h+40) return;
+      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
       let sprite = n.type === 'wood' ? treeSprite : rockSprite;
       ctx.drawImage(sprite, x - sprite.width, y - sprite.height, sprite.width*2, sprite.height*2);
     });
@@ -970,109 +1263,81 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     // NPCs
     npcs.forEach(npc => {
       let x = npc.x + sx, y = npc.z + sy;
-      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
-      // NPC body
-      ctx.fillStyle = npc.color;
-      ctx.beginPath();
-      ctx.arc(x, y, 14, 0, Math.PI*2);
-      ctx.fill();
+      if(x < -60 || x > w+60 || y < -60 || y > h+60) return;
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(x, y+16, 12, 4, 0, 0, Math.PI*2);
-      ctx.fill();
-      // NPC name
+      ctx.beginPath(); ctx.ellipse(x, y+18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = npc.color;
+      ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = npc.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.25 + Math.sin(performance.now()/500)*0.15;
+      ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
       ctx.font = '600 11px "Space Grotesk", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#fff';
-      ctx.fillText(npc.name, x, y - 20);
+      ctx.fillText(npc.name, x, y - 22);
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.font = '500 9px sans-serif';
-      let typeLabel = npc.type === 'market' ? '[Market]' : npc.type === 'healer' ? '[Sifaci]' : '[Demirci]';
-      ctx.fillText(typeLabel, x, y - 10);
-      // Glow
-      ctx.strokeStyle = npc.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.3 + Math.sin(performance.now()/500)*0.2;
-      ctx.beginPath();
-      ctx.arc(x, y, 18, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.fillText(npc.type==='market'?'[Market]':npc.type==='healer'?'[Sifaci]':'[Demirci]', x, y - 12);
     });
 
     // Mobs
     mobs.forEach(m => {
       if(!m.alive) return;
       let x = m.x + sx, y = m.z + sy;
-      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
+      if(x < -60 || x > w+60 || y < -60 || y > h+60) return;
       if(!mobSprites[m.type]) mobSprites[m.type] = makeMobSprite(m.type);
       let sp = mobSprites[m.type];
-      // Shadow
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(x, y+14, 12, 4, 0, 0, Math.PI*2);
-      ctx.fill();
-      // Sprite
+      ctx.beginPath(); ctx.ellipse(x, y+16, 14, 5, 0, 0, Math.PI*2); ctx.fill();
       ctx.drawImage(sp, x - sp.width/2, y - sp.height/2, sp.width, sp.height);
-      // HP bar
-      let barW = 30, barH = 4;
+      let barW = 32, barH = 5;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(x - barW/2, y - sp.height/2 - 10, barW, barH);
+      ctx.fillRect(x - barW/2, y - sp.height/2 - 12, barW, barH);
       ctx.fillStyle = m.hitFlash ? '#fff' : (m.hp > m.maxHp*0.5 ? '#ff6a5a' : '#e24b4a');
-      ctx.fillRect(x - barW/2, y - sp.height/2 - 10, barW * (m.hp/m.maxHp), barH);
-      // Level
+      ctx.fillRect(x - barW/2, y - sp.height/2 - 12, barW * (m.hp/m.maxHp), barH);
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffcf6b';
-      ctx.fillText('Lv.' + m.level, x, y - sp.height/2 - 14);
-      // Name
+      ctx.fillText('Lv.' + m.level, x, y - sp.height/2 - 16);
       ctx.font = '500 9px sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText(m.name, x, y + sp.height/2 + 12);
+      ctx.fillText(m.name, x, y + sp.height/2 + 14);
     });
 
     function drawChar(x, y, sprites, frame, dir, name, inv, jt){
       let sp = sprites[frame];
       ctx.fillStyle = 'rgba(6,12,9,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(x, y+3, sp.width*0.9, sp.width*0.32, 0, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x, y+4, sp.width*0.9, sp.width*0.32, 0, 0, Math.PI*2); ctx.fill();
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(dir, 1);
-      ctx.drawImage(sp, -sp.width, -sp.height*1.6, sp.width*2, sp.height*1.6);
-      // Weapon
+      ctx.drawImage(sp, -sp.width, -sp.height*1.55, sp.width*2, sp.height*1.55);
       if(inv && (inv.sword || inv.pickaxe || inv.axe)){
         let wc = inv.sword ? '#c9d3da' : (inv.pickaxe ? '#8a8f9a' : '#c9793f');
         ctx.strokeStyle = wc; ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(sp.width*0.55, -sp.height*0.9);
-        ctx.lineTo(sp.width*1.0, -sp.height*1.5);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sp.width*0.6, -sp.height*0.9); ctx.lineTo(sp.width*1.1, -sp.height*1.5); ctx.stroke();
       }
       ctx.restore();
-      // Jutsu glow
       if(jt){
         let jc = JUTSU_COLORS[jt] || JUTSU_COLORS.fire;
-        ctx.globalAlpha = 0.15 + Math.sin(performance.now()/400)*0.1;
+        ctx.globalAlpha = 0.12 + Math.sin(performance.now()/400)*0.08;
         ctx.fillStyle = jc.glow;
-        ctx.beginPath();
-        ctx.arc(x, y - sp.height*1.2, 20, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y - sp.height*1.2, 22, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
       }
-      // Name
       if(name){
         ctx.font = '600 11px "Space Grotesk", monospace';
         ctx.textAlign = 'center';
         let tw = ctx.measureText(name).width;
         ctx.fillStyle = 'rgba(6,12,9,0.65)';
-        ctx.fillRect(x - tw/2 - 5, y - sp.height*1.6*2 - 16, tw + 10, 15);
+        ctx.fillRect(x - tw/2 - 5, y - sp.height*1.55*2 - 18, tw + 10, 16);
         ctx.fillStyle = '#4ce0c4';
-        ctx.fillText(name, x, y - sp.height*1.6*2 - 5);
+        ctx.fillText(name, x, y - sp.height*1.55*2 - 6);
       }
     }
 
-    // Others
     Object.keys(others).forEach(id => {
       let o = others[id];
       drawChar(o.x + sx, o.y + sy, o.sprites, o.frame, o.dir, o.username, o.inventory, o.jutsuType);
@@ -1083,39 +1348,25 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     jutsuProjectiles.forEach(jp => {
       let x = jp.x + sx, y = jp.y + sy;
       let colors = JUTSU_COLORS[jp.type] || JUTSU_COLORS.fire;
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 0.85;
       if(jp.type === 'fire'){
-        ctx.fillStyle = colors.core;
-        ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.base;
-        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.glow;
-        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.core; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.glow; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
       } else if(jp.type === 'water'){
-        ctx.fillStyle = colors.base;
-        ctx.beginPath(); ctx.ellipse(x, y, 14, 8, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.glow;
-        ctx.beginPath(); ctx.ellipse(x, y, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.ellipse(x, y, 16, 10, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.glow; ctx.beginPath(); ctx.ellipse(x, y, 10, 6, 0, 0, Math.PI*2); ctx.fill();
       } else if(jp.type === 'lightning'){
-        ctx.strokeStyle = colors.glow; ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(x-15, y); ctx.lineTo(x+15, y);
-        ctx.moveTo(x, y-10); ctx.lineTo(x, y+10);
-        ctx.stroke();
-        ctx.fillStyle = colors.core;
-        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = colors.glow; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x-18, y); ctx.lineTo(x+18, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y-12); ctx.lineTo(x, y+12); ctx.stroke();
+        ctx.fillStyle = colors.core; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill();
       } else if(jp.type === 'wind'){
-        ctx.strokeStyle = colors.glow; ctx.lineWidth = 2;
-        for(let i=0; i<3; i++){
-          ctx.beginPath();
-          ctx.moveTo(x-12, y-5+i*5); ctx.lineTo(x+12, y-5+i*5);
-          ctx.stroke();
-        }
+        ctx.strokeStyle = colors.glow; ctx.lineWidth = 3;
+        for(let i=0; i<3; i++){ ctx.beginPath(); ctx.moveTo(x-14, y-6+i*6); ctx.lineTo(x+14, y-6+i*6); ctx.stroke(); }
       } else if(jp.type === 'earth'){
-        ctx.fillStyle = colors.base;
-        ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.dark || '#5c3a1e';
-        ctx.beginPath(); ctx.arc(x-3, y-3, 4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#5c3a1e'; ctx.beginPath(); ctx.arc(x-4, y-4, 5, 0, Math.PI*2); ctx.fill();
       }
       ctx.globalAlpha = 1;
     });
@@ -1123,11 +1374,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     // Effects
     effects.forEach(e => {
       let a = Math.max(0, e.life / e.maxLife);
-      ctx.globalAlpha = a * 0.4;
+      ctx.globalAlpha = a * 0.5;
       ctx.fillStyle = e.color;
-      ctx.beginPath();
-      ctx.arc(e.x + sx, e.y + sy, e.size * 2.2, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(e.x + sx, e.y + sy, e.size * 2.5, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = a;
       ctx.fillRect(e.x + sx - e.size/2, e.y + sy - e.size/2, e.size, e.size);
       ctx.globalAlpha = 1;
@@ -1136,12 +1385,10 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     // Shockwaves
     shockwaves.forEach(s => {
       let a = Math.max(0, s.life / s.maxLife);
-      ctx.globalAlpha = a * 0.8;
+      ctx.globalAlpha = a * 0.75;
       ctx.strokeStyle = s.color;
       ctx.lineWidth = 3 * a + 0.5;
-      ctx.beginPath();
-      ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI*2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI*2); ctx.stroke();
       ctx.globalAlpha = 1;
     });
 
@@ -1150,9 +1397,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       let a = Math.max(0, f.life / f.maxLife);
       ctx.globalAlpha = a;
       ctx.fillStyle = f.color;
-      ctx.beginPath();
-      ctx.arc(f.x + sx, f.y + sy, 26 * a, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x + sx, f.y + sy, 30 * a, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
     });
 
@@ -1160,7 +1405,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
     floatTexts.forEach(f => {
       ctx.globalAlpha = Math.max(0, f.life);
       ctx.fillStyle = f.color;
-      ctx.font = 'bold 13px monospace';
+      ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(f.text, f.x + sx, f.y + sy);
       ctx.globalAlpha = 1;
@@ -1178,16 +1423,15 @@ html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0
       ctx.font = '600 12px "Space Grotesk", sans-serif';
       ctx.textAlign = 'center';
       const tw = ctx.measureText(b.text).width;
-      const bx = px, by = py - 62;
+      const bx = px, by = py - 68;
       ctx.fillStyle = 'rgba(20,34,25,0.92)';
-      ctx.beginPath();
-      ctx.roundRect(bx - tw/2 - 8, by - 12, tw + 16, 22, 8);
-      ctx.fill();
+      ctx.beginPath(); ctx.roundRect(bx - tw/2 - 8, by - 12, tw + 16, 22, 8); ctx.fill();
       ctx.fillStyle = '#eaf3ec';
       ctx.fillText(b.text, bx, by + 4);
     });
   }
 })();
+
 </script>
 </body>
 </html>
