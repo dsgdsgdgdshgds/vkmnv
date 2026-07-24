@@ -3,396 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Survival Evolution — 2D</title>
+<title>Survival Evolution — Shinobi Dünyası</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   Survival Evolution — görsel sistem
-   Palet: orman gecesi + parlayan chakra-teal vurgu
-   ============================================================ */
 :root {
-  --bg-0: #0b1410;
-  --bg-1: #101d17;
-  --panel: #142219;
-  --border: #24402f;
-  --text: #eaf3ec;
-  --text-dim: #8ba896;
-  --accent: #4ce0c4;
-  --accent-dim: #2a8c78;
-  --accent-glow: rgba(76, 224, 196, 0.35);
-  --danger: #ff6a5a;
-  --radius: 14px;
+  --bg-0: #0b1410; --bg-1: #101d17; --panel: #142219; --border: #24402f;
+  --text: #eaf3ec; --text-dim: #8ba896; --accent: #4ce0c4; --accent-dim: #2a8c78;
+  --accent-glow: rgba(76,224,196,0.35); --danger: #ff6a5a; --gold: #ffd700;
+  --xp: #7b68ee; --radius: 14px;
   --font-display: 'Bebas Neue', 'Impact', sans-serif;
   --font-body: 'Space Grotesk', -apple-system, Segoe UI, sans-serif;
 }
-
 * { box-sizing: border-box; }
+html, body { margin:0; padding:0; width:100%; height:100%; background:var(--bg-0); color:var(--text); font-family:var(--font-body); overflow:hidden; -webkit-tap-highlight-color:transparent; }
+.hidden { display:none !important; }
 
-html, body {
-  margin: 0; padding: 0; width: 100%; height: 100%;
-  background: var(--bg-0);
-  color: var(--text);
-  font-family: var(--font-body);
-  overflow: hidden;
-  -webkit-tap-highlight-color: transparent;
-}
+.screen { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at 50% 30%, rgba(76,224,196,0.10), transparent 55%), radial-gradient(circle at 85% 80%, rgba(255,106,90,0.06), transparent 45%), var(--bg-0); padding:24px; position:relative; }
+.card { position:relative; background:linear-gradient(180deg, var(--panel), var(--bg-1)); border:1px solid var(--border); border-radius:var(--radius); padding:32px 26px 26px; width:360px; max-width:100%; text-align:center; box-shadow:0 20px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(76,224,196,0.04); }
+.chakraRing { position:absolute; top:-70px; left:50%; transform:translateX(-50%); width:220px; height:220px; border-radius:50%; border:1.5px solid var(--accent-glow); box-shadow:0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76,224,196,0.08); pointer-events:none; z-index:0; animation:chakraPulse 4.5s ease-in-out infinite; }
+@keyframes chakraPulse { 0%,100%{opacity:0.45;transform:translateX(-50%) scale(0.96);} 50%{opacity:0.9;transform:translateX(-50%) scale(1.04);} }
+.card h1 { position:relative; z-index:1; font-family:var(--font-display); font-size:40px; line-height:0.92; letter-spacing:0.5px; margin:0 0 18px; color:var(--text); text-shadow:0 0 24px var(--accent-glow); }
+.hint { font-size:12.5px; color:var(--text-dim); margin:0 0 14px; letter-spacing:0.2px; }
+.card input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-1); color:var(--text); font-family:var(--font-body); font-size:14px; margin-bottom:9px; outline:none; transition:border-color 0.15s, box-shadow 0.15s; }
+.card input::placeholder { color:#5c7568; }
+.card input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.card button { width:100%; padding:12px; border-radius:10px; border:none; background:var(--accent); color:#06231c; font-family:var(--font-body); font-weight:700; font-size:14px; letter-spacing:0.2px; cursor:pointer; margin-top:3px; transition:transform 0.12s, box-shadow 0.15s, background 0.15s; box-shadow:0 8px 20px -8px var(--accent-glow); }
+.card button:hover { background:#63e9d0; box-shadow:0 10px 26px -6px var(--accent-glow); }
+.card button:active { transform:scale(0.98); }
+.card button.link { background:none; color:var(--accent); font-size:12px; font-weight:500; text-decoration:none; border-bottom:1px solid transparent; padding:8px 0; margin-top:6px; box-shadow:none; opacity:0.85; }
+.card button.link:hover { opacity:1; border-bottom-color:var(--accent); background:none; }
+.msg { font-size:12px; color:var(--danger); min-height:16px; margin:8px 0 0; }
 
-.hidden { display: none !important; }
+#gameScreen { position:relative; width:100%; height:100%; background:var(--bg-0); }
+#c { display:block; width:100%; height:100%; touch-action:none; image-rendering:pixelated; background:#1a2a1f; }
 
-/* ─────────── Auth ekranı ─────────── */
-.screen {
-  width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(76, 224, 196, 0.10), transparent 55%),
-    radial-gradient(circle at 85% 80%, rgba(255, 106, 90, 0.06), transparent 45%),
-    var(--bg-0);
-  padding: 24px;
-  position: relative;
-}
+#hud { position:absolute; top:10px; left:10px; right:10px; z-index:3; display:flex; align-items:flex-start; gap:8px; pointer-events:none; font-family:var(--font-body); flex-wrap:wrap; }
+#hudLeft { display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
+#hudRight { display:flex; gap:8px; align-items:center; pointer-events:auto; }
+.hpwrap { width:140px; height:14px; background:rgba(8,16,12,0.7); border:1px solid var(--border); border-radius:8px; overflow:hidden; backdrop-filter:blur(4px); }
+.hpbar { width:100%; height:100%; background:linear-gradient(90deg, var(--accent-dim), var(--accent)); box-shadow:0 0 10px var(--accent-glow); transition:width 0.2s; }
+.xpwrap { width:140px; height:8px; background:rgba(8,16,12,0.7); border:1px solid var(--border); border-radius:6px; overflow:hidden; backdrop-filter:blur(4px); }
+.xpbar { width:0%; height:100%; background:linear-gradient(90deg, #5a4fcf, var(--xp)); box-shadow:0 0 8px rgba(123,104,238,0.4); transition:width 0.3s; }
+.statBox { background:rgba(10,20,15,0.75); border:1px solid var(--border); backdrop-filter:blur(6px); border-radius:10px; padding:6px 10px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:5px; pointer-events:auto; }
+.statBox.gold { color:var(--gold); } .statBox.level { color:var(--accent); } .statBox.jutsu { color:#ff8c42; }
+#invBar { background:rgba(10,20,15,0.7); border:1px solid var(--border); backdrop-filter:blur(6px); border-radius:10px; padding:6px 10px; display:flex; gap:10px; font-size:12px; font-weight:600; pointer-events:auto; flex-wrap:wrap; }
+.invItem { display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 5px; border-radius:6px; transition:background 0.15s; }
+.invItem:hover { background:rgba(76,224,196,0.1); }
+.invItem.active { background:rgba(76,224,196,0.2); border:1px solid var(--accent-dim); }
+.hudBtn { background:var(--accent); border:none; color:#06231c; font-family:var(--font-body); font-weight:700; font-size:12px; padding:8px 12px; border-radius:10px; pointer-events:auto; cursor:pointer; box-shadow:0 6px 16px -6px var(--accent-glow); }
+.hudBtn.secondary { background:rgba(10,20,15,0.75); border:1px solid var(--border); color:var(--text); box-shadow:none; }
 
-.card {
-  position: relative;
-  background: linear-gradient(180deg, var(--panel), var(--bg-1));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 32px 26px 26px;
-  width: 340px; max-width: 100%;
-  text-align: center;
-  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(76, 224, 196, 0.04);
-}
+#craftPanel { position:absolute; top:110px; right:10px; z-index:3; display:flex; flex-direction:column; gap:6px; }
+.craftBtn { background:rgba(10,20,15,0.85); border:1px solid var(--border); backdrop-filter:blur(6px); color:var(--text); font-family:var(--font-body); padding:9px 14px; border-radius:10px; cursor:pointer; text-align:left; font-size:12.5px; font-weight:600; transition:border-color 0.15s; }
+.craftBtn:hover { border-color:var(--accent); }
+.craftBtn small { color:var(--text-dim); font-weight:400; }
 
-.chakraRing {
-  position: absolute;
-  top: -70px; left: 50%; transform: translateX(-50%);
-  width: 220px; height: 220px;
-  border-radius: 50%;
-  border: 1.5px solid var(--accent-glow);
-  box-shadow: 0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76, 224, 196, 0.08);
-  pointer-events: none;
-  z-index: 0;
-  animation: chakraPulse 4.5s ease-in-out infinite;
-}
-@keyframes chakraPulse {
-  0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(0.96); }
-  50% { opacity: 0.9; transform: translateX(-50%) scale(1.04); }
-}
+#marketPanel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:320px; max-width:90vw; max-height:70vh; background:linear-gradient(180deg, var(--panel), var(--bg-1)); border:1px solid var(--border); border-radius:var(--radius); z-index:20; display:none; flex-direction:column; box-shadow:0 20px 60px -10px rgba(0,0,0,0.8); }
+#marketPanel.visible { display:flex; }
+.marketHeader { padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.marketHeader h2 { margin:0; font-family:var(--font-display); font-size:24px; }
+.marketClose { background:none; border:none; color:var(--danger); font-size:20px; cursor:pointer; }
+.marketList { overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.marketItem { background:rgba(10,20,15,0.6); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+.marketItemInfo { display:flex; flex-direction:column; gap:2px; }
+.marketItemName { font-weight:600; font-size:13px; }
+.marketItemDesc { font-size:11px; color:var(--text-dim); }
+.marketItemPrice { color:var(--gold); font-weight:700; font-size:13px; }
+.marketBuyBtn { background:var(--accent); border:none; color:#06231c; font-weight:700; font-size:11px; padding:6px 12px; border-radius:8px; cursor:pointer; }
+.marketSellSection { padding:12px; border-top:1px solid var(--border); display:flex; gap:8px; align-items:center; }
+.marketSellSection select, .marketSellSection input { background:var(--bg-1); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:8px; font-size:12px; }
+.marketSellSection button { background:var(--gold); border:none; color:#333; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; }
 
-.card h1 {
-  position: relative; z-index: 1;
-  font-family: var(--font-display);
-  font-size: 40px;
-  line-height: 0.92;
-  letter-spacing: 0.5px;
-  margin: 0 0 18px;
-  color: var(--text);
-  text-shadow: 0 0 24px var(--accent-glow);
-}
+#touchControls { position:absolute; inset:0; z-index:3; pointer-events:none; }
+#stick { position:absolute; left:22px; bottom:22px; width:110px; height:110px; border-radius:50%; background:rgba(10,20,15,0.5); border:1px solid var(--border); backdrop-filter:blur(4px); pointer-events:auto; }
+#stickKnob { position:absolute; left:35px; top:35px; width:40px; height:40px; border-radius:50%; background:var(--accent); box-shadow:0 0 16px var(--accent-glow); }
+.actionButtons { position:absolute; right:18px; bottom:18px; display:flex; flex-direction:column; gap:10px; pointer-events:auto; }
+.actionBtn { width:64px; height:64px; border-radius:50%; border:none; font-family:var(--font-body); font-weight:700; font-size:10px; cursor:pointer; box-shadow:0 8px 20px -4px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; }
+#interactBtn { background:var(--danger); color:#2a0805; }
+#jutsuBtn { background:#ff8c42; color:#2a1505; }
+#itemBtn { background:#7b68ee; color:#fff; }
+#marketBtn { background:var(--gold); color:#333; }
 
-.hint {
-  font-size: 12.5px;
-  color: var(--text-dim);
-  margin: 0 0 14px;
-  letter-spacing: 0.2px;
-}
+#toast { position:absolute; bottom:140px; left:50%; transform:translateX(-50%); background:rgba(10,20,15,0.92); border:1px solid var(--border); padding:10px 20px; border-radius:999px; font-size:13px; z-index:4; pointer-events:none; font-weight:600; }
 
-.card input {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-1);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 14px;
-  margin-bottom: 9px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.card input::placeholder { color: #5c7568; }
-.card input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
+.overlay { position:absolute; inset:0; z-index:10; background:rgba(6,12,9,0.88); backdrop-filter:blur(6px); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-family:var(--font-body); }
+.overlay .big { font-family:var(--font-display); font-size:34px; letter-spacing:0.5px; margin:0 0 8px; }
+.overlay button { padding:11px 24px; border-radius:10px; border:none; margin-top:14px; background:var(--accent); color:#06231c; font-weight:700; cursor:pointer; box-shadow:0 8px 20px -8px var(--accent-glow); }
+.overlay button.secondary { background:none; border:1px solid var(--border); color:var(--text); box-shadow:none; }
 
-.card button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent);
-  color: #06231c;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-  cursor: pointer;
-  margin-top: 3px;
-  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
-  box-shadow: 0 8px 20px -8px var(--accent-glow);
-}
-.card button:hover { background: #63e9d0; box-shadow: 0 10px 26px -6px var(--accent-glow); }
-.card button:active { transform: scale(0.98); }
+.hudChatBtn { position:absolute; top:10px; right:10px; z-index:3; width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:rgba(10,20,15,0.75); backdrop-filter:blur(6px); font-size:18px; cursor:pointer; color:var(--text); }
+#chatPanel { position:absolute; top:58px; right:10px; z-index:5; width:240px; max-width:calc(100vw - 20px); background:rgba(10,20,15,0.92); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px); display:flex; flex-direction:column; overflow:hidden; }
+#chatLog { max-height:140px; overflow-y:auto; padding:10px 12px; font-size:12px; display:flex; flex-direction:column; gap:4px; }
+.chatLine { color:var(--text); word-break:break-word; }
+.chatName { color:var(--accent); font-weight:700; }
+#chatInputRow { display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
+#chatInputRow input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-1); color:var(--text); font-family:var(--font-body); font-size:12px; outline:none; }
+#chatInputRow input:focus { border-color:var(--accent); }
+#chatInputRow button { padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#06231c; font-weight:700; font-size:12px; cursor:pointer; }
 
-.card button.link {
-  background: none;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 500;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  padding: 8px 0;
-  margin-top: 6px;
-  box-shadow: none;
-  opacity: 0.85;
-}
-.card button.link:hover { opacity: 1; border-bottom-color: var(--accent); background: none; }
+#fsPrompt { position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; background:rgba(10,20,15,0.9); border:1px solid var(--accent-dim); color:var(--accent); font-size:12px; font-weight:600; padding:8px 16px; border-radius:999px; cursor:pointer; animation:fsPulse 2s ease-in-out infinite; }
+@keyframes fsPulse { 0%,100%{box-shadow:0 0 0 0 var(--accent-glow);} 50%{box-shadow:0 0 0 8px transparent;} }
 
-.msg {
-  font-size: 12px;
-  color: var(--danger);
-  min-height: 16px;
-  margin: 8px 0 0;
-}
+.levelUpAnim { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:var(--font-display); font-size:48px; color:var(--gold); text-shadow:0 0 30px rgba(255,215,0,0.6); z-index:15; pointer-events:none; animation:levelUpPop 2s ease-out forwards; }
+@keyframes levelUpPop { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);} 20%{opacity:1;transform:translate(-50%,-50%) scale(1.2);} 100%{opacity:0;transform:translate(-50%,-80%) scale(1);} }
 
-/* ─────────── Oyun ekranı ─────────── */
-#gameScreen { position: relative; width: 100%; height: 100%; background: var(--bg-0); }
-#c { display: block; width: 100%; height: 100%; touch-action: none; }
-
-#hud {
-  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 3;
-  display: flex; align-items: center; gap: 10px;
-  pointer-events: none;
-  font-family: var(--font-body);
-}
-#hpwrap {
-  width: 120px; height: 11px;
-  background: rgba(8, 16, 12, 0.6);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  overflow: hidden;
-  backdrop-filter: blur(4px);
-}
-#hpbar {
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
-  box-shadow: 0 0 10px var(--accent-glow);
-  transition: width 0.15s;
-}
-#invBar {
-  background: rgba(10, 20, 15, 0.65);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(6px);
-  border-radius: 10px;
-  padding: 7px 12px;
-  display: flex; gap: 12px;
-  font-size: 13px; font-weight: 600;
-  pointer-events: auto;
-}
-#craftToggle {
-  margin-left: auto;
-  background: var(--accent);
-  border: none;
-  color: #06231c;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 13px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  pointer-events: auto;
-  cursor: pointer;
-  box-shadow: 0 6px 16px -6px var(--accent-glow);
-}
-
-#craftPanel {
-  position: absolute; top: 58px; right: 12px; z-index: 3;
-  display: flex; flex-direction: column; gap: 6px;
-}
-.craftBtn {
-  background: rgba(10, 20, 15, 0.85);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(6px);
-  color: var(--text);
-  font-family: var(--font-body);
-  padding: 9px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 12.5px;
-  font-weight: 600;
-  transition: border-color 0.15s;
-}
-.craftBtn:hover { border-color: var(--accent); }
-.craftBtn small { color: var(--text-dim); font-weight: 400; }
-
-#touchControls { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-#stick {
-  position: absolute; left: 26px; bottom: 26px; width: 104px; height: 104px;
-  border-radius: 50%;
-  background: rgba(10, 20, 15, 0.5);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(4px);
-  pointer-events: auto;
-}
-#stickKnob {
-  position: absolute; left: 32px; top: 32px; width: 40px; height: 40px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 16px var(--accent-glow);
-}
-#interactBtn {
-  position: absolute; right: 28px; bottom: 34px; width: 78px; height: 78px;
-  border-radius: 50%; border: none;
-  background: var(--danger);
-  color: #2a0805;
-  font-family: var(--font-body);
-  font-weight: 700; font-size: 11px;
-  pointer-events: auto;
-  box-shadow: 0 10px 26px -6px rgba(255, 106, 90, 0.5);
-}
-
-#toast {
-  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: rgba(10, 20, 15, 0.9);
-  border: 1px solid var(--border);
-  padding: 9px 18px;
-  border-radius: 999px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.overlay {
-  position: absolute; inset: 0; z-index: 10;
-  background: rgba(6, 12, 9, 0.86);
-  backdrop-filter: blur(6px);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center;
-  font-family: var(--font-body);
-}
-.overlay .big {
-  font-family: var(--font-display);
-  font-size: 34px;
-  letter-spacing: 0.5px;
-  margin: 0 0 8px;
-  color: var(--text);
-}
-.overlay button {
-  padding: 11px 24px;
-  border-radius: 10px;
-  border: none;
-  margin-top: 14px;
-  background: var(--accent);
-  color: #06231c;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 20px -8px var(--accent-glow);
-}
-.overlay button.secondary {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text);
-  box-shadow: none;
-}
-.rotateIcon { font-size: 40px; margin-bottom: 10px; color: var(--accent); }
-
-/* ─────────── Sohbet ─────────── */
-.hudChatBtn {
-  position: absolute; top: 12px; right: 118px; z-index: 3;
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: rgba(10, 20, 15, 0.75);
-  backdrop-filter: blur(6px);
-  font-size: 18px;
-  cursor: pointer;
-}
-#chatPanel {
-  position: absolute; top: 60px; right: 12px; z-index: 5;
-  width: 240px; max-width: calc(100vw - 24px);
-  background: rgba(10, 20, 15, 0.92);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-#chatLog {
-  max-height: 160px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  font-size: 12.5px;
-  display: flex; flex-direction: column; gap: 4px;
-}
-.chatLine { color: var(--text); word-break: break-word; }
-.chatName { color: var(--accent); font-weight: 700; }
-#chatInputRow {
-  display: flex; gap: 6px;
-  padding: 8px;
-  border-top: 1px solid var(--border);
-}
-#chatInputRow input {
-  flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-1);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  outline: none;
-}
-#chatInputRow input:focus { border-color: var(--accent); }
-#chatInputRow button {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent);
-  color: #06231c;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-#fsPrompt {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-  z-index: 6;
-  background: rgba(10, 20, 15, 0.9);
-  border: 1px solid var(--accent-dim);
-  color: var(--accent);
-  font-size: 12.5px; font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  animation: fsPulse 2s ease-in-out infinite;
-}
-@keyframes fsPulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
-  50% { box-shadow: 0 0 0 8px transparent; }
-}
-
-@media (max-width: 900px) and (orientation: portrait) {
-  #gameScreen:not(.hidden) ~ #rotateOverlay { display: none; }
-}
-
-#c { image-rendering: pixelated; image-rendering: crisp-edges; background:#1a2a1f; }
+.npcBubble { position:absolute; background:rgba(10,20,15,0.92); border:1px solid var(--border); padding:8px 14px; border-radius:12px; font-size:12px; z-index:4; pointer-events:none; max-width:160px; text-align:center; }
 </style>
+<base target="_blank">
 </head>
 <body>
 
 <div id="rotateOverlay" class="overlay hidden">
-  <div class="rotateIcon">&#8635;</div>
+  <div style="font-size:40px;margin-bottom:10px;color:var(--accent);">&#8635;</div>
   <p>Oynamak için telefonunu yatay çevir</p>
 </div>
 
 <div id="authScreen" class="screen">
   <div class="card">
-    <div class="chakraRing" aria-hidden="true"></div>
+    <div class="chakraRing"></div>
     <h1>Survival<br>Evolution</h1>
-
+    <p class="hint">Shinobi dünyasına hoş geldin</p>
     <div id="loginPanel">
       <input type="text" id="loginUser" placeholder="Kahraman adı veya e-posta">
       <input type="password" id="loginPass" placeholder="Şifre">
@@ -401,7 +133,6 @@ html, body {
       <button class="link" id="toRegister">Hesabın yok mu? Kayıt ol</button>
       <button class="link" id="toForgot">Şifremi unuttum</button>
     </div>
-
     <div id="registerPanel" class="hidden">
       <input type="text" id="regUser" placeholder="Kahraman adı (3-16 karakter)">
       <input type="email" id="regEmail" placeholder="E-posta">
@@ -410,7 +141,6 @@ html, body {
       <p id="registerMsg" class="msg"></p>
       <button class="link" id="toLoginFromReg">Zaten hesabın var mı? Giriş yap</button>
     </div>
-
     <div id="verifyPanel" class="hidden">
       <p class="hint">E-postana gelen 6 haneli kodu gir</p>
       <input type="text" id="verifyCode" placeholder="000000" maxlength="6" inputmode="numeric">
@@ -418,21 +148,18 @@ html, body {
       <p id="verifyMsg" class="msg"></p>
       <button class="link" id="resendBtn">Kodu tekrar gönder</button>
     </div>
-
     <div id="forgotPanel" class="hidden">
       <input type="email" id="forgotEmail" placeholder="Kayıtlı e-posta">
       <button id="forgotBtn">Kod gönder</button>
       <p id="forgotMsg" class="msg"></p>
       <button class="link" id="toLoginFromForgot">Girişe dön</button>
     </div>
-
     <div id="resetCodePanel" class="hidden">
       <p class="hint">E-postana gelen kodu gir</p>
       <input type="text" id="resetCode" placeholder="000000" maxlength="6" inputmode="numeric">
       <button id="resetCodeBtn">Kodu doğrula</button>
       <p id="resetCodeMsg" class="msg"></p>
     </div>
-
     <div id="resetPassPanel" class="hidden">
       <input type="password" id="newPass" placeholder="Yeni şifre (en az 6 karakter)">
       <button id="resetPassBtn">Şifreyi değiştir</button>
@@ -443,25 +170,32 @@ html, body {
 
 <div id="gameScreen" class="hidden">
   <div id="hud">
-    <div id="hpwrap"><div id="hpbar"></div></div>
-    <div id="invBar">
-      <span class="invItem">🪵 <b id="invWood">0</b></span>
-      <span class="invItem">🪨 <b id="invStone">0</b></span>
-      <span class="invItem">🗡️ <b id="invSword">0</b></span>
-      <span class="invItem">⛏️ <b id="invPickaxe">0</b></span>
-      <span class="invItem">🪓 <b id="invAxe">0</b></span>
+    <div id="hudLeft">
+      <div class="hpwrap"><div id="hpbar" class="hpbar"></div></div>
+      <div class="xpwrap"><div id="xpbar" class="xpbar"></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="statBox level">⭐ Lv.<b id="levelText">1</b></div>
+        <div class="statBox gold">💰 <b id="goldText">0</b> Ryo</div>
+        <div class="statBox jutsu" id="jutsuBox">🔥 <b id="jutsuText">Ateş</b></div>
+      </div>
     </div>
-    <button id="craftToggle">Üretim</button>
+    <div id="hudRight">
+      <div id="invBar">
+        <span class="invItem" data-item="wood" title="Odun">🪵 <b id="invWood">0</b></span>
+        <span class="invItem" data-item="stone" title="Taş">🪨 <b id="invStone">0</b></span>
+        <span class="invItem" data-item="sword" title="Kılıç (Ekipman)">🗡️ <b id="invSword">0</b></span>
+        <span class="invItem" data-item="pickaxe" title="Kazma">⛏️ <b id="invPickaxe">0</b></span>
+        <span class="invItem" data-item="axe" title="Balta">🪓 <b id="invAxe">0</b></span>
+      </div>
+      <button id="craftToggle" class="hudBtn">Üretim</button>
+    </div>
   </div>
-
   <div id="craftPanel" class="hidden">
     <button class="craftBtn" data-item="sword">🗡️ Kılıç<br><small>2 odun · 2 taş</small></button>
     <button class="craftBtn" data-item="pickaxe">⛏️ Kazma<br><small>3 odun · 1 taş</small></button>
     <button class="craftBtn" data-item="axe">🪓 Balta<br><small>1 odun · 3 taş</small></button>
   </div>
-
   <canvas id="c"></canvas>
-
   <button id="chatToggle" class="hudChatBtn">💬</button>
   <div id="chatPanel" class="hidden">
     <div id="chatLog"></div>
@@ -470,52 +204,98 @@ html, body {
       <button id="chatSendBtn">Gönder</button>
     </div>
   </div>
-
+  <div id="marketPanel">
+    <div class="marketHeader">
+      <h2>🛒 Market</h2>
+      <button class="marketClose" id="marketClose">✕</button>
+    </div>
+    <div class="marketList" id="marketList"></div>
+    <div class="marketSellSection">
+      <select id="sellType"><option value="wood">Odun</option><option value="stone">Taş</option></select>
+      <input type="number" id="sellAmount" placeholder="Miktar" min="1" value="1" style="width:60px;">
+      <button id="sellBtn">Sat</button>
+    </div>
+  </div>
   <div id="fsPrompt" class="hidden">Tam ekran için dokun</div>
-
   <div id="touchControls" class="hidden">
     <div id="stick"><div id="stickKnob"></div></div>
-    <button id="interactBtn">TOPLA / VUR</button>
+    <div class="actionButtons">
+      <button id="jutsuBtn" class="actionBtn">JUTSU<br>AT</button>
+      <button id="interactBtn" class="actionBtn">SALDIR<br>TOPLA</button>
+      <button id="itemBtn" class="actionBtn">EŞYA<br>KULLAN</button>
+      <button id="marketBtn" class="actionBtn">MARKET</button>
+    </div>
   </div>
-
   <div id="toast" class="hidden"></div>
-
   <div id="overScreen" class="overlay hidden">
-    <p class="big">Düştün</p>
-    <p class="hint">Envanterin korunuyor, tekrar canlanıyorsun</p>
+    <p class="big">Düştün!</p>
+    <p class="hint">Seviyen ve envanterin korunuyor, tekrar canlanıyorsun</p>
     <button id="respawnBtn">Devam et</button>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ================================================================
-// main2d.js — Survival Evolution (2D istemci)
-// Bu dosya TARAYICIDA çalışır (server.js gibi Node.js'te değil).
-// Bu yüzden require() yok — bunun yerine kütüphaneler index.html'de
-// Script etiketiyle yükleniyor ve global değişken olarak geliyor:
-//
-//   index.html'de socket.io kütüphanesi ayrı bir kaynaktan yükleniyor,
-//     -> global io() fonksiyonunu verir (server.js'deki socket.io
-//        sunucusuna bağlanmak için). Aşağıdaki ilk satırda kullanılıyor.
-//
-// Kullanılan tarayıcı API'leri (kurulum gerektirmez, JS'e gömülü):
-//   - Canvas 2D (piksel sanatı çizimi, karakter/ağaç/kaya sprite'ları)
-//   - localStorage (giriş token'ını hatırlamak için)
-//   - screen.orientation.lock (mobilde yatay ekran kilidi)
-//   - requestAnimationFrame (oyun döngüsü)
-//
-// Sunucu tarafındaki (server.js) socket.io event'lerine burada
-// bire bir karşılık veriliyor: register, verifyEmail, login,
-// loginWithToken, forgotPassword, verifyResetCode, resetPassword,
-// playerMovement, collect, craft, attack.
-// ================================================================
-
-(function () {
+(function(){
   const socket = io();
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
-  // ─────────────── Auth akışı (öncekiyle aynı) ───────────────
+  // ===== SES =====
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playSound(type){
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    if(type === 'jutsu_fire'){
+      osc.type='sawtooth'; osc.frequency.setValueAtTime(200,now);
+      osc.frequency.exponentialRampToValueAtTime(600,now+0.3);
+      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.4);
+      osc.start(now); osc.stop(now+0.4);
+    } else if(type === 'jutsu_water'){
+      osc.type='sine'; osc.frequency.setValueAtTime(400,now);
+      osc.frequency.exponentialRampToValueAtTime(200,now+0.4);
+      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.5);
+      osc.start(now); osc.stop(now+0.5);
+    } else if(type === 'jutsu_lightning'){
+      osc.type='square'; osc.frequency.setValueAtTime(800,now);
+      osc.frequency.exponentialRampToValueAtTime(1200,now+0.1);
+      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
+      osc.start(now); osc.stop(now+0.2);
+    } else if(type === 'jutsu_wind'){
+      osc.type='triangle'; osc.frequency.setValueAtTime(300,now);
+      osc.frequency.linearRampToValueAtTime(500,now+0.3);
+      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.4);
+      osc.start(now); osc.stop(now+0.4);
+    } else if(type === 'jutsu_earth'){
+      osc.type='sawtooth'; osc.frequency.setValueAtTime(100,now);
+      osc.frequency.exponentialRampToValueAtTime(50,now+0.4);
+      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.5);
+      osc.start(now); osc.stop(now+0.5);
+    } else if(type === 'hit'){
+      osc.type='square'; osc.frequency.setValueAtTime(150,now);
+      gain.gain.setValueAtTime(0.1,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
+      osc.start(now); osc.stop(now+0.1);
+    } else if(type === 'collect'){
+      osc.type='sine'; osc.frequency.setValueAtTime(600,now);
+      osc.frequency.exponentialRampToValueAtTime(900,now+0.15);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
+      osc.start(now); osc.stop(now+0.2);
+    } else if(type === 'levelup'){
+      osc.type='sine'; osc.frequency.setValueAtTime(400,now);
+      osc.frequency.setValueAtTime(600,now+0.15);
+      osc.frequency.setValueAtTime(800,now+0.3);
+      gain.gain.setValueAtTime(0.15,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.6);
+      osc.start(now); osc.stop(now+0.6);
+    } else if(type === 'coin'){
+      osc.type='sine'; osc.frequency.setValueAtTime(900,now);
+      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
+      osc.start(now); osc.stop(now+0.1);
+    }
+  }
+
+  // ===== AUTH =====
   const authScreen = document.getElementById('authScreen');
   const gameScreen = document.getElementById('gameScreen');
   const panels = {
@@ -523,71 +303,70 @@ html, body {
     verify: document.getElementById('verifyPanel'), forgot: document.getElementById('forgotPanel'),
     resetCode: document.getElementById('resetCodePanel'), resetPass: document.getElementById('resetPassPanel')
   };
-  function showPanel(name) { Object.keys(panels).forEach(function (k) { panels[k].classList.add('hidden'); }); panels[name].classList.remove('hidden'); }
-  function setMsg(id, text) { document.getElementById(id).textContent = text || ''; }
-
+  function showPanel(name){ Object.keys(panels).forEach(k => panels[k].classList.add('hidden')); panels[name].classList.remove('hidden'); }
+  function setMsg(id, text){ document.getElementById(id).textContent = text || ''; }
   let pendingUsername = null, pendingResetEmail = null;
 
-  document.getElementById('toRegister').onclick = function () { showPanel('register'); };
-  document.getElementById('toLoginFromReg').onclick = function () { showPanel('login'); };
-  document.getElementById('toForgot').onclick = function () { showPanel('forgot'); };
-  document.getElementById('toLoginFromForgot').onclick = function () { showPanel('login'); };
-
-  document.getElementById('loginBtn').onclick = function () {
-    let username = document.getElementById('loginUser').value.trim();
-    let password = document.getElementById('loginPass').value;
-    if (!username || !password) { setMsg('loginMsg', 'Tüm alanları doldur.'); return; }
-    socket.emit('login', { username: username, password: password });
+  document.getElementById('toRegister').onclick = () => showPanel('register');
+  document.getElementById('toLoginFromReg').onclick = () => showPanel('login');
+  document.getElementById('toForgot').onclick = () => showPanel('forgot');
+  document.getElementById('toLoginFromForgot').onclick = () => showPanel('login');
+  document.getElementById('loginBtn').onclick = () => {
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value;
+    if(!u || !p){ setMsg('loginMsg','Tum alanlari doldur.'); return; }
+    socket.emit('login', { username: u, password: p });
   };
-  document.getElementById('registerBtn').onclick = function () {
-    let username = document.getElementById('regUser').value.trim();
-    let email = document.getElementById('regEmail').value.trim();
-    let password = document.getElementById('regPass').value;
-    setMsg('registerMsg', '');
-    socket.emit('register', { username: username, email: email, password: password });
+  document.getElementById('registerBtn').onclick = () => {
+    const u = document.getElementById('regUser').value.trim();
+    const e = document.getElementById('regEmail').value.trim();
+    const p = document.getElementById('regPass').value;
+    setMsg('registerMsg','');
+    socket.emit('register', { username: u, email: e, password: p });
   };
-  document.getElementById('verifyBtn').onclick = function () {
+  document.getElementById('verifyBtn').onclick = () => {
     socket.emit('verifyEmail', { username: pendingUsername, code: document.getElementById('verifyCode').value.trim() });
   };
-  document.getElementById('resendBtn').onclick = function () {
+  document.getElementById('resendBtn').onclick = () => {
     socket.emit('resendVerifyCode', { username: pendingUsername });
-    setMsg('verifyMsg', 'Yeni kod gönderildi.');
+    setMsg('verifyMsg','Yeni kod gonderildi.');
   };
-  document.getElementById('forgotBtn').onclick = function () {
+  document.getElementById('forgotBtn').onclick = () => {
     pendingResetEmail = document.getElementById('forgotEmail').value.trim();
     socket.emit('forgotPassword', { email: pendingResetEmail });
   };
-  document.getElementById('resetCodeBtn').onclick = function () {
+  document.getElementById('resetCodeBtn').onclick = () => {
     socket.emit('verifyResetCode', { email: pendingResetEmail, code: document.getElementById('resetCode').value.trim() });
   };
-  document.getElementById('resetPassBtn').onclick = function () {
+  document.getElementById('resetPassBtn').onclick = () => {
     socket.emit('resetPassword', { email: pendingResetEmail, newPassword: document.getElementById('newPass').value });
   };
 
-  socket.on('loginError', function (msg) {
-    if (!msg) return;
-    ['loginMsg', 'registerMsg', 'verifyMsg', 'forgotMsg'].forEach(function (id) { setMsg(id, ''); });
-    if (!panels.login.classList.contains('hidden')) setMsg('loginMsg', msg);
-    else if (!panels.register.classList.contains('hidden')) setMsg('registerMsg', msg);
-    else if (!panels.verify.classList.contains('hidden')) setMsg('verifyMsg', msg);
-    else if (!panels.forgot.classList.contains('hidden')) setMsg('forgotMsg', msg);
+  socket.on('loginError', msg => {
+    if(!msg) return;
+    ['loginMsg','registerMsg','verifyMsg','forgotMsg'].forEach(id => setMsg(id,''));
+    if(!panels.login.classList.contains('hidden')) setMsg('loginMsg',msg);
+    else if(!panels.register.classList.contains('hidden')) setMsg('registerMsg',msg);
+    else if(!panels.verify.classList.contains('hidden')) setMsg('verifyMsg',msg);
+    else if(!panels.forgot.classList.contains('hidden')) setMsg('forgotMsg',msg);
   });
-  socket.on('registerSuccess', function (data) { pendingUsername = data.username; showPanel('verify'); setMsg('verifyMsg', ''); });
-  socket.on('verifySuccess', function () { setMsg('verifyMsg', 'Doğrulandı!'); });
-  socket.on('forgotPasswordCodeSent', function () { showPanel('resetCode'); setMsg('resetCodeMsg', ''); });
-  socket.on('resetCodeError', function (msg) { setMsg('resetCodeMsg', msg); });
-  socket.on('resetCodeVerified', function () { showPanel('resetPass'); setMsg('resetPassMsg', ''); });
-  socket.on('resetPasswordError', function (msg) { setMsg('resetPassMsg', msg); });
-  socket.on('resetPasswordSuccess', function () { setMsg('resetPassMsg', 'Şifren değişti.'); setTimeout(function () { showPanel('login'); }, 1200); });
+  socket.on('registerSuccess', data => { pendingUsername = data.username; showPanel('verify'); setMsg('verifyMsg',''); });
+  socket.on('verifySuccess', () => setMsg('verifyMsg','Dogrulandi!'));
+  socket.on('forgotPasswordCodeSent', () => { showPanel('resetCode'); setMsg('resetCodeMsg',''); });
+  socket.on('resetCodeError', msg => setMsg('resetCodeMsg',msg));
+  socket.on('resetCodeVerified', () => { showPanel('resetPass'); setMsg('resetPassMsg',''); });
+  socket.on('resetPasswordError', msg => setMsg('resetPassMsg',msg));
+  socket.on('resetPasswordSuccess', () => { setMsg('resetPassMsg','Sifren degisti.'); setTimeout(() => showPanel('login'), 1200); });
 
-  let myUsername = null;
-  function tryFullscreen() {
+  let myUsername = null, myJutsuType = 'fire';
+  let myLevel = 1, myXp = 0, myMaxXp = 100, myGold = 0, myMaxHp = 100;
+  function tryFullscreen(){
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if (req) { try { req.call(el).catch(function () {}); } catch (e) {} }
+    if(req){ try{ req.call(el).catch(()=>{}); } catch(e){} }
   }
 
-  socket.on('loginSuccess', function (data) {
+  socket.on('loginSuccess', data => {
     myUsername = data.username;
     localStorage.setItem('survivalToken', data.token);
     authScreen.classList.add('hidden');
@@ -596,27 +375,45 @@ html, body {
     tryFullscreen();
     initGame();
     checkOrientation();
-    if (!document.fullscreenElement) document.getElementById('fsPrompt').classList.remove('hidden');
+    if(!document.fullscreenElement) document.getElementById('fsPrompt').classList.remove('hidden');
   });
   let savedToken = localStorage.getItem('survivalToken');
-  if (savedToken) socket.emit('loginWithToken', savedToken);
+  if(savedToken) socket.emit('loginWithToken', savedToken);
 
   let rotateOverlay = document.getElementById('rotateOverlay');
-  function checkOrientation() {
+  function checkOrientation(){
     let inGame = !gameScreen.classList.contains('hidden');
     rotateOverlay.classList.toggle('hidden', !(isTouch && inGame && window.innerHeight > window.innerWidth));
   }
   window.addEventListener('resize', checkOrientation);
-  window.addEventListener('orientationchange', function () { setTimeout(checkOrientation, 200); });
-  if (isTouch && screen.orientation && screen.orientation.lock) {
-    document.addEventListener('click', function once() {
-      screen.orientation.lock('landscape').catch(function () {});
+  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
+  if(isTouch && screen.orientation && screen.orientation.lock){
+    document.addEventListener('click', function once(){
+      screen.orientation.lock('landscape').catch(()=>{});
       document.removeEventListener('click', once);
     }, { once: true });
   }
 
+  // ===== STATS =====
+  socket.on('updateStats', stats => {
+    myLevel = stats.level; myXp = stats.xp; myMaxXp = stats.maxXp;
+    myGold = stats.gold; myMaxHp = stats.maxHp; myJutsuType = stats.jutsuType;
+    document.getElementById('levelText').textContent = stats.level;
+    document.getElementById('goldText').textContent = stats.gold;
+    const jn = { fire:'🔥 Ates', water:'💧 Su', lightning:'⚡ Simsik', wind:'🌪️ Ruzgar', earth:'🪨 Toprak' };
+    document.getElementById('jutsuText').textContent = (jn[stats.jutsuType] || '🔥 Ates').split(' ')[1];
+    const jc = { fire:'#ff6a5a', water:'#3aa0e2', lightning:'#e2d23a', wind:'#7fe2b0', earth:'#a3703f' };
+    document.getElementById('jutsuBox').style.color = jc[stats.jutsuType] || '#ff8c42';
+    updateXpBar();
+  });
+  function updateXpBar(){
+    const pct = myMaxXp > 0 ? (myXp / myMaxXp) * 100 : 0;
+    document.getElementById('xpbar').style.width = pct + '%';
+  }
+
+  // ===== INVENTORY & CRAFT =====
   let myInventory = {};
-  socket.on('updateInventory', function (inv) {
+  socket.on('updateInventory', inv => {
     myInventory = inv;
     document.getElementById('invWood').textContent = inv.wood || 0;
     document.getElementById('invStone').textContent = inv.stone || 0;
@@ -625,501 +422,742 @@ html, body {
     document.getElementById('invAxe').textContent = inv.axe || 0;
   });
   const craftPanel = document.getElementById('craftPanel');
-  document.getElementById('craftToggle').onclick = function () { craftPanel.classList.toggle('hidden'); };
-  document.querySelectorAll('.craftBtn').forEach(function (btn) {
-    btn.onclick = function () { socket.emit('craft', btn.dataset.item); toast('Üretildi: ' + btn.dataset.item); };
+  document.getElementById('craftToggle').onclick = () => craftPanel.classList.toggle('hidden');
+  document.querySelectorAll('.craftBtn').forEach(btn => {
+    btn.onclick = () => socket.emit('craft', btn.dataset.item);
   });
-  const toastEl = document.getElementById('toast'), toastTimer = null;
-  function toast(msg) {
+  socket.on('craftSuccess', item => toast('Uretildi: ' + item));
+  socket.on('craftFail', msg => toast(msg, '#ff6a5a'));
+  document.querySelectorAll('.invItem').forEach(el => {
+    el.onclick = () => {
+      const item = el.dataset.item;
+      if(item === 'sword' || item === 'pickaxe' || item === 'axe'){
+        socket.emit('useItem', item);
+        document.querySelectorAll('.invItem').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+      }
+    };
+  });
+
+  // ===== TOAST =====
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function toast(msg, color){
     toastEl.textContent = msg; toastEl.classList.remove('hidden');
+    toastEl.style.color = color || '#eaf3ec';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toastEl.classList.add('hidden'); }, 1400);
+    toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 1800);
   }
 
+  // ===== HP =====
   let myHp = 100;
-  socket.on('hpUpdate', function (data) {
-    if (data.id === socket.id) {
-      myHp = data.hp;
-      let hpEl = document.getElementById('hpbar');
-      hpEl.style.width = Math.max(0, myHp) + '%';
-      hpEl.style.background = myHp > 40 ? '#5dcaa5' : '#e24b4a';
+  socket.on('hpUpdate', data => {
+    if(data.id === socket.id){
+      myHp = data.hp; myMaxHp = data.maxHp || 100;
+      document.getElementById('hpbar').style.width = Math.max(0, (myHp/myMaxHp)*100) + '%';
+      document.getElementById('hpbar').style.background = myHp > myMaxHp*0.4 ? '#5dcaa5' : '#e24b4a';
       shake(10);
-      if (myHp <= 0) document.getElementById('overScreen').classList.remove('hidden');
-    } else if (others[data.id]) {
-      floatText(others[data.id].x, others[data.id].y, '-hasar', '#ff6a5a');
+      if(myHp <= 0) document.getElementById('overScreen').classList.remove('hidden');
+    } else if(others[data.id]){
+      floatText(others[data.id].x, others[data.id].y, '-' + (data.damage || 'hasar'), '#ff6a5a');
     }
   });
-  document.getElementById('respawnBtn').onclick = function () { document.getElementById('overScreen').classList.add('hidden'); };
+  document.getElementById('respawnBtn').onclick = () => {
+    document.getElementById('overScreen').classList.add('hidden');
+    myHp = myMaxHp;
+    document.getElementById('hpbar').style.width = '100%';
+  };
 
-  // ═══════════════════ 2D PİKSEL SANATI MOTORU ═══════════════════
+  // ===== MARKET =====
+  const marketPanel = document.getElementById('marketPanel');
+  document.getElementById('marketBtn').onclick = () => { marketPanel.classList.add('visible'); socket.emit('getMarket'); };
+  document.getElementById('marketClose').onclick = () => marketPanel.classList.remove('visible');
+  document.getElementById('sellBtn').onclick = () => {
+    socket.emit('sellResource', { type: document.getElementById('sellType').value, amount: parseInt(document.getElementById('sellAmount').value) || 1 });
+  };
+  socket.on('marketData', items => {
+    const list = document.getElementById('marketList');
+    list.innerHTML = '';
+    items.forEach(item => {
+      let desc = '';
+      if(item.type === 'weapon') desc = 'Hasar +' + item.damage;
+      else if(item.type === 'armor') desc = 'Defans +' + item.defense;
+      else if(item.type === 'jutsu_scroll') desc = 'Jutsu degisimi';
+      else if(item.type === 'consumable') desc = 'Can +' + item.effect;
+      else desc = 'XP +' + item.effect;
+      const div = document.createElement('div'); div.className = 'marketItem';
+      div.innerHTML = '<div class="marketItemInfo"><span class="marketItemName">' + item.name + '</span><span class="marketItemDesc">' + desc + '</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="marketItemPrice">' + item.price + ' Ryo</span><button class="marketBuyBtn" data-id="' + item.id + '">Satin Al</button></div>';
+      list.appendChild(div);
+    });
+    list.querySelectorAll('.marketBuyBtn').forEach(btn => {
+      btn.onclick = () => socket.emit('buyItem', btn.dataset.id);
+    });
+  });
+  socket.on('marketSuccess', msg => { toast(msg); playSound('coin'); });
+  socket.on('marketError', msg => toast(msg, '#ff6a5a'));
+  socket.on('npcHeal', data => { toast('Sifa: -' + data.cost + ' Ryo'); myHp = data.hp; document.getElementById('hpbar').style.width = '100%'; });
+  socket.on('npcError', msg => toast(msg, '#ff6a5a'));
+
+  // ===== MOBS =====
+  let mobs = [];
+  socket.on('mobList', list => { mobs = list; });
+  socket.on('mobUpdate', list => { mobs = list; });
+  socket.on('mobHit', data => {
+    const mob = mobs.find(m => m.id === data.mobId);
+    if(mob){ mob.hp = data.hp; floatText(mob.x, mob.z, '-' + data.damage, '#ff6a5a'); playSound('hit'); }
+  });
+  socket.on('mobKilled', data => {
+    mobs = mobs.filter(m => m.id !== data.mobId);
+    toast('+' + data.xp + ' XP, +' + data.gold + ' Ryo');
+    playSound('coin');
+    if(data.levelUp){ playSound('levelup'); showLevelUp(); }
+  });
+  function showLevelUp(){
+    const div = document.createElement('div');
+    div.className = 'levelUpAnim';
+    div.textContent = 'SEVIYE ATLADIN! Lv.' + myLevel;
+    document.getElementById('gameScreen').appendChild(div);
+    setTimeout(() => div.remove(), 2000);
+  }
+
+  // ===== NPCS =====
+  let npcs = [];
+  socket.on('npcList', list => { npcs = list; });
+
+  // ===== JUTSU =====
+  document.getElementById('jutsuBtn').onclick = () => {
+    socket.emit('castJutsu');
+    jutsuEffect(myPos.x, myPos.y, myJutsuType);
+    playSound('jutsu_' + myJutsuType);
+  };
+  socket.on('jutsuCast', data => {
+    if(data.id !== socket.id){ jutsuEffect(data.x, data.z, data.jutsuType); playSound('jutsu_' + data.jutsuType); }
+  });
+
+  // ===== 2D MOTOR =====
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  const WORLD_SIZE = 2000;
+  const JUTSU_COLORS = {
+    fire: { base:'#e2543a', glow:'#ffcf6b', core:'#ff6a00' },
+    water: { base:'#3aa0e2', glow:'#bdf0ff', core:'#00bfff' },
+    lightning: { base:'#e2d23a', glow:'#fff7bd', core:'#ffff00' },
+    wind: { base:'#7fe2b0', glow:'#e6fff2', core:'#98fb98' },
+    earth: { base:'#a3703f', glow:'#e6c79a', core:'#8b4513' }
+  };
 
-  const ELEMENTS = [
-    { name: 'ateş', base: '#e2543a', glow: '#ffcf6b' },
-    { name: 'su', base: '#3aa0e2', glow: '#bdf0ff' },
-    { name: 'şimşek', base: '#e2d23a', glow: '#fff7bd' },
-    { name: 'rüzgâr', base: '#7fe2b0', glow: '#e6fff2' },
-    { name: 'toprak', base: '#a3703f', glow: '#e6c79a' }
-  ];
-
-  function makeNinjaSprite(hairColor, clothColor, headbandColor) {
-    // 26x34 piksel gridine detaylı chibi ninja çiziyoruz
-    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 34;
+  function makeShinobiSprite(type){
+    const styles = {
+      fire: { hair:'#ff6a00', hairShade:'#cc4400', cloth:'#c41e3a', clothShade:'#8b0000', headband:'#20242c', skin:'#f0b98c' },
+      water: { hair:'#1e3a5f', hairShade:'#0f1f3a', cloth:'#2c5f8a', clothShade:'#1a3a5c', headband:'#20242c', skin:'#f0d5b8' },
+      lightning: { hair:'#f0e68c', hairShade:'#b8a642', cloth:'#4a4a4a', clothShade:'#2a2a2a', headband:'#20242c', skin:'#f0b98c' },
+      wind: { hair:'#2e8b57', hairShade:'#1a5c38', cloth:'#3d7a47', clothShade:'#225529', headband:'#20242c', skin:'#f0c8a0' },
+      earth: { hair:'#8b4513', hairShade:'#5c2e0c', cloth:'#6b4423', clothShade:'#4a2e15', headband:'#20242c', skin:'#d4a574' }
+    };
+    const s = styles[type] || styles.fire;
+    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 36;
     let c = cv.getContext('2d');
-    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
-    let skin = '#f0b98c';
-    let skinShade = shadeHex(skin, -0.18);
-    let clothShade = shadeHex(clothColor, -0.28);
-    let clothLight = shadeHex(clothColor, 0.22);
-    let hairShade = shadeHex(hairColor, -0.3);
-
-    // saç (arka, geniş)
-    for (let x = 6; x <= 19; x++) for (let y = 2; y <= 8; y++) {
-      if (Math.hypot(x - 12.5, y - 6) < 7.2) px(x, y, hairColor);
+    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
+    function shade(col, amt){
+      let num = parseInt(col.replace('#',''), 16);
+      let r = Math.min(255, Math.max(0, ((num>>16)&255)*(1+amt)));
+      let g = Math.min(255, Math.max(0, ((num>>8)&255)*(1+amt)));
+      let b = Math.min(255, Math.max(0, (num&255)*(1+amt)));
+      return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
     }
-    for (let x = 6; x <= 9; x++) for (let y = 6; y <= 8; y++) px(x, y, hairShade);
-    // baş / yüz
-    for (let x = 8; x <= 17; x++) for (let y = 7; y <= 15; y++) px(x, y, skin);
-    for (let x = 8; x <= 9; x++) for (let y = 10; y <= 15; y++) px(x, y, skinShade);
-    // bandana + arkaya uçuşan uçlar
-    for (let x = 6; x <= 19; x++) px(x, y9(), headbandColor);
-    function y9() { return 9; }
-    for (let x = 6; x <= 19; x++) px(x, 10, headbandColor);
-    px(19, 11, headbandColor); px(20, 12, headbandColor);
-    px(4, 12, headbandColor); px(3, 14, headbandColor); px(2, 16, shadeHex(headbandColor, -0.2));
-    // bandananın metal plakası (küçük parlaklık)
-    for (let x = 11; x <= 14; x++) px(x, 9, '#c9d3da');
-    px(12, 9, '#e8eef2');
-    // gözler + kaş
-    px(10, 12, '#20242c'); px(11, 12, '#20242c');
-    px(14, 12, '#20242c'); px(15, 12, '#20242c');
-    px(9, 11, hairShade); px(10, 11, hairShade);
-    px(14, 11, hairShade); px(15, 11, hairShade);
-    // vücut / yelek (V yaka)
-    for (let x = 7; x <= 18; x++) for (let y = 16; y <= 27; y++) px(x, y, clothColor);
-    for (let x = 7; x <= 8; x++) for (let y = 16; y <= 27; y++) px(x, y, clothShade);
-    for (let y = 16; y <= 20; y++) { px(12, y, skin); px(13, y, skin); }
-    for (let x = 10; x <= 15; x++) px(x, 27, clothShade); // bel çizgisi
-    // kollar
-    for (let y = 17; y <= 24; y++) { px(5, y, clothColor); px(6, y, clothShade); px(19, y, skin); px(20, y, skinShade); }
-    px(5, 25, skin); px(6, 25, skin); px(19, 25, skin); px(20, 25, skin);
-    // kılıç kayışı (sırt, ince çizgi)
-    for (let y = 15; y <= 26; y++) px(16, y, clothLight);
-    // bacaklar (duruş pozu, koyu pantolon)
-    for (let y = 28; y <= 33; y++) { px(9, y, '#242832'); px(10, y, '#242832'); px(15, y, '#242832'); px(16, y, '#242832'); }
+    // Spiky hair
+    for(let x=5; x<=22; x++) for(let y=1; y<=8; y++){
+      if(Math.hypot(x-13.5,y-5) < 7.5) px(x,y, Math.hypot(x-13.5,y-5)>5.5 ? s.hairShade : s.hair);
+    }
+    px(6,0,s.hair); px(10,0,s.hair); px(14,0,s.hair); px(18,0,s.hair);
+    px(5,1,s.hairShade); px(20,1,s.hairShade);
+    // Face
+    for(let x=8; x<=19; x++) for(let y=7; y<=16; y++) px(x,y,s.skin);
+    for(let x=8; x<=10; x++) for(let y=10; y<=16; y++) px(x,y,shade(s.skin,-0.15));
+    // Headband
+    for(let x=6; x<=21; x++){ px(x,9,s.headband); px(x,10,s.headband); }
+    px(21,11,s.headband); px(22,12,shade(s.headband,-0.2));
+    px(4,11,s.headband); px(3,13,shade(s.headband,-0.2));
+    for(let x=12; x<=15; x++) px(x,9,'#c9d3da');
+    px(13,9,'#e8eef2');
+    // Eyes
+    px(10,12,'#20242c'); px(11,12,'#20242c'); px(10,13,'#20242c');
+    px(16,12,'#20242c'); px(17,12,'#20242c'); px(17,13,'#20242c');
+    // Eyebrows
+    px(9,11,s.hairShade); px(10,11,s.hairShade);
+    px(16,11,s.hairShade); px(17,11,s.hairShade);
+    // Body
+    for(let x=7; x<=20; x++) for(let y=17; y<=28; y++) px(x,y,s.cloth);
+    for(let x=7; x<=9; x++) for(let y=17; y<=28; y++) px(x,y,s.clothShade);
+    for(let y=17; y<=21; y++){ px(13,y,s.skin); px(14,y,s.skin); }
+    // Arms
+    for(let y=18; y<=25; y++){ px(5,y,s.cloth); px(6,y,s.clothShade); px(21,y,s.skin); px(22,y,shade(s.skin,-0.15)); }
+    px(5,26,s.skin); px(6,26,s.skin);
+    // Sword strap
+    for(let y=16; y<=27; y++) px(17,y,shade(s.cloth,0.3));
+    // Legs
+    for(let y=29; y<=34; y++){ px(10,y,'#1a1a2e'); px(11,y,'#1a1a2e'); px(17,y,'#1a1a2e'); px(18,y,'#1a1a2e'); }
     return cv;
   }
 
-  function makeWalkFrame(base, legOffset) {
-    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 34;
+  function makeWalkFrame(base, legOff){
+    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 36;
     let c = cv.getContext('2d');
-    c.drawImage(base, 0, 0, 26, 28, 0, 0, 26, 28);
-    c.fillStyle = '#242832';
-    c.fillRect(9, 28 + legOffset, 2, 6 - legOffset);
-    c.fillRect(15, 28 - legOffset, 2, 6 + legOffset);
+    c.drawImage(base, 0, 0, 28, 30, 0, 0, 28, 30);
+    c.fillStyle = '#1a1a2e';
+    c.fillRect(10, 30+legOff, 2, 6-legOff);
+    c.fillRect(17, 30-legOff, 2, 6+legOff);
     return cv;
   }
 
-  function buildCharacterSet(seedColor) {
-    let hair = shadeHex(seedColor, -0.45);
-    let base = makeNinjaSprite(hair, seedColor, '#20242c');
-    return [makeWalkFrame(base, 0), makeWalkFrame(base, 2), makeWalkFrame(base, 0), makeWalkFrame(base, -2)];
-  }
-  function shadeHex(hex, amt) {
-    let num = parseInt(hex.replace('#', ''), 16);
-    let r = Math.min(255, Math.max(0, ((num >> 16) & 255) * (1 + amt)));
-    let g = Math.min(255, Math.max(0, ((num >> 8) & 255) * (1 + amt)));
-    let b = Math.min(255, Math.max(0, (num & 255) * (1 + amt)));
-    return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
+  function buildCharacterSet(jutsuType){
+    let base = makeShinobiSprite(jutsuType);
+    return [makeWalkFrame(base,0), makeWalkFrame(base,2), makeWalkFrame(base,0), makeWalkFrame(base,-2)];
   }
 
-  const treeSprite = (function () {
-    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 34;
+  function makeMobSprite(type){
+    let cv = document.createElement('canvas'); cv.width = 30; cv.height = 30;
     let c = cv.getContext('2d');
-    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
-    for (let x = 12; x <= 15; x++) for (let y = 20; y <= 31; y++) px(x, y, x < 14 ? '#5a3f27' : '#6b4a2f');
-    // üç katmanlı yaprak kütlesi (derinlik hissi)
-    function blob(cx, cy, r, base, hi) {
-      for (let x = Math.floor(cx - r); x <= cx + r; x++) for (let y = Math.floor(cy - r); y <= cy + r; y++) {
-        let d = Math.hypot(x - cx, y - cy);
-        if (d < r) px(x, y, d < r * 0.55 && (x + y) % 3 === 0 ? hi : base);
+    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
+    const colors = {
+      zombie: { main:'#5a7a5a', dark:'#3a5a3a', eye:'#ff0000' },
+      bandit: { main:'#8b4513', dark:'#5c2e0c', eye:'#ffff00' },
+      rogue_ninja: { main:'#4a0080', dark:'#2a0040', eye:'#ff00ff' },
+      summon_snake: { main:'#2d5a27', dark:'#1a3a15', eye:'#ff6600' },
+      puppet: { main:'#8b7355', dark:'#5c4a35', eye:'#000000' },
+      dark_ninja: { main:'#1a1a2e', dark:'#0a0a1a', eye:'#ff0000' },
+      beast: { main:'#8b0000', dark:'#5c0000', eye:'#ffff00' },
+      boss_akatsuki: { main:'#ff0000', dark:'#8b0000', eye:'#ffffff' }
+    };
+    const col = colors[type] || colors.zombie;
+    for(let x=5; x<=24; x++) for(let y=8; y<=24; y++){
+      if(Math.hypot(x-14.5,y-16) < 8) px(x,y, (x<10||y<12)?col.dark:col.main);
+    }
+    px(10,12,col.eye); px(11,12,col.eye);
+    px(18,12,col.eye); px(19,12,col.eye);
+    for(let x=12; x<=17; x++) px(x,18,'#000');
+    if(type === 'boss_akatsuki'){ for(let x=5; x<=24; x++){ px(x,6,'#000'); px(x,7,'#fff'); } }
+    if(type === 'summon_snake'){ for(let y=2; y<=8; y++) px(14,y,col.main); px(13,3,col.main); px(15,3,col.main); }
+    return cv;
+  }
+
+  const treeSprite = (function(){
+    let cv = document.createElement('canvas'); cv.width = 30; cv.height = 36;
+    let c = cv.getContext('2d');
+    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
+    for(let x=13; x<=16; x++) for(let y=22; y<=33; y++) px(x,y, x<15?'#5a3f27':'#6b4a2f');
+    function blob(cx,cy,r,base,hi){
+      for(let x=Math.floor(cx-r); x<=cx+r; x++) for(let y=Math.floor(cy-r); y<=cy+r; y++){
+        let d=Math.hypot(x-cx,y-cy);
+        if(d<r) px(x,y, d<r*0.55&&(x+y)%3===0?hi:base);
       }
     }
-    blob(9, 13, 7.5, '#356e3c', '#3f9c4f');
-    blob(19, 11, 7, '#3a7a43', '#4fae5a');
-    blob(14, 8, 6.5, '#4a9955', '#5cc468');
+    blob(10,14,8,'#356e3c','#3f9c4f');
+    blob(20,12,7,'#3a7a43','#4fae5a');
+    blob(15,9,7,'#4a9955','#5cc468');
     return cv;
   })();
 
-  const rockSprite = (function () {
-    let cv = document.createElement('canvas'); cv.width = 22; cv.height = 18;
+  const rockSprite = (function(){
+    let cv = document.createElement('canvas'); cv.width = 24; cv.height = 18;
     let c = cv.getContext('2d');
-    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
-    for (let x = 1; x <= 20; x++) for (let y = 3; y <= 16; y++) {
-      if (Math.hypot((x - 10.5) / 1.35, y - 10) < 6.2) {
-        let shade = (x < 9) ? '#7d828c' : ((x + y * 2) % 6 === 0 ? '#a7adb8' : '#909670');
-        px(x, y, (x < 9) ? '#7d828c' : ((x + y) % 5 === 0 ? '#a7adb8' : '#8f95a0'));
-      }
+    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
+    for(let x=1; x<=22; x++) for(let y=3; y<=16; y++){
+      if(Math.hypot((x-11.5)/1.35,y-10) < 6.5) px(x,y, (x<9)?'#7d828c':((x+y)%5===0?'#a7adb8':'#8f95a0'));
     }
     return cv;
   })();
 
-  const WORLD_SIZE = 1600;
-  const TILE = 32;
-
-  const groundPattern = (function () {
-    let cv = document.createElement('canvas'); cv.width = cv.height = 64;
-    let c = cv.getContext('2d');
-    c.fillStyle = '#6fae52'; c.fillRect(0, 0, 64, 64);
-    for (let i = 0; i < 40; i++) {
-      c.fillStyle = Math.random() < 0.5 ? '#649e49' : '#7ab85c';
-      c.fillRect(Math.floor(Math.random() * 64), Math.floor(Math.random() * 64), 2, 2);
-    }
-    return c.getImageData(0, 0, 64, 64);
-  })();
   const groundCanvas = document.createElement('canvas');
   groundCanvas.width = groundCanvas.height = 64;
-  groundCanvas.getContext('2d').putImageData(groundPattern, 0, 0);
+  const gctx = groundCanvas.getContext('2d');
+  gctx.fillStyle = '#6fae52'; gctx.fillRect(0,0,64,64);
+  for(let i=0; i<50; i++){
+    gctx.fillStyle = Math.random()<0.5?'#649e49':'#7ab85c';
+    gctx.fillRect(Math.floor(Math.random()*64), Math.floor(Math.random()*64), 2, 2);
+  }
   let groundTilePattern = null;
 
   let resourceNodes = [];
-  function seedWorld() {
+  function seedWorld(){
     resourceNodes = [];
-    for (let i = 0; i < 26; i++) resourceNodes.push({ type: 'wood', x: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, y: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, alive: true });
-    for (let j = 0; j < 20; j++) resourceNodes.push({ type: 'stone', x: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, y: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, alive: true });
+    for(let i=0; i<30; i++) resourceNodes.push({ type:'wood', x:(Math.random()-0.5)*WORLD_SIZE, y:(Math.random()-0.5)*WORLD_SIZE, alive:true });
+    for(let i=0; i<24; i++) resourceNodes.push({ type:'stone', x:(Math.random()-0.5)*WORLD_SIZE, y:(Math.random()-0.5)*WORLD_SIZE, alive:true });
   }
 
-  let myPos = { x: 0, y: 0 };
+  let myPos = { x:0, y:0 };
   let myFrame = 0, myFrameT = 0, myDir = 1, myMoving = false;
-  let myColor = '#3ad1ff';
   let mySprites = null;
-  let others = {}; // id -> {x,y,tx,ty,dir,color,sprites,frame,frameT}
-  let effects = []; // jutsu/toz efektleri
+  let others = {};
+  let effects = [];
   let floatTexts = [];
   let shakeAmt = 0;
+  let jutsuProjectiles = [];
+  let mobSprites = {};
 
-  function floatText(x, y, text, color) {
-    floatTexts.push({ x: x, y: y, text: text, color: color, life: 0.8 });
-  }
-  function shake(amt) { shakeAmt = Math.min(14, shakeAmt + amt); }
-
+  function floatText(x, y, text, color){ floatTexts.push({ x, y, text, color, life:1.0 }); }
+  function shake(amt){ shakeAmt = Math.min(16, shakeAmt + amt); }
   let shockwaves = [];
   let flashes = [];
 
-  function jutsuEffect(x, y) {
-    let el = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-    flashes.push({ x: x, y: y, life: 0.18, maxLife: 0.18, color: el.glow });
-    shockwaves.push({ x: x, y: y, r: 4, life: 0.45, maxLife: 0.45, color: el.base });
-    for (let i = 0; i < 22; i++) {
-      let ang = Math.random() * Math.PI * 2;
-      let speed = 50 + Math.random() * 90;
-      effects.push({
-        x: x, y: y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-        life: 0.4 + Math.random() * 0.45, maxLife: 0.4 + Math.random() * 0.45,
-        color: Math.random() < 0.45 ? el.base : el.glow, size: 2.5 + Math.random() * 4
-      });
+  function jutsuEffect(x, y, type){
+    const colors = JUTSU_COLORS[type] || JUTSU_COLORS.fire;
+    flashes.push({ x, y, life:0.25, maxLife:0.25, color:colors.glow });
+    shockwaves.push({ x, y, r:4, life:0.5, maxLife:0.5, color:colors.base });
+    const count = type==='fire'?40 : type==='water'?30 : type==='lightning'?25 : type==='wind'?35 : 30;
+    for(let i=0; i<count; i++){
+      let ang = Math.random()*Math.PI*2;
+      let speed = 60 + Math.random()*120;
+      let vx = Math.cos(ang)*speed, vy = Math.sin(ang)*speed;
+      if(type==='fire') vy -= 30;
+      if(type==='water') vy += 20;
+      if(type==='lightning'){ vx*=2; vy*=0.3; }
+      if(type==='wind'){ vx*=1.5; vy*=1.5; }
+      if(type==='earth') vy = -Math.abs(vy)*0.5;
+      effects.push({ x, y, vx, vy, life:0.5+Math.random()*0.5, maxLife:0.5+Math.random()*0.5,
+        color: Math.random()<0.5?colors.base:colors.glow,
+        size: type==='fire'?3+Math.random()*5 : 2+Math.random()*3, type });
     }
-    shake(9);
-    return el.name;
+    shake(type==='earth'?14:10);
+    // Jutsu projectile
+    jutsuProjectiles.push({ x, y, dir: myDir, type, life: 0.6, speed: 200 });
   }
 
-  function initGame() {
-    myColor = '#' + ('000000' + Math.floor(Math.random() * 0x1000000).toString(16)).slice(-6);
-    mySprites = buildCharacterSet(myColor);
+  function initGame(){
+    mySprites = buildCharacterSet(myJutsuType);
     seedWorld();
     resize();
     requestAnimationFrame(loop);
   }
-
-  function resize() {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-  }
+  function resize(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
   window.addEventListener('resize', resize);
 
-  // ─────────────── Diğer oyuncular ───────────────
-  socket.on('currentPlayers', function (players) {
-    Object.keys(players).forEach(function (id) { if (id !== socket.id) addOther(players[id]); });
+  // Players
+  socket.on('currentPlayers', players => {
+    Object.keys(players).forEach(id => { if(id !== socket.id) addOther(players[id]); });
   });
-  socket.on('newPlayer', function (p) { if (p.id !== socket.id) addOther(p); });
-  socket.on('playerMoved', function (p) {
+  socket.on('newPlayer', p => { if(p.id !== socket.id) addOther(p); });
+  socket.on('playerMoved', p => {
     let o = others[p.id];
-    if (!o) { addOther(p); return; }
+    if(!o){ addOther(p); return; }
     o.tx = p.x; o.ty = p.z;
-    o.dir = (p.rotationY > Math.PI / 2 || p.rotationY < -Math.PI / 2) ? -1 : 1;
+    o.dir = (p.rotationY > Math.PI/2 || p.rotationY < -Math.PI/2) ? -1 : 1;
   });
-  socket.on('playerDisconnected', function (id) { delete others[id]; });
+  socket.on('playerDisconnected', id => { delete others[id]; });
 
-  // ─────────────── Sohbet ───────────────
+  // Chat
   const chatLog = document.getElementById('chatLog');
   const chatInput = document.getElementById('chatInput');
-  const chatBubbles = {}; // socket id -> {text, until}
-
-  function appendChatLine(username, text) {
+  const chatBubbles = {};
+  function appendChatLine(username, text){
     const line = document.createElement('div');
     line.className = 'chatLine';
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'chatName';
-    nameSpan.textContent = username + ': ';
-    line.appendChild(nameSpan);
-    line.appendChild(document.createTextNode(text));
+    line.innerHTML = '<span class="chatName">' + username + ':</span> ' + text;
     chatLog.appendChild(line);
     chatLog.scrollTop = chatLog.scrollHeight;
-    while (chatLog.children.length > 40) chatLog.removeChild(chatLog.firstChild);
+    while(chatLog.children.length > 40) chatLog.removeChild(chatLog.firstChild);
   }
-
-  socket.on('chatMessage', function (data) {
+  socket.on('chatMessage', data => {
     appendChatLine(data.username, data.text);
     chatBubbles[data.id] = { text: data.text, until: performance.now() + 4000 };
   });
-
-  function sendChat() {
+  function sendChat(){
     const text = chatInput.value.trim();
-    if (!text) return;
+    if(!text) return;
     socket.emit('chatMessage', text);
     chatInput.value = '';
   }
   document.getElementById('chatSendBtn').onclick = sendChat;
-  chatInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') sendChat();
-    e.stopPropagation();
-  });
-  document.getElementById('chatToggle').onclick = function () {
-    document.getElementById('chatPanel').classList.toggle('hidden');
-  };
+  chatInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendChat(); e.stopPropagation(); });
+  document.getElementById('chatToggle').onclick = () => document.getElementById('chatPanel').classList.toggle('hidden');
 
-  function tryFullscreenPrompt() {
+  document.getElementById('fsPrompt').addEventListener('click', () => {
     tryFullscreen();
     document.getElementById('fsPrompt').classList.add('hidden');
-  }
-  document.getElementById('fsPrompt').addEventListener('click', tryFullscreenPrompt);
+  });
 
-  function addOther(p) {
-    let hexColor = '#' + (p.color || 0xd8663c).toString(16).padStart(6, '0');
-    others[p.id] = { x: p.x || 0, y: p.z || 0, tx: p.x || 0, ty: p.z || 0, dir: 1, sprites: buildCharacterSet(hexColor), frame: 0, frameT: 0, moving: false, username: p.username || '?', inventory: p.inventory || {} };
+  function addOther(p){
+    let hexColor = '#' + (p.color || 0xd8663c).toString(16).padStart(6,'0');
+    let jt = p.jutsuType || 'fire';
+    others[p.id] = { x:p.x||0, y:p.z||0, tx:p.x||0, ty:p.z||0, dir:1,
+      sprites: buildCharacterSet(jt), frame:0, frameT:0, moving:false,
+      username: p.username || '?', inventory: p.inventory || {}, jutsuType: jt };
   }
 
-  // ─────────────── Girdi ───────────────
+  // Input
   const keys = {};
-  document.addEventListener('keydown', function (e) { keys[e.key.toLowerCase()] = true; });
-  document.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
-
-  const move = { x: 0, y: 0 };
+  document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+  document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  const move = { x:0, y:0 };
   const stick = document.getElementById('stick'), stickKnob = document.getElementById('stickKnob');
-  let stickTouchId = null, stickCenter = { x: 0, y: 0 };
-  stick.addEventListener('touchstart', function (e) {
+  let stickTouchId = null, stickCenter = { x:0, y:0 };
+  stick.addEventListener('touchstart', e => {
     stickTouchId = e.changedTouches[0].identifier;
     let rect = stick.getBoundingClientRect();
-    stickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    stickCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
     e.preventDefault();
   });
-  stick.addEventListener('touchmove', function (e) {
-    for (let i = 0; i < e.changedTouches.length; i++) {
+  stick.addEventListener('touchmove', e => {
+    for(let i=0; i<e.changedTouches.length; i++){
       let t = e.changedTouches[i];
-      if (t.identifier !== stickTouchId) continue;
+      if(t.identifier !== stickTouchId) continue;
       let dx = t.clientX - stickCenter.x, dy = t.clientY - stickCenter.y;
       let dist = Math.min(40, Math.hypot(dx, dy));
       let ang = Math.atan2(dy, dx);
-      stickKnob.style.left = (30 + Math.cos(ang) * dist) + 'px';
-      stickKnob.style.top = (30 + Math.sin(ang) * dist) + 'px';
-      move.x = Math.cos(ang) * (dist / 40); move.y = Math.sin(ang) * (dist / 40);
+      stickKnob.style.left = (35 + Math.cos(ang)*dist) + 'px';
+      stickKnob.style.top = (35 + Math.sin(ang)*dist) + 'px';
+      move.x = Math.cos(ang)*(dist/40); move.y = Math.sin(ang)*(dist/40);
     }
     e.preventDefault();
   });
-  function resetStick() { stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '30px'; stickKnob.style.top = '30px'; }
+  function resetStick(){ stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '35px'; stickKnob.style.top = '35px'; }
   stick.addEventListener('touchend', resetStick);
   stick.addEventListener('touchcancel', resetStick);
 
-  function nearestInteractable() {
-    let best = null, bestDist = 46;
-    resourceNodes.forEach(function (n) {
-      if (!n.alive) return;
+  function nearestInteractable(){
+    let best = null, bestDist = 55;
+    resourceNodes.forEach(n => {
+      if(!n.alive) return;
       let d = Math.hypot(myPos.x - n.x, myPos.y - n.y);
-      if (d < bestDist) { bestDist = d; best = { kind: 'resource', node: n }; }
+      if(d < bestDist){ bestDist = d; best = { kind:'resource', node:n }; }
     });
-    Object.keys(others).forEach(function (id) {
+    mobs.forEach(m => {
+      if(!m.alive) return;
+      let d = Math.hypot(myPos.x - m.x, myPos.y - m.z);
+      if(d < bestDist + 20){ bestDist = d; best = { kind:'mob', mob:m }; }
+    });
+    Object.keys(others).forEach(id => {
       let o = others[id];
       let d = Math.hypot(myPos.x - o.x, myPos.y - o.y);
-      if (d < 56) { bestDist = d; best = { kind: 'player', id: id }; }
+      if(d < 60){ bestDist = d; best = { kind:'player', id:id }; }
+    });
+    npcs.forEach(npc => {
+      let d = Math.hypot(myPos.x - npc.x, myPos.y - npc.z);
+      if(d < 70){ bestDist = d; best = { kind:'npc', npc:npc }; }
     });
     return best;
   }
-  function doInteract() {
+
+  function doInteract(){
     let target = nearestInteractable();
-    if (!target) return;
-    if (target.kind === 'resource') {
+    if(!target) return;
+    if(target.kind === 'resource'){
       let n = target.node;
       socket.emit('collect', n.type);
-      floatText(n.x, n.y, n.type === 'wood' ? '+odun' : '+taş', '#bdf0ff');
+      floatText(n.x, n.y, n.type==='wood'?'+odun':'+tas', '#bdf0ff');
+      playSound('collect');
       n.alive = false;
-      setTimeout(function () { n.alive = true; }, 12000);
-    } else {
+      setTimeout(() => n.alive = true, 12000);
+    } else if(target.kind === 'mob'){
+      socket.emit('attackMob', { mobId: target.mob.id });
+      jutsuEffect(target.mob.x, target.mob.z, myJutsuType);
+      playSound('jutsu_' + myJutsuType);
+    } else if(target.kind === 'player'){
       socket.emit('attack', target.id);
-      let elName = jutsuEffect(others[target.id].x, others[target.id].y);
-      floatText(others[target.id].x, others[target.id].y - 10, elName + ' jutsu!', '#ffe08a');
+      jutsuEffect(others[target.id].x, others[target.id].y, others[target.id].jutsuType || 'fire');
+      playSound('hit');
+    } else if(target.kind === 'npc'){
+      socket.emit('interactNPC', target.npc.id);
     }
   }
-  document.getElementById('interactBtn').addEventListener('touchstart', function (e) { doInteract(); e.preventDefault(); });
-  window.addEventListener('keydown', function (e) { if (e.key.toLowerCase() === 'e') doInteract(); });
+
+  document.getElementById('interactBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
+  document.getElementById('itemBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
+  window.addEventListener('keydown', e => {
+    if(e.key.toLowerCase() === 'e') doInteract();
+    if(e.key.toLowerCase() === 'q'){ socket.emit('castJutsu'); jutsuEffect(myPos.x, myPos.y, myJutsuType); playSound('jutsu_' + myJutsuType); }
+    if(e.key.toLowerCase() === 'm'){ marketPanel.classList.toggle('visible'); if(marketPanel.classList.contains('visible')) socket.emit('getMarket'); }
+  });
   canvas.addEventListener('dblclick', doInteract);
 
-  // ─────────────── Döngü ───────────────
+  // ===== GAME LOOP =====
   let lastT = performance.now(), lastSent = 0;
-  function loop(now) {
+  function loop(now){
     requestAnimationFrame(loop);
-    let dt = Math.min((now - lastT) / 1000, 0.05);
+    let dt = Math.min((now - lastT)/1000, 0.05);
     lastT = now;
 
     let mx = 0, my = 0;
-    if (isTouch) { mx = move.x; my = move.y; }
+    if(isTouch){ mx = move.x; my = move.y; }
     else {
-      if (keys['w']) my -= 1; if (keys['s']) my += 1;
-      if (keys['a']) mx -= 1; if (keys['d']) mx += 1;
+      if(keys['w']) my -= 1; if(keys['s']) my += 1;
+      if(keys['a']) mx -= 1; if(keys['d']) mx += 1;
     }
     let len = Math.hypot(mx, my);
     myMoving = len > 0.05;
-    if (myMoving) {
+    if(myMoving){
       mx /= len; my /= len;
       myDir = mx < -0.1 ? -1 : (mx > 0.1 ? 1 : myDir);
       let speed = 130 * dt;
-      myPos.x = Math.max(-WORLD_SIZE / 2, Math.min(WORLD_SIZE / 2, myPos.x + mx * speed));
-      myPos.y = Math.max(-WORLD_SIZE / 2, Math.min(WORLD_SIZE / 2, myPos.y + my * speed));
+      myPos.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, myPos.x + mx*speed));
+      myPos.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, myPos.y + my*speed));
       myFrameT += dt;
-      if (myFrameT > 0.14) { myFrameT = 0; myFrame = (myFrame + 1) % 4; }
+      if(myFrameT > 0.14){ myFrameT = 0; myFrame = (myFrame+1)%4; }
     } else { myFrame = 0; }
 
     lastSent += dt;
-    if (lastSent > 0.08) {
+    if(lastSent > 0.08){
       lastSent = 0;
-      socket.emit('playerMovement', { x: myPos.x, y: 0, z: myPos.y, rotationY: myDir > 0 ? 0 : Math.PI });
+      socket.emit('playerMovement', { x:myPos.x, y:0, z:myPos.y, rotationY: myDir>0 ? 0 : Math.PI });
     }
 
-    Object.keys(others).forEach(function (id) {
+    Object.keys(others).forEach(id => {
       let o = others[id];
       let d = Math.hypot(o.tx - o.x, o.ty - o.y);
       o.moving = d > 1;
-      o.x += (o.tx - o.x) * 0.2; o.y += (o.ty - o.y) * 0.2;
-      if (o.moving) { o.frameT += dt; if (o.frameT > 0.14) { o.frameT = 0; o.frame = (o.frame + 1) % 4; } } else { o.frame = 0; }
+      o.x += (o.tx - o.x)*0.2; o.y += (o.ty - o.y)*0.2;
+      if(o.moving){ o.frameT += dt; if(o.frameT > 0.14){ o.frameT = 0; o.frame = (o.frame+1)%4; } }
+      else { o.frame = 0; }
     });
 
-    for (let i = effects.length - 1; i >= 0; i--) {
-      let e = effects[i];
-      e.x += e.vx * dt; e.y += e.vy * dt; e.vx *= 0.9; e.vy *= 0.9; e.life -= dt;
-      if (e.life <= 0) effects.splice(i, 1);
+    // Jutsu projectiles
+    for(let i = jutsuProjectiles.length - 1; i >= 0; i--){
+      let jp = jutsuProjectiles[i];
+      jp.x += jp.dir * jp.speed * dt;
+      jp.life -= dt;
+      if(jp.life <= 0) jutsuProjectiles.splice(i, 1);
     }
-    for (let i = shockwaves.length - 1; i >= 0; i--) {
+
+    // Effects
+    for(let i = effects.length - 1; i >= 0; i--){
+      let e = effects[i];
+      e.x += e.vx * dt; e.y += e.vy * dt; e.vx *= 0.92; e.vy *= 0.92; e.life -= dt;
+      if(e.life <= 0) effects.splice(i, 1);
+    }
+    for(let i = shockwaves.length - 1; i >= 0; i--){
       let s = shockwaves[i];
       s.r += dt * 260; s.life -= dt;
-      if (s.life <= 0) shockwaves.splice(i, 1);
+      if(s.life <= 0) shockwaves.splice(i, 1);
     }
-    for (let i = flashes.length - 1; i >= 0; i--) {
+    for(let i = flashes.length - 1; i >= 0; i--){
       flashes[i].life -= dt;
-      if (flashes[i].life <= 0) flashes.splice(i, 1);
+      if(flashes[i].life <= 0) flashes.splice(i, 1);
     }
-    for (let j = floatTexts.length - 1; j >= 0; j--) {
+    for(let j = floatTexts.length - 1; j >= 0; j--){
       floatTexts[j].y -= dt * 20; floatTexts[j].life -= dt;
-      if (floatTexts[j].life <= 0) floatTexts.splice(j, 1);
+      if(floatTexts[j].life <= 0) floatTexts.splice(j, 1);
     }
-    shakeAmt *= 0.85;
+    shakeAmt *= 0.88;
 
     render();
   }
 
-  function render() {
+  function render(){
     let w = canvas.width, h = canvas.height;
     ctx.fillStyle = '#5a9c4a';
     ctx.fillRect(0, 0, w, h);
 
-    let sx = -myPos.x + w / 2 + (Math.random() - 0.5) * shakeAmt;
-    let sy = -myPos.y + h / 2 + (Math.random() - 0.5) * shakeAmt;
+    let sx = -myPos.x + w/2 + (Math.random()-0.5)*shakeAmt;
+    let sy = -myPos.y + h/2 + (Math.random()-0.5)*shakeAmt;
 
-    if (!groundTilePattern) groundTilePattern = ctx.createPattern(groundCanvas, 'repeat');
+    if(!groundTilePattern) groundTilePattern = ctx.createPattern(groundCanvas, 'repeat');
     ctx.save();
     ctx.translate(sx % 64, sy % 64);
     ctx.fillStyle = groundTilePattern;
-    ctx.fillRect(-64, -64, w + 128, h + 128);
+    ctx.fillRect(-64, -64, w+128, h+128);
     ctx.restore();
 
-    resourceNodes.forEach(function (n) {
-      if (!n.alive) return;
+    // Resources
+    resourceNodes.forEach(n => {
+      if(!n.alive) return;
       let x = n.x + sx, y = n.y + sy;
-      if (x < -40 || x > w + 40 || y < -40 || y > h + 40) return;
+      if(x < -40 || x > w+40 || y < -40 || y > h+40) return;
       let sprite = n.type === 'wood' ? treeSprite : rockSprite;
-      ctx.drawImage(sprite, x - sprite.width, y - sprite.height, sprite.width * 2, sprite.height * 2);
+      ctx.drawImage(sprite, x - sprite.width, y - sprite.height, sprite.width*2, sprite.height*2);
     });
 
-    function drawChar(x, y, sprites, frame, dir, name, inv) {
+    // NPCs
+    npcs.forEach(npc => {
+      let x = npc.x + sx, y = npc.z + sy;
+      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
+      // NPC body
+      ctx.fillStyle = npc.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 14, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x, y+16, 12, 4, 0, 0, Math.PI*2);
+      ctx.fill();
+      // NPC name
+      ctx.font = '600 11px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(npc.name, x, y - 20);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '500 9px sans-serif';
+      let typeLabel = npc.type === 'market' ? '[Market]' : npc.type === 'healer' ? '[Sifaci]' : '[Demirci]';
+      ctx.fillText(typeLabel, x, y - 10);
+      // Glow
+      ctx.strokeStyle = npc.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.3 + Math.sin(performance.now()/500)*0.2;
+      ctx.beginPath();
+      ctx.arc(x, y, 18, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    // Mobs
+    mobs.forEach(m => {
+      if(!m.alive) return;
+      let x = m.x + sx, y = m.z + sy;
+      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
+      if(!mobSprites[m.type]) mobSprites[m.type] = makeMobSprite(m.type);
+      let sp = mobSprites[m.type];
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x, y+14, 12, 4, 0, 0, Math.PI*2);
+      ctx.fill();
+      // Sprite
+      ctx.drawImage(sp, x - sp.width/2, y - sp.height/2, sp.width, sp.height);
+      // HP bar
+      let barW = 30, barH = 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x - barW/2, y - sp.height/2 - 10, barW, barH);
+      ctx.fillStyle = m.hitFlash ? '#fff' : (m.hp > m.maxHp*0.5 ? '#ff6a5a' : '#e24b4a');
+      ctx.fillRect(x - barW/2, y - sp.height/2 - 10, barW * (m.hp/m.maxHp), barH);
+      // Level
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffcf6b';
+      ctx.fillText('Lv.' + m.level, x, y - sp.height/2 - 14);
+      // Name
+      ctx.font = '500 9px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(m.name, x, y + sp.height/2 + 12);
+    });
+
+    function drawChar(x, y, sprites, frame, dir, name, inv, jt){
       let sp = sprites[frame];
       ctx.fillStyle = 'rgba(6,12,9,0.3)';
       ctx.beginPath();
-      ctx.ellipse(x, y + 3, sp.width * 0.9, sp.width * 0.32, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y+3, sp.width*0.9, sp.width*0.32, 0, 0, Math.PI*2);
       ctx.fill();
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(dir, 1);
-      ctx.drawImage(sp, -sp.width, -sp.height * 1.6, sp.width * 2, sp.height * 1.6);
-      if (inv && (inv.sword || inv.pickaxe || inv.axe)) {
-        let weaponColor = inv.sword ? '#c9d3da' : (inv.pickaxe ? '#8a8f9a' : '#c9793f');
-        ctx.strokeStyle = weaponColor;
-        ctx.lineWidth = 2;
+      ctx.drawImage(sp, -sp.width, -sp.height*1.6, sp.width*2, sp.height*1.6);
+      // Weapon
+      if(inv && (inv.sword || inv.pickaxe || inv.axe)){
+        let wc = inv.sword ? '#c9d3da' : (inv.pickaxe ? '#8a8f9a' : '#c9793f');
+        ctx.strokeStyle = wc; ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(sp.width * 0.55, -sp.height * 0.9);
-        ctx.lineTo(sp.width * 1.0, -sp.height * 1.5);
+        ctx.moveTo(sp.width*0.55, -sp.height*0.9);
+        ctx.lineTo(sp.width*1.0, -sp.height*1.5);
         ctx.stroke();
       }
       ctx.restore();
-      if (name) {
+      // Jutsu glow
+      if(jt){
+        let jc = JUTSU_COLORS[jt] || JUTSU_COLORS.fire;
+        ctx.globalAlpha = 0.15 + Math.sin(performance.now()/400)*0.1;
+        ctx.fillStyle = jc.glow;
+        ctx.beginPath();
+        ctx.arc(x, y - sp.height*1.2, 20, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      // Name
+      if(name){
         ctx.font = '600 11px "Space Grotesk", monospace';
         ctx.textAlign = 'center';
+        let tw = ctx.measureText(name).width;
         ctx.fillStyle = 'rgba(6,12,9,0.65)';
-        ctx.fillRect(x - ctx.measureText(name).width / 2 - 5, y - sp.height * 1.6 * 2 - 16, ctx.measureText(name).width + 10, 15);
+        ctx.fillRect(x - tw/2 - 5, y - sp.height*1.6*2 - 16, tw + 10, 15);
         ctx.fillStyle = '#4ce0c4';
-        ctx.fillText(name, x, y - sp.height * 1.6 * 2 - 5);
+        ctx.fillText(name, x, y - sp.height*1.6*2 - 5);
       }
     }
 
-    Object.keys(others).forEach(function (id) {
+    // Others
+    Object.keys(others).forEach(id => {
       let o = others[id];
-      drawChar(o.x + sx, o.y + sy, o.sprites, o.frame, o.dir, o.username, o.inventory);
+      drawChar(o.x + sx, o.y + sy, o.sprites, o.frame, o.dir, o.username, o.inventory, o.jutsuType);
     });
-    if (mySprites) drawChar(myPos.x + sx, myPos.y + sy, mySprites, myFrame, myDir, myUsername, myInventory);
+    if(mySprites) drawChar(myPos.x + sx, myPos.y + sy, mySprites, myFrame, myDir, myUsername, myInventory, myJutsuType);
 
-    effects.forEach(function (e) {
-      let a = Math.max(0, e.life / e.maxLife);
-      ctx.globalAlpha = a * 0.35;
-      ctx.fillStyle = e.color;
-      ctx.beginPath();
-      ctx.arc(e.x + sx, e.y + sy, e.size * 2.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = a;
-      ctx.fillRect(e.x + sx - e.size / 2, e.y + sy - e.size / 2, e.size, e.size);
+    // Jutsu projectiles
+    jutsuProjectiles.forEach(jp => {
+      let x = jp.x + sx, y = jp.y + sy;
+      let colors = JUTSU_COLORS[jp.type] || JUTSU_COLORS.fire;
+      ctx.globalAlpha = 0.8;
+      if(jp.type === 'fire'){
+        ctx.fillStyle = colors.core;
+        ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.base;
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.glow;
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+      } else if(jp.type === 'water'){
+        ctx.fillStyle = colors.base;
+        ctx.beginPath(); ctx.ellipse(x, y, 14, 8, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.glow;
+        ctx.beginPath(); ctx.ellipse(x, y, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+      } else if(jp.type === 'lightning'){
+        ctx.strokeStyle = colors.glow; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x-15, y); ctx.lineTo(x+15, y);
+        ctx.moveTo(x, y-10); ctx.lineTo(x, y+10);
+        ctx.stroke();
+        ctx.fillStyle = colors.core;
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
+      } else if(jp.type === 'wind'){
+        ctx.strokeStyle = colors.glow; ctx.lineWidth = 2;
+        for(let i=0; i<3; i++){
+          ctx.beginPath();
+          ctx.moveTo(x-12, y-5+i*5); ctx.lineTo(x+12, y-5+i*5);
+          ctx.stroke();
+        }
+      } else if(jp.type === 'earth'){
+        ctx.fillStyle = colors.base;
+        ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = colors.dark || '#5c3a1e';
+        ctx.beginPath(); ctx.arc(x-3, y-3, 4, 0, Math.PI*2); ctx.fill();
+      }
       ctx.globalAlpha = 1;
     });
 
-    shockwaves.forEach(function (s) {
+    // Effects
+    effects.forEach(e => {
+      let a = Math.max(0, e.life / e.maxLife);
+      ctx.globalAlpha = a * 0.4;
+      ctx.fillStyle = e.color;
+      ctx.beginPath();
+      ctx.arc(e.x + sx, e.y + sy, e.size * 2.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = a;
+      ctx.fillRect(e.x + sx - e.size/2, e.y + sy - e.size/2, e.size, e.size);
+      ctx.globalAlpha = 1;
+    });
+
+    // Shockwaves
+    shockwaves.forEach(s => {
       let a = Math.max(0, s.life / s.maxLife);
       ctx.globalAlpha = a * 0.8;
       ctx.strokeStyle = s.color;
       ctx.lineWidth = 3 * a + 0.5;
       ctx.beginPath();
-      ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI * 2);
+      ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI*2);
       ctx.stroke();
       ctx.globalAlpha = 1;
     });
 
-    flashes.forEach(function (f) {
+    // Flashes
+    flashes.forEach(f => {
       let a = Math.max(0, f.life / f.maxLife);
       ctx.globalAlpha = a;
       ctx.fillStyle = f.color;
       ctx.beginPath();
-      ctx.arc(f.x + sx, f.y + sy, 26 * a, 0, Math.PI * 2);
+      ctx.arc(f.x + sx, f.y + sy, 26 * a, 0, Math.PI*2);
       ctx.fill();
       ctx.globalAlpha = 1;
     });
 
-    floatTexts.forEach(function (f) {
+    // Float texts
+    floatTexts.forEach(f => {
       ctx.globalAlpha = Math.max(0, f.life);
       ctx.fillStyle = f.color;
       ctx.font = 'bold 13px monospace';
@@ -1128,13 +1166,14 @@ html, body {
       ctx.globalAlpha = 1;
     });
 
+    // Chat bubbles
     const now = performance.now();
-    Object.keys(chatBubbles).forEach(function (id) {
+    Object.keys(chatBubbles).forEach(id => {
       const b = chatBubbles[id];
-      if (now > b.until) { delete chatBubbles[id]; return; }
+      if(now > b.until){ delete chatBubbles[id]; return; }
       let px, py;
-      if (id === socket.id) { px = myPos.x + sx; py = myPos.y + sy; }
-      else if (others[id]) { px = others[id].x + sx; py = others[id].y + sy; }
+      if(id === socket.id){ px = myPos.x + sx; py = myPos.y + sy; }
+      else if(others[id]){ px = others[id].x + sx; py = others[id].y + sy; }
       else return;
       ctx.font = '600 12px "Space Grotesk", sans-serif';
       ctx.textAlign = 'center';
@@ -1142,14 +1181,13 @@ html, body {
       const bx = px, by = py - 62;
       ctx.fillStyle = 'rgba(20,34,25,0.92)';
       ctx.beginPath();
-      ctx.roundRect(bx - tw / 2 - 8, by - 12, tw + 16, 22, 8);
+      ctx.roundRect(bx - tw/2 - 8, by - 12, tw + 16, 22, 8);
       ctx.fill();
       ctx.fillStyle = '#eaf3ec';
       ctx.fillText(b.text, bx, by + 4);
     });
   }
 })();
-
 </script>
 </body>
 </html>
