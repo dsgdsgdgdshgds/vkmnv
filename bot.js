@@ -52,18 +52,9 @@ try {
 const dbPath = path.join(DATA_DIR, 'kanal-ayar.json');
 const cooldownPath = path.join(DATA_DIR, 'partner-cooldowns.json');
 const playersDataPath = path.join(DATA_DIR, 'players.json');
-const tokensPath = path.join(DATA_DIR, 'sessions.json');
 
 // Klasör ve Dosya Kontrolleri
 if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
-if (!fs.existsSync(tokensPath)) fs.writeFileSync(tokensPath, JSON.stringify({}, null, 2));
-
-function loadTokens() {
-    try { return JSON.parse(fs.readFileSync(tokensPath, 'utf8')); } catch (e) { return {}; }
-}
-function saveTokens(tokens) {
-    fs.writeFileSync(tokensPath, JSON.stringify(tokens, null, 2));
-}
 
 // ────────────────────────────────────────────────
 // YARDIMCI FONKSİYONLAR (DB & Zaman)
@@ -328,16 +319,33 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // ── Veri Depoları ──
-let sessionTokens = loadTokens();
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+    console.error('⚠️ SESSION_SECRET ortam değişkeni ayarlı değil, geçici bir tane üretildi. Bu, sunucu her yeniden başladığında girişlerin sıfırlanacağı anlamına gelir. Kalıcı olsun istiyorsan Render\'da SESSION_SECRET adında, rastgele uzun bir metin olan bir environment variable ekle.');
+}
+
+function signToken(username) {
+    const payload = Buffer.from(JSON.stringify({ u: username, exp: Date.now() + 90 * 24 * 60 * 60 * 1000 })).toString('base64url');
+    const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
+    return payload + '.' + sig;
+}
+
+function verifyToken(token) {
+    if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+    const [payload, sig] = token.split('.');
+    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
+    if (sig !== expectedSig) return null;
+    try {
+        const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
+        if (Date.now() > data.exp) return null;
+        return data.u;
+    } catch (e) { return null; }
+}
 const pendingVerifications = {};
 const passwordResetCodes = {};
 let activePlayers = {};
 
 // ── Yardımcı Fonksiyonlar ──
-function generateToken() {
-    return crypto.randomBytes(32).toString('hex');
-}
-
 function generateVerifyCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -365,7 +373,7 @@ io.on('connection', (socket) => {
 
     // ── TOKEN İLE OTOMATİK GİRİŞ ──
     socket.on('loginWithToken', (token) => {
-        const username = sessionTokens[token];
+        const username = verifyToken(token);
         if (!username) {
             socket.emit('loginError', 'Oturum süresi dolmuş. Lütfen tekrar giriş yapın.');
             return;
@@ -475,9 +483,7 @@ io.on('connection', (socket) => {
         fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
         delete pendingVerifications[username];
 
-        const token = generateToken();
-        sessionTokens[token] = username;
-        saveTokens(sessionTokens);
+        const token = signToken(username);
         activePlayers[socket.id] = { ...allUsers[username], id: socket.id };
         socket.emit('verifySuccess');
         socket.emit('loginSuccess', { token, username });
@@ -534,9 +540,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const token = generateToken();
-        sessionTokens[token] = foundUser.username;
-        saveTokens(sessionTokens);
+        const token = signToken(foundUser.username);
         activePlayers[socket.id] = { ...foundUser, id: socket.id };
         socket.emit('loginSuccess', { token, username: foundUser.username });
         socket.emit('updateInventory', activePlayers[socket.id].inventory);
@@ -697,10 +701,6 @@ io.on('connection', (socket) => {
             } catch (e) {
                 console.log('❌ Oyuncu verisi kaydedilemedi:', e.message);
             }
-            for (const [token, username] of Object.entries(sessionTokens)) {
-                if (username === activePlayers[socket.id].username) delete sessionTokens[token];
-            }
-            saveTokens(sessionTokens);
             delete activePlayers[socket.id];
             io.emit('playerDisconnected', socket.id);
         }
