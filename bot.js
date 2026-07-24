@@ -186,19 +186,19 @@ function levelUpCheck(player) {
 // CANAVAR (MOB) SİSTEMİ
 // ────────────────────────────────────────────────
 const MOB_TYPES = [
-    { id: 'zombie', name: 'Zombi Shinobi', hp: 60, damage: 8, xp: 15, gold: 10, color: '#5a7a5a', level: 1, speed: 40 },
-    { id: 'bandit', name: 'Çete Üyesi', hp: 80, damage: 12, xp: 25, gold: 18, color: '#8b4513', level: 2, speed: 50 },
-    { id: 'rogue_ninja', name: 'Haydut Ninja', hp: 120, damage: 18, xp: 40, gold: 30, color: '#4a0080', level: 3, speed: 55 },
-    { id: 'summon_snake', name: 'Yılan Çağrısı', hp: 150, damage: 22, xp: 55, gold: 45, color: '#2d5a27', level: 4, speed: 45 },
-    { id: 'puppet', name: 'Kukla Savaşçı', hp: 100, damage: 15, xp: 35, gold: 25, color: '#8b7355', level: 3, speed: 35 },
-    { id: 'dark_ninja', name: 'Karanlık Shinobi', hp: 200, damage: 28, xp: 80, gold: 60, color: '#1a1a2e', level: 5, speed: 60 },
-    { id: 'beast', name: 'Vahşi Canavar', hp: 250, damage: 32, xp: 100, gold: 80, color: '#8b0000', level: 6, speed: 50 },
-    { id: 'boss_akatsuki', name: 'Kırmızı Pelerinli', hp: 500, damage: 45, xp: 250, gold: 200, color: '#ff0000', level: 10, speed: 45 }
+    { id: 'zombie', name: 'Zombi Shinobi', hp: 60, damage: 4, xp: 15, gold: 10, color: '#5a7a5a', level: 1, speed: 35 },
+    { id: 'bandit', name: 'Çete Üyesi', hp: 80, damage: 6, xp: 25, gold: 18, color: '#8b4513', level: 2, speed: 40 },
+    { id: 'rogue_ninja', name: 'Haydut Ninja', hp: 120, damage: 9, xp: 40, gold: 30, color: '#4a0080', level: 3, speed: 42 },
+    { id: 'summon_snake', name: 'Yılan Çağrısı', hp: 150, damage: 10, xp: 55, gold: 45, color: '#2d5a27', level: 4, speed: 38 },
+    { id: 'puppet', name: 'Kukla Savaşçı', hp: 100, damage: 7, xp: 35, gold: 25, color: '#8b7355', level: 3, speed: 30 },
+    { id: 'dark_ninja', name: 'Karanlık Shinobi', hp: 200, damage: 12, xp: 80, gold: 60, color: '#1a1a2e', level: 5, speed: 45 },
+    { id: 'beast', name: 'Vahşi Canavar', hp: 250, damage: 14, xp: 100, gold: 80, color: '#8b0000', level: 6, speed: 40 },
+    { id: 'boss_akatsuki', name: 'Kırmızı Pelerinli', hp: 500, damage: 18, xp: 250, gold: 200, color: '#ff0000', level: 10, speed: 38 }
 ];
 
 let mobs = [];
 const WORLD_SIZE = 2000;
-const MOB_COUNT = 35;
+const MOB_COUNT = 22;
 const MOB_RESPAWN_TIME = 15000;
 
 function spawnMob() {
@@ -240,7 +240,7 @@ function updateMobs(dt) {
 
         // En yakın oyuncuyu bul
         let nearest = null;
-        let nearestDist = 250;
+        let nearestDist = 160;
         Object.values(activePlayers).forEach(p => {
             const dist = Math.hypot(p.x - mob.x, p.z - mob.z);
             if (dist < nearestDist) {
@@ -255,10 +255,10 @@ function updateMobs(dt) {
             const dz = nearest.z - mob.z;
             const dist = Math.hypot(dx, dz);
 
-            if (dist > 35) {
-                mob.x += (dx / dist) * mob.speed * dt;
-                mob.z += (dz / dist) * mob.speed * dt;
-            } else if (now - mob.lastAttack > 1200) {
+            if (dist > 45) {
+                mob.x += (dx / dist) * mob.speed * 0.7 * dt;
+                mob.z += (dz / dist) * mob.speed * 0.7 * dt;
+            } else if (now - mob.lastAttack > 2500) {
                 // Saldır
                 mob.lastAttack = now;
                 const p = activePlayers[nearest.id];
@@ -1022,4 +1022,4 @@ server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
     console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
     console.log(`[✓] ${MOB_COUNT} canavar aktif.`);
-}); 
+});
