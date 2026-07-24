@@ -1022,4 +1022,4 @@ server.listen(PORT, () => {
     console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
     console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
     console.log(`[✓] ${MOB_COUNT} canavar aktif.`);
-});
+}); 
