@@ -19,8 +19,6 @@
   --accent-dim: #2a8c78;
   --accent-glow: rgba(76, 224, 196, 0.35);
   --danger: #ff6a5a;
-  --gold: #ffd700;
-  --xp: #7b68ee;
   --radius: 14px;
   --font-display: 'Bebas Neue', 'Impact', sans-serif;
   --font-body: 'Space Grotesk', -apple-system, Segoe UI, sans-serif;
@@ -28,15 +26,11 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; width: 100%; height: 100%;
-  background: var(--bg-0);
-  color: var(--text);
-  font-family: var(--font-body);
-  overflow: hidden;
+  background: var(--bg-0); color: var(--text);
+  font-family: var(--font-body); overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
 .hidden { display: none !important; }
-
-/* ─────────── Auth ekranı (ORIJINAL) ─────────── */
 .screen {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
@@ -44,8 +38,7 @@ html, body {
     radial-gradient(circle at 50% 30%, rgba(76, 224, 196, 0.10), transparent 55%),
     radial-gradient(circle at 85% 80%, rgba(255, 106, 90, 0.06), transparent 45%),
     var(--bg-0);
-  padding: 24px;
-  position: relative;
+  padding: 24px; position: relative;
 }
 .card {
   position: relative;
@@ -58,14 +51,11 @@ html, body {
   box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(76, 224, 196, 0.04);
 }
 .chakraRing {
-  position: absolute;
-  top: -70px; left: 50%; transform: translateX(-50%);
-  width: 220px; height: 220px;
-  border-radius: 50%;
+  position: absolute; top: -70px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 220px; border-radius: 50%;
   border: 1.5px solid var(--accent-glow);
   box-shadow: 0 0 60px 10px var(--accent-glow), inset 0 0 40px rgba(76, 224, 196, 0.08);
-  pointer-events: none;
-  z-index: 0;
+  pointer-events: none; z-index: 0;
   animation: chakraPulse 4.5s ease-in-out infinite;
 }
 @keyframes chakraPulse {
@@ -74,31 +64,21 @@ html, body {
 }
 .card h1 {
   position: relative; z-index: 1;
-  font-family: var(--font-display);
-  font-size: 40px;
-  line-height: 0.92;
-  letter-spacing: 0.5px;
-  margin: 0 0 18px;
-  color: var(--text);
+  font-family: var(--font-display); font-size: 40px;
+  line-height: 0.92; letter-spacing: 0.5px;
+  margin: 0 0 18px; color: var(--text);
   text-shadow: 0 0 24px var(--accent-glow);
 }
 .hint {
-  font-size: 12.5px;
-  color: var(--text-dim);
-  margin: 0 0 14px;
-  letter-spacing: 0.2px;
+  font-size: 12.5px; color: var(--text-dim);
+  margin: 0 0 14px; letter-spacing: 0.2px;
 }
 .card input {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-1);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 14px;
-  margin-bottom: 9px;
-  outline: none;
+  width: 100%; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg-1); color: var(--text);
+  font-family: var(--font-body); font-size: 14px;
+  margin-bottom: 9px; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .card input::placeholder { color: #5c7568; }
@@ -107,265 +87,203 @@ html, body {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 .card button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent);
-  color: #06231c;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-  cursor: pointer;
-  margin-top: 3px;
+  width: 100%; padding: 12px;
+  border-radius: 10px; border: none;
+  background: var(--accent); color: #06231c;
+  font-family: var(--font-body); font-weight: 700;
+  font-size: 14px; letter-spacing: 0.2px;
+  cursor: pointer; margin-top: 3px;
   transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
   box-shadow: 0 8px 20px -8px var(--accent-glow);
 }
 .card button:hover { background: #63e9d0; box-shadow: 0 10px 26px -6px var(--accent-glow); }
 .card button:active { transform: scale(0.98); }
 .card button.link {
-  background: none;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 500;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  padding: 8px 0;
-  margin-top: 6px;
-  box-shadow: none;
-  opacity: 0.85;
+  background: none; color: var(--accent);
+  font-size: 12px; font-weight: 500;
+  text-decoration: none; border-bottom: 1px solid transparent;
+  padding: 8px 0; margin-top: 6px; box-shadow: none; opacity: 0.85;
 }
 .card button.link:hover { opacity: 1; border-bottom-color: var(--accent); background: none; }
-.msg {
-  font-size: 12px;
-  color: var(--danger);
-  min-height: 16px;
-  margin: 8px 0 0;
-}
+.msg { font-size: 12px; color: var(--danger); min-height: 16px; margin: 8px 0 0; }
 
-/* ─────────── Oyun ekranı ─────────── */
 #gameScreen { position: relative; width: 100%; height: 100%; background: var(--bg-0); }
-#c { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; background:#1a2a1f; }
+#c { display: block; width: 100%; height: 100%; touch-action: none; image-rendering: pixelated; image-rendering: crisp-edges; background: #1a2a1f; }
 
 #hud {
-  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3;
-  display: flex; align-items: flex-start; gap: 8px;
-  pointer-events: none;
-  font-family: var(--font-body);
-  flex-wrap: wrap;
+  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 3;
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: none; font-family: var(--font-body);
 }
-#hudLeft { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
-#hudRight { display: flex; gap: 6px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
-.hpwrap {
-  width: 130px; height: 12px;
-  background: rgba(8, 16, 12, 0.7);
+#hpwrap {
+  width: 120px; height: 11px;
+  background: rgba(8, 16, 12, 0.6);
   border: 1px solid var(--border);
-  border-radius: 7px;
-  overflow: hidden;
+  border-radius: 7px; overflow: hidden;
   backdrop-filter: blur(4px);
 }
-.hpbar {
+#hpbar {
   width: 100%; height: 100%;
   background: linear-gradient(90deg, var(--accent-dim), var(--accent));
   box-shadow: 0 0 10px var(--accent-glow);
-  transition: width 0.2s;
+  transition: width 0.15s;
 }
-.xpwrap {
-  width: 130px; height: 6px;
-  background: rgba(8, 16, 12, 0.7);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  overflow: hidden;
-  backdrop-filter: blur(4px);
-}
-.xpbar {
-  width: 0%; height: 100%;
-  background: linear-gradient(90deg, #5a4fcf, var(--xp));
-  box-shadow: 0 0 8px rgba(123,104,238,0.4);
-  transition: width 0.3s;
-}
-.statBox {
-  background: rgba(10, 20, 15, 0.75);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(6px);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  pointer-events: auto;
-}
-.statBox.gold { color: var(--gold); }
-.statBox.level { color: var(--accent); }
-.statBox.jutsu { color: #ff8c42; }
-
 #invBar {
-  background: rgba(10, 20, 15, 0.7);
+  background: rgba(10, 20, 15, 0.65);
   border: 1px solid var(--border);
   backdrop-filter: blur(6px);
-  border-radius: 10px;
-  padding: 5px 10px;
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 10px; padding: 7px 12px;
+  display: flex; gap: 12px;
+  font-size: 13px; font-weight: 600;
   pointer-events: auto;
-  flex-wrap: wrap;
 }
-.invItem { display: flex; align-items: center; gap: 3px; cursor: pointer; padding: 2px 5px; border-radius: 6px; transition: background 0.15s; }
-.invItem:hover { background: rgba(76,224,196,0.1); }
-.invItem.active { background: rgba(76,224,196,0.2); border: 1px solid var(--accent-dim); }
-
-.hudBtn {
-  background: var(--accent);
-  border: none;
-  color: #06231c;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 12px;
-  padding: 7px 12px;
-  border-radius: 10px;
-  pointer-events: auto;
-  cursor: pointer;
+#craftToggle {
+  margin-left: auto;
+  background: var(--accent); border: none; color: #06231c;
+  font-family: var(--font-body); font-weight: 700; font-size: 13px;
+  padding: 9px 14px; border-radius: 10px;
+  pointer-events: auto; cursor: pointer;
   box-shadow: 0 6px 16px -6px var(--accent-glow);
 }
-
 #craftPanel {
-  position: absolute; top: 100px; right: 10px; z-index: 3;
+  position: absolute; top: 58px; right: 12px; z-index: 3;
   display: flex; flex-direction: column; gap: 6px;
 }
 .craftBtn {
   background: rgba(10, 20, 15, 0.85);
   border: 1px solid var(--border);
   backdrop-filter: blur(6px);
-  color: var(--text);
-  font-family: var(--font-body);
-  padding: 9px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 12.5px;
-  font-weight: 600;
+  color: var(--text); font-family: var(--font-body);
+  padding: 9px 14px; border-radius: 10px;
+  cursor: pointer; text-align: left;
+  font-size: 12.5px; font-weight: 600;
   transition: border-color 0.15s;
 }
 .craftBtn:hover { border-color: var(--accent); }
 .craftBtn small { color: var(--text-dim); font-weight: 400; }
 
-/* Market */
-#marketPanel {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 300px; max-width: 90vw; max-height: 65vh;
-  background: linear-gradient(180deg, var(--panel), var(--bg-1));
-  border: 1px solid var(--border); border-radius: var(--radius);
-  z-index: 20; display: none; flex-direction: column;
-  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.8);
-}
-#marketPanel.visible { display: flex; }
-.marketHeader { padding: 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.marketHeader h2 { margin: 0; font-family: var(--font-display); font-size: 22px; }
-.marketClose { background: none; border: none; color: var(--danger); font-size: 20px; cursor: pointer; }
-.marketList { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-.marketItem { background: rgba(10,20,15,0.6); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
-.marketItemInfo { display: flex; flex-direction: column; gap: 2px; }
-.marketItemName { font-weight: 600; font-size: 13px; }
-.marketItemDesc { font-size: 11px; color: var(--text-dim); }
-.marketItemPrice { color: var(--gold); font-weight: 700; font-size: 13px; }
-.marketBuyBtn { background: var(--accent); border: none; color: #06231c; font-weight: 700; font-size: 11px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-.marketSellSection { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
-.marketSellSection select, .marketSellSection input { background: var(--bg-1); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 8px; font-size: 12px; }
-.marketSellSection button { background: var(--gold); border: none; color: #333; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
-
-/* Touch Controls - FIXED */
 #touchControls { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 #stick {
-  position: absolute; left: 18px; bottom: 18px; width: 100px; height: 100px;
-  border-radius: 50%; background: rgba(10, 20, 15, 0.5); border: 1px solid var(--border);
-  backdrop-filter: blur(4px); pointer-events: auto;
+  position: absolute; left: 26px; bottom: 26px; width: 104px; height: 104px;
+  border-radius: 50%;
+  background: rgba(10, 20, 15, 0.5);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
 }
 #stickKnob {
-  position: absolute; left: 30px; top: 30px; width: 40px; height: 40px;
-  border-radius: 50%; background: var(--accent); box-shadow: 0 0 16px var(--accent-glow);
+  position: absolute; left: 32px; top: 32px; width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
 }
-.actionButtons {
-  position: absolute; right: 14px; bottom: 14px;
-  display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
+#interactBtn {
+  position: absolute; right: 28px; bottom: 34px; width: 78px; height: 78px;
+  border-radius: 50%; border: none;
+  background: var(--danger); color: #2a0805;
+  font-family: var(--font-body); font-weight: 700; font-size: 11px;
+  pointer-events: auto;
+  box-shadow: 0 10px 26px -6px rgba(255, 106, 90, 0.5);
 }
-.actionBtn {
-  width: 56px; height: 56px; border-radius: 50%; border: none;
-  font-family: var(--font-body); font-weight: 700; font-size: 9px;
-  cursor: pointer; box-shadow: 0 8px 20px -4px rgba(0,0,0,0.5);
-  display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.1;
-  padding: 2px;
-}
-#interactBtn { background: var(--danger); color: #2a0805; }
-#jutsuBtn { background: #ff8c42; color: #2a1505; }
-#itemBtn { background: #7b68ee; color: #fff; }
-#marketBtn { background: var(--gold); color: #333; }
-
 #toast {
-  position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
-  background: rgba(10, 20, 15, 0.92); border: 1px solid var(--border);
-  padding: 10px 20px; border-radius: 999px; font-size: 13px; z-index: 4;
-  pointer-events: none; font-weight: 600;
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(10, 20, 15, 0.9);
+  border: 1px solid var(--border);
+  padding: 9px 18px; border-radius: 999px;
+  font-family: var(--font-body); font-size: 13px;
+  z-index: 4; pointer-events: none;
 }
-
 .overlay {
   position: absolute; inset: 0; z-index: 10;
-  background: rgba(6, 12, 9, 0.88); backdrop-filter: blur(6px);
+  background: rgba(6, 12, 9, 0.86);
+  backdrop-filter: blur(6px);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; font-family: var(--font-body);
 }
-.overlay .big { font-family: var(--font-display); font-size: 34px; letter-spacing: 0.5px; margin: 0 0 8px; }
-.overlay button { padding: 11px 24px; border-radius: 10px; border: none; margin-top: 14px; background: var(--accent); color: #06231c; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px -8px var(--accent-glow); }
+.overlay .big {
+  font-family: var(--font-display);
+  font-size: 34px; letter-spacing: 0.5px;
+  margin: 0 0 8px; color: var(--text);
+}
+.overlay button {
+  padding: 11px 24px; border-radius: 10px;
+  border: none; margin-top: 14px;
+  background: var(--accent); color: #06231c;
+  font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 20px -8px var(--accent-glow);
+}
+.overlay button.secondary {
+  background: none; border: 1px solid var(--border);
+  color: var(--text); box-shadow: none;
+}
+.rotateIcon { font-size: 40px; margin-bottom: 10px; color: var(--accent); }
 
 .hudChatBtn {
-  position: absolute; top: 10px; right: 10px; z-index: 3;
-  width: 40px; height: 40px; border-radius: 50%;
-  border: 1px solid var(--border); background: rgba(10, 20, 15, 0.75);
-  backdrop-filter: blur(6px); font-size: 18px; cursor: pointer; color: var(--text);
+  position: absolute; top: 12px; right: 118px; z-index: 3;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(10, 20, 15, 0.75);
+  backdrop-filter: blur(6px);
+  font-size: 18px; cursor: pointer;
 }
+#soundToggle { right: 168px !important; }
 #chatPanel {
-  position: absolute; top: 58px; right: 10px; z-index: 5; width: 240px; max-width: calc(100vw - 20px);
-  background: rgba(10, 20, 15, 0.92); border: 1px solid var(--border); border-radius: 12px;
-  backdrop-filter: blur(8px); display: flex; flex-direction: column; overflow: hidden;
+  position: absolute; top: 60px; right: 12px; z-index: 5;
+  width: 240px; max-width: calc(100vw - 24px);
+  background: rgba(10, 20, 15, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 12px; backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; overflow: hidden;
 }
-#chatLog { max-height: 140px; overflow-y: auto; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+#chatLog {
+  max-height: 160px; overflow-y: auto;
+  padding: 10px 12px; font-size: 12.5px;
+  display: flex; flex-direction: column; gap: 4px;
+}
 .chatLine { color: var(--text); word-break: break-word; }
 .chatName { color: var(--accent); font-weight: 700; }
-#chatInputRow { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
-#chatInputRow input { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-1); color: var(--text); font-family: var(--font-body); font-size: 12px; outline: none; }
+#chatInputRow {
+  display: flex; gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+#chatInputRow input {
+  flex: 1; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-1); color: var(--text);
+  font-family: var(--font-body); font-size: 12.5px;
+  outline: none;
+}
 #chatInputRow input:focus { border-color: var(--accent); }
-#chatInputRow button { padding: 8px 12px; border-radius: 8px; border: none; background: var(--accent); color: #06231c; font-weight: 700; font-size: 12px; cursor: pointer; }
-
+#chatInputRow button {
+  padding: 8px 12px; border-radius: 8px;
+  border: none; background: var(--accent);
+  color: #06231c; font-weight: 700; font-size: 12px; cursor: pointer;
+}
 #fsPrompt {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6;
-  background: rgba(10, 20, 15, 0.9); border: 1px solid var(--accent-dim); color: var(--accent);
-  font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 6;
+  background: rgba(10, 20, 15, 0.9);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-size: 12.5px; font-weight: 600;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer;
   animation: fsPulse 2s ease-in-out infinite;
 }
-@keyframes fsPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); } 50% { box-shadow: 0 0 0 8px transparent; } }
-
-.levelUpAnim {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  font-family: var(--font-display); font-size: 44px; color: var(--gold);
-  text-shadow: 0 0 30px rgba(255,215,0,0.6); z-index: 15; pointer-events: none;
-  animation: levelUpPop 2s ease-out forwards;
+@keyframes fsPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
 }
-@keyframes levelUpPop {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+@media (max-width: 900px) and (orientation: portrait) {
+  #gameScreen:not(.hidden) ~ #rotateOverlay { display: none; }
 }
 </style>
-<base target="_blank">
 </head>
 <body>
 
 <div id="rotateOverlay" class="overlay hidden">
-  <div style="font-size:40px;margin-bottom:10px;color:var(--accent);">&#8635;</div>
+  <div class="rotateIcon">&#8635;</div>
   <p>Oynamak için telefonunu yatay çevir</p>
 </div>
 
@@ -373,7 +291,6 @@ html, body {
   <div class="card">
     <div class="chakraRing" aria-hidden="true"></div>
     <h1>Survival<br>Evolution</h1>
-
     <div id="loginPanel">
       <input type="text" id="loginUser" placeholder="Kahraman adı veya e-posta">
       <input type="password" id="loginPass" placeholder="Şifre">
@@ -382,7 +299,6 @@ html, body {
       <button class="link" id="toRegister">Hesabın yok mu? Kayıt ol</button>
       <button class="link" id="toForgot">Şifremi unuttum</button>
     </div>
-
     <div id="registerPanel" class="hidden">
       <input type="text" id="regUser" placeholder="Kahraman adı (3-16 karakter)">
       <input type="email" id="regEmail" placeholder="E-posta">
@@ -391,7 +307,6 @@ html, body {
       <p id="registerMsg" class="msg"></p>
       <button class="link" id="toLoginFromReg">Zaten hesabın var mı? Giriş yap</button>
     </div>
-
     <div id="verifyPanel" class="hidden">
       <p class="hint">E-postana gelen 6 haneli kodu gir</p>
       <input type="text" id="verifyCode" placeholder="000000" maxlength="6" inputmode="numeric">
@@ -399,21 +314,18 @@ html, body {
       <p id="verifyMsg" class="msg"></p>
       <button class="link" id="resendBtn">Kodu tekrar gönder</button>
     </div>
-
     <div id="forgotPanel" class="hidden">
       <input type="email" id="forgotEmail" placeholder="Kayıtlı e-posta">
       <button id="forgotBtn">Kod gönder</button>
       <p id="forgotMsg" class="msg"></p>
       <button class="link" id="toLoginFromForgot">Girişe dön</button>
     </div>
-
     <div id="resetCodePanel" class="hidden">
       <p class="hint">E-postana gelen kodu gir</p>
       <input type="text" id="resetCode" placeholder="000000" maxlength="6" inputmode="numeric">
       <button id="resetCodeBtn">Kodu doğrula</button>
       <p id="resetCodeMsg" class="msg"></p>
     </div>
-
     <div id="resetPassPanel" class="hidden">
       <input type="password" id="newPass" placeholder="Yeni şifre (en az 6 karakter)">
       <button id="resetPassBtn">Şifreyi değiştir</button>
@@ -422,27 +334,25 @@ html, body {
   </div>
 </div>
 
+<div id="clanSelectScreen" class="screen hidden">
+  <div class="card" style="width: 720px; max-width: 100%; padding: 28px 24px;">
+    <h1 style="font-size: 32px; margin-bottom: 6px;">Klanını Seç</h1>
+    <p class="hint" style="margin-bottom: 18px;">Her klanın kendine özel jutsusu ve ultimate'si var. Bir kez seçtikten sonra NPC Eğitmen'den 2000 Ryo karşılığı değiştirebilirsin.</p>
+    <div id="clanGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; max-height: 60vh; overflow-y: auto; padding: 4px;"></div>
+  </div>
+</div>
+
 <div id="gameScreen" class="hidden">
   <div id="hud">
-    <div id="hudLeft">
-      <div class="hpwrap"><div id="hpbar" class="hpbar"></div></div>
-      <div class="xpwrap"><div id="xpbar" class="xpbar"></div></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <div class="statBox level">⭐ Lv.<b id="levelText">1</b></div>
-        <div class="statBox gold">💰 <b id="goldText">0</b> Ryo</div>
-        <div class="statBox jutsu" id="jutsuBox">🔥 <b id="jutsuText">Ateş</b></div>
-      </div>
+    <div id="hpwrap"><div id="hpbar"></div></div>
+    <div id="invBar">
+      <span class="invItem">🪵 <b id="invWood">0</b></span>
+      <span class="invItem">🪨 <b id="invStone">0</b></span>
+      <span class="invItem">🗡️ <b id="invSword">0</b></span>
+      <span class="invItem">⛏️ <b id="invPickaxe">0</b></span>
+      <span class="invItem">🪓 <b id="invAxe">0</b></span>
     </div>
-    <div id="hudRight">
-      <div id="invBar">
-        <span class="invItem" data-item="wood">🪵 <b id="invWood">0</b></span>
-        <span class="invItem" data-item="stone">🪨 <b id="invStone">0</b></span>
-        <span class="invItem" data-item="sword">🗡️ <b id="invSword">0</b></span>
-        <span class="invItem" data-item="pickaxe">⛏️ <b id="invPickaxe">0</b></span>
-        <span class="invItem" data-item="axe">🪓 <b id="invAxe">0</b></span>
-      </div>
-      <button id="craftToggle" class="hudBtn">Üretim</button>
-    </div>
+    <button id="craftToggle">Üretim</button>
   </div>
 
   <div id="craftPanel" class="hidden">
@@ -454,6 +364,7 @@ html, body {
   <canvas id="c"></canvas>
 
   <button id="chatToggle" class="hudChatBtn">💬</button>
+  <button id="soundToggle" class="hudChatBtn">🔊</button>
   <div id="chatPanel" class="hidden">
     <div id="chatLog"></div>
     <div id="chatInputRow">
@@ -462,102 +373,696 @@ html, body {
     </div>
   </div>
 
-  <div id="marketPanel">
-    <div class="marketHeader">
-      <h2>🛒 Market</h2>
-      <button class="marketClose" id="marketClose">✕</button>
-    </div>
-    <div class="marketList" id="marketList"></div>
-    <div class="marketSellSection">
-      <select id="sellType"><option value="wood">Odun</option><option value="stone">Taş</option></select>
-      <input type="number" id="sellAmount" placeholder="Miktar" min="1" value="1" style="width:60px;">
-      <button id="sellBtn">Sat</button>
-    </div>
-  </div>
-
   <div id="fsPrompt" class="hidden">Tam ekran için dokun</div>
 
   <div id="touchControls" class="hidden">
     <div id="stick"><div id="stickKnob"></div></div>
-    <div class="actionButtons">
-      <button id="jutsuBtn" class="actionBtn">JUTSU<br>AT</button>
-      <button id="interactBtn" class="actionBtn">SALDIR<br>TOPLA</button>
-      <button id="itemBtn" class="actionBtn">EŞYA<br>KULLAN</button>
-      <button id="marketBtn" class="actionBtn">MARKET</button>
-    </div>
+    <button id="interactBtn">TOPLA / VUR</button>
   </div>
 
   <div id="toast" class="hidden"></div>
 
+  <div id="marketPanel" class="overlay hidden">
+    <p class="big" id="marketTitle">Tüccar</p>
+    <p class="hint" id="marketHint">Satın almak için tıkla</p>
+    <div id="marketGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 500px; width: 90%;"></div>
+    <div id="sellSection" style="margin-top: 14px; width: 90%; max-width: 500px;">
+      <p class="hint" style="color: var(--accent);">💰 Envanterindekileri sat:</p>
+      <div id="sellGrid" style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;"></div>
+    </div>
+    <p class="hint" id="marketBalance" style="margin-top: 10px; color: #ffd84a;">💰 Bakiye: 0 Ryo</p>
+    <button class="secondary" id="closeMarket">Kapat</button>
+  </div>
+
   <div id="overScreen" class="overlay hidden">
-    <p class="big">Düştün!</p>
-    <p class="hint">Seviyen ve envanterin korunuyor, tekrar canlanıyorsun</p>
+    <p class="big">Düştün</p>
+    <p class="hint">Envanterin korunuyor, tekrar canlanıyorsun</p>
     <button id="respawnBtn">Devam et</button>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-(function(){
+(function () {
+  // ═══════════════════ GLOBAL STATE ═══════════════════
   const socket = io();
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  let myPos = { x: 0, y: 0 };
+  let myFrame = 0, myFrameT = 0, myDir = 1, myMoving = false;
+  let myColor = '#3ad1ff';
+  let mySprites = null;
+  let myUsername = null;
+  let myInventory = {};
+  let myItems = {};
+  let myEquip = { weapon: null, armor: null, buffs: [] };
+  let myLevel = 1;
+  let myXp = 0;
+  let myStats = { maxHp: 100, hp: 100, damage: 10, speed: 130, critChance: 0.05, defense: 0 };
+  let ryo = 0;
+  let playerClan = 'fire';
+  let jutsuCooldowns = { j: 0, k: 0 };
+  let jutsuProjectiles = [];
+  let jutsuUltimates = [];
+  let mobs = [];
+  let mobIdCounter = 0;
+  let others = {};
+  let effects = [];
+  let floatTexts = [];
+  let shakeAmt = 0;
+  let shockwaves = [];
+  let flashes = [];
+  let stepTimer = 0;
+  let soundOn = true;
+  let currentNpc = null;
+  let selectedClan = null;
+  let resourceNodes = [];
+  let audioCtx = null, audioReady = false, masterGain = null, sfxGain = null, musicGain = null;
+  let musicPlaying = false;
+  const chatBubbles = {};
+  const floatingLoot = [];
+  const WORLD_SIZE = 1600;
+  const TILE = 32;
 
-  // ===== SES =====
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  function playSound(type){
-    if(audioCtx.state === 'suspended') audioCtx.resume();
+  // ═══════════════════ CLANS ═══════════════════
+  const CLANS = {
+    fire:     { id:'fire',     name:'Honoo Klanı',     color:'#e2543a', accent:'#ffcf6b', base:'#c44528', element:'ateş',
+      jutsu:{ name:'Kazan Honoo',         desc:'Ateş topu fırlatır, menzilli hasar', damage:25, range:220, cooldown:2.5, cost:10 },
+      ultimate:{ name:'Honoo no Jōheki', desc:'Çevrende ateş duvarı, 3sn alan hasar', damage:12, duration:3.0, cooldown:18, cost:80 } },
+    water:    { id:'water',    name:'Mizu Klanı',      color:'#3aa0e2', accent:'#bdf0ff', base:'#2a7ab0', element:'su',
+      jutsu:{ name:'Su Ryūdan',          desc:'Su ejderhası fırlatır',                damage:22, range:200, cooldown:2.2, cost:10 },
+      ultimate:{ name:'Suijin Heki',     desc:'Etrafında su kalkanı, yavaşlatma',     damage:8,  duration:3.5, cooldown:20, cost:80 } },
+    lightning:{ id:'lightning',name:'Raijin Klanı',    color:'#e2d23a', accent:'#fff7bd', base:'#a8a028', element:'şimşek',
+      jutsu:{ name:'Raijū Tsuiga',       desc:'Şimşek çarpması, anlık hedef',         damage:30, range:180, cooldown:2.0, cost:10 },
+      ultimate:{ name:'Chidori Nagashi', desc:'Vücuttan şimşek yayar, yakın alan',     damage:14, duration:2.5, cooldown:16, cost:80 } },
+    wind:     { id:'wind',     name:'Kazekaze Klanı',  color:'#7fe2b0', accent:'#e6fff2', base:'#4fa07a', element:'rüzgâr',
+      jutsu:{ name:'Kazekaze Jōha',      desc:'Rüzgâr dalgası, knockback',             damage:18, range:160, cooldown:1.8, cost:10 },
+      ultimate:{ name:'Kamaitachi no Mai',desc:'Hızlı 3 vuruş kombosu',                damage:22, hits:3,  cooldown:14, cost:80 } },
+    earth:    { id:'earth',    name:'Tsuchi Klanı',    color:'#a3703f', accent:'#e6c79a', base:'#7a5430', element:'toprak',
+      jutsu:{ name:'Doryūheki',          desc:'Yerden taş duvarı, 1sn koruma',         damage:0,  block:0.6, cooldown:5, cost:12 },
+      ultimate:{ name:'Tsuchi Kāge Bunshin',desc:'2 kılıç shadow klon, 4sn savaşır',   damage:10, duration:4.0, cooldown:22, cost:90 } }
+  };
+  Object.assign(window, { CLANS });
+
+  // ═══════════════════ MOB DEFS ═══════════════════
+  const MOB_TYPES = {
+    zombie:   { id:'zombie',   name:'Kara Zombi',       level:1,  maxHp:40,  damage:8,  speed:50,  xp:25,  ryo:5,  respawnTime:8,  aggroRange:80,  attackRange:18, color:'#5a7a55', accent:'#8ba896', size:28 },
+    skeleton: { id:'skeleton', name:'Kemik Ashigaru',   level:3,  maxHp:70,  damage:14, speed:65,  xp:55,  ryo:12, respawnTime:12, aggroRange:95,  attackRange:20, color:'#d4d0c0', accent:'#8a8470', size:30 },
+    rogue:    { id:'rogue',    name:'Gölge Haydut',     level:6,  maxHp:110, damage:22, speed:95,  xp:110, ryo:28, respawnTime:15, aggroRange:110, attackRange:22, color:'#3a2a4a', accent:'#7a5a9a', size:30 },
+    beast:    { id:'beast',    name:'Orman Yokai',      level:10, maxHp:200, damage:35, speed:75,  xp:220, ryo:60, respawnTime:20, aggroRange:120, attackRange:28, color:'#7a4a2a', accent:'#c97a3a', size:36 },
+    oni:      { id:'oni',      name:'Turuncu Oni',      level:15, maxHp:380, damage:55, speed:80,  xp:480, ryo:140,respawnTime:30, aggroRange:130, attackRange:32, color:'#c4482a', accent:'#e8a050', size:40 }
+  };
+
+  // ═══════════════════ MARKET ITEMS ═══════════════════
+  const MARKET_ITEMS = {
+    merchant:    { sell:[
+      { id:'potion_small',  name:'Küçük İksir',     desc:'30 HP restore',     price:25,  icon:'🧪', effect:{ heal:30 } },
+      { id:'potion_medium', name:'Orta İksir',      desc:'75 HP restore',     price:55,  icon:'🍶', effect:{ heal:75 } },
+      { id:'food_rice',     name:'Pirinç Topları',  desc:'Açlık giderir',     price:8,   icon:'🍙', effect:{ food:30 } }
+    ]},
+    blacksmith:  { sell:[
+      { id:'sword_iron',    name:'Demir Kılıç',     desc:'Hasar +10',         price:120, icon:'⚔️', effect:{ damage:10 } },
+      { id:'sword_steel',   name:'Çelik Kılıç',     desc:'Hasar +25',         price:350, icon:'🗡️', effect:{ damage:25 } },
+      { id:'armor_leather', name:'Deri Zırh',       desc:'Savunma +5',        price:180, icon:'🛡️', effect:{ defense:5 } },
+      { id:'armor_plate',   name:'Plaka Zırh',      desc:'Savunma +15',       price:500, icon:'🥋', effect:{ defense:15 } }
+    ]},
+    potionmaster:{ sell:[
+      { id:'potion_xp',       name:'XP İksiri',         desc:'+50 XP',              price:80,  icon:'✨', effect:{ xp:50 } },
+      { id:'potion_power',    name:'Güç İksiri',        desc:'30sn +%50 hasar',     price:150, icon:'💥', effect:{ buffDamage:0.5, duration:30 } },
+      { id:'potion_speed',    name:'Hız İksiri',        desc:'20sn +%50 hız',       price:120, icon:'💨', effect:{ buffSpeed:0.5, duration:20 } },
+      { id:'potion_resurrect',name:'Diriliş İksiri',    desc:'Ölünce otomatik canlan', price:400, icon:'💫', effect:{ resurrect:true } }
+    ]}
+  };
+  const SELL_PRICES = { wood:2, stone:3, sword:40, pickaxe:35, axe:35 };
+
+  // ═══════════════════ NPC ═══════════════════
+  const NPC_DEFS = {
+    merchant:     { id:'merchant',     name:'Tüccar Hideyoshi',    color:'#c9a05a', accent:'#5a3a1a', type:'merchant' },
+    blacksmith:   { id:'blacksmith',   name:'Demirci Takeshi',     color:'#7a5a3a', accent:'#3a2a1a', type:'blacksmith' },
+    potionmaster: { id:'potionmaster', name:'İksir Usta Yuki',     color:'#8a4a8a', accent:'#3a1a3a', type:'potionmaster' },
+    trainer:      { id:'trainer',      name:'Klan Eğitmeni',       color:'#5ac4a0', accent:'#1a4a3a', type:'trainer' }
+  };
+  let npcs = [
+    { id:'merchant',     x:-100, y:0,   def:NPC_DEFS.merchant },
+    { id:'blacksmith',   x:100,  y:-60, def:NPC_DEFS.blacksmith },
+    { id:'potionmaster', x:100,  y:60,  def:NPC_DEFS.potionmaster },
+    { id:'trainer',      x:0,    y:100, def:NPC_DEFS.trainer }
+  ];
+
+  // ═══════════════════ AUDIO ═══════════════════
+  function initAudio() {
+    if (audioReady) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain(); masterGain.gain.value = 0.6; masterGain.connect(audioCtx.destination);
+      sfxGain = audioCtx.createGain(); sfxGain.gain.value = 0.7; sfxGain.connect(masterGain);
+      musicGain = audioCtx.createGain(); musicGain.gain.value = 0.2; musicGain.connect(masterGain);
+      audioReady = true;
+    } catch (e) { console.log('Ses başlatılamadı:', e); }
+  }
+  document.addEventListener('click', initAudio, { once: true });
+  document.addEventListener('touchstart', initAudio, { once: true });
+  document.addEventListener('keydown', initAudio, { once: true });
+
+  function playJutsuCast(clan) {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    const now = audioCtx.currentTime;
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    if(type === 'jutsu_fire'){
-      osc.type='sawtooth'; osc.frequency.setValueAtTime(180,now);
-      osc.frequency.exponentialRampToValueAtTime(700,now+0.35);
-      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.45);
-      osc.start(now); osc.stop(now+0.45);
-    } else if(type === 'jutsu_water'){
-      osc.type='sine'; osc.frequency.setValueAtTime(350,now);
-      osc.frequency.exponentialRampToValueAtTime(180,now+0.45);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.55);
-      osc.start(now); osc.stop(now+0.55);
-    } else if(type === 'jutsu_lightning'){
-      osc.type='square'; osc.frequency.setValueAtTime(900,now);
-      osc.frequency.exponentialRampToValueAtTime(1400,now+0.12);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.18);
-      osc.start(now); osc.stop(now+0.18);
-    } else if(type === 'jutsu_wind'){
-      osc.type='triangle'; osc.frequency.setValueAtTime(280,now);
-      osc.frequency.linearRampToValueAtTime(550,now+0.35);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.45);
-      osc.start(now); osc.stop(now+0.45);
-    } else if(type === 'jutsu_earth'){
-      osc.type='sawtooth'; osc.frequency.setValueAtTime(90,now);
-      osc.frequency.exponentialRampToValueAtTime(45,now+0.45);
-      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.55);
-      osc.start(now); osc.stop(now+0.55);
-    } else if(type === 'hit'){
-      osc.type='square'; osc.frequency.setValueAtTime(120,now);
-      gain.gain.setValueAtTime(0.08,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
-      osc.start(now); osc.stop(now+0.1);
-    } else if(type === 'collect'){
-      osc.type='sine'; osc.frequency.setValueAtTime(500,now);
-      osc.frequency.exponentialRampToValueAtTime(800,now+0.15);
-      gain.gain.setValueAtTime(0.06,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.2);
-      osc.start(now); osc.stop(now+0.2);
-    } else if(type === 'levelup'){
-      osc.type='sine'; osc.frequency.setValueAtTime(350,now);
-      osc.frequency.setValueAtTime(550,now+0.15);
-      osc.frequency.setValueAtTime(750,now+0.3);
-      gain.gain.setValueAtTime(0.12,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.7);
-      osc.start(now); osc.stop(now+0.7);
-    } else if(type === 'coin'){
-      osc.type='sine'; osc.frequency.setValueAtTime(1000,now);
-      gain.gain.setValueAtTime(0.06,now); gain.gain.exponentialRampToValueAtTime(0.01,now+0.1);
-      osc.start(now); osc.stop(now+0.1);
+    const filter = audioCtx.createBiquadFilter();
+    const profiles = { fire:{start:180,end:380,type:'sawtooth'}, water:{start:220,end:110,type:'sine'}, lightning:{start:600,end:1200,type:'square'}, wind:{start:320,end:200,type:'triangle'}, earth:{start:80,end:40,type:'sawtooth'} };
+    const p = profiles[clan] || profiles.fire;
+    osc.type = p.type;
+    osc.frequency.setValueAtTime(p.start, t);
+    osc.frequency.exponentialRampToValueAtTime(p.end, t + 0.25);
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2000, t);
+    filter.frequency.exponentialRampToValueAtTime(400, t + 0.3);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.4, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.4);
+  }
+  function playJutsuHit() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const bufferSize = audioCtx.sampleRate * 0.15;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 800;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.5, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    noise.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+    noise.start(t);
+    const osc = audioCtx.createOscillator(); const og = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.2);
+    og.gain.setValueAtTime(0.6, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(og); og.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.3);
+  }
+  function playHit() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+    gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.15);
+  }
+  function playCollect() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(784, t + 0.08);
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.25);
+  }
+  function playCraft() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    [600, 800, 1000].forEach((f, i) => {
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.type = 'triangle'; osc.frequency.setValueAtTime(f, t + i * 0.06);
+      gain.gain.setValueAtTime(0.25, t + i * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.15);
+      osc.connect(gain); gain.connect(sfxGain);
+      osc.start(t + i * 0.06); osc.stop(t + i * 0.06 + 0.2);
+    });
+  }
+  function playLevelUp() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.type = 'triangle'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.3, t + i * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.4);
+      osc.connect(gain); gain.connect(sfxGain);
+      osc.start(t + i * 0.08); osc.stop(t + i * 0.08 + 0.45);
+    });
+  }
+  function playMobDie() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+    const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1000;
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.5);
+  }
+  function playBuy() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc1 = audioCtx.createOscillator(); const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(1800, t); osc1.frequency.exponentialRampToValueAtTime(1200, t + 0.15);
+    gain1.gain.setValueAtTime(0.3, t); gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc1.connect(gain1); gain1.connect(sfxGain);
+    osc1.start(t); osc1.stop(t + 0.2);
+  }
+  function playPotion() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(900, t + 0.25);
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.25, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.32);
+  }
+  function playSpawn() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(60, t); osc.frequency.linearRampToValueAtTime(180, t + 0.3);
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.2, t + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.4);
+  }
+  function playStep() {
+    if (!audioReady) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80 + Math.random() * 30, t);
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.05, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.08);
+  }
+  function playSound(name, ...args) {
+    if (!audioReady || !soundOn) return;
+    switch (name) {
+      case 'jutsu':    playJutsuCast(...args); break;
+      case 'jutsuHit': playJutsuHit(); break;
+      case 'hit':      playHit(); break;
+      case 'collect':  playCollect(); break;
+      case 'craft':    playCraft(); break;
+      case 'levelup':  playLevelUp(); break;
+      case 'mobdie':   playMobDie(); break;
+      case 'buy':      playBuy(); break;
+      case 'potion':   playPotion(); break;
+      case 'spawn':    playSpawn(); break;
+      case 'step':     playStep(); break;
     }
   }
 
-  // ===== AUTH (ORIJINAL) =====
+  function startMusic() {
+    if (!audioReady || musicPlaying) return;
+    musicPlaying = true;
+    const scale = [220, 261.63, 293.66, 329.63, 392, 440, 523.25];
+    let noteIdx = 0;
+    function playNote() {
+      if (!musicPlaying || !audioReady) return;
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = scale[noteIdx % scale.length] * (Math.random() < 0.2 ? 2 : 1);
+      gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.07, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+      osc.connect(gain); gain.connect(musicGain);
+      osc.start(t); osc.stop(t + 0.85);
+      noteIdx++;
+      setTimeout(playNote, 350 + Math.random() * 250);
+    }
+    function pad() {
+      if (!musicPlaying || !audioReady) return;
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.value = 110;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.03, t + 1);
+      gain.gain.linearRampToValueAtTime(0.03, t + 6);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 7);
+      osc.connect(gain); gain.connect(musicGain);
+      osc.start(t); osc.stop(t + 7.2);
+      setTimeout(pad, 7500);
+    }
+    playNote(); pad();
+  }
+  function stopMusic() { musicPlaying = false; }
+  document.getElementById('soundToggle').onclick = function () {
+    soundOn = !soundOn;
+    this.textContent = soundOn ? '🔊' : '🔇';
+    if (masterGain) masterGain.gain.value = soundOn ? 0.6 : 0;
+    if (soundOn) { initAudio(); if (!musicPlaying) startMusic(); } else { stopMusic(); }
+  };
+
+  // ═══════════════════ SPRITE HELPERS ═══════════════════
+  function shadeHex(hex, amt) {
+    let num = parseInt(hex.replace('#', ''), 16);
+    let r = Math.min(255, Math.max(0, ((num >> 16) & 255) * (1 + amt)));
+    let g = Math.min(255, Math.max(0, ((num >> 8) & 255) * (1 + amt)));
+    let b = Math.min(255, Math.max(0, (num & 255) * (1 + amt)));
+    return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
+  }
+
+  // Ninja sprite (karakter)
+  function makeNinjaSprite(hairColor, clothColor, headbandColor) {
+    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 34;
+    let c = cv.getContext('2d');
+    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
+    let skin = '#f0b98c', skinShade = shadeHex(skin, -0.18);
+    let clothShade = shadeHex(clothColor, -0.28), clothLight = shadeHex(clothColor, 0.22);
+    let hairShade = shadeHex(hairColor, -0.3);
+    for (let x = 6; x <= 19; x++) for (let y = 2; y <= 8; y++) {
+      if (Math.hypot(x - 12.5, y - 6) < 7.2) px(x, y, hairColor);
+    }
+    for (let x = 6; x <= 9; x++) for (let y = 6; y <= 8; y++) px(x, y, hairShade);
+    for (let x = 8; x <= 17; x++) for (let y = 7; y <= 15; y++) px(x, y, skin);
+    for (let x = 8; x <= 9; x++) for (let y = 10; y <= 15; y++) px(x, y, skinShade);
+    for (let x = 6; x <= 19; x++) px(x, 9, headbandColor);
+    for (let x = 6; x <= 19; x++) px(x, 10, headbandColor);
+    px(19, 11, headbandColor); px(20, 12, headbandColor);
+    px(4, 12, headbandColor); px(3, 14, headbandColor); px(2, 16, shadeHex(headbandColor, -0.2));
+    for (let x = 11; x <= 14; x++) px(x, 9, '#c9d3da');
+    px(12, 9, '#e8eef2');
+    px(10, 12, '#20242c'); px(11, 12, '#20242c');
+    px(14, 12, '#20242c'); px(15, 12, '#20242c');
+    px(9, 11, hairShade); px(10, 11, hairShade);
+    px(14, 11, hairShade); px(15, 11, hairShade);
+    for (let x = 7; x <= 18; x++) for (let y = 16; y <= 27; y++) px(x, y, clothColor);
+    for (let x = 7; x <= 8; x++) for (let y = 16; y <= 27; y++) px(x, y, clothShade);
+    for (let y = 16; y <= 20; y++) { px(12, y, skin); px(13, y, skin); }
+    for (let x = 10; x <= 15; x++) px(x, 27, clothShade);
+    for (let y = 17; y <= 24; y++) { px(5, y, clothColor); px(6, y, clothShade); px(19, y, skin); px(20, y, skinShade); }
+    px(5, 25, skin); px(6, 25, skin); px(19, 25, skin); px(20, 25, skin);
+    for (let y = 15; y <= 26; y++) px(16, y, clothLight);
+    for (let y = 28; y <= 33; y++) { px(9, y, '#242832'); px(10, y, '#242832'); px(15, y, '#242832'); px(16, y, '#242832'); }
+    return cv;
+  }
+  function makeWalkFrame(base, legOffset) {
+    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 34;
+    let c = cv.getContext('2d');
+    c.drawImage(base, 0, 0, 26, 28, 0, 0, 26, 28);
+    c.fillStyle = '#242832';
+    c.fillRect(9, 28 + legOffset, 2, 6 - legOffset);
+    c.fillRect(15, 28 - legOffset, 2, 6 + legOffset);
+    return cv;
+  }
+  function buildCharacterSet(seedColor) {
+    let hair = shadeHex(seedColor, -0.45);
+    let base = makeNinjaSprite(hair, seedColor, '#20242c');
+    return [makeWalkFrame(base, 0), makeWalkFrame(base, 2), makeWalkFrame(base, 0), makeWalkFrame(base, -2)];
+  }
+
+  // Tree / Rock
+  const treeSprite = (function () {
+    let cv = document.createElement('canvas'); cv.width = 28; cv.height = 34;
+    let c = cv.getContext('2d');
+    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
+    for (let x = 12; x <= 15; x++) for (let y = 20; y <= 31; y++) px(x, y, x < 14 ? '#5a3f27' : '#6b4a2f');
+    function blob(cx, cy, r, base, hi) {
+      for (let x = Math.floor(cx - r); x <= cx + r; x++) for (let y = Math.floor(cy - r); y <= cy + r; y++) {
+        let d = Math.hypot(x - cx, y - cy);
+        if (d < r) px(x, y, d < r * 0.55 && (x + y) % 3 === 0 ? hi : base);
+      }
+    }
+    blob(9, 13, 7.5, '#356e3c', '#3f9c4f');
+    blob(19, 11, 7, '#3a7a43', '#4fae5a');
+    blob(14, 8, 6.5, '#4a9955', '#5cc468');
+    return cv;
+  })();
+  const rockSprite = (function () {
+    let cv = document.createElement('canvas'); cv.width = 22; cv.height = 18;
+    let c = cv.getContext('2d');
+    function px(x, y, color) { c.fillStyle = color; c.fillRect(x, y, 1, 1); }
+    for (let x = 1; x <= 20; x++) for (let y = 3; y <= 16; y++) {
+      if (Math.hypot((x - 10.5) / 1.35, y - 10) < 6.2) px(x, y, '#8f95a0');
+    }
+    return cv;
+  })();
+
+  // ═══════════════════ JUTSU SPRITES ═══════════════════
+  function makeFireProjectile(frame) {
+    const cv = document.createElement('canvas'); cv.width = 24; cv.height = 24;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const scale = [0.7, 0.85, 1.0, 1.15][frame], cx = 12, cy = 12, r = 7 * scale;
+    for (let x = 0; x < 24; x++) for (let y = 0; y < 24; y++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < r && d > r * 0.75) px(x, y, '#ff8a3c');
+      else if (d < r * 0.75 && d > r * 0.5) px(x, y, '#ffc04a');
+      else if (d < r * 0.5) px(x, y, '#fff7a8');
+    }
+    const coreR = 3 * scale;
+    for (let x = 0; x < 24; x++) for (let y = 0; y < 24; y++) if (Math.hypot(x - cx, y - cy) < coreR) px(x, y, '#ffffff');
+    if (frame >= 2) { px(cx - 8, cy - 2, '#ff8a3c'); px(cx - 9, cy - 1, '#ffc04a'); px(cx + 8, cy + 1, '#ff8a3c'); px(cx + 9, cy + 2, '#ffc04a'); }
+    return cv;
+  }
+  function makeWaterDragon(frame) {
+    const cv = document.createElement('canvas'); cv.width = 36; cv.height = 24;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const len = [10, 16, 22, 28][frame];
+    const headX = len - 2;
+    const wave = Math.sin(frame * 1.2) * 2;
+    for (let i = 0; i < len; i++) {
+      const t = i / len;
+      const cy = 12 + Math.sin(i * 0.6 + frame) * 3 + wave * 0.5;
+      const thickness = 4 - t * 1.5;
+      for (let dy = -thickness; dy <= thickness; dy++) {
+        const y = Math.floor(cy + dy);
+        if (y < 0 || y >= 24) continue;
+        const x = i; if (x >= 36) continue;
+        const shade = (dy < -thickness * 0.3) ? '#1a5a85' : ((dy > thickness * 0.3) ? '#3aa0e2' : '#5cc4f0');
+        px(x, y, shade);
+      }
+    }
+    if (frame >= 1) {
+      const hx = headX, hy = Math.floor(12 + Math.sin(headX * 0.6 + frame) * 3 + wave * 0.5);
+      for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) {
+        if (Math.hypot(dx, dy) < 3.2 && hx + dx >= 0 && hx + dx < 36) px(hx + dx, hy + dy, Math.hypot(dx, dy) < 1.5 ? '#bdf0ff' : '#3aa0e2');
+      }
+      px(hx - 1, hy - 1, '#0a1a25');
+      px(hx + 2, hy - 3, '#5cc4f0'); px(hx + 3, hy - 4, '#bdf0ff');
+    }
+    return cv;
+  }
+  function makeLightningBolt(frame) {
+    const cv = document.createElement('canvas'); cv.width = 18; cv.height = 32;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, 1, 1, 1); };
+    const path = [[9,1],[9,5],[11,6],[8,11],[12,12],[7,17],[11,18],[8,23],[10,24],[9,30]];
+    const progress = [0.3, 0.6, 0.85, 1.0][frame];
+    const endIdx = Math.floor(path.length * progress);
+    for (let i = 0; i < endIdx; i++) {
+      const [x, y] = path[i];
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (x + dx >= 0 && x + dx < 18 && y + dy >= 1 && y + dy < 32) px(x + dx, y + dy, '#fff7bd');
+      px(x, y, '#ffffff');
+      if (i + 1 < endIdx) { const [nx, ny] = path[i + 1]; const mx = (x + nx) >> 1, my = (y + ny) >> 1; px(mx, my, '#fff7bd'); }
+    }
+    return cv;
+  }
+  function makeWindSlash(frame) {
+    const cv = document.createElement('canvas'); cv.width = 32; cv.height = 18;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const intensity = [0.4, 0.7, 1.0, 0.8][frame], offset = frame * 3;
+    for (let x = 0; x < 32; x++) for (let layer = 0; layer < 3; layer++) {
+      const cy = 9 + Math.sin((x + offset) * 0.4 + layer * 1.5) * (3 + layer);
+      const thickness = 2 - layer * 0.5;
+      for (let dy = -thickness; dy <= thickness; dy++) {
+        const y = Math.floor(cy + dy);
+        if (y < 0 || y >= 18) continue;
+        if (Math.random() > intensity) continue;
+        const col = layer === 0 ? '#e6fff2' : (layer === 1 ? '#7fe2b0' : '#3aa888');
+        px(x, y, col);
+      }
+    }
+    return cv;
+  }
+  function makeEarthWall(frame) {
+    const cv = document.createElement('canvas'); cv.width = 32; cv.height = 24;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const height = [4, 12, 20, 24][frame];
+    for (let x = 0; x < 32; x++) for (let y = 24 - height; y < 24; y++) {
+      if (y < 0) continue;
+      const blockY = (24 - y) % 4, blockX = (x + blockY * 2) % 6;
+      let col = '#7a5430';
+      if (blockX < 1) col = '#5a3f23'; else if (blockX > 4) col = '#a3703f'; else if (blockY === 0) col = '#8a6240';
+      px(x, y, col);
+    }
+    if (frame >= 2) { px(8, 24 - height + 2, '#3a2818'); px(20, 24 - height + 5, '#3a2818'); }
+    return cv;
+  }
+  const jutsuSprites = {
+    fire:[makeFireProjectile(0),makeFireProjectile(1),makeFireProjectile(2),makeFireProjectile(3)],
+    water:[makeWaterDragon(0),makeWaterDragon(1),makeWaterDragon(2),makeWaterDragon(3)],
+    lightning:[makeLightningBolt(0),makeLightningBolt(1),makeLightningBolt(2),makeLightningBolt(3)],
+    wind:[makeWindSlash(0),makeWindSlash(1),makeWindSlash(2),makeWindSlash(3)],
+    earth:[makeEarthWall(0),makeEarthWall(1),makeEarthWall(2),makeEarthWall(3)]
+  };
+
+  // ═══════════════════ MOB SPRITES ═══════════════════
+  function makeMobSprite(type, frame) {
+    const def = MOB_TYPES[type];
+    const cv = document.createElement('canvas'); cv.width = 32; cv.height = 36;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const skin = def.color, skinShade = shadeHex(skin, -0.3), skinLight = shadeHex(skin, 0.2), accent = def.accent;
+    const legOff = frame === 0 ? 0 : 1;
+    if (type === 'zombie') {
+      for (let x = 10; x <= 21; x++) for (let y = 4; y <= 13; y++) { if (Math.hypot(x - 15.5, y - 9) < 5.2) px(x, y, skin); }
+      px(12, 9, '#1a0a0a'); px(13, 9, '#e8553a'); px(17, 9, '#1a0a0a'); px(18, 9, '#e8553a');
+      px(13, 12, '#1a0a0a'); px(14, 12, '#1a0a0a'); px(16, 12, '#1a0a0a'); px(17, 12, '#1a0a0a');
+      for (let x = 9; x <= 22; x++) for (let y = 14; y <= 26; y++) { if ((x + y) % 7 === 0 && y < 24) continue; px(x, y, '#3a4a35'); }
+      for (let x = 9; x <= 10; x++) for (let y = 14; y <= 26; y++) px(x, y, skinShade);
+      for (let y = 15; y <= 22; y++) { px(7, y, skin); px(8, y, skinShade); px(23, y, skin); px(24, y, skinShade); }
+    } else if (type === 'skeleton') {
+      for (let x = 10; x <= 21; x++) for (let y = 4; y <= 13; y++) { if (Math.hypot(x - 15.5, y - 9) < 5.2) px(x, y, skin); }
+      for (let x = 11; x <= 14; x++) for (let y = 7; y <= 10; y++) { if (Math.hypot(x - 12.5, y - 8.5) < 1.8) px(x, y, '#0a0a0a'); }
+      for (let x = 17; x <= 20; x++) for (let y = 7; y <= 10; y++) { if (Math.hypot(x - 18.5, y - 8.5) < 1.8) px(x, y, '#0a0a0a'); }
+      px(15, 11, '#0a0a0a'); px(16, 11, '#0a0a0a');
+      for (let x = 13; x <= 18; x++) px(x, 12, '#0a0a0a');
+      for (let x = 9; x <= 22; x++) for (let y = 14; y <= 26; y++) px(x, y, '#7a7464');
+      for (let x = 7; x <= 10; x++) for (let y = 14; y <= 17; y++) px(x, y, accent);
+      for (let x = 21; x <= 24; x++) for (let y = 14; y <= 17; y++) px(x, y, accent);
+      for (let y = 8; y <= 24; y++) px(25, y, '#c9d3da'); px(25, 7, '#e8eef2');
+    } else if (type === 'rogue') {
+      for (let x = 10; x <= 21; x++) for (let y = 4; y <= 8; y++) px(x, y, skin);
+      for (let x = 11; x <= 20; x++) for (let y = 9; y <= 13; y++) px(x, y, skin);
+      px(15, 3, skin); px(16, 3, skin);
+      px(12, 11, '#e8553a'); px(13, 11, '#ffaa6a'); px(17, 11, '#1a0a0a');
+      for (let x = 12; x <= 19; x++) px(x, 12, '#0a0a0a');
+      for (let x = 9; x <= 22; x++) for (let y = 14; y <= 26; y++) px(x, y, skin);
+      for (let x = 9; x <= 10; x++) for (let y = 14; y <= 26; y++) px(x, y, skinShade);
+      for (let x = 7; x <= 10; x++) for (let y = 14; y <= 18; y++) px(x, y, accent);
+      for (let x = 21; x <= 24; x++) for (let y = 14; y <= 18; y++) px(x, y, accent);
+    } else if (type === 'beast') {
+      for (let x = 8; x <= 23; x++) for (let y = 4; y <= 14; y++) { if (Math.hypot(x - 15.5, y - 10) < 6.5) px(x, y, skin); }
+      px(10, 2, skin); px(11, 2, skin); px(20, 2, skin); px(21, 2, skin);
+      px(11, 9, '#e8c850'); px(12, 9, '#1a0a0a'); px(19, 9, '#e8c850'); px(20, 9, '#1a0a0a');
+      px(12, 12, '#1a0a0a'); px(13, 12, '#1a0a0a'); px(18, 12, '#1a0a0a'); px(19, 12, '#1a0a0a');
+      px(13, 13, '#f0e8d0'); px(18, 13, '#f0e8d0');
+      for (let x = 7; x <= 24; x++) for (let y = 15; y <= 28; y++) { if ((x + y) % 3 === 0) px(x, y, skinLight); else px(x, y, skin); }
+      for (let x = 5; x <= 9; x++) for (let y = 22; y <= 27; y++) px(x, y, skin);
+      for (let x = 22; x <= 26; x++) for (let y = 22; y <= 27; y++) px(x, y, skin);
+    } else if (type === 'oni') {
+      for (let x = 9; x <= 22; x++) for (let y = 3; y <= 14; y++) { if (Math.hypot(x - 15.5, y - 9) < 6) px(x, y, skin); }
+      px(9, 3, accent); px(8, 2, accent); px(22, 3, accent); px(23, 2, accent);
+      for (let x = 10; x <= 13; x++) for (let y = 8; y <= 10; y++) px(x, y, '#ff7a3a');
+      for (let x = 18; x <= 21; x++) for (let y = 8; y <= 10; y++) px(x, y, '#ff7a3a');
+      px(11, 9, '#ffe080'); px(19, 9, '#ffe080');
+      for (let x = 11; x <= 20; x++) px(x, 12, '#1a0a0a');
+      for (let x = 8; x <= 23; x++) for (let y = 15; y <= 28; y++) px(x, y, skin);
+      for (let x = 8; x <= 9; x++) for (let y = 15; y <= 28; y++) px(x, y, skinShade);
+      for (let x = 5; x <= 10; x++) for (let y = 15; y <= 20; y++) px(x, y, '#5a3018');
+      for (let x = 21; x <= 26; x++) for (let y = 15; y <= 20; y++) px(x, y, '#5a3018');
+      for (let y = 6; y <= 26; y++) px(27, y, '#d4dae0');
+    }
+    for (let y = 27 + legOff; y < 35; y++) { px(11, y, '#1a1a25'); px(12, y, '#1a1a25'); px(19, y, '#1a1a25'); px(20, y, '#1a1a25'); }
+    if (frame === 1) { px(10, 34, '#1a1a25'); px(21, 34, '#1a1a25'); }
+    else { px(11, 34, '#1a1a25'); px(20, 34, '#1a1a25'); }
+    return cv;
+  }
+  const mobSprites = {};
+  Object.keys(MOB_TYPES).forEach(t => { mobSprites[t] = [makeMobSprite(t, 0), makeMobSprite(t, 1)]; });
+
+  // ═══════════════════ NPC SPRITES ═══════════════════
+  function makeNpcSprite(npcId) {
+    const cv = document.createElement('canvas'); cv.width = 28; cv.height = 36;
+    const c = cv.getContext('2d');
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(x, y, 1, 1); };
+    const def = NPC_DEFS[npcId];
+    const skin = '#f0b98c', skinShade = shadeHex(skin, -0.18);
+    const cloth = def.color, clothShade = shadeHex(cloth, -0.3), clothLight = shadeHex(cloth, 0.2);
+    for (let x = 9; x <= 18; x++) for (let y = 5; y <= 14; y++) { if (Math.hypot(x - 13.5, y - 10) < 5) px(x, y, skin); }
+    for (let x = 9; x <= 10; x++) for (let y = 9; y <= 14; y++) px(x, y, skinShade);
+    if (npcId === 'merchant') {
+      for (let x = 8; x <= 19; x++) for (let y = 3; y <= 6; y++) px(x, y, cloth);
+      for (let x = 9; x <= 18; x++) px(x, 4, clothShade);
+      px(13, 5, '#e8c850'); px(14, 5, '#e8c850');
+    } else if (npcId === 'blacksmith') {
+      for (let x = 9; x <= 18; x++) for (let y = 5; y <= 8; y++) { if (Math.hypot(x - 13.5, y - 7) < 4.5) px(x, y, '#1a1a1a'); }
+      for (let x = 11; x <= 16; x++) for (let y = 12; y <= 14; y++) px(x, y, '#1a1a1a');
+    } else if (npcId === 'potionmaster') {
+      for (let x = 8; x <= 19; x++) for (let y = 4; y <= 14; y++) { if (Math.hypot(x - 13.5, y - 9) < 5.5) px(x, y, cloth); }
+      px(7, 13, cloth); px(20, 13, cloth);
+    } else if (npcId === 'trainer') {
+      for (let x = 8; x <= 19; x++) for (let y = 4; y <= 7; y++) px(x, y, '#1a4a3a');
+      for (let x = 11; x <= 16; x++) for (let y = 12; y <= 16; y++) px(x, y, '#8a8a8a');
+      for (let x = 9; x <= 18; x++) px(x, 8, '#e8c850');
+      px(13, 8, '#1a1a1a'); px(14, 8, '#1a1a1a');
+    }
+    px(11, 10, '#20242c'); px(12, 10, '#20242c'); px(15, 10, '#20242c'); px(16, 10, '#20242c');
+    px(12, 12, '#1a1a1a'); px(13, 12, '#1a1a1a'); px(14, 12, '#1a1a1a'); px(15, 12, '#1a1a1a');
+    for (let x = 8; x <= 19; x++) for (let y = 15; y <= 27; y++) px(x, y, cloth);
+    for (let x = 8; x <= 9; x++) for (let y = 15; y <= 27; y++) px(x, y, clothShade);
+    for (let y = 15; y <= 19; y++) { px(13, y, skin); px(14, y, skin); }
+    for (let x = 8; x <= 19; x++) for (let y = 22; y <= 24; y++) px(x, y, def.accent);
+    for (let x = 8; x <= 19; x++) px(x, 25, clothShade);
+    for (let y = 16; y <= 23; y++) { px(6, y, cloth); px(7, y, clothShade); px(20, y, cloth); px(21, y, clothShade); }
+    px(6, 24, skin); px(7, 24, skin); px(20, 24, skin); px(21, 24, skin);
+    for (let y = 28; y <= 33; y++) { px(10, y, '#1a1a25'); px(11, y, '#1a1a25'); px(16, y, '#1a1a25'); px(17, y, '#1a1a25'); }
+    if (npcId === 'blacksmith') { for (let y = 18; y <= 25; y++) px(22, y, '#3a2818'); for (let x = 20; x <= 24; x++) for (let y = 24; y <= 28; y++) px(x, y, '#7a7a85'); }
+    if (npcId === 'potionmaster') { for (let x = 4; x <= 8; x++) for (let y = 22; y <= 27; y++) px(x, y, '#a05ac4'); for (let x = 5; x <= 7; x++) for (let y = 21; y <= 22; y++) px(x, y, '#5a3a70'); px(6, 20, '#3a2a40'); }
+    return cv;
+  }
+  Object.keys(NPC_DEFS).forEach(id => { NPC_DEFS[id].sprite = makeNpcSprite(id); });
+
+  // ═══════════════════ WORLD ═══════════════════
+  const groundCanvas = document.createElement('canvas'); groundCanvas.width = groundCanvas.height = 64;
+  (function () {
+    const c = groundCanvas.getContext('2d');
+    c.fillStyle = '#6fae52'; c.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 40; i++) {
+      c.fillStyle = Math.random() < 0.5 ? '#649e49' : '#7ab85c';
+      c.fillRect(Math.floor(Math.random() * 64), Math.floor(Math.random() * 64), 2, 2);
+    }
+  })();
+  let groundTilePattern = null;
+
+  function seedWorld() {
+    resourceNodes = [];
+    for (let i = 0; i < 26; i++) resourceNodes.push({ type: 'wood', x: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, y: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, alive: true });
+    for (let j = 0; j < 20; j++) resourceNodes.push({ type: 'stone', x: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, y: Math.random() * WORLD_SIZE - WORLD_SIZE / 2, alive: true });
+  }
+
+  // ═══════════════════ MOB SPAWN ═══════════════════
+  function spawnMob(type) {
+    const def = MOB_TYPES[type];
+    let minDist, maxDist;
+    if (type === 'zombie') { minDist = 0; maxDist = 400; }
+    else if (type === 'skeleton') { minDist = 200; maxDist = 600; }
+    else if (type === 'rogue') { minDist = 400; maxDist = 700; }
+    else if (type === 'beast') { minDist = 550; maxDist = 750; }
+    else { minDist = 650; maxDist = 800; }
+    const angle = Math.random() * Math.PI * 2;
+    const dist = minDist + Math.random() * (maxDist - minDist);
+    const x = Math.cos(angle) * dist, y = Math.sin(angle) * dist;
+    const m = { id:++mobIdCounter, type:type, x:x, y:y, homeX:x, homeY:y, hp:def.maxHp, maxHp:def.maxHp, state:'idle', target:null, stateT:0, attackCd:0, frame:0, frameT:0, dir:1, respawnT:0, dead:false };
+    mobs.push(m);
+    return m;
+  }
+  function spawnInitialMobs() {
+    mobs = [];
+    [['zombie',18],['skeleton',12],['rogue',8],['beast',5],['oni',2]].forEach(([t,c]) => { for (let i=0; i<c; i++) spawnMob(t); });
+  }
+  function respawnMob(mob) {
+    const idx = mobs.indexOf(mob); if (idx === -1) return;
+    mobs.splice(idx, 1);
+    const newMob = spawnMob(mob.type);
+    const dist = Math.hypot(newMob.x - myPos.x, newMob.y - myPos.y);
+    if (dist < 600) playSound('spawn');
+  }
+
+  // ═══════════════════ AUTH ═══════════════════
   const authScreen = document.getElementById('authScreen');
   const gameScreen = document.getElementById('gameScreen');
   const panels = {
@@ -565,116 +1070,195 @@ html, body {
     verify: document.getElementById('verifyPanel'), forgot: document.getElementById('forgotPanel'),
     resetCode: document.getElementById('resetCodePanel'), resetPass: document.getElementById('resetPassPanel')
   };
-  function showPanel(name){ Object.keys(panels).forEach(k => panels[k].classList.add('hidden')); panels[name].classList.remove('hidden'); }
-  function setMsg(id, text){ document.getElementById(id).textContent = text || ''; }
+  function showPanel(name) { Object.keys(panels).forEach(k => panels[k].classList.add('hidden')); panels[name].classList.remove('hidden'); }
+  function setMsg(id, text) { document.getElementById(id).textContent = text || ''; }
+
   let pendingUsername = null, pendingResetEmail = null;
 
   document.getElementById('toRegister').onclick = () => showPanel('register');
   document.getElementById('toLoginFromReg').onclick = () => showPanel('login');
   document.getElementById('toForgot').onclick = () => showPanel('forgot');
   document.getElementById('toLoginFromForgot').onclick = () => showPanel('login');
+
   document.getElementById('loginBtn').onclick = () => {
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value;
-    if(!u || !p){ setMsg('loginMsg','Tum alanlari doldur.'); return; }
+    if (!u || !p) { setMsg('loginMsg', 'Tüm alanları doldur.'); return; }
     socket.emit('login', { username: u, password: p });
   };
   document.getElementById('registerBtn').onclick = () => {
-    const u = document.getElementById('regUser').value.trim();
-    const e = document.getElementById('regEmail').value.trim();
-    const p = document.getElementById('regPass').value;
-    setMsg('registerMsg','');
-    socket.emit('register', { username: u, email: e, password: p });
+    socket.emit('register', { username: document.getElementById('regUser').value.trim(), email: document.getElementById('regEmail').value.trim(), password: document.getElementById('regPass').value });
   };
-  document.getElementById('verifyBtn').onclick = () => {
-    socket.emit('verifyEmail', { username: pendingUsername, code: document.getElementById('verifyCode').value.trim() });
-  };
-  document.getElementById('resendBtn').onclick = () => {
-    socket.emit('resendVerifyCode', { username: pendingUsername });
-    setMsg('verifyMsg','Yeni kod gonderildi.');
-  };
-  document.getElementById('forgotBtn').onclick = () => {
-    pendingResetEmail = document.getElementById('forgotEmail').value.trim();
-    socket.emit('forgotPassword', { email: pendingResetEmail });
-  };
-  document.getElementById('resetCodeBtn').onclick = () => {
-    socket.emit('verifyResetCode', { email: pendingResetEmail, code: document.getElementById('resetCode').value.trim() });
-  };
-  document.getElementById('resetPassBtn').onclick = () => {
-    socket.emit('resetPassword', { email: pendingResetEmail, newPassword: document.getElementById('newPass').value });
-  };
+  document.getElementById('verifyBtn').onclick = () => socket.emit('verifyEmail', { username: pendingUsername, code: document.getElementById('verifyCode').value.trim() });
+  document.getElementById('resendBtn').onclick = () => { socket.emit('resendVerifyCode', { username: pendingUsername }); setMsg('verifyMsg', 'Yeni kod gönderildi.'); };
+  document.getElementById('forgotBtn').onclick = () => { pendingResetEmail = document.getElementById('forgotEmail').value.trim(); socket.emit('forgotPassword', { email: pendingResetEmail }); };
+  document.getElementById('resetCodeBtn').onclick = () => socket.emit('verifyResetCode', { email: pendingResetEmail, code: document.getElementById('resetCode').value.trim() });
+  document.getElementById('resetPassBtn').onclick = () => socket.emit('resetPassword', { email: pendingResetEmail, newPassword: document.getElementById('newPass').value });
 
-  socket.on('loginError', msg => {
-    if(!msg) return;
-    ['loginMsg','registerMsg','verifyMsg','forgotMsg'].forEach(id => setMsg(id,''));
-    if(!panels.login.classList.contains('hidden')) setMsg('loginMsg',msg);
-    else if(!panels.register.classList.contains('hidden')) setMsg('registerMsg',msg);
-    else if(!panels.verify.classList.contains('hidden')) setMsg('verifyMsg',msg);
-    else if(!panels.forgot.classList.contains('hidden')) setMsg('forgotMsg',msg);
+  socket.on('loginError', (msg) => {
+    if (!msg) return;
+    ['loginMsg','registerMsg','verifyMsg','forgotMsg'].forEach(id => setMsg(id, ''));
+    if (!panels.login.classList.contains('hidden')) setMsg('loginMsg', msg);
+    else if (!panels.register.classList.contains('hidden')) setMsg('registerMsg', msg);
+    else if (!panels.verify.classList.contains('hidden')) setMsg('verifyMsg', msg);
+    else if (!panels.forgot.classList.contains('hidden')) setMsg('forgotMsg', msg);
   });
-  socket.on('registerSuccess', data => { pendingUsername = data.username; showPanel('verify'); setMsg('verifyMsg',''); });
-  socket.on('verifySuccess', () => setMsg('verifyMsg','Dogrulandi!'));
-  socket.on('forgotPasswordCodeSent', () => { showPanel('resetCode'); setMsg('resetCodeMsg',''); });
-  socket.on('resetCodeError', msg => setMsg('resetCodeMsg',msg));
-  socket.on('resetCodeVerified', () => { showPanel('resetPass'); setMsg('resetPassMsg',''); });
-  socket.on('resetPasswordError', msg => setMsg('resetPassMsg',msg));
-  socket.on('resetPasswordSuccess', () => { setMsg('resetPassMsg','Sifren degisti.'); setTimeout(() => showPanel('login'), 1200); });
+  socket.on('registerSuccess', (data) => { pendingUsername = data.username; showPanel('verify'); setMsg('verifyMsg', ''); });
+  socket.on('verifySuccess', () => setMsg('verifyMsg', 'Doğrulandı!'));
+  socket.on('forgotPasswordCodeSent', () => { showPanel('resetCode'); setMsg('resetCodeMsg', ''); });
+  socket.on('resetCodeError', (msg) => setMsg('resetCodeMsg', msg));
+  socket.on('resetCodeVerified', () => { showPanel('resetPass'); setMsg('resetPassMsg', ''); });
+  socket.on('resetPasswordError', (msg) => setMsg('resetPassMsg', msg));
+  socket.on('resetPasswordSuccess', () => { setMsg('resetPassMsg', 'Şifren değişti.'); setTimeout(() => showPanel('login'), 1200); });
 
-  let myUsername = null, myJutsuType = 'fire';
-  let myLevel = 1, myXp = 0, myMaxXp = 100, myGold = 0, myMaxHp = 100;
-  function tryFullscreen(){
+  let savedToken = localStorage.getItem('survivalToken');
+  if (savedToken) socket.emit('loginWithToken', savedToken);
+
+  function tryFullscreen() {
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if(req){ try{ req.call(el).catch(()=>{}); } catch(e){} }
+    if (req) { try { req.call(el).catch(() => {}); } catch (e) {} }
+  }
+  let rotateOverlay = document.getElementById('rotateOverlay');
+  function checkOrientation() {
+    const inGame = !gameScreen.classList.contains('hidden');
+    rotateOverlay.classList.toggle('hidden', !(isTouch && inGame && window.innerHeight > window.innerWidth));
+  }
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
+
+  // ═══════════════════ KLAN SEÇİM ═══════════════════
+  const clanPreviewSprites = {};
+  Object.keys(CLANS).forEach(id => { clanPreviewSprites[id] = buildCharacterSet(CLANS[id].color)[0]; });
+
+  function openClanSelect(isChange) {
+    selectedClan = null;
+    const screen = document.getElementById('clanSelectScreen');
+    screen.classList.remove('hidden');
+    const grid = document.getElementById('clanGrid');
+    grid.innerHTML = '';
+    if (isChange) {
+      screen.querySelector('h1').textContent = 'Klanını Değiştir';
+      screen.querySelector('.hint').textContent = 'Klan değiştirmek 2000 Ryo tutar. Mevcut: ' + (CLANS[playerClan]?.name || 'Yok');
+    } else {
+      screen.querySelector('h1').textContent = 'Klanını Seç';
+      screen.querySelector('.hint').textContent = 'Her klanın kendine özel jutsusu ve ultimate\'si var. Bir kez seçtikten sonra NPC Eğitmen\'den 2000 Ryo karşılığı değiştirebilirsin.';
+    }
+    Object.keys(CLANS).forEach(clanId => {
+      const clan = CLANS[clanId];
+      const card = document.createElement('div');
+      card.className = 'clanCard';
+      card.style.cssText = 'background: linear-gradient(180deg, var(--panel), var(--bg-1)); border: 2px solid var(--border); border-radius: 12px; padding: 14px 10px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;';
+      card.addEventListener('mouseenter', () => { if (selectedClan !== clanId) { card.style.borderColor = clan.color; card.style.boxShadow = `0 0 24px ${clan.color}66`; } });
+      card.addEventListener('mouseleave', () => { if (selectedClan !== clanId) { card.style.borderColor = 'var(--border)'; card.style.boxShadow = 'none'; } });
+      card.onclick = () => selectClanCard(clanId, card);
+      card.innerHTML = `
+        <div style="position: relative; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px;">
+          <div style="position: absolute; inset: 0; background: radial-gradient(circle, ${clan.color}22 0%, transparent 70%);"></div>
+          <canvas id="clanPrev_${clanId}" width="52" height="68" style="position: relative; image-rendering: pixelated;"></canvas>
+        </div>
+        <div style="font-family: var(--font-display); font-size: 18px; color: ${clan.color}; text-align: center; margin-bottom: 4px; text-shadow: 0 0 12px ${clan.color}66;">${clan.name}</div>
+        <div style="text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 8px;">Element: <b style="color: ${clan.accent};">${clan.element}</b></div>
+        <div style="background: rgba(8, 16, 12, 0.5); border-radius: 6px; padding: 6px 8px; margin-bottom: 4px;">
+          <div style="font-size: 11px; font-weight: 700; color: ${clan.color};">⚡ ${clan.jutsu.name}</div>
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">${clan.jutsu.desc}</div>
+        </div>
+        <div style="background: rgba(8, 16, 12, 0.5); border-radius: 6px; padding: 6px 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: ${clan.accent};">🌟 ${clan.ultimate.name}</div>
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">${clan.ultimate.desc}</div>
+        </div>`;
+      grid.appendChild(card);
+      setTimeout(() => {
+        const cnv = document.getElementById(`clanPrev_${clanId}`);
+        if (cnv) {
+          const cx = cnv.getContext('2d'); cx.imageSmoothingEnabled = false; cx.clearRect(0, 0, 52, 68);
+          cx.drawImage(clanPreviewSprites[clanId], 0, 0, 26, 34, 13, 17, 52, 68);
+        }
+      }, 10);
+    });
+    const confirmBtn = document.createElement('button');
+    confirmBtn.id = 'confirmClanBtn';
+    confirmBtn.style.cssText = 'margin-top: 14px; padding: 12px 28px; border: none; border-radius: 10px; background: var(--accent); color: #06231c; font-family: var(--font-body); font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; opacity: 0.4; pointer-events: none;';
+    confirmBtn.textContent = isChange ? '🔄 Klanı Değiştir (2000 Ryo)' : '✅ Bu Klanı Seç';
+    confirmBtn.onclick = () => confirmClanSelection(isChange);
+    grid.parentElement.appendChild(confirmBtn);
+  }
+  function selectClanCard(clanId, cardEl) {
+    selectedClan = clanId;
+    document.querySelectorAll('.clanCard').forEach(c => { c.style.borderColor = 'var(--border)'; c.style.boxShadow = 'none'; });
+    const clan = CLANS[clanId];
+    cardEl.style.borderColor = clan.color;
+    cardEl.style.boxShadow = `0 0 32px ${clan.color}, 0 0 0 2px ${clan.color}`;
+    const btn = document.getElementById('confirmClanBtn');
+    if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; btn.style.background = clan.color; btn.style.color = '#0a1410'; }
+    playSound('collect');
+  }
+  function confirmClanSelection(isChange) {
+    if (!selectedClan) return;
+    if (isChange) {
+      if (ryo < 2000) { toast('Yetersiz ryo! Gerekli: 2000'); return; }
+      ryo -= 2000; updateRyoHud();
+    }
+    playerClan = selectedClan;
+    myColor = CLANS[selectedClan].color;
+    mySprites = buildCharacterSet(myColor);
+    if (socket) socket.emit('changeClan', { clan: selectedClan });
+    document.getElementById('clanSelectScreen').classList.add('hidden');
+    playSound('levelup');
+    toast(`${CLANS[selectedClan].name} klanı seçildi!`);
+    if (!isChange) {
+      playClanIntro(selectedClan);
+      setTimeout(() => startGame(), 3100);
+    }
+  }
+  function playClanIntro(clanId) {
+    const clan = CLANS[clanId];
+    const screen = document.createElement('div');
+    screen.style.cssText = `position: fixed; inset: 0; z-index: 1000; background: radial-gradient(circle at 50% 50%, ${clan.color}66, #0a1410); display: flex; flex-direction: column; align-items: center; justify-content: center; animation: introFade 3s ease-out forwards;`;
+    screen.innerHTML = `<div style="font-family: var(--font-display); font-size: 80px; color: ${clan.color}; text-shadow: 0 0 40px ${clan.color}, 0 0 80px ${clan.accent}; animation: introZoom 2s ease-out; letter-spacing: 4px;">${clan.name}</div><div style="font-family: var(--font-body); font-size: 18px; color: ${clan.accent}; margin-top: 12px; opacity: 0; animation: introFadeIn 1.5s ease-out 0.8s forwards;">Yolun açık olsun, ${clan.element} savaşçısı</div>`;
+    document.body.appendChild(screen);
+    if (!document.getElementById('introStyle')) {
+      const style = document.createElement('style');
+      style.id = 'introStyle';
+      style.textContent = '@keyframes introFade { 0%, 70% { opacity: 1; } 100% { opacity: 0; pointer-events: none; } } @keyframes introZoom { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); } } @keyframes introFadeIn { to { opacity: 1; } }';
+      document.head.appendChild(style);
+    }
+    setTimeout(() => playSound('jutsu', clanId), 300);
+    setTimeout(() => playSound('levelup'), 1200);
+    setTimeout(() => screen.remove(), 3100);
   }
 
-  socket.on('loginSuccess', data => {
+  socket.on('loginSuccess', function (data) {
     myUsername = data.username;
     localStorage.setItem('survivalToken', data.token);
+    const savedClan = data.clan || null;
+    if (data.level) myLevel = data.level;
+    if (data.xp) myXp = data.xp;
+    if (data.ryo != null) ryo = data.ryo;
+    if (data.stats) myStats = Object.assign(myStats, data.stats);
+    if (data.items) myItems = data.items;
+    if (data.equip) myEquip = data.equip;
     authScreen.classList.add('hidden');
+    if (!savedClan) {
+      openClanSelect(false);
+    } else {
+      playerClan = savedClan;
+      myColor = CLANS[playerClan].color;
+      startGame();
+    }
+  });
+  function startGame() {
     gameScreen.classList.remove('hidden');
     document.getElementById('touchControls').classList.toggle('hidden', !isTouch);
     tryFullscreen();
     initGame();
     checkOrientation();
-    if(!document.fullscreenElement) document.getElementById('fsPrompt').classList.remove('hidden');
-  });
-  let savedToken = localStorage.getItem('survivalToken');
-  if(savedToken) socket.emit('loginWithToken', savedToken);
-
-  let rotateOverlay = document.getElementById('rotateOverlay');
-  function checkOrientation(){
-    let inGame = !gameScreen.classList.contains('hidden');
-    rotateOverlay.classList.toggle('hidden', !(isTouch && inGame && window.innerHeight > window.innerWidth));
-  }
-  window.addEventListener('resize', checkOrientation);
-  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
-  if(isTouch && screen.orientation && screen.orientation.lock){
-    document.addEventListener('click', function once(){
-      screen.orientation.lock('landscape').catch(()=>{});
-      document.removeEventListener('click', once);
-    }, { once: true });
+    if (!document.fullscreenElement) document.getElementById('fsPrompt').classList.remove('hidden');
+    startMusic();
   }
 
-  // ===== STATS =====
-  socket.on('updateStats', stats => {
-    myLevel = stats.level; myXp = stats.xp; myMaxXp = stats.maxXp;
-    myGold = stats.gold; myMaxHp = stats.maxHp; myJutsuType = stats.jutsuType;
-    document.getElementById('levelText').textContent = stats.level;
-    document.getElementById('goldText').textContent = stats.gold;
-    const jn = { fire:'🔥 Ates', water:'💧 Su', lightning:'⚡ Simsik', wind:'🌪️ Ruzgar', earth:'🪨 Toprak' };
-    document.getElementById('jutsuText').textContent = (jn[stats.jutsuType] || '🔥 Ates').split(' ')[1];
-    const jc = { fire:'#ff6a5a', water:'#3aa0e2', lightning:'#e2d23a', wind:'#7fe2b0', earth:'#a3703f' };
-    document.getElementById('jutsuBox').style.color = jc[stats.jutsuType] || '#ff8c42';
-    updateXpBar();
-  });
-  function updateXpBar(){
-    document.getElementById('xpbar').style.width = (myMaxXp > 0 ? (myXp/myMaxXp)*100 : 0) + '%';
-  }
-
-  // ===== INVENTORY & CRAFT =====
-  let myInventory = {};
-  socket.on('updateInventory', inv => {
+  // ═══════════════════ INVENTORY / HUD ═══════════════════
+  socket.on('updateInventory', (inv) => {
     myInventory = inv;
     document.getElementById('invWood').textContent = inv.wood || 0;
     document.getElementById('invStone').textContent = inv.stone || 0;
@@ -685,753 +1269,594 @@ html, body {
   const craftPanel = document.getElementById('craftPanel');
   document.getElementById('craftToggle').onclick = () => craftPanel.classList.toggle('hidden');
   document.querySelectorAll('.craftBtn').forEach(btn => {
-    btn.onclick = () => socket.emit('craft', btn.dataset.item);
+    btn.onclick = () => { socket.emit('craft', btn.dataset.item); playSound('craft'); toast('Üretildi: ' + btn.dataset.item); };
   });
-  socket.on('craftSuccess', item => toast('Uretildi: ' + item));
-  socket.on('craftFail', msg => toast(msg, '#ff6a5a'));
-  document.querySelectorAll('.invItem').forEach(el => {
-    el.onclick = () => {
-      const item = el.dataset.item;
-      if(item === 'sword' || item === 'pickaxe' || item === 'axe'){
-        socket.emit('useItem', item);
-        document.querySelectorAll('.invItem').forEach(i => i.classList.remove('active'));
-        el.classList.add('active');
-      }
-    };
-  });
+  const toastEl = document.getElementById('toast'); let toastTimer = null;
+  function toast(msg) { toastEl.textContent = msg; toastEl.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 1400); }
 
-  // ===== TOAST =====
-  const toastEl = document.getElementById('toast');
-  let toastTimer = null;
-  function toast(msg, color){
-    toastEl.textContent = msg; toastEl.classList.remove('hidden');
-    toastEl.style.color = color || '#eaf3ec';
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 2000);
-  }
-
-  // ===== HP =====
+  // ═══════════════════ HP ═══════════════════
   let myHp = 100;
-  socket.on('hpUpdate', data => {
-    if(data.id === socket.id){
-      myHp = data.hp; myMaxHp = data.maxHp || 100;
-      document.getElementById('hpbar').style.width = Math.max(0, (myHp/myMaxHp)*100) + '%';
-      document.getElementById('hpbar').style.background = myHp > myMaxHp*0.4 ? '#5dcaa5' : '#e24b4a';
-      shake(8);
-      if(myHp <= 0) document.getElementById('overScreen').classList.remove('hidden');
-    } else if(others[data.id]){
-      floatText(others[data.id].x, others[data.id].y, '-' + (data.damage || 'hasar'), '#ff6a5a');
+  socket.on('hpUpdate', (data) => {
+    if (data.id === socket.id) {
+      myHp = data.hp; myStats.hp = data.hp;
+      const hpEl = document.getElementById('hpbar');
+      hpEl.style.width = Math.max(0, myHp) + '%';
+      hpEl.style.background = myHp > 40 ? '#5dcaa5' : '#e24b4a';
+      shake(10);
+      if (myHp <= 0) document.getElementById('overScreen').classList.remove('hidden');
+    } else if (others[data.id]) {
+      floatText(others[data.id].x, others[data.id].y, '-hasar', '#ff6a5a');
     }
   });
   document.getElementById('respawnBtn').onclick = () => {
     document.getElementById('overScreen').classList.add('hidden');
-    myHp = myMaxHp;
-    document.getElementById('hpbar').style.width = '100%';
+    socket.emit('respawn');
   };
 
-  // ===== MARKET =====
-  const marketPanel = document.getElementById('marketPanel');
-  document.getElementById('marketBtn').onclick = () => { marketPanel.classList.add('visible'); socket.emit('getMarket'); };
-  document.getElementById('marketClose').onclick = () => marketPanel.classList.remove('visible');
-  document.getElementById('sellBtn').onclick = () => {
-    socket.emit('sellResource', { type: document.getElementById('sellType').value, amount: parseInt(document.getElementById('sellAmount').value) || 1 });
-  };
-  socket.on('marketData', items => {
-    const list = document.getElementById('marketList');
-    list.innerHTML = '';
+  // ═══════════════════ LEVEL / XP / RYO HUD ═══════════════════
+  function xpRequired(level) { return Math.floor(80 + level * 40 + level * level * 8); }
+  function gainXp(amount) {
+    if (amount <= 0) return;
+    myXp += amount;
+    floatText(myPos.x, myPos.y - 30, `+${amount} XP`, '#7fe2b0');
+    while (myXp >= xpRequired(myLevel)) { myXp -= xpRequired(myLevel); myLevel++; levelUp(); }
+    updateLevelHud();
+  }
+  function levelUp() {
+    myStats.maxHp += 20; myStats.hp = myStats.maxHp; myStats.damage += 3; myStats.speed += 5;
+    myStats.critChance = Math.min(0.35, myStats.critChance + 0.01); myStats.defense += 1;
+    floatText(myPos.x, myPos.y - 50, `LEVEL ${myLevel}!`, '#fff7a8');
+    flashLevel(myLevel); shake(12); toast(`Seviye ${myLevel}! HP +20, Hasar +3`); playSound('levelup');
+    if (socket) socket.emit('levelUp', { level: myLevel, stats: myStats, xp: myXp });
+    updateLevelHud();
+  }
+  function flashLevel(level) {
+    const fl = document.createElement('div');
+    fl.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; font-family: var(--font-display); font-size: 64px; color: var(--accent); text-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent); animation: levelFlash 1.6s ease-out forwards;';
+    fl.textContent = `LEVEL ${level}`;
+    document.body.appendChild(fl);
+    if (!document.getElementById('levelFlashStyle')) {
+      const s = document.createElement('style'); s.id = 'levelFlashStyle';
+      s.textContent = '@keyframes levelFlash { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); } }';
+      document.head.appendChild(s);
+    }
+    setTimeout(() => fl.remove(), 1700);
+  }
+  function updateLevelHud() {
+    const hpEl = document.getElementById('hpbar');
+    if (hpEl) hpEl.style.width = (myStats.hp / myStats.maxHp * 100) + '%';
+    let lvlEl = document.getElementById('lvlBar');
+    if (!lvlEl) {
+      lvlEl = document.createElement('div'); lvlEl.id = 'lvlBar';
+      lvlEl.style.cssText = 'position: absolute; top: 28px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px; background: rgba(10, 20, 15, 0.65); border: 1px solid var(--border); backdrop-filter: blur(6px); border-radius: 10px; padding: 5px 10px; font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--text);';
+      lvlEl.innerHTML = '<span style="color: var(--accent);">Lv <b id="lvlNum">1</b></span><div id="lvlFill" style="width: 80px; height: 6px; background: rgba(8,16,12,0.6); border-radius: 4px; overflow: hidden; border: 1px solid var(--border);"><div id="lvlFillBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); transition: width 0.3s;"></div></div><span id="lvlXp" style="color: var(--text-dim); font-size: 10px;">0/0</span>';
+      document.getElementById('hud').appendChild(lvlEl);
+    }
+    document.getElementById('lvlNum').textContent = myLevel;
+    const req = xpRequired(myLevel);
+    document.getElementById('lvlFillBar').style.width = (myXp / req * 100) + '%';
+    document.getElementById('lvlXp').textContent = `${myXp}/${req}`;
+  }
+  function updateRyoHud() {
+    let el = document.getElementById('ryoHud');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'ryoHud';
+      el.style.cssText = 'position: absolute; top: 12px; right: 218px; z-index: 3; background: rgba(10, 20, 15, 0.75); border: 1px solid var(--border); backdrop-filter: blur(6px); border-radius: 10px; padding: 7px 12px; font-family: var(--font-body); font-size: 13px; font-weight: 700; color: #ffd84a;';
+      document.getElementById('hud').appendChild(el);
+    }
+    el.innerHTML = `💰 <b id="ryoNum">${ryo}</b> Ryo`;
+  }
+  function updateBuffHud() {
+    let el = document.getElementById('buffHud');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'buffHud';
+      el.style.cssText = 'position: absolute; top: 60px; left: 12px; z-index: 3; display: flex; gap: 6px;';
+      document.getElementById('hud').appendChild(el);
+    }
+    el.innerHTML = '';
+    myEquip.buffs.forEach(b => {
+      const bEl = document.createElement('div');
+      bEl.style.cssText = 'background: rgba(10, 20, 15, 0.85); border: 1px solid var(--accent); border-radius: 8px; padding: 5px 9px; font-size: 11px; font-weight: 700; color: var(--accent);';
+      const icon = b.type === 'damage' ? '💥' : '💨';
+      bEl.innerHTML = `${icon} ${b.life.toFixed(0)}s`;
+      el.appendChild(bEl);
+    });
+  }
+
+  // ═══════════════════ MARKET ═══════════════════
+  function openMarket(npcId) {
+    const npc = NPC_DEFS[npcId];
+    if (!npc) return;
+    if (npc.type === 'trainer') { openClanSelect(true); return; }
+    currentNpc = npcId;
+    document.getElementById('marketTitle').textContent = npc.name;
+    document.getElementById('marketHint').textContent = npc.type === 'merchant' ? 'Genel malzemeler' : (npc.type === 'blacksmith' ? 'Silah ve zırh' : 'Özel iksirler');
+    document.getElementById('marketPanel').classList.remove('hidden');
+    renderMarket();
+  }
+  function closeMarket() { currentNpc = null; document.getElementById('marketPanel').classList.add('hidden'); }
+  document.getElementById('closeMarket').onclick = closeMarket;
+  function renderMarket() {
+    if (!currentNpc) return;
+    const items = MARKET_ITEMS[currentNpc].sell;
+    const grid = document.getElementById('marketGrid'); grid.innerHTML = '';
     items.forEach(item => {
-      let desc = item.type === 'weapon' ? 'Hasar +' + item.damage : item.type === 'armor' ? 'Defans +' + item.defense : item.type === 'jutsu_scroll' ? 'Jutsu degisimi' : item.type === 'consumable' ? 'Can +' + item.effect : 'XP +' + item.effect;
-      const div = document.createElement('div'); div.className = 'marketItem';
-      div.innerHTML = '<div class="marketItemInfo"><span class="marketItemName">' + item.name + '</span><span class="marketItemDesc">' + desc + '</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="marketItemPrice">' + item.price + ' Ryo</span><button class="marketBuyBtn" data-id="' + item.id + '">Satin Al</button></div>';
-      list.appendChild(div);
+      const owned = myItems[item.id] || 0;
+      const canBuy = ryo >= item.price;
+      const btn = document.createElement('button');
+      btn.className = 'craftBtn';
+      btn.style.cssText = `padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: ${canBuy ? 1 : 0.5}; cursor: ${canBuy ? 'pointer' : 'not-allowed'};`;
+      btn.innerHTML = `<div style="font-size: 28px;">${item.icon}</div><div style="font-weight: 700;">${item.name}</div><small>${item.desc}</small><div style="color: #ffd84a; font-weight: 700; margin-top: 4px;">${item.price} Ryo</div>${owned > 0 ? `<small style="color: var(--accent);">Sahip: ${owned}</small>` : ''}`;
+      btn.onclick = () => {
+        if (!canBuy) { toast('Yetersiz ryo!'); return; }
+        ryo -= item.price; myItems[item.id] = (myItems[item.id] || 0) + 1;
+        toast(`${item.name} satın alındı!`); playSound('buy');
+        updateRyoHud(); renderMarket();
+        if (socket) socket.emit('saveProgress', { ryo, items: myItems, equip: myEquip });
+      };
+      grid.appendChild(btn);
     });
-    list.querySelectorAll('.marketBuyBtn').forEach(btn => {
-      btn.onclick = () => socket.emit('buyItem', btn.dataset.id);
-    });
-  });
-  socket.on('marketSuccess', msg => { toast(msg); playSound('coin'); });
-  socket.on('marketError', msg => toast(msg, '#ff6a5a'));
-  socket.on('npcHeal', data => { toast('Sifa: -' + data.cost + ' Ryo'); myHp = data.hp; document.getElementById('hpbar').style.width = '100%'; });
-  socket.on('npcError', msg => toast(msg, '#ff6a5a'));
-
-  // ===== MOBS =====
-  let mobs = [];
-  socket.on('mobList', list => { mobs = list; });
-  socket.on('mobUpdate', list => { mobs = list; });
-  socket.on('mobHit', data => {
-    const mob = mobs.find(m => m.id === data.mobId);
-    if(mob){ mob.hp = data.hp; floatText(mob.x, mob.z, '-' + data.damage, '#ff6a5a'); playSound('hit'); }
-  });
-  socket.on('mobKilled', data => {
-    mobs = mobs.filter(m => m.id !== data.mobId);
-    toast('+' + data.xp + ' XP, +' + data.gold + ' Ryo');
-    playSound('coin');
-    if(data.levelUp){ playSound('levelup'); showLevelUp(); }
-  });
-  function showLevelUp(){
-    const div = document.createElement('div');
-    div.className = 'levelUpAnim';
-    div.textContent = 'SEVIYE ATLADIN! Lv.' + myLevel;
-    document.getElementById('gameScreen').appendChild(div);
-    setTimeout(() => div.remove(), 2000);
-  }
-
-  // ===== NPCS =====
-  let npcs = [];
-  socket.on('npcList', list => { npcs = list; });
-
-  // ===== JUTSU =====
-  document.getElementById('jutsuBtn').onclick = () => {
-    socket.emit('castJutsu');
-    jutsuEffect(myPos.x, myPos.y, myJutsuType);
-    playSound('jutsu_' + myJutsuType);
-  };
-  socket.on('jutsuCast', data => {
-    if(data.id !== socket.id){ jutsuEffect(data.x, data.z, data.jutsuType); playSound('jutsu_' + data.jutsuType); }
-  });
-
-  // ===== 2D MOTOR =====
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-  const WORLD_SIZE = 2000;
-  const JUTSU_COLORS = {
-    fire: { base:'#e2543a', glow:'#ffcf6b', core:'#ff6a00' },
-    water: { base:'#3aa0e2', glow:'#bdf0ff', core:'#00bfff' },
-    lightning: { base:'#e2d23a', glow:'#fff7bd', core:'#ffff00' },
-    wind: { base:'#7fe2b0', glow:'#e6fff2', core:'#98fb98' },
-    earth: { base:'#a3703f', glow:'#e6c79a', core:'#8b4513' }
-  };
-
-  // ── IYILESTIRILMIS KARAKTER SPRITE (32x42) ──
-  function makeShinobiSprite(type){
-    const styles = {
-      fire: { hair:'#ff4500', hairShade:'#cc3300', cloth:'#b22222', clothShade:'#8b0000', headband:'#1a1a2e', skin:'#f5c6a0', eye:'#20242c' },
-      water: { hair:'#1e3a5f', hairShade:'#0f1f3a', cloth:'#2c5f8a', clothShade:'#1a3a5c', headband:'#1a1a2e', skin:'#f0d5b8', eye:'#1a3a5f' },
-      lightning: { hair:'#f0e68c', hairShade:'#c4b454', cloth:'#4a4a4a', clothShade:'#2a2a2a', headband:'#1a1a2e', skin:'#f5c6a0', eye:'#20242c' },
-      wind: { hair:'#228b22', hairShade:'#196619', cloth:'#3d7a47', clothShade:'#225529', headband:'#1a1a2e', skin:'#f0c8a0', eye:'#20242c' },
-      earth: { hair:'#8b4513', hairShade:'#5c2e0c', cloth:'#6b4423', clothShade:'#4a2e15', headband:'#1a1a2e', skin:'#d4a574', eye:'#20242c' }
+    const sellGrid = document.getElementById('sellGrid'); sellGrid.innerHTML = '';
+    const addSell = (name, icon, count, price, fn) => {
+      const btn = document.createElement('button');
+      btn.className = 'craftBtn'; btn.style.cssText = 'padding: 6px 10px; font-size: 11px;';
+      btn.innerHTML = `${icon} ${name} (${count}) → <span style="color:#ffd84a;">+${price} Ryo</span>`;
+      btn.onclick = () => { fn(); if (socket) socket.emit('saveProgress', { ryo, items: myItems, equip: myEquip }); };
+      sellGrid.appendChild(btn);
     };
-    const s = styles[type] || styles.fire;
-    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 42;
-    let c = cv.getContext('2d');
-    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    function shadeHex(col, amt){
-      let num = parseInt(col.replace('#',''), 16);
-      let r = Math.min(255, Math.max(0, ((num>>16)&255)*(1+amt)));
-      let g = Math.min(255, Math.max(0, ((num>>8)&255)*(1+amt)));
-      let b = Math.min(255, Math.max(0, (num&255)*(1+amt)));
-      return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
-    }
-    // Spiky anime hair (better)
-    for(let x=4; x<=27; x++) for(let y=0; y<=10; y++){
-      let d = Math.hypot(x-15.5, y-6);
-      if(d < 9) px(x,y, d>6.5 ? s.hairShade : s.hair);
-    }
-    // Extra spikes
-    px(5,0,s.hair); px(8,0,s.hair); px(12,0,s.hair); px(15,0,s.hair); px(19,0,s.hair); px(23,0,s.hair); px(26,0,s.hair);
-    px(4,1,s.hairShade); px(27,1,s.hairShade);
-    px(3,3,s.hairShade); px(28,3,s.hairShade);
-    // Face (round)
-    for(let x=9; x<=22; x++) for(let y=8; y<=19; y++){
-      if(Math.hypot(x-15.5, y-13.5) < 6.5) px(x,y,s.skin);
-    }
-    // Face shade
-    for(let x=9; x<=11; x++) for(let y=11; y<=19; y++) px(x,y,shadeHex(s.skin,-0.12));
-    // Headband
-    for(let x=7; x<=24; x++){ px(x,10,s.headband); px(x,11,s.headband); }
-    px(25,12,s.headband); px(26,13,shadeHex(s.headband,-0.2));
-    px(5,12,s.headband); px(4,14,shadeHex(s.headband,-0.2));
-    // Metal plate (leaf symbol area)
-    for(let x=13; x<=18; x++) for(let y=10; y<=11; y++) px(x,y,'#d4dde4');
-    px(14,10,'#ffffff'); px(15,10,'#ffffff');
-    // Eyes (large anime style)
-    px(11,14,s.eye); px(12,14,s.eye); px(11,15,s.eye); px(12,15,s.eye);
-    px(19,14,s.eye); px(20,14,s.eye); px(19,15,s.eye); px(20,15,s.eye);
-    // Eye shine
-    px(12,14,'#ffffff'); px(20,14,'#ffffff');
-    // Eyebrows (thick)
-    px(10,13,s.hairShade); px(11,13,s.hairShade); px(12,13,s.hairShade);
-    px(19,13,s.hairShade); px(20,13,s.hairShade); px(21,13,s.hairShade);
-    // Mouth (small line)
-    for(let x=14; x<=17; x++) px(x,17,'#c4956a');
-    // Body (vest)
-    for(let x=8; x<=23; x++) for(let y=20; y<=32; y++) px(x,y,s.cloth);
-    for(let x=8; x<=10; x++) for(let y=20; y<=32; y++) px(x,y,s.clothShade);
-    // V-neck
-    for(let y=20; y<=24; y++){ px(15,y,s.skin); px(16,y,s.skin); }
-    // Zipper line
-    for(let y=20; y<=32; y++) px(15,y,shadeHex(s.cloth,0.3));
-    // Arms
-    for(let y=21; y<=29; y++){ px(6,y,s.cloth); px(7,y,s.clothShade); px(24,y,s.skin); px(25,y,shadeHex(s.skin,-0.15)); }
-    px(6,30,s.skin); px(7,30,s.skin);
-    // Hands
-    px(5,30,s.skin); px(4,31,shadeHex(s.skin,-0.1));
-    px(26,30,s.skin); px(27,31,shadeHex(s.skin,-0.1));
-    // Sword on back
-    for(let y=18; y<=30; y++) px(21,y,'#c9d3da');
-    px(21,18,'#e8eef2');
-    // Legs (pants)
-    for(let y=33; y<=40; y++){ px(11,y,'#1a1a2e'); px(12,y,'#1a1a2e'); px(13,y,'#1a1a2e'); px(18,y,'#1a1a2e'); px(19,y,'#1a1a2e'); px(20,y,'#1a1a2e'); }
-    // Shoes
-    px(10,40,'#333'); px(11,40,'#333'); px(12,40,'#333');
-    px(19,40,'#333'); px(20,40,'#333'); px(21,40,'#333');
-    return cv;
+    if (myInventory.wood > 0) addSell('Odun', '🪵', myInventory.wood, SELL_PRICES.wood, () => { myInventory.wood -= 1; ryo += SELL_PRICES.wood; updateRyoHud(); renderMarket(); });
+    if (myInventory.stone > 0) addSell('Taş', '🪨', myInventory.stone, SELL_PRICES.stone, () => { myInventory.stone -= 1; ryo += SELL_PRICES.stone; updateRyoHud(); renderMarket(); });
+    ['sword','pickaxe','axe'].forEach(t => { if (myInventory[t] > 0) addSell(t, t==='sword'?'🗡️':(t==='pickaxe'?'⛏️':'🪓'), myInventory[t], SELL_PRICES[t], () => { myInventory[t] -= 1; ryo += SELL_PRICES[t]; updateRyoHud(); renderMarket(); }); });
+    document.getElementById('marketBalance').textContent = `💰 Bakiye: ${ryo} Ryo`;
   }
 
-  function makeWalkFrame(base, legOff){
-    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 42;
-    let c = cv.getContext('2d');
-    c.drawImage(base, 0, 0, 32, 34, 0, 0, 32, 34);
-    c.fillStyle = '#1a1a2e';
-    c.fillRect(11, 34+legOff, 3, 8-legOff);
-    c.fillRect(18, 34-legOff, 3, 8+legOff);
-    return cv;
+  // ═══════════════════ ITEMS / BUFFS ═══════════════════
+  function findItemDef(id) {
+    for (const npcId of Object.keys(MARKET_ITEMS)) { const f = MARKET_ITEMS[npcId].sell.find(it => it.id === id); if (f) return f; }
+    return null;
+  }
+  function useItem(itemId) {
+    if (!myItems[itemId] || myItems[itemId] <= 0) { toast('Bu item yok!'); return; }
+    const item = findItemDef(itemId);
+    if (!item) return;
+    myItems[itemId] -= 1;
+    if (item.effect.heal) { myStats.hp = Math.min(myStats.maxHp, myStats.hp + item.effect.heal); floatText(myPos.x, myPos.y - 20, `+${item.effect.heal} HP`, '#7fe2b0'); updateLevelHud(); }
+    if (item.effect.xp) gainXp(item.effect.xp);
+    if (item.effect.buffDamage) { myEquip.buffs.push({ type:'damage', value:item.effect.buffDamage, life:item.effect.duration }); toast('Güç iksiri aktif!'); }
+    if (item.effect.buffSpeed) { myEquip.buffs.push({ type:'speed', value:item.effect.buffSpeed, life:item.effect.duration }); toast('Hız iksiri aktif!'); }
+    if (item.effect.damage) { myEquip.weapon = itemId; myStats.damage += item.effect.damage; toast(`${item.name} kuşanıldı!`); }
+    if (item.effect.defense) { myEquip.armor = itemId; myStats.defense += item.effect.defense; toast(`${item.name} giyildi!`); }
+    playSound('potion');
+    if (socket) socket.emit('saveProgress', { ryo, items: myItems, equip: myEquip });
+  }
+  function updateBuffs(dt) {
+    for (let i = myEquip.buffs.length - 1; i >= 0; i--) { myEquip.buffs[i].life -= dt; if (myEquip.buffs[i].life <= 0) { myEquip.buffs.splice(i, 1); toast('Buff bitti'); } }
+    let dmgMult = 1, spdMult = 1;
+    myEquip.buffs.forEach(b => { if (b.type==='damage') dmgMult += b.value; if (b.type==='speed') spdMult += b.value; });
+    window.__dmgMult = dmgMult; window.__spdMult = spdMult;
   }
 
-  function buildCharacterSet(jutsuType){
-    let base = makeShinobiSprite(jutsuType);
-    return [makeWalkFrame(base,0), makeWalkFrame(base,2), makeWalkFrame(base,0), makeWalkFrame(base,-2)];
+  // ═══════════════════ MOB DAMAGE / KILL ═══════════════════
+  function damageMob(mob, damage, isCrit) {
+    if (mob.dead) return;
+    const def = MOB_TYPES[mob.type];
+    mob.hp -= damage;
+    floatText(mob.x, mob.y - 20, isCrit ? `💥${damage}` : `-${damage}`, isCrit ? '#fff7a8' : '#ff6a5a');
+    playSound('jutsuHit');
+    const dx = mob.x - myPos.x, dy = mob.y - myPos.y, d = Math.hypot(dx, dy) || 1;
+    mob.x += (dx / d) * 8; mob.y += (dy / d) * 8;
+    mob.state = 'chase'; mob.target = { id: socket.id, x: myPos.x, y: myPos.y }; mob.stateT = 0;
+    if (mob.hp <= 0) killMob(mob);
+  }
+  function killMob(mob) {
+    const def = MOB_TYPES[mob.type];
+    mob.dead = true; mob.respawnT = def.respawnTime;
+    floatText(mob.x, mob.y - 30, `+${def.xp} XP`, '#7fe2b0');
+    floatText(mob.x, mob.y - 15, `+${def.ryo} Ryo`, '#ffd84a');
+    gainXp(def.xp); ryo += def.ryo; updateRyoHud();
+    for (let i = 0; i < 12; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      effects.push({ x: mob.x, y: mob.y, vx: Math.cos(ang)*60, vy: Math.sin(ang)*60, life: 0.5, maxLife: 0.5, color: def.color, size: 3 });
+    }
+    playSound('mobdie'); shake(4);
+    if (socket) socket.emit('saveProgress', { ryo, items: myItems, equip: myEquip });
   }
 
-  // ── IYILESTIRILMIS MOB SPRITE (36x36) ──
-  function makeMobSprite(type){
-    let cv = document.createElement('canvas'); cv.width = 36; cv.height = 36;
-    let c = cv.getContext('2d');
-    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    const colors = {
-      zombie: { body:'#5a7a5a', dark:'#3a5a3a', eye:'#ff0000', detail:'#4a6a4a' },
-      bandit: { body:'#8b4513', dark:'#5c2e0c', eye:'#ffff00', detail:'#6b3503' },
-      rogue_ninja: { body:'#4a0080', dark:'#2a0040', eye:'#ff00ff', detail:'#3a0060' },
-      summon_snake: { body:'#2d5a27', dark:'#1a3a15', eye:'#ff6600', detail:'#3d7a37' },
-      puppet: { body:'#8b7355', dark:'#5c4a35', eye:'#000000', detail:'#7a6345' },
-      dark_ninja: { body:'#1a1a2e', dark:'#0a0a1a', eye:'#ff0000', detail:'#2a2a3e' },
-      beast: { body:'#8b0000', dark:'#5c0000', eye:'#ffff00', detail:'#a01010' },
-      boss_akatsuki: { body:'#ff0000', dark:'#8b0000', eye:'#ffffff', detail:'#cc0000' }
-    };
-    const col = colors[type] || colors.zombie;
-    // Body
-    for(let x=6; x<=29; x++) for(let y=10; y<=28; y++){
-      let d = Math.hypot(x-17.5, y-19);
-      if(d < 9) px(x,y, (x<11||y<14)?col.dark:(d<5?col.detail:col.body));
+  // ═══════════════════ JUTSU ═══════════════════
+  function castJutsu(ultimate = false) {
+    const clan = CLANS[playerClan];
+    const j = ultimate ? clan.ultimate : clan.jutsu;
+    const key = ultimate ? 'k' : 'j';
+    if (jutsuCooldowns[key] > 0) { toast(`${j.name} bekleniyor... ${jutsuCooldowns[key].toFixed(1)}s`); return; }
+    if (ultimate && ryo < j.cost) { toast(`Yetersiz ryo! Gerekli: ${j.cost}`); return; }
+    if (ultimate) ryo -= j.cost;
+    jutsuCooldowns[key] = j.cooldown;
+    playSound('jutsu', playerClan);
+    if (!ultimate) {
+      jutsuProjectiles.push({ x: myPos.x, y: myPos.y, vx: myDir * 280, vy: 0, clan: playerClan, damage: j.damage, range: j.range, dist: 0, frame: 0, frameT: 0, owner: socket.id });
+    } else {
+      jutsuUltimates.push({ x: myPos.x, y: myPos.y, clan: playerClan, damage: j.damage, duration: j.duration || 2.5, life: j.duration || 2.5, radius: 70, owner: socket.id, hitIds: new Set() });
+      jutsuEffect(myPos.x, myPos.y);
     }
-    // Eyes (glowing)
-    px(11,14,col.eye); px(12,14,col.eye); px(11,15,col.eye); px(12,15,col.eye);
-    px(23,14,col.eye); px(24,14,col.eye); px(23,15,col.eye); px(24,15,col.eye);
-    // Mouth (angry)
-    for(let x=14; x<=21; x++) px(x,20,'#000');
-    px(13,19,'#000'); px(22,19,'#000');
-    // Details
-    if(type === 'boss_akatsuki'){
-      for(let x=6; x<=29; x++){ px(x,8,'#000'); px(x,9,'#fff'); }
-      for(let x=6; x<=29; x++) px(x,10,'#000');
-    }
-    if(type === 'summon_snake'){
-      for(let y=2; y<=9; y++) px(17,y,col.body);
-      px(16,3,col.body); px(18,3,col.body);
-      px(15,4,col.body); px(19,4,col.body);
-      px(17,2,col.eye);
-    }
-    if(type === 'beast'){
-      px(8,10,col.detail); px(9,10,col.detail);
-      px(26,10,col.detail); px(27,10,col.detail);
-    }
-    return cv;
+    toast(`${j.name}!`); shake(6);
+    if (socket) socket.emit('saveProgress', { ryo, items: myItems, equip: myEquip });
   }
 
-  const treeSprite = (function(){
-    let cv = document.createElement('canvas'); cv.width = 32; cv.height = 40;
-    let c = cv.getContext('2d');
-    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    for(let x=14; x<=17; x++) for(let y=24; y<=37; y++) px(x,y, x<15.5?'#5a3f27':'#6b4a2f');
-    function blob(cx,cy,r,base,hi){
-      for(let x=Math.floor(cx-r); x<=cx+r; x++) for(let y=Math.floor(cy-r); y<=cy+r; y++){
-        let d=Math.hypot(x-cx,y-cy);
-        if(d<r) px(x,y, d<r*0.5&&(x+y)%3===0?hi:base);
-      }
-    }
-    blob(11,16,9,'#356e3c','#3f9c4f');
-    blob(22,14,8,'#3a7a43','#4fae5a');
-    blob(16,10,8,'#4a9955','#5cc468');
-    return cv;
-  })();
-
-  const rockSprite = (function(){
-    let cv = document.createElement('canvas'); cv.width = 26; cv.height = 20;
-    let c = cv.getContext('2d');
-    function px(x,y,col){ c.fillStyle=col; c.fillRect(x,y,1,1); }
-    for(let x=1; x<=24; x++) for(let y=3; y<=18; y++){
-      if(Math.hypot((x-12.5)/1.35,y-11) < 7) px(x,y, (x<9)?'#7d828c':((x+y)%5===0?'#a7adb8':'#8f95a0'));
-    }
-    return cv;
-  })();
-
-  const groundCanvas = document.createElement('canvas');
-  groundCanvas.width = groundCanvas.height = 64;
-  const gctx = groundCanvas.getContext('2d');
-  gctx.fillStyle = '#6fae52'; gctx.fillRect(0,0,64,64);
-  for(let i=0; i<60; i++){
-    gctx.fillStyle = Math.random()<0.5?'#649e49':'#7ab85c';
-    gctx.fillRect(Math.floor(Math.random()*64), Math.floor(Math.random()*64), 2, 2);
-  }
-  let groundTilePattern = null;
-
-  let resourceNodes = [];
-  function seedWorld(){
-    resourceNodes = [];
-    for(let i=0; i<30; i++) resourceNodes.push({ type:'wood', x:(Math.random()-0.5)*WORLD_SIZE, y:(Math.random()-0.5)*WORLD_SIZE, alive:true });
-    for(let i=0; i<24; i++) resourceNodes.push({ type:'stone', x:(Math.random()-0.5)*WORLD_SIZE, y:(Math.random()-0.5)*WORLD_SIZE, alive:true });
-  }
-
-  let myPos = { x:0, y:0 };
-  let myFrame = 0, myFrameT = 0, myDir = 1, myMoving = false;
-  let mySprites = null;
-  let others = {};
-  let effects = [];
-  let floatTexts = [];
-  let shakeAmt = 0;
-  let jutsuProjectiles = [];
-  let mobSprites = {};
-
-  function floatText(x, y, text, color){ floatTexts.push({ x, y, text, color, life:1.2 }); }
-  function shake(amt){ shakeAmt = Math.min(14, shakeAmt + amt); }
-  let shockwaves = [];
-  let flashes = [];
-
-  function jutsuEffect(x, y, type){
-    const colors = JUTSU_COLORS[type] || JUTSU_COLORS.fire;
-    flashes.push({ x, y, life:0.3, maxLife:0.3, color:colors.glow });
-    shockwaves.push({ x, y, r:6, life:0.6, maxLife:0.6, color:colors.base });
-    const count = type==='fire'?50 : type==='water'?40 : type==='lightning'?35 : type==='wind'?45 : 40;
-    for(let i=0; i<count; i++){
-      let ang = Math.random()*Math.PI*2;
-      let speed = 80 + Math.random()*140;
-      let vx = Math.cos(ang)*speed, vy = Math.sin(ang)*speed;
-      if(type==='fire'){ vy -= 40; vx *= 0.8; }
-      if(type==='water'){ vy += 30; vx *= 0.7; }
-      if(type==='lightning'){ vx *= 2.5; vy *= 0.2; }
-      if(type==='wind'){ vx *= 2; vy *= 1.8; }
-      if(type==='earth'){ vy = -Math.abs(vy)*0.6; vx *= 0.6; }
-      effects.push({
-        x, y, vx, vy, life:0.6+Math.random()*0.6, maxLife:0.6+Math.random()*0.6,
-        color: Math.random()<0.5?colors.base:colors.glow,
-        size: type==='fire'?4+Math.random()*6 : 3+Math.random()*4, type
-      });
-    }
-    shake(type==='earth'?12:8);
-    jutsuProjectiles.push({ x, y, dir: myDir, type, life: 0.8, speed: 180 });
-  }
-
-  function initGame(){
-    mySprites = buildCharacterSet(myJutsuType);
-    seedWorld();
-    resize();
-    requestAnimationFrame(loop);
-  }
-  function resize(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
-  window.addEventListener('resize', resize);
-
-  // Players
-  socket.on('currentPlayers', players => {
-    Object.keys(players).forEach(id => { if(id !== socket.id) addOther(players[id]); });
+  // ═══════════════════ INPUT ═══════════════════
+  const keys = {};
+  document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+  document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('keydown', e => {
+    if (document.getElementById('marketPanel') && !document.getElementById('marketPanel').classList.contains('hidden')) return;
+    if (document.getElementById('clanSelectScreen') && !document.getElementById('clanSelectScreen').classList.contains('hidden')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'j') castJutsu(false);
+    if (k === 'k') castJutsu(true);
+    const slots = ['potion_small','potion_medium','potion_xp','potion_power'];
+    const idx = parseInt(e.key) - 1;
+    if (idx >= 0 && idx < slots.length) useItem(slots[idx]);
   });
-  socket.on('newPlayer', p => { if(p.id !== socket.id) addOther(p); });
-  socket.on('playerMoved', p => {
-    let o = others[p.id];
-    if(!o){ addOther(p); return; }
-    o.tx = p.x; o.ty = p.z;
-    o.dir = (p.rotationY > Math.PI/2 || p.rotationY < -Math.PI/2) ? -1 : 1;
+  const move = { x: 0, y: 0 };
+  const stick = document.getElementById('stick'), stickKnob = document.getElementById('stickKnob');
+  let stickTouchId = null, stickCenter = { x: 0, y: 0 };
+  stick.addEventListener('touchstart', e => {
+    stickTouchId = e.changedTouches[0].identifier;
+    const rect = stick.getBoundingClientRect();
+    stickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    e.preventDefault();
   });
-  socket.on('playerDisconnected', id => { delete others[id]; });
+  stick.addEventListener('touchmove', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier !== stickTouchId) continue;
+      const dx = t.clientX - stickCenter.x, dy = t.clientY - stickCenter.y;
+      const dist = Math.min(40, Math.hypot(dx, dy));
+      const ang = Math.atan2(dy, dx);
+      stickKnob.style.left = (30 + Math.cos(ang) * dist) + 'px';
+      stickKnob.style.top = (30 + Math.sin(ang) * dist) + 'px';
+      move.x = Math.cos(ang) * (dist / 40); move.y = Math.sin(ang) * (dist / 40);
+    }
+    e.preventDefault();
+  });
+  function resetStick() { stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '30px'; stickKnob.style.top = '30px'; }
+  stick.addEventListener('touchend', resetStick);
+  stick.addEventListener('touchcancel', resetStick);
 
-  // Chat
+  function floatText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 0.8 }); }
+  function shake(amt) { shakeAmt = Math.min(14, shakeAmt + amt); }
+  function jutsuEffect(x, y) {
+    const el = CLANS[playerClan];
+    flashes.push({ x, y, life: 0.18, maxLife: 0.18, color: el.accent });
+    shockwaves.push({ x, y, r: 4, life: 0.45, maxLife: 0.45, color: el.color });
+    for (let i = 0; i < 22; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const speed = 50 + Math.random() * 90;
+      effects.push({ x, y, vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed, life: 0.4 + Math.random()*0.45, maxLife: 0.4 + Math.random()*0.45, color: Math.random()<0.45 ? el.color : el.accent, size: 2.5 + Math.random()*4 });
+    }
+    shake(9);
+  }
+
+  function doInteract() {
+    let nearestNpc = null, nearestNpcDist = 60;
+    npcs.forEach(npc => { const d = Math.hypot(myPos.x - npc.x, myPos.y - npc.y); if (d < nearestNpcDist) { nearestNpcDist = d; nearestNpc = npc; } });
+    if (nearestNpc) { openMarket(nearestNpc.id); return; }
+
+    let best = null, bestDist = 46;
+    resourceNodes.forEach(n => { if (!n.alive) return; const d = Math.hypot(myPos.x - n.x, myPos.y - n.y); if (d < bestDist) { bestDist = d; best = { kind: 'resource', node: n }; } });
+    Object.keys(others).forEach(id => { const o = others[id]; const d = Math.hypot(myPos.x - o.x, myPos.y - o.y); if (d < 56) { bestDist = d; best = { kind: 'player', id }; } });
+    let nearestMob = null, mobDist = Infinity;
+    mobs.forEach(m => { if (m.dead) return; const d = Math.hypot(myPos.x - m.x, myPos.y - m.y); if (d < 30 && d < mobDist) { mobDist = d; nearestMob = m; } });
+    if (nearestMob) { socket.emit('attack', 'mob:' + nearestMob.id); const totalDmg = Math.floor(myStats.damage * (window.__dmgMult || 1)); damageMob(nearestMob, totalDmg, Math.random() < myStats.critChance); playSound('hit'); return; }
+    if (!best) return;
+    if (best.kind === 'resource') {
+      const n = best.node;
+      socket.emit('collect', n.type);
+      floatText(n.x, n.y, n.type === 'wood' ? '+odun' : '+taş', '#bdf0ff');
+      n.alive = false; playSound('collect');
+      setTimeout(() => { n.alive = true; }, 12000);
+    } else {
+      socket.emit('attack', best.id);
+      jutsuEffect(others[best.id].x, others[best.id].y);
+      floatText(others[best.id].x, others[best.id].y - 10, 'jutsu!', '#ffe08a');
+    }
+  }
+  document.getElementById('interactBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
+  window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'e') doInteract(); });
+  canvas.addEventListener('dblclick', doInteract);
+
+  // ═══════════════════ CHAT ═══════════════════
   const chatLog = document.getElementById('chatLog');
   const chatInput = document.getElementById('chatInput');
-  const chatBubbles = {};
-  function appendChatLine(username, text){
-    const line = document.createElement('div');
-    line.className = 'chatLine';
-    line.innerHTML = '<span class="chatName">' + username + ':</span> ' + text;
-    chatLog.appendChild(line);
-    chatLog.scrollTop = chatLog.scrollHeight;
-    while(chatLog.children.length > 40) chatLog.removeChild(chatLog.firstChild);
+  function appendChatLine(username, text) {
+    const line = document.createElement('div'); line.className = 'chatLine';
+    const ns = document.createElement('span'); ns.className = 'chatName'; ns.textContent = username + ': ';
+    line.appendChild(ns); line.appendChild(document.createTextNode(text));
+    chatLog.appendChild(line); chatLog.scrollTop = chatLog.scrollHeight;
+    while (chatLog.children.length > 40) chatLog.removeChild(chatLog.firstChild);
   }
   socket.on('chatMessage', data => {
     appendChatLine(data.username, data.text);
     chatBubbles[data.id] = { text: data.text, until: performance.now() + 4000 };
   });
-  function sendChat(){
+  function sendChat() {
     const text = chatInput.value.trim();
-    if(!text) return;
-    socket.emit('chatMessage', text);
-    chatInput.value = '';
+    if (!text) return;
+    socket.emit('chatMessage', text); chatInput.value = '';
   }
   document.getElementById('chatSendBtn').onclick = sendChat;
-  chatInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendChat(); e.stopPropagation(); });
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); e.stopPropagation(); });
   document.getElementById('chatToggle').onclick = () => document.getElementById('chatPanel').classList.toggle('hidden');
-  document.getElementById('fsPrompt').addEventListener('click', () => {
-    tryFullscreen();
-    document.getElementById('fsPrompt').classList.add('hidden');
-  });
 
-  function addOther(p){
-    let jt = p.jutsuType || 'fire';
-    others[p.id] = { x:p.x||0, y:p.z||0, tx:p.x||0, ty:p.z||0, dir:1,
-      sprites: buildCharacterSet(jt), frame:0, frameT:0, moving:false,
-      username: p.username || '?', inventory: p.inventory || {}, jutsuType: jt };
-  }
+  document.getElementById('fsPrompt').addEventListener('click', () => { tryFullscreen(); document.getElementById('fsPrompt').classList.add('hidden'); });
 
-  // Input
-  const keys = {};
-  document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
-  document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-  const move = { x:0, y:0 };
-  const stick = document.getElementById('stick'), stickKnob = document.getElementById('stickKnob');
-  let stickTouchId = null, stickCenter = { x:0, y:0 };
-  stick.addEventListener('touchstart', e => {
-    stickTouchId = e.changedTouches[0].identifier;
-    let rect = stick.getBoundingClientRect();
-    stickCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-    e.preventDefault();
+  // ═══════════════════ OTHER PLAYERS ═══════════════════
+  socket.on('currentPlayers', players => { Object.keys(players).forEach(id => { if (id !== socket.id) addOther(players[id]); }); });
+  socket.on('newPlayer', p => { if (p.id !== socket.id) addOther(p); });
+  socket.on('playerMoved', p => {
+    const o = others[p.id];
+    if (!o) { addOther(p); return; }
+    o.tx = p.x; o.ty = p.z;
+    o.dir = (p.rotationY > Math.PI / 2 || p.rotationY < -Math.PI / 2) ? -1 : 1;
   });
-  stick.addEventListener('touchmove', e => {
-    for(let i=0; i<e.changedTouches.length; i++){
-      let t = e.changedTouches[i];
-      if(t.identifier !== stickTouchId) continue;
-      let dx = t.clientX - stickCenter.x, dy = t.clientY - stickCenter.y;
-      let dist = Math.min(35, Math.hypot(dx, dy));
-      let ang = Math.atan2(dy, dx);
-      stickKnob.style.left = (30 + Math.cos(ang)*dist) + 'px';
-      stickKnob.style.top = (30 + Math.sin(ang)*dist) + 'px';
-      move.x = Math.cos(ang)*(dist/35); move.y = Math.sin(ang)*(dist/35);
+  socket.on('playerDisconnected', id => { delete others[id]; });
+  socket.on('playerClanChanged', data => {
+    if (others[data.id]) {
+      others[data.id].clan = data.clan;
+      const clanColor = CLANS[data.clan]?.color || '#4ce0c4';
+      others[data.id].sprites = buildCharacterSet(clanColor);
     }
-    e.preventDefault();
   });
-  function resetStick(){ stickTouchId = null; move.x = 0; move.y = 0; stickKnob.style.left = '30px'; stickKnob.style.top = '30px'; }
-  stick.addEventListener('touchend', resetStick);
-  stick.addEventListener('touchcancel', resetStick);
+  socket.on('playerLevelUp', data => {
+    if (others[data.id]) others[data.id].level = data.level;
+  });
 
-  function nearestInteractable(){
-    let best = null, bestDist = 60;
-    resourceNodes.forEach(n => {
-      if(!n.alive) return;
-      let d = Math.hypot(myPos.x - n.x, myPos.y - n.y);
-      if(d < bestDist){ bestDist = d; best = { kind:'resource', node:n }; }
-    });
-    mobs.forEach(m => {
-      if(!m.alive) return;
-      let d = Math.hypot(myPos.x - m.x, myPos.y - m.z);
-      if(d < bestDist + 25){ bestDist = d; best = { kind:'mob', mob:m }; }
-    });
-    Object.keys(others).forEach(id => {
-      let o = others[id];
-      let d = Math.hypot(myPos.x - o.x, myPos.y - o.y);
-      if(d < 65){ bestDist = d; best = { kind:'player', id:id }; }
-    });
-    npcs.forEach(npc => {
-      let d = Math.hypot(myPos.x - npc.x, myPos.y - npc.z);
-      if(d < 75){ bestDist = d; best = { kind:'npc', npc:npc }; }
-    });
-    return best;
+  function addOther(p) {
+    const clanColor = (p.clan && CLANS[p.clan]) ? CLANS[p.clan].color : ('#' + (p.color || 0xd8663c).toString(16).padStart(6, '0'));
+    others[p.id] = { x: p.x || 0, y: p.z || 0, tx: p.x || 0, ty: p.z || 0, dir: 1, sprites: buildCharacterSet(clanColor), frame: 0, frameT: 0, moving: false, username: p.username || '?', inventory: p.inventory || {}, level: p.level || 1, clan: p.clan || 'fire' };
   }
 
-  function doInteract(){
-    let target = nearestInteractable();
-    if(!target) return;
-    if(target.kind === 'resource'){
-      let n = target.node;
-      socket.emit('collect', n.type);
-      floatText(n.x, n.y, n.type==='wood'?'+odun':'+tas', '#bdf0ff');
-      playSound('collect');
-      n.alive = false;
-      setTimeout(() => n.alive = true, 12000);
-    } else if(target.kind === 'mob'){
-      socket.emit('attackMob', { mobId: target.mob.id });
-      jutsuEffect(target.mob.x, target.mob.z, myJutsuType);
-      playSound('jutsu_' + myJutsuType);
-    } else if(target.kind === 'player'){
-      socket.emit('attack', target.id);
-      jutsuEffect(others[target.id].x, others[target.id].y, others[target.id].jutsuType || 'fire');
-      playSound('hit');
-    } else if(target.kind === 'npc'){
-      socket.emit('interactNPC', target.npc.id);
-    }
-  }
+  // ═══════════════════ CANVAS / RENDER ═══════════════════
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  function resize() { canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
+  window.addEventListener('resize', resize);
 
-  document.getElementById('interactBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
-  document.getElementById('itemBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
-  window.addEventListener('keydown', e => {
-    if(e.key.toLowerCase() === 'e') doInteract();
-    if(e.key.toLowerCase() === 'q'){ socket.emit('castJutsu'); jutsuEffect(myPos.x, myPos.y, myJutsuType); playSound('jutsu_' + myJutsuType); }
-    if(e.key.toLowerCase() === 'm'){ marketPanel.classList.toggle('visible'); if(marketPanel.classList.contains('visible')) socket.emit('getMarket'); }
-  });
-  canvas.addEventListener('dblclick', doInteract);
-
-  // ===== GAME LOOP =====
   let lastT = performance.now(), lastSent = 0;
-  function loop(now){
+  function loop(now) {
     requestAnimationFrame(loop);
-    let dt = Math.min((now - lastT)/1000, 0.05);
+    const dt = Math.min((now - lastT) / 1000, 0.05);
     lastT = now;
 
     let mx = 0, my = 0;
-    if(isTouch){ mx = move.x; my = move.y; }
-    else {
-      if(keys['w']) my -= 1; if(keys['s']) my += 1;
-      if(keys['a']) mx -= 1; if(keys['d']) mx += 1;
-    }
-    let len = Math.hypot(mx, my);
+    if (isTouch) { mx = move.x; my = move.y; } else { if (keys['w']) my -= 1; if (keys['s']) my += 1; if (keys['a']) mx -= 1; if (keys['d']) mx += 1; }
+    const len = Math.hypot(mx, my);
     myMoving = len > 0.05;
-    if(myMoving){
+    if (myMoving) {
       mx /= len; my /= len;
       myDir = mx < -0.1 ? -1 : (mx > 0.1 ? 1 : myDir);
-      let speed = 130 * dt;
-      myPos.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, myPos.x + mx*speed));
-      myPos.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, myPos.y + my*speed));
+      const speed = (myStats.speed * (window.__spdMult || 1)) * dt;
+      myPos.x = Math.max(-WORLD_SIZE / 2, Math.min(WORLD_SIZE / 2, myPos.x + mx * speed));
+      myPos.y = Math.max(-WORLD_SIZE / 2, Math.min(WORLD_SIZE / 2, myPos.y + my * speed));
       myFrameT += dt;
-      if(myFrameT > 0.14){ myFrameT = 0; myFrame = (myFrame+1)%4; }
-    } else { myFrame = 0; }
+      if (myFrameT > 0.14) { myFrameT = 0; myFrame = (myFrame + 1) % 4; }
+      stepTimer += dt;
+      const stepInterval = 0.32 / (window.__spdMult || 1);
+      if (stepTimer > stepInterval) { stepTimer = 0; playSound('step'); }
+    } else { myFrame = 0; stepTimer = 0; }
 
     lastSent += dt;
-    if(lastSent > 0.08){
-      lastSent = 0;
-      socket.emit('playerMovement', { x:myPos.x, y:0, z:myPos.y, rotationY: myDir>0 ? 0 : Math.PI });
-    }
+    if (lastSent > 0.08) { lastSent = 0; socket.emit('playerMovement', { x: myPos.x, y: 0, z: myPos.y, rotationY: myDir > 0 ? 0 : Math.PI }); }
 
     Object.keys(others).forEach(id => {
-      let o = others[id];
-      let d = Math.hypot(o.tx - o.x, o.ty - o.y);
+      const o = others[id];
+      const d = Math.hypot(o.tx - o.x, o.ty - o.y);
       o.moving = d > 1;
-      o.x += (o.tx - o.x)*0.2; o.y += (o.ty - o.y)*0.2;
-      if(o.moving){ o.frameT += dt; if(o.frameT > 0.14){ o.frameT = 0; o.frame = (o.frame+1)%4; } }
-      else { o.frame = 0; }
+      o.x += (o.tx - o.x) * 0.2; o.y += (o.ty - o.y) * 0.2;
+      if (o.moving) { o.frameT += dt; if (o.frameT > 0.14) { o.frameT = 0; o.frame = (o.frame + 1) % 4; } } else { o.frame = 0; }
     });
 
-    for(let i = jutsuProjectiles.length - 1; i >= 0; i--){
-      let jp = jutsuProjectiles[i];
-      jp.x += jp.dir * jp.speed * dt;
-      jp.life -= dt;
-      if(jp.life <= 0) jutsuProjectiles.splice(i, 1);
+    // jutsu projectile güncelleme
+    for (let i = jutsuProjectiles.length - 1; i >= 0; i--) {
+      const p = jutsuProjectiles[i];
+      p.x += p.vx * dt; p.dist += Math.abs(p.vx) * dt; p.frameT += dt;
+      if (p.frameT > 0.08) { p.frameT = 0; p.frame = (p.frame + 1) % 4; }
+      if (p.dist > p.range || Math.abs(p.x) > WORLD_SIZE / 2 || Math.abs(p.y) > WORLD_SIZE / 2) { jutsuProjectiles.splice(i, 1); continue; }
+      let hit = false;
+      for (const mob of mobs) {
+        if (mob.dead) continue;
+        if (Math.hypot(p.x - mob.x, p.y - mob.y) < 18) {
+          const isCrit = Math.random() < myStats.critChance;
+          const totalDmg = Math.floor(p.damage * myStats.damage * (window.__dmgMult || 1) * (isCrit ? 1.8 : 1));
+          damageMob(mob, totalDmg, isCrit); hit = true; break;
+        }
+      }
+      if (hit) jutsuProjectiles.splice(i, 1);
     }
-    for(let i = effects.length - 1; i >= 0; i--){
-      let e = effects[i];
-      e.x += e.vx * dt; e.y += e.vy * dt; e.vx *= 0.92; e.vy *= 0.92; e.life -= dt;
-      if(e.life <= 0) effects.splice(i, 1);
+    for (let i = jutsuUltimates.length - 1; i >= 0; i--) {
+      const u = jutsuUltimates[i];
+      u.life -= dt;
+      if (Math.random() < dt * 2) { for (const mob of mobs) { if (mob.dead) continue; if (Math.hypot(mob.x - u.x, mob.y - u.y) < u.radius) damageMob(mob, u.damage, false); } }
+      if (u.life <= 0) jutsuUltimates.splice(i, 1);
     }
-    for(let i = shockwaves.length - 1; i >= 0; i--){
-      let s = shockwaves[i];
-      s.r += dt * 220; s.life -= dt;
-      if(s.life <= 0) shockwaves.splice(i, 1);
+    jutsuCooldowns.j = Math.max(0, jutsuCooldowns.j - dt);
+    jutsuCooldowns.k = Math.max(0, jutsuCooldowns.k - dt);
+    updateBuffs(dt); updateBuffHud();
+
+    // mob AI
+    for (let i = mobs.length - 1; i >= 0; i--) {
+      const m = mobs[i];
+      const def = MOB_TYPES[m.type];
+      if (m.dead) { m.respawnT -= dt; if (m.respawnT <= 0) respawnMob(m); continue; }
+      m.attackCd = Math.max(0, m.attackCd - dt);
+      m.stateT += dt; m.frameT += dt;
+      if (m.frameT > 0.18) { m.frameT = 0; m.frame = (m.frame + 1) % 2; }
+      let closestPlayer = null, closestDist = Infinity;
+      const dSelf = Math.hypot(m.x - myPos.x, m.y - myPos.y);
+      if (dSelf < def.aggroRange && dSelf < closestDist) { closestDist = dSelf; closestPlayer = { id: socket.id, x: myPos.x, y: myPos.y }; }
+      Object.keys(others).forEach(id => { const o = others[id]; const d = Math.hypot(m.x - o.x, m.y - o.y); if (d < def.aggroRange && d < closestDist) { closestDist = d; closestPlayer = { id, x: o.x, y: o.y }; } });
+      if (closestPlayer && closestDist < def.aggroRange) { m.target = closestPlayer; m.state = closestDist < def.attackRange ? 'attack' : 'chase'; }
+      else { m.target = null; if (m.state === 'idle' && m.stateT > 4) { m.state = 'patrol'; m.stateT = 0; } else if (m.state === 'patrol' && m.stateT > 6) { m.state = 'idle'; m.stateT = 0; } else if ((m.state === 'chase' || m.state === 'attack') && m.stateT > 8) { m.state = 'idle'; m.stateT = 0; } }
+      let moveX = 0, moveY = 0;
+      if (m.state === 'chase' && m.target) { const dx = m.target.x - m.x, dy = m.target.y - m.y, d = Math.hypot(dx, dy) || 1; moveX = (dx/d)*def.speed*dt; moveY = (dy/d)*def.speed*dt; m.dir = dx < 0 ? -1 : 1; }
+      else if (m.state === 'patrol') { const ang = performance.now()*0.0005 + m.id; const tx = m.homeX + Math.cos(ang)*40, ty = m.homeY + Math.sin(ang)*40; const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx,dy) || 1; moveX = (dx/d)*def.speed*0.5*dt; moveY = (dy/d)*def.speed*0.5*dt; }
+      m.x += moveX; m.y += moveY;
+      if (m.state === 'attack' && m.attackCd <= 0 && closestPlayer) {
+        m.attackCd = 1.2;
+        if (closestPlayer.id === socket.id) {
+          const reducedDmg = Math.max(1, def.damage - myStats.defense);
+          myStats.hp -= reducedDmg;
+          if (myStats.hp < 0) myStats.hp = 0;
+          updateLevelHud();
+          floatText(myPos.x, myPos.y - 20, `-${reducedDmg}`, '#ff6a5a');
+          shake(8); playSound('hit');
+          if (myStats.hp <= 0) document.getElementById('overScreen').classList.remove('hidden');
+        }
+      }
     }
-    for(let i = flashes.length - 1; i >= 0; i--){
-      flashes[i].life -= dt;
-      if(flashes[i].life <= 0) flashes.splice(i, 1);
-    }
-    for(let j = floatTexts.length - 1; j >= 0; j--){
-      floatTexts[j].y -= dt * 18; floatTexts[j].life -= dt;
-      if(floatTexts[j].life <= 0) floatTexts.splice(j, 1);
-    }
-    shakeAmt *= 0.88;
+
+    for (let i = effects.length - 1; i >= 0; i--) { const e = effects[i]; e.x += e.vx*dt; e.y += e.vy*dt; e.vx *= 0.9; e.vy *= 0.9; e.life -= dt; if (e.life <= 0) effects.splice(i, 1); }
+    for (let i = shockwaves.length - 1; i >= 0; i--) { const s = shockwaves[i]; s.r += dt * 260; s.life -= dt; if (s.life <= 0) shockwaves.splice(i, 1); }
+    for (let i = flashes.length - 1; i >= 0; i--) { flashes[i].life -= dt; if (flashes[i].life <= 0) flashes.splice(i, 1); }
+    for (let j = floatTexts.length - 1; j >= 0; j--) { floatTexts[j].y -= dt * 20; floatTexts[j].life -= dt; if (floatTexts[j].life <= 0) floatTexts.splice(j, 1); }
+    shakeAmt *= 0.85;
 
     render();
   }
 
-  function render(){
-    let w = canvas.width, h = canvas.height;
-    ctx.fillStyle = '#5a9c4a';
-    ctx.fillRect(0, 0, w, h);
+  function render() {
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = '#5a9c4a'; ctx.fillRect(0, 0, w, h);
+    const sx = -myPos.x + w / 2 + (Math.random() - 0.5) * shakeAmt;
+    const sy = -myPos.y + h / 2 + (Math.random() - 0.5) * shakeAmt;
+    if (!groundTilePattern) groundTilePattern = ctx.createPattern(groundCanvas, 'repeat');
+    ctx.save(); ctx.translate(sx % 64, sy % 64); ctx.fillStyle = groundTilePattern; ctx.fillRect(-64, -64, w + 128, h + 128); ctx.restore();
 
-    let sx = -myPos.x + w/2 + (Math.random()-0.5)*shakeAmt;
-    let sy = -myPos.y + h/2 + (Math.random()-0.5)*shakeAmt;
-
-    if(!groundTilePattern) groundTilePattern = ctx.createPattern(groundCanvas, 'repeat');
-    ctx.save();
-    ctx.translate(sx % 64, sy % 64);
-    ctx.fillStyle = groundTilePattern;
-    ctx.fillRect(-64, -64, w+128, h+128);
-    ctx.restore();
-
-    // Resources
+    // resources
     resourceNodes.forEach(n => {
-      if(!n.alive) return;
-      let x = n.x + sx, y = n.y + sy;
-      if(x < -50 || x > w+50 || y < -50 || y > h+50) return;
-      let sprite = n.type === 'wood' ? treeSprite : rockSprite;
-      ctx.drawImage(sprite, x - sprite.width, y - sprite.height, sprite.width*2, sprite.height*2);
+      if (!n.alive) return;
+      const x = n.x + sx, y = n.y + sy;
+      if (x < -40 || x > w + 40 || y < -40 || y > h + 40) return;
+      const sprite = n.type === 'wood' ? treeSprite : rockSprite;
+      ctx.drawImage(sprite, x - sprite.width, y - sprite.height, sprite.width * 2, sprite.height * 2);
     });
 
-    // NPCs
+    // NPC'ler
     npcs.forEach(npc => {
-      let x = npc.x + sx, y = npc.z + sy;
-      if(x < -60 || x > w+60 || y < -60 || y > h+60) return;
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath(); ctx.ellipse(x, y+18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = npc.color;
-      ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = npc.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.25 + Math.sin(performance.now()/500)*0.15;
-      ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.font = '600 11px "Space Grotesk", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(npc.name, x, y - 22);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '500 9px sans-serif';
-      ctx.fillText(npc.type==='market'?'[Market]':npc.type==='healer'?'[Sifaci]':'[Demirci]', x, y - 12);
+      const px = npc.x + sx, py = npc.y + sy;
+      if (px < -50 || px > w + 50 || py < -50 || py > h + 50) return;
+      const sprite = npc.def.sprite;
+      ctx.fillStyle = 'rgba(6,12,9,0.4)'; ctx.beginPath(); ctx.ellipse(px, py + 4, 18, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(sprite, px - sprite.width, py - sprite.height * 1.7, sprite.width * 2, sprite.height * 1.7);
+      ctx.font = '700 11px "Space Grotesk", monospace'; ctx.textAlign = 'center';
+      const label = `⚜️ ${npc.def.name}`;
+      const lw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(6,12,9,0.85)'; ctx.fillRect(px - lw / 2 - 5, py - sprite.height * 1.7 - 18, lw + 10, 15);
+      ctx.fillStyle = '#e8c850'; ctx.fillText(label, px, py - sprite.height * 1.7 - 7);
+      const d = Math.hypot(npc.x - myPos.x, npc.y - myPos.y);
+      if (d < 60) { ctx.font = '600 10px "Space Grotesk", monospace'; ctx.fillStyle = 'rgba(76, 224, 196, 0.95)'; ctx.fillText('[E] Konuş', px, py - sprite.height * 1.7 - 32); }
+      ctx.fillStyle = 'rgba(120, 100, 80, 0.3)'; ctx.beginPath(); ctx.arc(px, py + 4, 28, 0, Math.PI * 2); ctx.fill();
     });
 
-    // Mobs
-    mobs.forEach(m => {
-      if(!m.alive) return;
-      let x = m.x + sx, y = m.z + sy;
-      if(x < -60 || x > w+60 || y < -60 || y > h+60) return;
-      if(!mobSprites[m.type]) mobSprites[m.type] = makeMobSprite(m.type);
-      let sp = mobSprites[m.type];
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath(); ctx.ellipse(x, y+16, 14, 5, 0, 0, Math.PI*2); ctx.fill();
-      ctx.drawImage(sp, x - sp.width/2, y - sp.height/2, sp.width, sp.height);
-      let barW = 32, barH = 5;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(x - barW/2, y - sp.height/2 - 12, barW, barH);
-      ctx.fillStyle = m.hitFlash ? '#fff' : (m.hp > m.maxHp*0.5 ? '#ff6a5a' : '#e24b4a');
-      ctx.fillRect(x - barW/2, y - sp.height/2 - 12, barW * (m.hp/m.maxHp), barH);
-      ctx.font = 'bold 10px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffcf6b';
-      ctx.fillText('Lv.' + m.level, x, y - sp.height/2 - 16);
-      ctx.font = '500 9px sans-serif';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(m.name, x, y + sp.height/2 + 14);
-    });
-
-    function drawChar(x, y, sprites, frame, dir, name, inv, jt){
-      let sp = sprites[frame];
-      ctx.fillStyle = 'rgba(6,12,9,0.3)';
-      ctx.beginPath(); ctx.ellipse(x, y+4, sp.width*0.9, sp.width*0.32, 0, 0, Math.PI*2); ctx.fill();
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(dir, 1);
-      ctx.drawImage(sp, -sp.width, -sp.height*1.55, sp.width*2, sp.height*1.55);
-      if(inv && (inv.sword || inv.pickaxe || inv.axe)){
-        let wc = inv.sword ? '#c9d3da' : (inv.pickaxe ? '#8a8f9a' : '#c9793f');
-        ctx.strokeStyle = wc; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(sp.width*0.6, -sp.height*0.9); ctx.lineTo(sp.width*1.1, -sp.height*1.5); ctx.stroke();
+    function drawChar(x, y, sprites, frame, dir, name, inv, level, clan) {
+      const sp = sprites[frame];
+      ctx.fillStyle = 'rgba(6,12,9,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 3, sp.width * 0.9, sp.width * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+      ctx.drawImage(sp, -sp.width, -sp.height * 1.6, sp.width * 2, sp.height * 1.6);
+      if (inv && (inv.sword || inv.pickaxe || inv.axe)) {
+        const wc = inv.sword ? '#c9d3da' : (inv.pickaxe ? '#8a8f9a' : '#c9793f');
+        ctx.strokeStyle = wc; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(sp.width * 0.55, -sp.height * 0.9); ctx.lineTo(sp.width * 1.0, -sp.height * 1.5); ctx.stroke();
       }
       ctx.restore();
-      if(jt){
-        let jc = JUTSU_COLORS[jt] || JUTSU_COLORS.fire;
-        ctx.globalAlpha = 0.12 + Math.sin(performance.now()/400)*0.08;
-        ctx.fillStyle = jc.glow;
-        ctx.beginPath(); ctx.arc(x, y - sp.height*1.2, 22, 0, Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 1;
+      if (clan && CLANS[clan]) {
+        const cl = CLANS[clan];
+        ctx.fillStyle = cl.color; ctx.fillRect(x - 30, y - sp.height * 1.6 * 2 - 16, 4, 12);
       }
-      if(name){
-        ctx.font = '600 11px "Space Grotesk", monospace';
-        ctx.textAlign = 'center';
-        let tw = ctx.measureText(name).width;
-        ctx.fillStyle = 'rgba(6,12,9,0.65)';
-        ctx.fillRect(x - tw/2 - 5, y - sp.height*1.55*2 - 18, tw + 10, 16);
-        ctx.fillStyle = '#4ce0c4';
-        ctx.fillText(name, x, y - sp.height*1.55*2 - 6);
+      if (name) {
+        ctx.font = '600 11px "Space Grotesk", monospace'; ctx.textAlign = 'center';
+        const tag = (level ? `Lv${level} ` : '') + name;
+        const nw = ctx.measureText(tag).width;
+        ctx.fillStyle = 'rgba(6,12,9,0.65)'; ctx.fillRect(x - nw / 2 - 5, y - sp.height * 1.6 * 2 - 16, nw + 10, 15);
+        ctx.fillStyle = '#4ce0c4'; ctx.fillText(tag, x, y - sp.height * 1.6 * 2 - 5);
       }
     }
 
-    Object.keys(others).forEach(id => {
-      let o = others[id];
-      drawChar(o.x + sx, o.y + sy, o.sprites, o.frame, o.dir, o.username, o.inventory, o.jutsuType);
-    });
-    if(mySprites) drawChar(myPos.x + sx, myPos.y + sy, mySprites, myFrame, myDir, myUsername, myInventory, myJutsuType);
-
-    // Jutsu projectiles
-    jutsuProjectiles.forEach(jp => {
-      let x = jp.x + sx, y = jp.y + sy;
-      let colors = JUTSU_COLORS[jp.type] || JUTSU_COLORS.fire;
-      ctx.globalAlpha = 0.85;
-      if(jp.type === 'fire'){
-        ctx.fillStyle = colors.core; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.glow; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
-      } else if(jp.type === 'water'){
-        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.ellipse(x, y, 16, 10, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = colors.glow; ctx.beginPath(); ctx.ellipse(x, y, 10, 6, 0, 0, Math.PI*2); ctx.fill();
-      } else if(jp.type === 'lightning'){
-        ctx.strokeStyle = colors.glow; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(x-18, y); ctx.lineTo(x+18, y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x, y-12); ctx.lineTo(x, y+12); ctx.stroke();
-        ctx.fillStyle = colors.core; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill();
-      } else if(jp.type === 'wind'){
-        ctx.strokeStyle = colors.glow; ctx.lineWidth = 3;
-        for(let i=0; i<3; i++){ ctx.beginPath(); ctx.moveTo(x-14, y-6+i*6); ctx.lineTo(x+14, y-6+i*6); ctx.stroke(); }
-      } else if(jp.type === 'earth'){
-        ctx.fillStyle = colors.base; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#5c3a1e'; ctx.beginPath(); ctx.arc(x-4, y-4, 5, 0, Math.PI*2); ctx.fill();
+    // mob'lar
+    mobs.forEach(m => {
+      if (m.dead) return;
+      const def = MOB_TYPES[m.type];
+      const px = m.x + sx, py = m.y + sy;
+      if (px < -50 || px > w + 50 || py < -50 || py > h + 50) return;
+      ctx.fillStyle = 'rgba(6,12,9,0.4)'; ctx.beginPath(); ctx.ellipse(px, py + 4, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+      const sprite = mobSprites[m.type][m.frame];
+      ctx.save(); ctx.translate(px, py); ctx.scale(m.dir, 1);
+      ctx.drawImage(sprite, -sprite.width, -sprite.height * 1.7, sprite.width * 2, sprite.height * 1.7);
+      ctx.restore();
+      if (m.hp < m.maxHp) {
+        const bw = 36, bh = 4, bx = px - bw / 2, by = py - sprite.height * 1.7 - 6;
+        ctx.fillStyle = 'rgba(6,12,9,0.7)'; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = m.hp / m.maxHp > 0.4 ? '#4ce0c4' : '#ff6a5a'; ctx.fillRect(bx, by, bw * (m.hp / m.maxHp), bh);
       }
-      ctx.globalAlpha = 1;
+      const distToMe = Math.hypot(m.x - myPos.x, m.y - myPos.y);
+      if (distToMe < 200) {
+        ctx.font = '600 10px "Space Grotesk", monospace'; ctx.textAlign = 'center';
+        const label = `Lv${def.level} ${def.name}`;
+        const lw = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(6,12,9,0.7)'; ctx.fillRect(px - lw / 2 - 4, py - sprite.height * 1.7 - 22, lw + 8, 13);
+        ctx.fillStyle = def.color; ctx.fillText(label, px, py - sprite.height * 1.7 - 12);
+      }
     });
 
-    // Effects
+    Object.keys(others).forEach(id => {
+      const o = others[id];
+      drawChar(o.x + sx, o.y + sy, o.sprites, o.frame, o.dir, o.username, o.inventory, o.level, o.clan);
+    });
+    if (mySprites) drawChar(myPos.x + sx, myPos.y + sy, mySprites, myFrame, myDir, myUsername, myInventory, myLevel, playerClan);
+
+    // jutsu projectile
+    jutsuProjectiles.forEach(p => {
+      const sprite = jutsuSprites[p.clan] && jutsuSprites[p.clan][p.frame];
+      if (!sprite) return;
+      const px = p.x + sx, py = p.y + sy;
+      ctx.drawImage(sprite, px - sprite.width, py - sprite.height, sprite.width * 2, sprite.height * 2);
+    });
+
     effects.forEach(e => {
-      let a = Math.max(0, e.life / e.maxLife);
-      ctx.globalAlpha = a * 0.5;
-      ctx.fillStyle = e.color;
-      ctx.beginPath(); ctx.arc(e.x + sx, e.y + sy, e.size * 2.5, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = a;
-      ctx.fillRect(e.x + sx - e.size/2, e.y + sy - e.size/2, e.size, e.size);
+      const a = Math.max(0, e.life / e.maxLife);
+      ctx.globalAlpha = a * 0.35; ctx.fillStyle = e.color;
+      ctx.beginPath(); ctx.arc(e.x + sx, e.y + sy, e.size * 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = a; ctx.fillRect(e.x + sx - e.size / 2, e.y + sy - e.size / 2, e.size, e.size);
       ctx.globalAlpha = 1;
     });
+    shockwaves.forEach(s => { const a = Math.max(0, s.life / s.maxLife); ctx.globalAlpha = a * 0.8; ctx.strokeStyle = s.color; ctx.lineWidth = 3 * a + 0.5; ctx.beginPath(); ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; });
+    flashes.forEach(f => { const a = Math.max(0, f.life / f.maxLife); ctx.globalAlpha = a; ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x + sx, f.y + sy, 26 * a, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; });
+    floatTexts.forEach(f => { ctx.globalAlpha = Math.max(0, f.life); ctx.fillStyle = f.color; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center'; ctx.fillText(f.text, f.x + sx, f.y + sy); ctx.globalAlpha = 1; });
 
-    // Shockwaves
-    shockwaves.forEach(s => {
-      let a = Math.max(0, s.life / s.maxLife);
-      ctx.globalAlpha = a * 0.75;
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = 3 * a + 0.5;
-      ctx.beginPath(); ctx.arc(s.x + sx, s.y + sy, s.r, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha = 1;
-    });
-
-    // Flashes
-    flashes.forEach(f => {
-      let a = Math.max(0, f.life / f.maxLife);
-      ctx.globalAlpha = a;
-      ctx.fillStyle = f.color;
-      ctx.beginPath(); ctx.arc(f.x + sx, f.y + sy, 30 * a, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-
-    // Float texts
-    floatTexts.forEach(f => {
-      ctx.globalAlpha = Math.max(0, f.life);
-      ctx.fillStyle = f.color;
-      ctx.font = 'bold 14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(f.text, f.x + sx, f.y + sy);
-      ctx.globalAlpha = 1;
-    });
-
-    // Chat bubbles
     const now = performance.now();
     Object.keys(chatBubbles).forEach(id => {
       const b = chatBubbles[id];
-      if(now > b.until){ delete chatBubbles[id]; return; }
+      if (now > b.until) { delete chatBubbles[id]; return; }
       let px, py;
-      if(id === socket.id){ px = myPos.x + sx; py = myPos.y + sy; }
-      else if(others[id]){ px = others[id].x + sx; py = others[id].y + sy; }
+      if (id === socket.id) { px = myPos.x + sx; py = myPos.y + sy; }
+      else if (others[id]) { px = others[id].x + sx; py = others[id].y + sy; }
       else return;
-      ctx.font = '600 12px "Space Grotesk", sans-serif';
-      ctx.textAlign = 'center';
+      ctx.font = '600 12px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
       const tw = ctx.measureText(b.text).width;
-      const bx = px, by = py - 68;
-      ctx.fillStyle = 'rgba(20,34,25,0.92)';
-      ctx.beginPath(); ctx.roundRect(bx - tw/2 - 8, by - 12, tw + 16, 22, 8); ctx.fill();
-      ctx.fillStyle = '#eaf3ec';
-      ctx.fillText(b.text, bx, by + 4);
+      const bx = px, by = py - 62;
+      ctx.fillStyle = 'rgba(20,34,25,0.92)'; ctx.beginPath(); ctx.roundRect(bx - tw / 2 - 8, by - 12, tw + 16, 22, 8); ctx.fill();
+      ctx.fillStyle = '#eaf3ec'; ctx.fillText(b.text, bx, by + 4);
     });
   }
-})();
 
+  function initGame() {
+    myColor = CLANS[playerClan].color;
+    mySprites = buildCharacterSet(myColor);
+    seedWorld(); spawnInitialMobs(); resize();
+    updateLevelHud(); updateRyoHud();
+    requestAnimationFrame(loop);
+  }
+})();
 </script>
 </body>
 </html>
