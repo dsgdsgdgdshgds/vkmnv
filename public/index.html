@@ -465,11 +465,11 @@ html, body {
 
   // ═══════════════════ MOB DEFS ═══════════════════
   const MOB_TYPES = {
-    zombie:   { id:'zombie',   name:'Kara Zombi',       level:1,  maxHp:40,  damage:8,  speed:50,  xp:25,  ryo:5,  respawnTime:8,  aggroRange:80,  attackRange:18, color:'#5a7a55', accent:'#8ba896', size:28 },
-    skeleton: { id:'skeleton', name:'Kemik Ashigaru',   level:3,  maxHp:70,  damage:14, speed:65,  xp:55,  ryo:12, respawnTime:12, aggroRange:95,  attackRange:20, color:'#d4d0c0', accent:'#8a8470', size:30 },
-    rogue:    { id:'rogue',    name:'Gölge Haydut',     level:6,  maxHp:110, damage:22, speed:95,  xp:110, ryo:28, respawnTime:15, aggroRange:110, attackRange:22, color:'#3a2a4a', accent:'#7a5a9a', size:30 },
-    beast:    { id:'beast',    name:'Orman Yokai',      level:10, maxHp:200, damage:35, speed:75,  xp:220, ryo:60, respawnTime:20, aggroRange:120, attackRange:28, color:'#7a4a2a', accent:'#c97a3a', size:36 },
-    oni:      { id:'oni',      name:'Turuncu Oni',      level:15, maxHp:380, damage:55, speed:80,  xp:480, ryo:140,respawnTime:30, aggroRange:130, attackRange:32, color:'#c4482a', accent:'#e8a050', size:40 }
+    zombie:   { id:'zombie',   name:'Kara Zombi',       level:1,  maxHp:40,  damage:6,  speed:50,  xp:25,  ryo:5,  respawnTime:10, aggroRange:60,  attackRange:16, color:'#5a7a55', accent:'#8ba896', size:28 },
+    skeleton: { id:'skeleton', name:'Kemik Ashigaru',   level:3,  maxHp:70,  damage:10, speed:65,  xp:55,  ryo:12, respawnTime:15, aggroRange:75,  attackRange:18, color:'#d4d0c0', accent:'#8a8470', size:30 },
+    rogue:    { id:'rogue',    name:'Gölge Haydut',     level:6,  maxHp:110, damage:16, speed:95,  xp:110, ryo:28, respawnTime:18, aggroRange:90,  attackRange:20, color:'#3a2a4a', accent:'#7a5a9a', size:30 },
+    beast:    { id:'beast',    name:'Orman Yokai',      level:10, maxHp:200, damage:25, speed:75,  xp:220, ryo:60, respawnTime:25, aggroRange:100, attackRange:24, color:'#7a4a2a', accent:'#c97a3a', size:36 },
+    oni:      { id:'oni',      name:'Turuncu Oni',      level:15, maxHp:380, damage:40, speed:80,  xp:480, ryo:140,respawnTime:35, aggroRange:110, attackRange:28, color:'#c4482a', accent:'#e8a050', size:40 }
   };
 
   // ═══════════════════ MARKET ITEMS ═══════════════════
@@ -1052,12 +1052,33 @@ html, body {
   }
   function spawnInitialMobs() {
     mobs = [];
-    [['zombie',18],['skeleton',12],['rogue',8],['beast',5],['oni',2]].forEach(([t,c]) => { for (let i=0; i<c; i++) spawnMob(t); });
+    // Mob sayıları azaltıldı: toplam ~25 (önce ~45'ti)
+    [['zombie',10],['skeleton',7],['rogue',5],['beast',3],['oni',1]].forEach(([t,c]) => {
+      for (let i=0; i<c; i++) {
+        const m = spawnMob(t);
+        // Spawn noktasina (0,0) çok yakın mob'ları uzağa at
+        const distFromSpawn = Math.hypot(m.x, m.y);
+        if (distFromSpawn < 350) {
+          const ang = Math.atan2(m.y, m.x);
+          m.x = Math.cos(ang) * 400;
+          m.y = Math.sin(ang) * 400;
+          m.homeX = m.x; m.homeY = m.y;
+        }
+      }
+    });
   }
   function respawnMob(mob) {
     const idx = mobs.indexOf(mob); if (idx === -1) return;
     mobs.splice(idx, 1);
     const newMob = spawnMob(mob.type);
+    // Güvenli alan: spawn noktasindan (0,0) en az 350px uzakta olmalı
+    const distFromSpawn = Math.hypot(newMob.x, newMob.y);
+    if (distFromSpawn < 350) {
+      const ang = Math.atan2(newMob.y, newMob.x);
+      newMob.x = Math.cos(ang) * 400;
+      newMob.y = Math.sin(ang) * 400;
+      newMob.homeX = newMob.x; newMob.homeY = newMob.y;
+    }
     const dist = Math.hypot(newMob.x - myPos.x, newMob.y - myPos.y);
     if (dist < 600) playSound('spawn');
   }
@@ -1291,7 +1312,15 @@ html, body {
   });
   document.getElementById('respawnBtn').onclick = () => {
     document.getElementById('overScreen').classList.add('hidden');
+    // Tüm mob'larin hedefini temizle — oyuncu ölünce mob'lar takip etmeyi biraksın
+    mobs.forEach(m => { if (m) { m.target = null; m.state = 'idle'; m.stateT = 0; } });
+    // HP'yi fulle, pozisyonu sıfırla
+    myStats.hp = myStats.maxHp;
+    myHp = myStats.maxHp;
+    myPos.x = 0; myPos.y = 0;
+    updateLevelHud();
     socket.emit('respawn');
+    toast('Yeniden doğdun!');
   };
 
   // ═══════════════════ LEVEL / XP / RYO HUD ═══════════════════
