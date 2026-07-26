@@ -389,7 +389,7 @@ const monsters = [];
         monsters.push({
             id: 'm' + i, type: t.type, name: t.name, level: t.level,
             maxHp: t.hp, hp: t.hp, xpReward: t.xp,
-            x: p[0], y: p[1], alive: true
+            x: p[0], y: p[1], spawnX: p[0], spawnY: p[1], alive: true
         });
     });
 })();
@@ -397,6 +397,18 @@ const monsters = [];
 function publicMonster(m) {
     return { id: m.id, type: m.type, name: m.name, level: m.level, maxHp: m.maxHp, hp: m.hp, x: m.x, y: m.y, alive: m.alive };
 }
+
+// Canavarlar spawn noktalarının yakınında yavaşça devriye geziyor (donuk durmasınlar diye).
+setInterval(() => {
+    monsters.forEach((m) => {
+        if (!m.alive) return;
+        const ang = Math.random() * Math.PI * 2;
+        const r = Math.random() * 70;
+        m.x = m.spawnX + Math.cos(ang) * r;
+        m.y = m.spawnY + Math.sin(ang) * r;
+        io.emit('monsterMoved', { id: m.id, x: m.x, y: m.y });
+    });
+}, 3000);
 
 function xpForLevel(level) {
     return 40 + level * 25;
@@ -420,6 +432,7 @@ function grantXp(socket, player, amount) {
 function respawnMonster(m) {
     m.hp = m.maxHp;
     m.alive = true;
+    m.x = m.spawnX; m.y = m.spawnY;
     io.emit('monsterRespawned', publicMonster(m));
 }
 
@@ -739,7 +752,7 @@ io.on('connection', (socket) => {
         const target = activePlayers[targetId];
         if (attacker && target) {
             const dist = Math.sqrt(Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.z - target.z, 2));
-            if (dist < 5) {
+            if (dist < 60) {
                 let damage = attacker.inventory.sword > 0 ? 30 : 10;
                 target.hp -= damage;
                 if (target.hp <= 0) {
@@ -756,7 +769,7 @@ io.on('connection', (socket) => {
         const m = monsters.find(mo => mo.id === monsterId);
         if (!attacker || !m || !m.alive) return;
         const dist = Math.sqrt(Math.pow(attacker.x - m.x, 2) + Math.pow(attacker.z - m.y, 2));
-        if (dist > 6) return;
+        if (dist > 60) return;
         const damage = (attacker.inventory.sword > 0 ? 30 : 10) + (attacker.level || 1) * 2;
         m.hp -= damage;
         if (m.hp <= 0) {
