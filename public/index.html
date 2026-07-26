@@ -1563,9 +1563,8 @@ html, body {
   }
   document.getElementById('interactBtn').addEventListener('touchstart', e => { doInteract(); e.preventDefault(); });
   window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'e') doInteract(); });
-  canvas.addEventListener('dblclick', doInteract);
 
-  // ═══════════════════ CHAT ═══════════════════
+  // ═══════════════════ CHAT ════════════════════════════════════════════════════════════════════════════════════════════════════════
   const chatLog = document.getElementById('chatLog');
   const chatInput = document.getElementById('chatInput');
   function appendChatLine(username, text) {
@@ -1620,6 +1619,7 @@ html, body {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  canvas.addEventListener('dblclick', doInteract);
   function resize() {
     // Önce clientWidth dene, 0 ise parent'tan, o da 0 ise window'dan al
     let w = canvas.clientWidth;
