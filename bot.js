@@ -1,593 +1,109 @@
-const {
-    Client,
-    GatewayIntentBits,
-    Events,
-    ActionRowBuilder,
-    AttachmentBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    EmbedBuilder
-} = require('discord.js');
-const fs = require('fs');
-const http = require('http');
-const express = require('express');
-const { Server } = require('socket.io');
-const path = require('path');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-const { HfInference } = require('@huggingface/inference');
-require('dotenv').config();
+const { Client } = require('discord.js-selfbot-v13');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-const PORT = process.env.PORT || 3000;
+const TOKEN = process.env.token;
+const TRIGGER_WORD = 'partnerkee';
+const TARGET_CHANNEL_ID = '1425226279279657112';
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
+const client = new Client({ checkUpdate: false });
 
-let DATA_DIR = process.env.DATA_DIR || '/var/data';
-try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.accessSync(DATA_DIR, fs.constants.W_OK);
-} catch (err) {
-    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor (${err.code}). Render'da bir Disk eklenmemiş olabilir.`);
-    DATA_DIR = path.join(__dirname, 'data');
-    console.error(`⚠️ Bunun yerine "${DATA_DIR}" kullanılıyor.`);
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-const dbPath = path.join(DATA_DIR, 'kanal-ayar.json');
-const cooldownPath = path.join(DATA_DIR, 'partner-cooldowns.json');
-const playersDataPath = path.join(DATA_DIR, 'players.json');
+const randomDelay = (min, max) => new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (max - min + 1)) + min));
+const fixedDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
+let isRunning = false;
 
-function dbSet(key, value) {
-    let data = {};
-    try { data = JSON.parse(fs.readFileSync(dbPath, 'utf8')); } catch (err) {}
-    data[key] = value;
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
-}
-function dbGet(key) {
-    try { const data = JSON.parse(fs.readFileSync(dbPath, 'utf8')); return data[key] ?? null; } catch (err) { return null; }
-}
-function getCooldowns() { try { return JSON.parse(fs.readFileSync(cooldownPath, 'utf8')); } catch (err) { return {}; } }
-function saveCooldowns(cooldowns) { fs.writeFileSync(cooldownPath, JSON.stringify(cooldowns, null, 2), 'utf8'); }
-function setUserCooldown(userId, guildId, untilTimestamp) {
-    const cooldowns = getCooldowns();
-    cooldowns[`${userId}_${guildId}`] = untilTimestamp;
-    saveCooldowns(cooldowns);
-}
-function getUserCooldownUntil(userId, guildId) { return getCooldowns()[`${userId}_${guildId}`] || 0; }
-function parseDuration(str) {
-    if (!str || str === '0') return 0;
-    const regex = /(\d+)([smhd])/gi;
-    let total = 0, match;
-    while ((match = regex.exec(str)) !== null) {
-        const value = parseInt(match[1], 10), unit = match[2].toLowerCase();
-        if (unit === 's') total += value * 1000;
-        else if (unit === 'm') total += value * 60 * 1000;
-        else if (unit === 'h') total += value * 3600 * 1000;
-        else if (unit === 'd') total += value * 86400 * 1000;
-    }
-    return total;
-}
-function formatRemaining(ms) {
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s} saniye`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m} dk`;
-    return `${Math.floor(m / 60)} saat`;
-}
-
-function hashPassword(plain) {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
-    return `${salt}:${hash}`;
-}
-function verifyPassword(plain, stored) {
-    if (!stored || !stored.includes(':')) return false;
-    const [salt, hash] = stored.split(':');
-    const check = crypto.scryptSync(plain, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex'));
-}
-function publicPlayer(p) { if (!p) return p; const { password, ...safe } = p; return safe; }
-function publicPlayers(all) { const out = {}; for (const id of Object.keys(all)) out[id] = publicPlayer(all[id]); return out; }
-
-const hf = new HfInference(process.env.meshy);
-const CHARACTERS = [
-    "Muichiro Tokito anime character, mist hashira, detailed 3d model",
-    "Naruto Uzumaki, sage mode, spiky hair, 3d avatar",
-    "Edward Elric, fullmetal alchemist, 3d model"
-];
-async function generateFree3D(message, prompt) {
-    const charName = prompt.split(',')[0];
-    try {
-        console.log(`[BAŞLADI] ${charName} oluşturuluyor...`);
-        const response = await hf.textTo3D({ model: 'stabilityai/stable-fast-3d', inputs: prompt });
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const fileName = `${charName.replace(/\s+/g, '_')}.glb`;
-        fs.writeFileSync(fileName, buffer);
-        await message.channel.send({ content: `✅ **${charName}** tamamen ücretsiz oluşturuldu!`, files: [new AttachmentBuilder(fileName)] });
-        fs.unlinkSync(fileName);
-    } catch (err) {
-        console.error(err);
-        await message.channel.send(`❌ **${charName}** sırasında Hugging Face sunucusu yoğun olabilir, tekrar dene.`);
-    }
-}
-
-client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot || !message.guild) return;
-    const prefix = message.content.trim().split(/ +/)[0].toLowerCase();
-    const args = message.content.trim().split(/ +/).slice(1).join(' ');
-
-    if (prefix === '!oluştur') {
-        message.reply("🚀 **Açık kaynaklı modellerle ücretsiz üretim başladı!**");
-        CHARACTERS.forEach(char => generateFree3D(message, char));
-        return;
-    }
-    if (prefix === '#yardım') {
-        const embed = new EmbedBuilder().setTitle('Partner Bot Komutları').setColor('#00D166')
-            .addFields(
-                { name: '#partner-yetkili @rol', value: 'Yetkili rolü', inline: true },
-                { name: '#partner-sistem #kanal', value: 'Başvuru kanalı', inline: true },
-                { name: '#partner-kanal #kanal', value: 'Reklam kanalı', inline: true },
-                { name: '#partner-log #kanal', value: 'Log kanalı', inline: true },
-                { name: '#partner-mesaj [mesaj]', value: 'Davet metni', inline: false },
-                { name: '#partner-bekleme [süre]', value: 'Cooldown (30m, 1h vb.)', inline: false },
-                { name: '!oluştur', value: 'Ücretsiz 3D anime karakter modeli üret', inline: false }
-            );
-        return message.channel.send({ embeds: [embed] });
-    }
-    if (prefix === '#partner-yetkili') {
-        const target = message.mentions.roles.first();
-        if (!target) return message.reply('⚠️ Rol etiketle!');
-        dbSet(`hedefRol_${message.guild.id}`, target.id);
-        return message.reply('✅ Ayarlandı.');
-    }
-    if (prefix === '#partner-sistem') {
-        const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Kanal etiketle!');
-        dbSet(`sistemKanal_${message.guild.id}`, target.id);
-        return message.reply('✅ Ayarlandı.');
-    }
-    if (prefix === '#partner-kanal') {
-        const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Kanal etiketle!');
-        dbSet(`reklamKanal_${message.guild.id}`, target.id);
-        return message.reply('✅ Ayarlandı.');
-    }
-    if (prefix === '#partner-log') {
-        const target = message.mentions.channels.first();
-        if (!target) return message.reply('⚠️ Kanal etiketle!');
-        dbSet(`logKanal_${message.guild.id}`, target.id);
-        return message.reply('✅ Ayarlandı.');
-    }
-    if (prefix === '#partner-mesaj') {
-        if (!args.trim()) return message.reply('⚠️ Metin gir!');
-        dbSet(`davetMesaji_${message.guild.id}`, args);
-        return message.reply('✅ Kaydedildi.');
-    }
-    if (prefix === '#partner-bekleme') {
-        if (args === '0') { dbSet(`cooldown_${message.guild.id}`, null); return message.reply('✅ Kapatıldı.'); }
-        dbSet(`cooldown_${message.guild.id}`, args);
-        return message.reply(`✅ ${args} olarak ayarlandı.`);
-    }
-    const hedefRolId = dbGet(`hedefRol_${message.guild.id}`);
-    if (hedefRolId && message.mentions.roles.has(hedefRolId)) {
-        const sistemKanalId = dbGet(`sistemKanal_${message.guild.id}`);
-        if (message.channel.id !== sistemKanalId) return;
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('p_basvuru').setLabel('Başvuru Yap').setStyle(ButtonStyle.Success)
-        );
-        await message.channel.send({ content: '🤝 Partnerlik Başvurusu', components: [row] });
-    }
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isButton() && interaction.customId === 'p_basvuru') {
-        const modal = new ModalBuilder().setCustomId('p_modal').setTitle('Başvuru');
-        const input = new TextInputBuilder().setCustomId('p_text').setLabel('Tanıtım Metni').setStyle(TextInputStyle.Paragraph).setRequired(true);
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        await interaction.showModal(modal);
-    }
-    if (interaction.isModalSubmit() && interaction.customId === 'p_modal') {
-        await interaction.deferReply({ ephemeral: true });
-        const cooldownStr = dbGet(`cooldown_${interaction.guild.id}`);
-        if (cooldownStr) {
-            const until = getUserCooldownUntil(interaction.user.id, interaction.guild.id);
-            if (until > Date.now()) return interaction.editReply(`⏳ Beklemelisin: ${formatRemaining(until - Date.now())}`);
-        }
-        const text = interaction.fields.getTextInputValue('p_text');
-        const reklamKanalId = dbGet(`reklamKanal_${interaction.guild.id}`);
-        const davet = dbGet(`davetMesaji_${interaction.guild.id}`);
-        if (reklamKanalId) { const ch = interaction.client.channels.cache.get(reklamKanalId); if (ch) ch.send(text); }
-        if (cooldownStr) setUserCooldown(interaction.user.id, interaction.guild.id, Date.now() + parseDuration(cooldownStr));
-        await interaction.editReply(davet || "✅ Başarılı!");
-    }
-});
-
-const MAIL_FROM_NAME = 'Survival Evolution';
-const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: MAIL_USER, pass: process.env.google }
-});
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.SESSION_SECRET) {
-    console.error('⚠️ SESSION_SECRET ayarlı değil, geçici üretildi. Kalıcı olsun istiyorsan Render\'da SESSION_SECRET ekle.');
-}
-
-function signToken(username) {
-    const payload = Buffer.from(JSON.stringify({ u: username, exp: Date.now() + 90 * 24 * 60 * 60 * 1000 })).toString('base64url');
-    const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
-    return payload + '.' + sig;
-}
-function verifyToken(token) {
-    if (!token || typeof token !== 'string' || !token.includes('.')) return null;
-    const [payload, sig] = token.split('.');
-    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url');
-    if (sig !== expectedSig) return null;
-    try {
-        const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
-        if (Date.now() > data.exp) return null;
-        return data.u;
-    } catch (e) { return null; }
-}
-const pendingVerifications = {};
-const passwordResetCodes = {};
-let activePlayers = {};
-
-function generateVerifyCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
-function sendEmail(to, subject, body) {
-    const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) console.log('❌ E-posta Hatası:', error);
-        else console.log('📧 E-posta Gönderildi: ' + info.response);
-    });
-}
-
-io.on('connection', (socket) => {
-    function buildPlayerData(username, data) {
-        return {
-            username, email: data.email,
-            password: hashPassword(data.password),
-            x: 0, y: 0, z: 0,
-            color: Math.floor(Math.random() * 16777215),
-            hp: 100,
-            maxHp: 100,
-            inventory: { wood: 0, stone: 0, sword: 0, pickaxe: 0, axe: 0 },
-            level: 1, xp: 0,
-            stats: { maxHp: 100, damage: 10, speed: 130, critChance: 0.05, defense: 0 },
-            ryo: 0,
-            items: {},
-            equip: { weapon: null, armor: null, buffs: [] },
-            clan: null,
-            verified: false
-        };
-    }
-
-    function loadPlayer(username) {
-        let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        return allUsers[username] || null;
-    }
-
-    function saveAllUsers(allUsers) {
-        fs.writeFileSync(playersDataPath, JSON.stringify(allUsers, null, 2));
-    }
-
-    function activatePlayer(socketId, username, playerData) {
-        activePlayers[socketId] = {
-            ...playerData,
-            id: socketId
-        };
-    }
-
-    function emitLoginSuccess(s, user) {
-        s.emit('loginSuccess', {
-            token: signToken(user.username),
-            username: user.username,
-            clan: user.clan || null,
-            level: user.level || 1,
-            xp: user.xp || 0,
-            ryo: user.ryo || 0,
-            stats: user.stats || { maxHp: 100, damage: 10, speed: 130, critChance: 0.05, defense: 0 },
-            items: user.items || {},
-            equip: user.equip || { weapon: null, armor: null, buffs: [] }
-        });
-    }
-
-    socket.on('loginWithToken', (token) => {
-        const username = verifyToken(token);
-        if (!username) { socket.emit('loginError', 'Oturum süresi dolmuş.'); return; }
-        const user = loadPlayer(username);
-        if (!user) { socket.emit('loginError', 'Hesap bulunamadı.'); return; }
-        activatePlayer(socket.id, username, user);
-        socket.emit('updateInventory', activePlayers[socket.id].inventory);
-        emitLoginSuccess(socket, user);
-        socket.emit('currentPlayers', publicPlayers(activePlayers));
-        socket.broadcast.emit('newPlayer', publicPlayer(activePlayers[socket.id]));
-    });
-
-    socket.on('checkUsername', (username) => {
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
-        socket.emit('usernameAvailable', { available: !usernameExists });
-    });
-
-    socket.on('register', (data) => {
-        const { username, email, password } = data;
-        if (!username || username.length < 3 || username.length > 16) { socket.emit('loginError', 'Kahraman adı 3-16 karakter arasında olmalıdır.'); return; }
-        if (!/^[a-zA-Z0-9_ğüşöçıĞÜŞÖÇİ]+$/.test(username)) { socket.emit('loginError', 'Kahraman adında geçersiz karakter var.'); return; }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { socket.emit('loginError', 'Geçerli bir e-posta adresi girin.'); return; }
-        if (!password || password.length < 6) { socket.emit('loginError', 'Şifre en az 6 karakter olmalıdır.'); return; }
-
-        let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        const usernameExists = Object.keys(allUsers).some(u => u.toLowerCase() === username.toLowerCase());
-        if (usernameExists) { socket.emit('loginError', 'Bu kahraman adı zaten alınmış.'); return; }
-        const emailUsed = Object.values(allUsers).some(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (emailUsed) { socket.emit('loginError', 'Bu e-posta adresi zaten kayıtlı.'); return; }
-
-        const code = generateVerifyCode();
-        pendingVerifications[username] = {
-            code, email, password,
-            userData: buildPlayerData(username, { email, password })
-        };
-        sendEmail(email, '⚔️ Survival Evolution - E-posta Doğrulama', `Kahraman ${username}, doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`);
-        setTimeout(() => { delete pendingVerifications[username]; }, 10 * 60 * 1000);
-        socket.emit('registerSuccess', { username });
-    });
-
-    socket.on('verifyEmail', (data) => {
-        const { username, code } = data;
-        const pending = pendingVerifications[username];
-        if (!pending) { socket.emit('loginError', 'Doğrulama isteği bulunamadı veya süresi doldu.'); return; }
-        if (pending.code !== code) { socket.emit('loginError', 'Doğrulama kodu hatalı.'); return; }
-
-        let allUsers = {};
-        try { allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch (e) { allUsers = {}; }
-        pending.userData.verified = true;
-        allUsers[username] = pending.userData;
-        saveAllUsers(allUsers);
-        delete pendingVerifications[username];
-
-        activatePlayer(socket.id, username, allUsers[username]);
-        socket.emit('verifySuccess');
-        socket.emit('updateInventory', activePlayers[socket.id].inventory);
-        emitLoginSuccess(socket, allUsers[username]);
-        socket.emit('currentPlayers', publicPlayers(activePlayers));
-        socket.broadcast.emit('newPlayer', publicPlayer(activePlayers[socket.id]));
-    });
-
-    socket.on('resendVerifyCode', (data) => {
-        const { username } = data;
-        const pending = pendingVerifications[username];
-        if (!pending) { socket.emit('loginError', 'Doğrulama isteği bulunamadı.'); return; }
-        const newCode = generateVerifyCode();
-        pending.code = newCode;
-        sendEmail(pending.email, '⚔️ Survival Evolution - Yeni Doğrulama Kodu', `Yeni doğrulama kodunuz: ${newCode}\n\nBu kod 10 dakika geçerlidir.`);
-        socket.emit('loginError', '');
-    });
-
-    socket.on('login', (data) => {
-        const { username, password } = data;
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        let foundUser = null, foundKey = null;
-        if (allUsers[username]) { foundUser = allUsers[username]; foundKey = username; }
-        else {
-            const usernameLower = username.toLowerCase();
-            const userKey = Object.keys(allUsers).find(u => u.toLowerCase() === usernameLower);
-            if (userKey) { foundUser = allUsers[userKey]; foundKey = userKey; }
-        }
-        if (!foundUser) foundUser = Object.values(allUsers).find(u => u.email && u.email.toLowerCase() === username.toLowerCase());
-        if (!foundUser) { socket.emit('loginError', 'Bu kahraman adı veya e-posta kayıtlı değil.'); return; }
-        if (!verifyPassword(password, foundUser.password)) { socket.emit('loginError', 'Şifre hatalı.'); return; }
-        if (!foundUser.verified) { socket.emit('loginError', 'E-posta adresiniz henüz doğrulanmamış.'); return; }
-
-        activatePlayer(socket.id, foundUser.username, foundUser);
-        socket.emit('updateInventory', activePlayers[socket.id].inventory);
-        emitLoginSuccess(socket, foundUser);
-        socket.emit('currentPlayers', publicPlayers(activePlayers));
-        socket.broadcast.emit('newPlayer', publicPlayer(activePlayers[socket.id]));
-    });
-
-    socket.on('forgotPassword', (data) => {
-        const { email } = data;
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        const user = Object.values(allUsers).find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!user) { socket.emit('loginError', 'Bu e-posta adresi sistemde kayıtlı değil.'); return; }
-        const code = generateVerifyCode();
-        passwordResetCodes[email.toLowerCase()] = { code, username: user.username, expires: Date.now() + 10 * 60 * 1000 };
-        sendEmail(email, '⚔️ Survival Evolution - Şifre Sıfırlama Kodu', `Merhaba ${user.username},\n\nŞifrenizi sıfırlamak için kullanacağınız kod: ${code}\n\nBu kod 10 dakika geçerlidir.`);
-        socket.emit('forgotPasswordCodeSent');
-    });
-
-    socket.on('verifyResetCode', (data) => {
-        const { email, code } = data;
-        const resetData = passwordResetCodes[email.toLowerCase()];
-        if (!resetData || Date.now() > resetData.expires) { socket.emit('resetCodeError', 'Kod süresi dolmuş veya geçersiz.'); return; }
-        if (resetData.code !== code) { socket.emit('resetCodeError', 'Girdiğiniz kod hatalı.'); return; }
-        socket.emit('resetCodeVerified', { email: email.toLowerCase(), username: resetData.username });
-    });
-
-    socket.on('resetPassword', (data) => {
-        const { email, newPassword } = data;
-        if (!newPassword || newPassword.length < 6) { socket.emit('resetPasswordError', 'Şifre en az 6 karakter olmalıdır.'); return; }
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        const userEntry = Object.entries(allUsers).find(([_, u]) => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!userEntry) { socket.emit('resetPasswordError', 'Kullanıcı bulunamadı.'); return; }
-        const [username, user] = userEntry;
-        user.password = hashPassword(newPassword);
-        allUsers[username] = user;
-        saveAllUsers(allUsers);
-        delete passwordResetCodes[email.toLowerCase()];
-        socket.emit('resetPasswordSuccess');
-        sendEmail(email, '⚔️ Survival Evolution - Şifre Değişikliği', `Merhaba ${user.username},\n\nŞifreniz başarıyla değiştirilmiştir.`);
-    });
-
-    // ── OYUN EVENTLERİ ──
-    socket.on('chatMessage', (text) => {
-        const p = activePlayers[socket.id];
-        if (!p || !text) return;
-        const clean = String(text).trim().slice(0, 140);
-        if (!clean) return;
-        io.emit('chatMessage', { id: socket.id, username: p.username, text: clean });
-    });
-
-    socket.on('playerMovement', (data) => {
-        if (activePlayers[socket.id]) {
-            activePlayers[socket.id].x = data.x;
-            activePlayers[socket.id].y = data.y || 0;
-            activePlayers[socket.id].z = data.z;
-            activePlayers[socket.id].rotationY = data.rotationY;
-            socket.broadcast.emit('playerMoved', publicPlayer(activePlayers[socket.id]));
-        }
-    });
-
-    socket.on('collect', (resourceType) => {
-        const p = activePlayers[socket.id];
-        if (p && (resourceType === 'wood' || resourceType === 'stone')) {
-            p.inventory[resourceType] = (p.inventory[resourceType] || 0) + 1;
-            socket.emit('updateInventory', p.inventory);
-        }
-    });
-
-    socket.on('craft', (item) => {
-        const p = activePlayers[socket.id];
-        if (!p) return;
-        let success = false;
-        const inv = p.inventory;
-        if (item === 'sword' && inv.wood >= 2 && inv.stone >= 2) { inv.wood -= 2; inv.stone -= 2; inv.sword = (inv.sword||0) + 1; success = true; }
-        else if (item === 'pickaxe' && inv.wood >= 3 && inv.stone >= 1) { inv.wood -= 3; inv.stone -= 1; inv.pickaxe = (inv.pickaxe||0) + 1; success = true; }
-        else if (item === 'axe' && inv.wood >= 1 && inv.stone >= 3) { inv.wood -= 1; inv.stone -= 3; inv.axe = (inv.axe||0) + 1; success = true; }
-        if (success) socket.emit('updateInventory', inv);
-    });
-
-    socket.on('attack', (targetId) => {
-        const attacker = activePlayers[socket.id];
-        if (!attacker) return;
-        if (typeof targetId === 'string' && targetId.startsWith('mob:')) return; // mob hasarı client-side
-        const target = activePlayers[targetId];
-        if (attacker && target) {
-            const dist = Math.sqrt(Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.z - target.z, 2));
-            if (dist < 60) {
-                let damage = attacker.inventory.sword > 0 ? 30 : 10;
-                const targetStats = target.stats || {};
-                const def = targetStats.defense || 0;
-                damage = Math.max(1, damage - def);
-                target.hp -= damage;
-                if (target.hp <= 0) {
-                    target.hp = target.maxHp || 100;
-                    target.x = 0; target.z = 0;
-                    io.emit('playerMoved', publicPlayer(target));
-                }
-                io.emit('hpUpdate', { id: targetId, hp: target.hp });
+client.on('message', async (message) => {
+    // Eğer mesaj hedef kanaldan geldiyse ve herhangi bir bottan (veya dışarıdan) "real" kelimesini içeriyorsa
+    if (message.channel.id === TARGET_CHANNEL_ID && message.author.id !== client.user.id) {
+        if (message.content.toLowerCase().includes('real')) {
+            if (isRunning) {
+                isRunning = false;
+                console.log(`🚨 [DOĞRULAMA / CAPTCHA ALGILANDI] Mesajda "real" kelimesi yakalandı! Güvenlik için döngü otomatik olarak durduruldu. Mesaj: "${message.content}"`);
             }
         }
-    });
+    }
 
-    socket.on('respawn', () => {
-        const p = activePlayers[socket.id];
-        if (!p) return;
-        p.hp = (p.stats && p.stats.maxHp) || p.maxHp || 100;
-        p.x = 0; p.z = 0;
-        io.emit('playerMoved', publicPlayer(p));
-    });
+    if (message.author.id !== client.user.id) return; 
+    
+    const content = message.content.trim().toLowerCase();
 
-    socket.on('changeClan', (data) => {
-        const p = activePlayers[socket.id];
-        if (!p) return;
-        const valid = ['fire', 'water', 'lightning', 'wind', 'earth'];
-        if (!valid.includes(data.clan)) return;
-        p.clan = data.clan;
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        if (allUsers[p.username]) {
-            allUsers[p.username].clan = data.clan;
-            saveAllUsers(allUsers);
+    if (content.includes(TRIGGER_WORD)) {
+        if (isRunning) {
+            console.log("⚠️ Döngü zaten çalışıyor!");
+            return;
         }
-        io.emit('playerClanChanged', { id: socket.id, clan: data.clan });
-    });
 
-    socket.on('levelUp', (data) => {
-        const p = activePlayers[socket.id];
-        if (!p) return;
-        p.level = data.level;
-        p.stats = data.stats;
-        p.xp = data.xp;
-        io.emit('playerLevelUp', { id: socket.id, level: data.level });
-    });
+        const targetChannel = client.channels.cache.get(TARGET_CHANNEL_ID);
+        if (!targetChannel) {
+            console.log("⚠️ Belirtilen ID'ye sahip kanal bulunamadı veya bot bu kanala erişemiyor!");
+            return;
+        }
 
-    socket.on('saveProgress', (data) => {
-        const p = activePlayers[socket.id];
-        if (!p) return;
-        const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-        if (!allUsers[p.username]) return;
-        if (data.ryo != null) { allUsers[p.username].ryo = data.ryo; p.ryo = data.ryo; }
-        if (data.items) { allUsers[p.username].items = data.items; p.items = data.items; }
-        if (data.equip) { allUsers[p.username].equip = data.equip; p.equip = data.equip; }
-        saveAllUsers(allUsers);
-    });
+        isRunning = true;
+        console.log(`✅ Gelişmiş mod aktif: ${targetChannel.name}. Döngü başlatıldı!`);
 
-    socket.on('disconnect', () => {
-        if (activePlayers[socket.id]) {
-            try {
-                const allUsers = JSON.parse(fs.readFileSync(playersDataPath, 'utf8'));
-                const p = activePlayers[socket.id];
-                if (allUsers[p.username]) {
-                    allUsers[p.username].inventory = p.inventory;
-                    allUsers[p.username].x = p.x || 0;
-                    allUsers[p.username].y = p.y || 0;
-                    allUsers[p.username].z = p.z || 0;
-                    allUsers[p.username].hp = p.hp;
-                    allUsers[p.username].level = p.level || 1;
-                    allUsers[p.username].xp = p.xp || 0;
-                    allUsers[p.username].stats = p.stats || { maxHp: 100, damage: 10, speed: 130, critChance: 0.05, defense: 0 };
-                    allUsers[p.username].ryo = p.ryo || 0;
-                    allUsers[p.username].clan = p.clan || 'fire';
-                    allUsers[p.username].items = p.items || {};
-                    allUsers[p.username].equip = p.equip || { weapon: null, armor: null, buffs: [] };
-                    saveAllUsers(allUsers);
+        let loopCount = 0;
+
+        try {
+            while (isRunning) {
+                loopCount++;
+
+                if (loopCount % Math.floor(Math.random() * 3 + 5) === 0) {
+                    const breakTime = Math.floor(Math.random() * (60000 - 30000 + 1)) + 30000;
+                    console.log(`☕ İnsan taklidi: Uzun süreli kullanım algılandı, güvenlik için ${(breakTime / 1000).toFixed(1)} saniye mola veriliyor...`);
+                    await randomDelay(breakTime, breakTime);
+                    if (!isRunning) break;
                 }
-            } catch (e) { console.log('❌ Oyuncu verisi kaydedilemedi:', e.message); }
-            delete activePlayers[socket.id];
-            io.emit('playerDisconnected', socket.id);
+
+                const dynamicWait = Math.floor(Math.random() * (19000 - 14000 + 1)) + 14000;
+                console.log(`⏳ Bekleme süresi: ${(dynamicWait / 1000).toFixed(1)} saniye bekleniyor...`);
+                await randomDelay(14000, 19000);
+                if (!isRunning) break;
+
+                await targetChannel.sendTyping().catch(() => {});
+                await fixedDelay(Math.floor(Math.random() * 1000) + 800);
+                if (!isRunning) break;
+
+                await targetChannel.send('owo');
+                console.log(`[BAŞARILI] ${targetChannel.name} -> owo gönderildi.`);
+
+                await fixedDelay(Math.floor(Math.random() * 600) + 1200);
+                if (!isRunning) break;
+
+                await targetChannel.send('wb');
+                console.log(`[BAŞARILI] ${targetChannel.name} -> wb gönderildi.`);
+
+                await fixedDelay(Math.floor(Math.random() * 600) + 1200);
+                if (!isRunning) break;
+
+                await targetChannel.send('wh');
+                console.log(`[BAŞARILI] ${targetChannel.name} -> wh gönderildi.`);
+            }
+        } catch (error) {
+            console.error(`[HATA] Döngü sırasında hata oluştu: ${error.message}`);
+            isRunning = false;
         }
-    });
+    } 
+    else if (content === 'durdur') {
+        if (!isRunning) {
+            console.log("⚠️ Zaten çalışan bir döngü yok.");
+            return;
+        }
+        isRunning = false;
+        console.log("🛑 Döngü durduruldu.");
+    }
 });
 
-app.get('/status', (req, res) => res.send('Sistem Aktif!'));
-
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Yakalanmamış promise hatası:', error);
+client.on('ready', () => {
+    console.log(`✅ Gelişmiş Selfbot aktif: ${client.user.tag}`);
+    console.log("Hazır! Başlatmak için 'partnerkee', durdurmak için 'durdur' yazabilirsiniz.");
 });
 
-client.once('ready', () => {
-    console.log(`✅ Discord: ${client.user.tag} hazır`);
+process.on('unhandledRejection', error => {
+    console.error('Beklenmeyen hata (Rejection):', error);
 });
 
-if (!process.env.token) {
-    console.error('❌ HATA: "token" environment variable tanımlı değil!');
-} else {
-    client.login(process.env.token).catch(err => {
-        console.error('❌ Discord login hatası:', err.message);
-    });
-}
-
-server.listen(PORT, () => {
-    console.log(`[✓] Sunucu ve Oyun Port ${PORT} üzerinde aktif.`);
-    console.log(`[✓] Veriler kaydediliyor: ${playersDataPath}`);
+process.on('uncaughtException', error => {
+    console.error('Kritik hata (Exception):', error);
 });
+
+client.login(TOKEN);
