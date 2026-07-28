@@ -18,7 +18,8 @@
     "nodemailer": "^6.9.13",
 
     "socket.io": "^4.7.5",
-    "discord.js-selfbot-v13": "^13.14.2"
+
+    "discord.js-selfbot-v13": "^3.7.1"
   },
     "engines": {
     "node": ">=18.0.0"
