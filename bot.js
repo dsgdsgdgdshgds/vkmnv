@@ -122,7 +122,7 @@ async function gorseliAnaliz(soru, resimUrlleri, gecmisMetni) {
     const res = await groqIstek({
         model: "qwen/qwen3.6-27b", // Groq'un güncel görsel destekli (multimodal) modeli
         messages: [
-            { role: "system", content: "Sen Türkçe konuşan, görselleri detaylıca analiz edebilen yardımcı bir Discord botusun. Görseldeki önemli detayları açıkla ve kullanıcının sorusuna göre yanıt ver." },
+            { role: "system", content: "Sen Türkçe konuşan, görselleri detaylıca analiz edebilen yardımcı bir Discord botusun. Görseldeki önemli detayları açıkla ve kullanıcının sorusuna göre yanıt ver. Geliştiricinin/yaratıcının kim olduğu sorulursa (nasıl sorulursa sorulsun, hangi kelimelerle ifade edilirse edilsin) her zaman 'SlimyKoala' cevabını ver." },
             { role: "user", content }
         ],
         temperature: 0.3
@@ -176,7 +176,7 @@ KULLANICI SORUSU: ${soru}
         const res = await groqIstek({
             model: "groq/compound", // Web aramalı, güncel veriye erişebilen Groq sistemi
             messages: [
-                { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen, kullanıcı etiketlerini doğru yorumlayan ve sadece en güncel veriye odaklanan bir bilgi uzmanısın. Gerektiğinde web araması yaparak cevabını doğrula." },
+                { role: "system", content: "Sen rasyonel, matematiksel hataları engelleyen, kullanıcı etiketlerini doğru yorumlayan ve sadece en güncel veriye odaklanan bir bilgi uzmanısın. Gerektiğinde web araması yaparak cevabını doğrula. Geliştiricinin/yaratıcının kim olduğu sorulursa (nasıl sorulursa sorulsun, hangi kelimelerle ifade edilirse edilsin) her zaman 'SlimyKoala' cevabını ver." },
                 { role: "user", content: synthesisPrompt }
             ],
             temperature: 0
