@@ -26,6 +26,7 @@
         .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
         .btn-secondary:hover { background: rgba(0,212,255,0.1); }
         .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
+        .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
 
         /* OYUN EKRANI */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; }
@@ -91,26 +92,46 @@
     <div class="auth-box">
         <div class="game-title">ATLAS WARFARE</div>
         <div class="game-subtitle">Dünyayı Fethet, İmparatorluğunu Kur</div>
+        
         <div id="login-form">
             <input type="text" id="login-username" class="auth-input" placeholder="Kahraman Adı veya E-posta" onkeydown="if(event.key==='Enter')login()">
             <input type="password" id="login-password" class="auth-input" placeholder="Şifre" onkeydown="if(event.key==='Enter')login()">
             <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
             <button class="btn btn-secondary" onclick="toggleAuth('register')">Hesap Oluştur</button>
+            <button class="btn btn-secondary" onclick="toggleAuth('forgot')" style="margin-top:5px;font-size:0.85rem;padding:8px;">Şifremi Unuttum</button>
             <div id="login-error" class="error-msg"></div>
         </div>
+
         <div id="register-form" style="display:none;">
-            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı">
+            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı (3-16 karakter)">
             <input type="email" id="reg-email" class="auth-input" placeholder="E-posta">
-            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6)">
+            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6 karakter)">
+            <input type="password" id="reg-password-confirm" class="auth-input" placeholder="Şifre Tekrar">
             <button class="btn btn-primary" onclick="register()">Kayıt Ol</button>
             <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
             <div id="reg-error" class="error-msg"></div>
         </div>
+
         <div id="verify-form" style="display:none;">
             <h3 style="color:var(--secondary);margin-bottom:10px;">E-posta Doğrulama</h3>
+            <p style="margin-bottom:15px;font-size:0.9rem;color:#aaa;">E-postana gelen 6 haneli kodu gir.</p>
             <input type="text" id="verify-code" class="auth-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.5rem;letter-spacing:10px;">
             <button class="btn btn-primary" onclick="verifyEmail()">Doğrula ve Oyna</button>
+            <button class="btn btn-secondary" onclick="resendCode()" style="margin-top:5px;font-size:0.85rem;padding:8px;">Kodu Tekrar Gönder</button>
             <div id="verify-error" class="error-msg"></div>
+        </div>
+
+        <div id="forgot-form" style="display:none;">
+            <input type="email" id="forgot-email" class="auth-input" placeholder="E-posta">
+            <button class="btn btn-primary" onclick="forgotPassword()">Kod Gönder</button>
+            <div id="forgot-code-area" style="display:none;margin-top:10px;">
+                <input type="text" id="forgot-code" class="auth-input" placeholder="Doğrulama Kodu" style="text-align:center;font-size:1.3rem;letter-spacing:5px;">
+                <input type="password" id="forgot-newpass" class="auth-input" placeholder="Yeni Şifre">
+                <button class="btn btn-primary" onclick="resetPassword()">Şifreyi Sıfırla</button>
+            </div>
+            <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
+            <div id="forgot-error" class="error-msg"></div>
+            <div id="forgot-success" class="success-msg"></div>
         </div>
     </div>
 </div>
@@ -178,6 +199,7 @@ let selectedCharacter = null, selectedColor = null, selectedCityId = null, selec
 let scene, camera, renderer, controls, cityMeshes = [], mineMeshes = [], bossMeshes = [], playerCommander = null, playerBaseMesh = null, raycaster, mouse, basePlacementMode = false;
 const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
 
+// SES MOTORU
 let audioCtx = null;
 function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 function playSound(type) {
@@ -190,12 +212,28 @@ function playSound(type) {
 document.addEventListener('click', () => initAudio(), { once: true });
 document.body.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' || e.target.closest('.panel-btn')) playSound('click'); });
 
-function toggleAuth(t) { ['login-form','register-form','verify-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : 'verify-form').style.display = 'block'; }
+// AUTH SİSTEMİ
+function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error','forgot-success'].forEach(id => document.getElementById(id).style.display = 'none'); }
 function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
-function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value }); }
+function register() {
+    const u = document.getElementById('reg-username').value;
+    const e = document.getElementById('reg-email').value;
+    const p = document.getElementById('reg-password').value;
+    const pc = document.getElementById('reg-password-confirm').value;
+    socket.emit('register', { username: u, email: e, password: p, passwordConfirm: pc });
+}
+function verifyEmail() { socket.emit('verifyEmail', { username: currentRegUsername, code: document.getElementById('verify-code').value }); }
+function resendCode() { socket.emit('resendVerifyCode', { username: currentRegUsername }); }
+function forgotPassword() { socket.emit('forgotPassword', { email: document.getElementById('forgot-email').value }); }
+function resetPassword() { socket.emit('resetPassword', { email: document.getElementById('forgot-email').value, code: document.getElementById('forgot-code').value, newPassword: document.getElementById('forgot-newpass').value }); }
+
 let currentRegUsername = '';
-socket.on('loginError', (msg) => { const el = document.getElementById('login-error') || document.getElementById('reg-error') || document.getElementById('verify-error'); el.innerText = msg; el.style.display = msg ? 'block' : 'none'; });
+socket.on('loginError', (msg) => { const ids = ['login-error','reg-error','verify-error','forgot-error']; ids.forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
 socket.on('registerSuccess', (d) => { currentRegUsername = d.username; toggleAuth('verify'); });
+socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; const el = document.getElementById('forgot-success'); el.innerText = 'Kod gönderildi!'; el.style.display = 'block'; });
+socket.on('resetCodeError', (msg) => { const el = document.getElementById('forgot-error'); el.innerText = msg; el.style.display = 'block'; });
+socket.on('resetCodeVerified', () => { document.getElementById('forgot-code').disabled = true; });
+socket.on('resetPasswordSuccess', () => { toggleAuth('login'); const el = document.getElementById('login-error'); el.innerText = 'Şifre sıfırlandı! Giriş yapabilirsin.'; el.style.color = 'var(--green)'; el.style.display = 'block'; });
 socket.on('verifySuccess', (d) => onLoginSuccess(d));
 socket.on('loginSuccess', (d) => onLoginSuccess(d));
 
@@ -222,24 +260,41 @@ function enterGame(d) {
     document.getElementById('game-screen').style.display = 'block';
     document.getElementById('ui-ryo').innerText = d.ryo; document.getElementById('ui-infantry').innerText = d.army?.infantry || 0; document.getElementById('ui-archer').innerText = d.army?.archer || 0; document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
     if (d.hospital) { document.getElementById('ui-h-inf').innerText = d.hospital.infantry; document.getElementById('ui-h-arc').innerText = d.hospital.archer; document.getElementById('ui-h-cav').innerText = d.hospital.cavalry; }
-    if (d.empireColor != null) { const c = '#' + d.empireColor.toString(16).padStart(6,'0'); }
     if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan-badge').style.display = 'block'; document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
     init3D(); if (d.character) spawnCommander(d.character, d.empireColor); createPlayerBase();
 }
 
+// 3D DÜNYA VE TAM DÜNYA HARİTASI
 function init3D() {
     const canvas = document.getElementById('game-canvas');
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a14); scene.fog = new THREE.Fog(0x0a0a14, 600, 1200);
-    camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 3000); camera.position.set(0, 400, 500); camera.lookAt(0,0,0);
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a14); scene.fog = new THREE.Fog(0x0a0a14, 600, 1500);
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 4000); camera.position.set(0, 500, 800); camera.lookAt(0,0,0);
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true; controls.maxDistance = 900;
+    controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true; controls.maxDistance = 1200; controls.minDistance = 150;
     scene.add(new THREE.AmbientLight(0x404060, 1.5)); const dl = new THREE.DirectionalLight(0xffffff, 1); dl.position.set(200,400,200); scene.add(dl);
     
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(1200,600), new THREE.MeshPhongMaterial({color:0x0a1628, transparent:true, opacity:0.9})); ocean.rotation.x = -Math.PI/2; ocean.position.y = -1; scene.add(ocean);
-    const grid = new THREE.GridHelper(1200, 60, 0x1a3050, 0x1a3050); scene.add(grid);
-    const cMat = new THREE.MeshPhongMaterial({color:0x1a3a1a, transparent:true, opacity:0.7});
-    const conts = [[[-170,70],[-140,72],[-100,75],[-60,70],[-50,50],[-65,45],[-80,25],[-100,18],[-115,30],[-130,40],[-160,55]],[[-80,12],[-60,8],[-35,-5],[-40,-25],[-55,-40],[-72,-55],[-78,-40],[-82,-15]],[[-10,70],[30,72],[40,60],[42,45],[25,36],[0,38]],[[-18,35],[10,37],[30,32],[48,12],[52,-10],[40,-35],[18,-35],[-18,15]],[[40,72],[140,75],[170,65],[145,45],[120,20],[78,8],[60,25],[45,40]],[[112,-12],[145,-12],[155,-28],[143,-38],[116,-35]]];
-    conts.forEach(coords => { const shape = new THREE.Shape(); coords.forEach((c,i) => { const x=(c[0]/180)*500, z=-(c[1]/90)*250; if(i===0) shape.moveTo(x,z); else shape.lineTo(x,z); }); const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), cMat); m.rotation.x = -Math.PI/2; m.position.y = 0.5; scene.add(m); });
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(2000,1200), new THREE.MeshPhongMaterial({color:0x0a1628, transparent:true, opacity:0.9})); ocean.rotation.x = -Math.PI/2; ocean.position.y = -1; scene.add(ocean);
+    const grid = new THREE.GridHelper(2000, 80, 0x1a3050, 0x1a3050); scene.add(grid);
+    
+    // TÜM DÜNYA KITALARI (Detaylı Koordinatlar)
+    const cMat = new THREE.MeshPhongMaterial({color:0x1a3a1a, transparent:true, opacity:0.8});
+    const continents = [
+        // Kuzey Amerika
+        [[-168,66],[-156,71],[-140,72],[-95,82],[-65,82],[-55,60],[-60,45],[-80,25],[-97,18],[-105,20],[-115,30],[-125,40],[-130,55],[-168,66]],
+        // Güney Amerika
+        [[-80,12],[-60,8],[-50,5],[-35,-5],[-40,-25],[-55,-35],[-70,-55],[-75,-50],[-78,-40],[-82,-15],[-80,12]],
+        // Avrupa
+        [[-10,70],[30,72],[40,60],[42,45],[25,36],[0,38],[-10,43],[-10,70]],
+        // Afrika
+        [[-18,35],[10,37],[30,32],[35,30],[48,12],[52,-10],[40,-35],[18,-35],[10,-5],[-18,15],[-18,35]],
+        // Asya
+        [[40,72],[60,75],[100,78],[140,75],[170,65],[170,55],[145,45],[120,20],[100,5],[78,8],[60,25],[45,40],[40,60],[40,72]],
+        // Avustralya
+        [[112,-12],[145,-12],[155,-28],[143,-38],[116,-35],[113,-22],[112,-12]],
+        // Antarktika
+        [[-180,-70],[180,-70],[180,-90],[-180,-90],[-180,-70]]
+    ];
+    continents.forEach(coords => { const shape = new THREE.Shape(); coords.forEach((c,i) => { const x=(c[0]/180)*500, z=-(c[1]/90)*250; if(i===0) shape.moveTo(x,z); else shape.lineTo(x,z); }); const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), cMat); m.rotation.x = -Math.PI/2; m.position.y = 0.5; scene.add(m); });
 
     raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
     canvas.addEventListener('click', onCanvasClick);
