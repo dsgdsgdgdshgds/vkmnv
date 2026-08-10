@@ -12,20 +12,35 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-let DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+// Orijinal Dosya Yolu Ayarları
+let DATA_DIR = process.env.DATA_DIR || '/var/data';
+try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+} catch (err) {
+    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor (${err.code}). Render'da bir Disk eklenmemiş olabilir.`);
+    DATA_DIR = path.join(__dirname, 'data');
+    console.error(`⚠️ Bunun yerine "${DATA_DIR}" kullanılıyor.`);
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const playersDataPath = path.join(DATA_DIR, 'players.json');
 const worldDataPath = path.join(DATA_DIR, 'world.json');
 const clansDataPath = path.join(DATA_DIR, 'clans.json');
 
 if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
+if (!fs.existsSync(worldDataPath)) fs.writeFileSync(worldDataPath, JSON.stringify({ cities: {}, mines: {}, bosses: {} }, null, 2));
 if (!fs.existsSync(clansDataPath)) fs.writeFileSync(clansDataPath, JSON.stringify({}, null, 2));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10mb' }));
 
+// Orijinal Session ve Mail Ayarları
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+    console.error('⚠️ SESSION_SECRET ayarlı değil, geçici üretildi. Kalıcı olsun istiyorsan Render\'da SESSION_SECRET ekle.');
+}
+
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
 const transporter = nodemailer.createTransport({
@@ -160,10 +175,17 @@ function signToken(u) { const payload = Buffer.from(JSON.stringify({ u, exp: Dat
 function verifyToken(t) { if (!t || !t.includes('.')) return null; const [p, sig] = t.split('.'); const exp = crypto.createHmac('sha256', SESSION_SECRET).update(p).digest('base64url'); if (sig !== exp) return null; try { const d = JSON.parse(Buffer.from(p, 'base64url').toString()); if (Date.now() > d.exp) return null; return d.u; } catch (e) { return null; } }
 
 const pendingVerifications = {};
+const passwordResetCodes = {}; // Şifre sıfırlama için orijinal yapı
 let activePlayers = {};
 
 function generateVerifyCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
-function sendEmail(to, subject, body) { transporter.sendMail({ from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body }, (e) => { if(e) console.log(e); }); }
+function sendEmail(to, subject, body) {
+    const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) console.log('❌ E-posta Hatası:', error);
+        else console.log('📧 E-posta Gönderildi: ' + info.response);
+    });
+}
 
 function buildPlayerData(username, data) {
     return {
@@ -183,7 +205,7 @@ function loadAllUsers() { try { return JSON.parse(fs.readFileSync(playersDataPat
 function saveAllUsers(u) { fs.writeFileSync(playersDataPath, JSON.stringify(u, null, 2)); }
 
 // ═══════════════════════════════════════════
-// PASİF GELİR VE BOSS RESPAWN (5 Dakika)
+// PASİF GELİR VE BOSS RESPAWN
 // ═══════════════════════════════════════════
 setInterval(() => {
     const world = loadWorld(); const now = Date.now(); const allUsers = loadAllUsers(); let updated = false;
@@ -203,6 +225,7 @@ setInterval(() => {
 io.on('connection', (socket) => {
     function activatePlayer(socketId, username, playerData) { activePlayers[socketId] = { ...playerData, id: socketId }; }
 
+    // Orijinal Token ile Giriş
     socket.on('loginWithToken', (token) => {
         const u = verifyToken(token); if (!u) return socket.emit('loginError', 'Oturum süresi dolmuş.');
         const all = loadAllUsers(); if (!all[u]) return socket.emit('loginError', 'Hesap bulunamadı.');
@@ -211,29 +234,75 @@ io.on('connection', (socket) => {
         socket.emit('worldData', loadWorld()); socket.emit('charactersData', CHARACTERS); socket.emit('clansData', loadClans());
     });
 
+    // Orijinal Kayıt Sistemi (Şifre tekrarı kontrolü ile güçlendirildi)
     socket.on('register', (data) => {
-        const { username, email, password } = data;
-        if (!username || username.length < 3) return socket.emit('loginError', 'Kahraman adı en az 3 karakter olmalı.');
+        const { username, email, password, passwordConfirm } = data;
+        if (!username || username.length < 3 || username.length > 16) return socket.emit('loginError', 'Kahraman adı 3-16 karakter olmalı.');
+        if (!/^[a-zA-Z0-9_ğüşöçıİĞÜŞÖÇ]+$/.test(username)) return socket.emit('loginError', 'Geçersiz karakter adı.');
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return socket.emit('loginError', 'Geçerli e-posta gir.');
         if (!password || password.length < 6) return socket.emit('loginError', 'Şifre en az 6 karakter.');
+        if (password !== passwordConfirm) return socket.emit('loginError', 'Şifreler eşleşmiyor.');
+        
         const all = loadAllUsers();
         if (Object.keys(all).some(u => u.toLowerCase() === username.toLowerCase())) return socket.emit('loginError', 'Bu ad alınmış.');
+        if (Object.values(all).some(u => u.email && u.email.toLowerCase() === email.toLowerCase())) return socket.emit('loginError', 'Bu e-posta kayıtlı.');
+
         const code = generateVerifyCode();
         pendingVerifications[username] = { code, email, password, userData: buildPlayerData(username, { email, password }) };
-        sendEmail(email, '⚔️ AtlasWarfare - Doğrulama', `Kahraman ${username}, kodunuz: ${code}`);
+        sendEmail(email, '⚔️ AtlasWarfare - Doğrulama', `Kahraman ${username}, doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`);
         setTimeout(() => { delete pendingVerifications[username]; }, 10 * 60 * 1000);
         socket.emit('registerSuccess', { username });
     });
 
+    // Orijinal Doğrulama Sistemi
     socket.on('verifyEmail', (data) => {
         const { username, code } = data; const p = pendingVerifications[username];
-        if (!p || p.code !== code) return socket.emit('loginError', 'Kod hatalı.');
+        if (!p || p.code !== code) return socket.emit('loginError', 'Kod hatalı veya süresi dolmuş.');
         const all = loadAllUsers(); p.userData.verified = true; all[username] = p.userData; saveAllUsers(all); delete pendingVerifications[username];
         activatePlayer(socket.id, username, all[username]);
         socket.emit('verifySuccess', { token: signToken(username), ...publicPlayer(all[username]) });
         socket.emit('worldData', loadWorld()); socket.emit('charactersData', CHARACTERS); socket.emit('clansData', loadClans());
     });
 
+    socket.on('resendVerifyCode', (data) => {
+        const { username } = data; const p = pendingVerifications[username];
+        if (!p) return socket.emit('loginError', 'Doğrulama isteği bulunamadı.');
+        const newCode = generateVerifyCode(); p.code = newCode;
+        sendEmail(p.email, '⚔️ AtlasWarfare - Yeni Doğrulama Kodu', `Yeni doğrulama kodunuz: ${newCode}`);
+        socket.emit('loginError', ''); // Hata yazını temizle
+    });
+
+    // Orijinal Şifre Sıfırlama
+    socket.on('forgotPassword', (data) => {
+        const { email } = data; const all = loadAllUsers();
+        const user = Object.values(all).find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+        if (!user) return socket.emit('loginError', 'E-posta kayıtlı değil.');
+        const code = generateVerifyCode();
+        passwordResetCodes[email.toLowerCase()] = { code, username: user.username, expires: Date.now() + 10 * 60 * 1000 };
+        sendEmail(email, '⚔️ AtlasWarfare - Şifre Sıfırlama', `Merhaba ${user.username}, şifre sıfırlama kodun: ${code}`);
+        socket.emit('forgotPasswordCodeSent');
+    });
+
+    socket.on('verifyResetCode', (data) => {
+        const { email, code } = data; const r = passwordResetCodes[email.toLowerCase()];
+        if (!r || Date.now() > r.expires) return socket.emit('resetCodeError', 'Kod süresi dolmuş.');
+        if (r.code !== code) return socket.emit('resetCodeError', 'Kod hatalı.');
+        socket.emit('resetCodeVerified', { email: email.toLowerCase(), username: r.username });
+    });
+
+    socket.on('resetPassword', (data) => {
+        const { email, newPassword } = data;
+        if (!newPassword || newPassword.length < 6) return socket.emit('resetPasswordError', 'Şifre en az 6 karakter.');
+        const all = loadAllUsers();
+        const entry = Object.entries(all).find(([_, u]) => u.email && u.email.toLowerCase() === email.toLowerCase());
+        if (!entry) return socket.emit('resetPasswordError', 'Kullanıcı yok.');
+        const [username, user] = entry; user.password = hashPassword(newPassword); all[username] = user; saveAllUsers(all);
+        delete passwordResetCodes[email.toLowerCase()];
+        socket.emit('resetPasswordSuccess');
+        sendEmail(email, '⚔️ AtlasWarfare - Şifre Değişti', `Merhaba ${user.username}, şifren başarıyla değiştirildi.`);
+    });
+
+    // Orijinal Login
     socket.on('login', (data) => {
         const { username, password } = data; const all = loadAllUsers();
         let u = all[username] || Object.values(all).find(x => x.email && x.email.toLowerCase() === username.toLowerCase());
