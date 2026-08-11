@@ -12,7 +12,6 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #000; color: white; overflow: hidden; user-select: none; }
 
-        /* GİRİŞ EKRANI */
         #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
         #auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920') no-repeat center; background-size: cover; opacity: 0.15; filter: blur(2px); }
         .auth-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
@@ -28,7 +27,6 @@
         .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
         .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
 
-        /* OYUN EKRANI */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; }
         #game-canvas { display: block; }
         .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(0,0,0,0.85), transparent); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
@@ -199,7 +197,6 @@ let selectedCharacter = null, selectedColor = null, selectedCityId = null, selec
 let scene, camera, renderer, controls, cityMeshes = [], mineMeshes = [], bossMeshes = [], playerCommander = null, playerBaseMesh = null, raycaster, mouse, basePlacementMode = false;
 const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
 
-// SES MOTORU
 let audioCtx = null;
 function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 function playSound(type) {
@@ -212,7 +209,6 @@ function playSound(type) {
 document.addEventListener('click', () => initAudio(), { once: true });
 document.body.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' || e.target.closest('.panel-btn')) playSound('click'); });
 
-// AUTH SİSTEMİ
 function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error','forgot-success'].forEach(id => document.getElementById(id).style.display = 'none'); }
 function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
 function register() {
@@ -240,7 +236,10 @@ socket.on('loginSuccess', (d) => onLoginSuccess(d));
 function onLoginSuccess(d) { localStorage.setItem('atlas_token', d.token); currentPlayer = d; document.getElementById('auth-screen').style.display = 'none'; if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d); }
 
 function showCharSelect() { document.getElementById('char-select-screen').style.display = 'flex'; renderCharGrid(); }
+
+// DÜZELTİLMİŞ KARAKTER ÇİZİM FONKSİYONU
 function renderCharGrid() {
+    if (!charactersData) return; // Veri henüz gelmediyse bekle
     const grid = document.getElementById('char-grid'); grid.innerHTML = '';
     const elemColors = { fire:'#ff4400', water:'#00aaff', lightning:'#ffff00', wind:'#00ff88', earth:'#8B4513' };
     charactersData.forEach(c => {
@@ -250,6 +249,15 @@ function renderCharGrid() {
         grid.appendChild(card);
     });
 }
+
+// VERİ GELDİĞİNDE EKRAN AÇIKSA GERİ ÇİZ
+socket.on('charactersData', (d) => { 
+    charactersData = d; 
+    if (document.getElementById('char-select-screen').style.display === 'flex') {
+        renderCharGrid();
+    }
+});
+
 function renderColorGrid() {
     const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff]; const grid = document.getElementById('color-grid'); grid.innerHTML = '';
     colors.forEach(c => { const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0'); sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; }; grid.appendChild(sw); });
@@ -264,7 +272,6 @@ function enterGame(d) {
     init3D(); if (d.character) spawnCommander(d.character, d.empireColor); createPlayerBase();
 }
 
-// 3D DÜNYA VE TAM DÜNYA HARİTASI
 function init3D() {
     const canvas = document.getElementById('game-canvas');
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a14); scene.fog = new THREE.Fog(0x0a0a14, 600, 1500);
@@ -276,22 +283,14 @@ function init3D() {
     const ocean = new THREE.Mesh(new THREE.PlaneGeometry(2000,1200), new THREE.MeshPhongMaterial({color:0x0a1628, transparent:true, opacity:0.9})); ocean.rotation.x = -Math.PI/2; ocean.position.y = -1; scene.add(ocean);
     const grid = new THREE.GridHelper(2000, 80, 0x1a3050, 0x1a3050); scene.add(grid);
     
-    // TÜM DÜNYA KITALARI (Detaylı Koordinatlar)
     const cMat = new THREE.MeshPhongMaterial({color:0x1a3a1a, transparent:true, opacity:0.8});
     const continents = [
-        // Kuzey Amerika
         [[-168,66],[-156,71],[-140,72],[-95,82],[-65,82],[-55,60],[-60,45],[-80,25],[-97,18],[-105,20],[-115,30],[-125,40],[-130,55],[-168,66]],
-        // Güney Amerika
         [[-80,12],[-60,8],[-50,5],[-35,-5],[-40,-25],[-55,-35],[-70,-55],[-75,-50],[-78,-40],[-82,-15],[-80,12]],
-        // Avrupa
         [[-10,70],[30,72],[40,60],[42,45],[25,36],[0,38],[-10,43],[-10,70]],
-        // Afrika
         [[-18,35],[10,37],[30,32],[35,30],[48,12],[52,-10],[40,-35],[18,-35],[10,-5],[-18,15],[-18,35]],
-        // Asya
         [[40,72],[60,75],[100,78],[140,75],[170,65],[170,55],[145,45],[120,20],[100,5],[78,8],[60,25],[45,40],[40,60],[40,72]],
-        // Avustralya
         [[112,-12],[145,-12],[155,-28],[143,-38],[116,-35],[113,-22],[112,-12]],
-        // Antarktika
         [[-180,-70],[180,-70],[180,-90],[-180,-90],[-180,-70]]
     ];
     continents.forEach(coords => { const shape = new THREE.Shape(); coords.forEach((c,i) => { const x=(c[0]/180)*500, z=-(c[1]/90)*250; if(i===0) shape.moveTo(x,z); else shape.lineTo(x,z); }); const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), cMat); m.rotation.x = -Math.PI/2; m.position.y = 0.5; scene.add(m); });
@@ -344,7 +343,6 @@ function openBaseModal() { const b=document.getElementById('modal-box'); documen
 function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere tıkla.'); }
 
 socket.on('worldData', (d) => { worldData = d; if(scene){ createCities(); createMines(); createBosses(); } });
-socket.on('charactersData', (d) => { charactersData = d; });
 socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan-badge').style.display='block'; document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
 socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; if(d.hospital){document.getElementById('ui-h-inf').innerText=d.hospital.infantry; document.getElementById('ui-h-arc').innerText=d.hospital.archer; document.getElementById('ui-h-cav').innerText=d.hospital.cavalry;} });
 socket.on('ryoUpdate', (r) => { currentPlayer.ryo=r; document.getElementById('ui-ryo').innerText=r; });
