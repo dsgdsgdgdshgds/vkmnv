@@ -41,7 +41,7 @@ if (!process.env.SESSION_SECRET) {
 }
 
 // ═══════════════════════════════════════════
-// MAİL SİSTEMİ (GÜÇLENDİRİLMİŞ VE DOĞRULANMIŞ)
+// MAİL SİSTEMİ (SMTP DOĞRUDAN - GÜÇLENDİRİLMİŞ)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
