@@ -1,549 +1,549 @@
-const http = require('http');
-const express = require('express');
-const { Server } = require('socket.io');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AtlasWarfare - Dünyayı Fethet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #ff6b00; --secondary: #00d4ff; --dark: #0a0a0a; --panel: rgba(15, 15, 20, 0.95); --panel-border: rgba(255, 107, 0, 0.3); --gold: #ffd700; --red: #ff3333; --green: #00cc44; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Rajdhani', sans-serif; background: #000; color: white; overflow: hidden; user-select: none; }
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-const PORT = process.env.PORT || 3000;
+        /* GİRİŞ EKRANI */
+        #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
+        #auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920') no-repeat center; background-size: cover; opacity: 0.15; filter: blur(2px); }
+        .auth-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
+        .game-title { font-family: 'Cinzel', serif; font-size: 2.8rem; font-weight: 900; background: linear-gradient(45deg, var(--primary), var(--gold), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(255, 107, 0, 0.5); margin-bottom: 5px; letter-spacing: 3px; }
+        .game-subtitle { color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 4px; opacity: 0.8; }
+        .auth-input { width: 100%; padding: 12px 15px; margin: 8px 0; background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 6px; color: white; font-family: 'Rajdhani'; font-size: 1.05rem; outline: none; transition: 0.3s; }
+        .auth-input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(255,107,0,0.3); }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 8px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-family: 'Rajdhani'; }
+        .btn-primary { background: linear-gradient(45deg, var(--primary), #cc5500); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,107,0,0.4); }
+        .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
+        .btn-secondary:hover { background: rgba(0,212,255,0.1); }
+        .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
+        .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
 
-// Dosya Yolu Ayarları (Render Disk)
-let DATA_DIR = process.env.DATA_DIR || '/var/data';
-try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.accessSync(DATA_DIR, fs.constants.W_OK);
-} catch (err) {
-    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor (${err.code}). Render'da bir Disk eklenmemiş olabilir.`);
-    DATA_DIR = path.join(__dirname, 'data');
-    console.error(`⚠️ Bunun yerine "${DATA_DIR}" kullanılıyor.`);
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+        /* KARAKTER SEÇİM */
+        #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
+        .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
+        .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
+        .char-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,107,0,0.3); }
+        .char-card.selected { border-color: var(--gold); background: rgba(255,215,0,0.1); }
+        .char-icon { font-size: 3rem; margin-bottom: 8px; }
+        .char-name { font-family: 'Cinzel'; font-size: 0.95rem; color: var(--primary); margin-bottom: 5px; }
+        .color-grid { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+        .color-swatch { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: 0.3s; }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.selected { border-color: white; box-shadow: 0 0 20px currentColor; }
+
+        /* OYUN EKRANI (MAFIA CITY ARAYÜZÜ) */
+        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
+        
+        /* Üst Bar */
+        .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(0,0,0,0.9), transparent); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+        .stat-badge { background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 15px; border: 1px solid var(--panel-border); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+        .stat-badge span { color: var(--gold); font-weight: 700; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; background: #222; }
+
+        /* Harita (2D Dünya Haritası) */
+        #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: #0a1628; }
+        #world-map-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; filter: contrast(1.2) brightness(0.8); }
+        .map-pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: 0.2s; z-index: 5; text-align: center; }
+        .map-pin:hover { transform: translate(-50%, -100%) scale(1.1); z-index: 10; }
+        .pin-icon { font-size: 2rem; filter: drop-shadow(0 0 5px black); }
+        .pin-label { background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; margin-top: -5px; border: 1px solid #333; }
+        
+        /* Alt Bar (Mafia City Toolbar) */
+        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, rgba(0,0,0,0.95), transparent); display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px; z-index: 20; pointer-events: none; }
+        .toolbar { display: flex; gap: 15px; pointer-events: auto; background: rgba(20,20,25,0.9); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--panel-border); box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+        .tool-btn { display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px 10px; border-radius: 8px; transition: 0.2s; width: 60px; }
+        .tool-btn:hover { background: rgba(255,107,0,0.2); }
+        .tool-icon { font-size: 1.8rem; margin-bottom: 2px; }
+        .tool-text { font-size: 0.7rem; color: #ccc; text-transform: uppercase; }
+
+        /* Modallar ve Popup'lar */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 50; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; }
+        .modal-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 30px; width: 450px; max-width: 90vw; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 50px rgba(255,107,0,0.2); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .modal-box h2 { font-family: 'Cinzel'; color: var(--primary); margin-bottom: 20px; text-align: center; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 1rem; }
+        .info-row span:first-child { color: #888; }
+        .input-group { margin: 10px 0; }
+        .input-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
+        .input-group input { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 6px; font-family: 'Rajdhani'; font-size: 1rem; }
+
+        /* Savaş Animasyonu (March) */
+        .march-icon { position: absolute; font-size: 1.5rem; z-index: 15; transition: left 1s linear, top 1s linear; filter: drop-shadow(0 0 3px var(--primary)); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        #toast-container { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        .toast { padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; animation: scaleIn 0.4s; text-align: center; min-width: 250px; }
+        .toast.success { background: rgba(0,204,68,0.9); border: 1px solid #00ff66; }
+        .toast.victory { background: rgba(255,215,0,0.9); color: #000; border: 1px solid var(--gold); }
+        .toast.defeat { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
+        .toast.info { background: rgba(0,212,255,0.9); color: #000; border: 1px solid var(--secondary); }
+        .toast.error { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
+    </style>
+</head>
+<body>
+
+<div id="auth-screen">
+    <div class="auth-box">
+        <div class="game-title">ATLAS WARFARE</div>
+        <div class="game-subtitle">Dünyayı Fethet, İmparatorluğunu Kur</div>
+        
+        <div id="login-form">
+            <input type="text" id="login-username" class="auth-input" placeholder="Kahraman Adı veya E-posta" onkeydown="if(event.key==='Enter')login()">
+            <input type="password" id="login-password" class="auth-input" placeholder="Şifre" onkeydown="if(event.key==='Enter')login()">
+            <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
+            <button class="btn btn-secondary" onclick="toggleAuth('register')">Hesap Oluştur</button>
+            <button class="btn btn-secondary" onclick="toggleAuth('forgot')" style="margin-top:5px;font-size:0.85rem;padding:8px;">Şifremi Unuttum</button>
+            <div id="login-error" class="error-msg"></div>
+        </div>
+
+        <div id="register-form" style="display:none;">
+            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı">
+            <input type="email" id="reg-email" class="auth-input" placeholder="E-posta">
+            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6)">
+            <input type="password" id="reg-password-confirm" class="auth-input" placeholder="Şifre Tekrar">
+            <button class="btn btn-primary" onclick="register()">Kayıt Ol</button>
+            <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
+            <div id="reg-error" class="error-msg"></div>
+        </div>
+
+        <div id="verify-form" style="display:none;">
+            <h3 style="color:var(--secondary);margin-bottom:10px;">E-posta Doğrulama</h3>
+            <input type="text" id="verify-code" class="auth-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.5rem;letter-spacing:10px;">
+            <button class="btn btn-primary" onclick="verifyEmail()">Doğrula ve Oyna</button>
+            <button class="btn btn-secondary" onclick="resendCode()" style="margin-top:5px;font-size:0.85rem;padding:8px;">Kodu Tekrar Gönder</button>
+            <div id="verify-error" class="error-msg"></div>
+        </div>
+
+        <div id="forgot-form" style="display:none;">
+            <input type="email" id="forgot-email" class="auth-input" placeholder="E-posta">
+            <button class="btn btn-primary" onclick="forgotPassword()">Kod Gönder</button>
+            <div id="forgot-code-area" style="display:none;margin-top:10px;">
+                <input type="text" id="forgot-code" class="auth-input" placeholder="Kod">
+                <input type="password" id="forgot-newpass" class="auth-input" placeholder="Yeni Şifre">
+                <button class="btn btn-primary" onclick="resetPassword()">Sıfırla</button>
+            </div>
+            <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
+            <div id="forgot-error" class="error-msg"></div>
+        </div>
+    </div>
+</div>
+
+<div id="char-select-screen">
+    <div style="text-align:center;width:100%;">
+        <h1 style="font-family:'Cinzel';color:var(--primary);font-size:2rem;margin-bottom:20px;">Kahramanını Seç</h1>
+        <div class="char-grid" id="char-grid"></div>
+        <div id="empire-color-section" style="display:none;margin-top:25px;">
+            <h3 style="color:var(--secondary);">İmparatorluk Rengini Seç</h3>
+            <div class="color-grid" id="color-grid"></div>
+            <button class="btn btn-primary" style="max-width:300px;margin:15px auto 0;" onclick="startGame()">Savaşa Başla</button>
+        </div>
+    </div>
+</div>
+
+<div id="game-screen">
+    <div id="map-container">
+        <img id="world-map-img" src="https://images.unsplash.com/photo-1452802447250-470a88ac82bc?q=80&w=2000&auto=format&fit=crop" alt="Dünya Haritası">
+    </div>
+
+    <div class="top-bar">
+        <div class="player-info">
+            <div class="avatar" id="ui-avatar">🦊</div>
+            <div class="stat-badge">⚡ <span id="ui-power">0</span></div>
+            <div class="stat-badge">🪙 <span id="ui-ryo">0</span></div>
+            <div class="stat-badge" id="ui-clan-badge" style="display:none;">🐉 <span id="ui-clan">-</span></div>
+        </div>
+        <div class="player-info">
+            <div class="stat-badge">🛡️ <span id="ui-infantry">0</span></div>
+            <div class="stat-badge">🏹 <span id="ui-archer">0</span></div>
+            <div class="stat-badge">🐎 <span id="ui-cavalry">0</span></div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <div class="toolbar">
+            <div class="tool-btn" onclick="openModal('profile')"><div class="tool-icon">👤</div><div class="tool-text">Profil</div></div>
+            <div class="tool-btn" onclick="openModal('train')"><div class="tool-icon">🔨</div><div class="tool-text">Eğit</div></div>
+            <div class="tool-btn" onclick="openModal('hospital')"><div class="tool-icon">🏥</div><div class="tool-text">Hastane</div></div>
+            <div class="tool-btn" onclick="openModal('clan')"><div class="tool-icon">🐉</div><div class="tool-text">Klan</div></div>
+            <div class="tool-btn" onclick="openModal('leaderboard')"><div class="tool-icon">🏆</div><div class="tool-text">Sıralama</div></div>
+            <div class="tool-btn" onclick="socket.emit('getInbox')"><div class="tool-icon">✉️</div><div class="tool-text">Mesaj</div></div>
+            <div class="tool-btn" onclick="openBaseModal()"><div class="tool-icon">🏰</div><div class="tool-text">Üs</div></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay"><div class="modal-box" id="modal-box"></div></div>
+    <div id="toast-container"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let currentPlayer = null, worldData = null, charactersData = null, clansData = {};
+let selectedCharacter = null, selectedColor = null, selectedCityId = null, selectedMineId = null, selectedBossId = null;
+let basePlacementMode = false;
+const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
+
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playSound(type) {
+    if (!audioCtx) return; const now = audioCtx.currentTime;
+    if (type === 'click') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.05); o.start(now); o.stop(now+0.05); }
+    else if (type === 'success') { [523.25,659.25,783.99].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(f,now+i*0.1);g.gain.setValueAtTime(0.1,now+i*0.1);g.gain.exponentialRampToValueAtTime(0.01,now+i*0.1+0.2);o.start(now+i*0.1);o.stop(now+i*0.1+0.2);}); }
+    else if (type === 'error') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(now); o.stop(now+0.2); }
+}
+document.addEventListener('click', () => initAudio(), { once: true });
+document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON') playSound('click'); });
+
+// AUTH
+function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none'); }
+function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
+function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, passwordConfirm: document.getElementById('reg-password-confirm').value }); }
+function verifyEmail() { socket.emit('verifyEmail', { username: currentRegUsername, code: document.getElementById('verify-code').value }); }
+function resendCode() { socket.emit('resendVerifyCode', { username: currentRegUsername }); }
+function forgotPassword() { socket.emit('forgotPassword', { email: document.getElementById('forgot-email').value }); }
+function resetPassword() { socket.emit('resetPassword', { email: document.getElementById('forgot-email').value, code: document.getElementById('forgot-code').value, newPassword: document.getElementById('forgot-newpass').value }); }
+
+let currentRegUsername = '';
+socket.on('loginError', (msg) => { const ids = ['login-error','reg-error','verify-error','forgot-error']; ids.forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
+socket.on('registerSuccess', (d) => { currentRegUsername = d.username; toggleAuth('verify'); });
+socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; });
+socket.on('resetPasswordSuccess', () => { toggleAuth('login'); });
+socket.on('verifySuccess', (d) => onLoginSuccess(d));
+socket.on('loginSuccess', (d) => onLoginSuccess(d));
+
+function onLoginSuccess(d) { localStorage.setItem('atlas_token', d.token); currentPlayer = d; document.getElementById('auth-screen').style.display = 'none'; if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d); }
+
+function showCharSelect() { document.getElementById('char-select-screen').style.display = 'flex'; renderCharGrid(); }
+function renderCharGrid() {
+    if (!charactersData) return;
+    const grid = document.getElementById('char-grid'); grid.innerHTML = '';
+    const elemColors = { fire:'#ff4400', water:'#00aaff', lightning:'#ffff00', wind:'#00ff88', earth:'#8B4513' };
+    charactersData.forEach(c => {
+        const card = document.createElement('div'); card.className = 'char-card';
+        card.onclick = () => { document.querySelectorAll('.char-card').forEach(x => x.classList.remove('selected')); card.classList.add('selected'); selectedCharacter = c.id; socket.emit('selectCharacter', { characterId: c.id }); document.getElementById('empire-color-section').style.display = 'block'; renderColorGrid(); };
+        card.innerHTML = `<div class="char-icon">${icons[c.id]||'⚔️'}</div><div class="char-name">${c.name}</div><div class="char-element" style="color:${elemColors[c.element]}">${c.element.toUpperCase()}</div><div class="char-ability">${c.ability}</div>`;
+        grid.appendChild(card);
+    });
+}
+socket.on('charactersData', (d) => { charactersData = d; if (document.getElementById('char-select-screen').style.display === 'flex') renderCharGrid(); });
+
+function renderColorGrid() {
+    const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff]; const grid = document.getElementById('color-grid'); grid.innerHTML = '';
+    colors.forEach(c => { const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0'); sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; }; grid.appendChild(sw); });
+}
+function startGame() { if (!selectedCharacter || !selectedColor) return; socket.emit('setEmpireColor', { color: selectedColor }); currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); }
+
+function enterGame(d) {
+    document.getElementById('game-screen').style.display = 'block';
+    document.getElementById('ui-ryo').innerText = d.ryo;
+    document.getElementById('ui-infantry').innerText = d.army?.infantry || 0;
+    document.getElementById('ui-archer').innerText = d.army?.archer || 0;
+    document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
+    document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
+    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
+    renderMap();
 }
 
-const playersDataPath = path.join(DATA_DIR, 'players.json');
-const worldDataPath = path.join(DATA_DIR, 'world.json');
-const clansDataPath = path.join(DATA_DIR, 'clans.json');
-
-if (!fs.existsSync(playersDataPath)) fs.writeFileSync(playersDataPath, JSON.stringify({}, null, 2));
-if (!fs.existsSync(worldDataPath)) fs.writeFileSync(worldDataPath, JSON.stringify({ cities: {}, mines: {}, bosses: {} }, null, 2));
-if (!fs.existsSync(clansDataPath)) fs.writeFileSync(clansDataPath, JSON.stringify({}, null, 2));
-
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '10mb' }));
-
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.SESSION_SECRET) {
-    console.error('⚠️ SESSION_SECRET ayarlı değil, geçici üretildi. Kalıcı olsun istiyorsan Render\'da SESSION_SECRET ekle.');
-}
-
-// ═══════════════════════════════════════════
-// MAİL SİSTEMİ (GÜÇLENDİRİLMİŞ VE DOĞRULANMIŞ)
-// ═══════════════════════════════════════════
-const MAIL_FROM_NAME = 'AtlasWarfare';
-const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
-const MAIL_PASS = process.env.google;
-
-if (!MAIL_PASS) {
-    console.error('❌ KRİTİK HATA: Render Environment içinde "google" değişkeni (Gmail Uygulama Şifren) bulunamadı!');
-}
-
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true for 465, false for other ports
-    auth: { user: MAIL_USER, pass: MAIL_PASS }
-});
-
-// Sunucu başlarken mail bağlantısını test et
-transporter.verify(function(error, success) {
-    if (error) {
-        console.error('❌ [MAIL] SMTP Bağlantı Hatası:', error);
-    } else {
-        console.log('✅ [MAIL] E-posta sunucusu hazır ve bağlantı başarılı.');
-    }
-});
-
-function sendEmail(to, subject, body) {
-    if (!MAIL_PASS) {
-        console.error('❌ [MAIL] Gönderilemedi: Gmail şifresi ortam değişkenlerinde yok!');
-        return;
-    }
-    console.log(`[MAIL] Hazırlanıyor -> Kime: ${to}, Konu: ${subject}`);
-    const mailOptions = { 
-        from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, 
-        to, 
-        subject, 
-        text: body 
-    };
+// 2D HARİTA ÇİZİMİ (MAFIA CITY MANTIĞI)
+function renderMap() {
+    const container = document.getElementById('map-container');
+    // Eski pinleri temizle
+    document.querySelectorAll('.map-pin').forEach(p => p.remove());
     
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.error('❌ [MAIL] E-posta Hatası Detayı:', error.message);
-        } else {
-            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi: ' + info.response);
-        }
-    });
-}
+    if (!worldData) return;
 
-// ═══════════════════════════════════════════
-// SABİT VERİLER
-// ═══════════════════════════════════════════
-const CITIES = [
-    { id:"tokyo", name:"Tokyo", type:"capital", lat:35.68, lng:139.69, garrison:5000, bonus:{damage:0.20, defense:0.15, ryo:0.30} },
-    { id:"london", name:"Londra", type:"capital", lat:51.50, lng:-0.12, garrison:4500, bonus:{defense:0.25, ryo:0.20} },
-    { id:"paris", name:"Paris", type:"capital", lat:48.85, lng:2.35, garrison:4000, bonus:{damage:0.15, ryo:0.25} },
-    { id:"berlin", name:"Berlin", type:"capital", lat:52.52, lng:13.40, garrison:4500, bonus:{defense:0.20, damage:0.10} },
-    { id:"moscow", name:"Moskova", type:"capital", lat:55.75, lng:37.61, garrison:5500, bonus:{damage:0.25, defense:0.20} },
-    { id:"beijing", name:"Pekin", type:"capital", lat:39.90, lng:116.40, garrison:5000, bonus:{damage:0.20, ryo:0.25} },
-    { id:"washington", name:"Washington", type:"capital", lat:38.90, lng:-77.03, garrison:4500, bonus:{defense:0.20, ryo:0.30} },
-    { id:"istanbul", name:"İstanbul", type:"capital", lat:41.00, lng:28.97, garrison:4000, bonus:{damage:0.15, defense:0.15, ryo:0.15} },
-    { id:"cairo", name:"Kahire", type:"capital", lat:30.04, lng:31.23, garrison:3500, bonus:{ryo:0.35, defense:0.10} },
-    { id:"rome", name:"Roma", type:"capital", lat:41.90, lng:12.49, garrison:4000, bonus:{defense:0.20, ryo:0.20} },
-    { id:"osaka", name:"Osaka", type:"normal", lat:34.69, lng:135.50, garrison:1500, bonus:{damage:0.08} },
-    { id:"shanghai", name:"Şanghay", type:"normal", lat:31.23, lng:121.47, garrison:2000, bonus:{ryo:0.15} },
-    { id:"newyork", name:"New York", type:"normal", lat:40.71, lng:-74.00, garrison:2000, bonus:{ryo:0.15} },
-    { id:"losangeles", name:"Los Angeles", type:"normal", lat:34.05, lng:-118.24, garrison:1500, bonus:{ryo:0.12} },
-    { id:"sydney", name:"Sydney", type:"normal", lat:-33.86, lng:151.20, garrison:1200, bonus:{defense:0.10} },
-    { id:"dubai", name:"Dubai", type:"normal", lat:25.20, lng:55.27, garrison:1800, bonus:{ryo:0.20} },
-    { id:"singapore", name:"Singapur", type:"normal", lat:1.35, lng:103.81, garrison:2000, bonus:{ryo:0.18} },
-    { id:"madrid", name:"Madrid", type:"normal", lat:40.41, lng:-3.70, garrison:1200, bonus:{defense:0.08} }
-];
-
-const MINES = [
-    { id:"mine_gold1", name:"Altın Madeni", type:"gold", lat:36, lng:140, yield:200 },
-    { id:"mine_gold2", name:"Altın Madeni", type:"gold", lat:51, lng:0, yield:200 },
-    { id:"mine_iron1", name:"Demir Madeni", type:"iron", lat:45, lng:13, yield:100 },
-    { id:"mine_iron2", name:"Demir Madeni", type:"iron", lat:35, lng:139, yield:100 },
-    { id:"mine_iron3", name:"Demir Madeni", type:"iron", lat:39, lng:116, yield:100 }
-];
-
-const BIJUU_LAIRS = [
-    { id:"bijuu1", beast:"Matatabi (2 Kuyruk)", lat:35, lng:139, hp:50000, reward:50000 },
-    { id:"bijuu2", beast:"Isobu (3 Kuyruk)", lat:-33, lng:151, hp:60000, reward:60000 },
-    { id:"bijuu8", beast:"Kurama (9 Kuyruk)", lat:35, lng:0, hp:200000, reward:200000 }
-];
-
-const CHARACTERS = [
-    { id:"kyuubi", name:"Kyuubi Varisi", element:"fire", ability:"Rasengan", damage:50, defense:20, hp:500, desc:"Ateş enerjisiyle devasa top fırlatır" },
-    { id:"alchemist", name:"Alchemist General", element:"earth", ability:"Transmutation", damage:40, defense:40, hp:800, desc:"Yeri parçalayarak alan hasarı verir" },
-    { id:"mistsword", name:"Sis Hashira", element:"water", ability:"Mist Breathing", damage:45, defense:30, hp:600, desc:"Sis bulutu içinde hızlı kesikler atar" },
-    { id:"raikage", name:"Yıldırım Varisi", element:"lightning", ability:"Chidori", damage:60, defense:15, hp:400, desc:"Yıldırım hızında delici saldırı" },
-    { id:"soulreaper", name:"Ruh Savasan", element:"wind", ability:"Bankai", damage:55, defense:25, hp:550, desc:"Dev kılıçla geniş alan hasarı verir" },
-    { id:"titan", name:"İzci Teğmen", element:"earth", ability:"ODM Slash", damage:65, defense:10, hp:350, desc:"Yüksek hızla düşmanı deler geçer" },
-    { id:"rubber", name:"Lastik Komutan", element:"lightning", ability:"Gear Second", damage:50, defense:30, hp:600, desc:"Esnek yumruklarla sarsıcı darbe vurur" },
-    { id:"icequeen", name:"Buz Kraliçesi", element:"water", ability:"Ice Mirror", damage:40, defense:35, hp:650, desc:"Ayna teknikleriyle buz şarırağı yağdırır" }
-];
-
-const SHIELD_DURATION = 12 * 60 * 60 * 1000;
-
-// ═══════════════════════════════════════════
-// DÜNYA YÖNETİMİ
-// ═══════════════════════════════════════════
-function initWorld() {
-    let world = {};
-    try { world = JSON.parse(fs.readFileSync(worldDataPath, 'utf8')); } catch(e) { world = { cities: {}, mines: {}, bosses: {} }; }
-    if (!world.cities || Object.keys(world.cities).length === 0) {
-        world = { cities: {}, mines: {}, bosses: {}, createdAt: Date.now() };
-        CITIES.forEach(c => world.cities[c.id] = { ...c, x: (c.lng / 180) * 500, z: -(c.lat / 90) * 250, owner: null, ownerClan: null, empireColor: null, playerDefenders: { infantry: 0, archer: 0, cavalry: 0 }, shieldUntil: 0, lastIncome: Date.now() });
-        MINES.forEach(m => world.mines[m.id] = { ...m, x: (m.lng / 180) * 500, z: -(m.lat / 90) * 250, owner: null, empireColor: null, occupierArmy: { infantry: 0, archer: 0, cavalry: 0 }, lastCollection: Date.now() });
-        BIJUU_LAIRS.forEach(b => world.bosses[b.id] = { ...b, x: (b.lng / 180) * 500, z: -(b.lat / 90) * 250, currentHp: b.hp, defeated: false, respawnAt: Date.now() + 2 * 60 * 60 * 1000, attackers: {} });
-        fs.writeFileSync(worldDataPath, JSON.stringify(world, null, 2));
-    }
-    return world;
-}
-function loadWorld() { try { return JSON.parse(fs.readFileSync(worldDataPath, 'utf8')); } catch(e) { return initWorld(); } }
-function saveWorld(w) { fs.writeFileSync(worldDataPath, JSON.stringify(w, null, 2)); }
-function loadClans() { try { return JSON.parse(fs.readFileSync(clansDataPath, 'utf8')); } catch(e) { return {}; } }
-function saveClans(c) { fs.writeFileSync(clansDataPath, JSON.stringify(c, null, 2)); }
-initWorld();
-
-// ═══════════════════════════════════════════
-// MAFIA CITY SAVAŞ MANTIĞI
-// ═══════════════════════════════════════════
-function calculateBattle(attackArmy, attackStats, defenseArmy, defenseStats) {
-    const UNIT_STATS = { infantry: { atk: 10, def: 10, hp: 100 }, archer: { atk: 15, def: 5, hp: 80 }, cavalry: { atk: 20, def: 15, hp: 150 } };
-    let atkPower = attackArmy.infantry * (UNIT_STATS.infantry.atk + UNIT_STATS.infantry.hp * 0.5) + attackArmy.archer * (UNIT_STATS.archer.atk + UNIT_STATS.archer.hp * 0.5) + attackArmy.cavalry * (UNIT_STATS.cavalry.atk + UNIT_STATS.cavalry.hp * 0.5);
-    atkPower *= (1 + (attackStats.damage || 0));
-    let defPower = (defenseArmy.garrison || 0) * 15 + (defenseArmy.infantry || 0) * (UNIT_STATS.infantry.def + UNIT_STATS.infantry.hp) + (defenseArmy.archer || 0) * (UNIT_STATS.archer.def + UNIT_STATS.archer.hp) + (defenseArmy.cavalry || 0) * (UNIT_STATS.cavalry.def + UNIT_STATS.cavalry.hp);
-    defPower *= (1 + (defenseStats.defense || 0));
-
-    atkPower *= (0.9 + Math.random() * 0.2);
-    defPower *= (0.9 + Math.random() * 0.2);
-
-    const totalPower = atkPower + defPower || 1;
-    const atkRatio = atkPower / totalPower;
-    const attackerLossRatio = atkPower > defPower ? (1 - atkRatio) * 0.5 : 0.8;
-    const defenderLossRatio = atkPower > defPower ? 0.8 : (1 - (1 - atkRatio)) * 0.5;
-
-    const attackerLosses = { infantry: Math.floor(attackArmy.infantry * attackerLossRatio), archer: Math.floor(attackArmy.archer * attackerLossRatio), cavalry: Math.floor(attackArmy.cavalry * attackerLossRatio) };
-    const defenderLosses = { garrison: Math.floor((defenseArmy.garrison || 0) * defenderLossRatio), infantry: Math.floor((defenseArmy.infantry || 0) * defenderLossRatio), archer: Math.floor((defenseArmy.archer || 0) * defenderLossRatio), cavalry: Math.floor((defenseArmy.cavalry || 0) * defenderLossRatio) };
-    const attackerSurvivors = { infantry: Math.max(0, attackArmy.infantry - attackerLosses.infantry), archer: Math.max(0, attackArmy.archer - attackerLosses.archer), cavalry: Math.max(0, attackArmy.cavalry - attackerLosses.cavalry) };
-    const attackerHospital = { infantry: Math.floor(attackerLosses.infantry * 0.7), archer: Math.floor(attackerLosses.archer * 0.7), cavalry: Math.floor(attackerLosses.cavalry * 0.7) };
-
-    return { attackerWins: atkPower > defPower, atkPower: Math.round(atkPower), defPower: Math.round(defPower), attackerLosses, defenderLosses, attackerSurvivors, attackerHospital };
-}
-
-function calculatePlayerPower(player) {
-    if (!player) return 0;
-    let power = (player.army?.infantry || 0) * 10 + (player.army?.archer || 0) * 15 + (player.army?.cavalry || 0) * 25;
-    power += (player.hospital?.infantry || 0) * 5 + (player.hospital?.archer || 0) * 7.5 + (player.hospital?.cavalry || 0) * 12.5;
-    const world = loadWorld();
-    Object.values(world.cities).forEach(c => { if (c.owner === player.username) power += c.type === 'capital' ? 5000 : 2000; });
-    Object.values(world.mines || {}).forEach(m => { if (m.owner === player.username) power += 1000; });
-    if (player.character) { const c = CHARACTERS.find(x => x.id === player.character); if (c) power += c.damage * 10 + c.defense * 10 + c.hp; }
-    if (player.base) power += player.base.level * 3000;
-    return Math.floor(power);
-}
-
-function checkQuestReset(player) {
-    if (!player.lastQuestReset || (Date.now() - player.lastQuestReset) > 24 * 60 * 60 * 1000) {
-        player.quests = { train: { target: 100, current: 0, reward: 2000, claimed: false }, attack: { target: 1, current: 0, reward: 3000, claimed: false }, boss: { target: 1, current: 0, reward: 5000, claimed: false } };
-        player.lastQuestReset = Date.now();
-    }
-}
-
-// ═══════════════════════════════════════════
-// YARDIMCI FONKSİYONLAR
-// ═══════════════════════════════════════════
-function hashPassword(p) { const s = crypto.randomBytes(16).toString('hex'); const h = crypto.scryptSync(p, s, 64).toString('hex'); return `${s}:${h}`; }
-function verifyPassword(p, s) { if (!s || !s.includes(':')) return false; const [salt, hash] = s.split(':'); const check = crypto.scryptSync(p, salt, 64).toString('hex'); return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex')); }
-function publicPlayer(p) { if (!p) return p; const { password, ...safe } = p; return safe; }
-function signToken(u) { const payload = Buffer.from(JSON.stringify({ u, exp: Date.now() + 90 * 24 * 60 * 60 * 1000 })).toString('base64url'); const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('base64url'); return payload + '.' + sig; }
-function verifyToken(t) { if (!t || !t.includes('.')) return null; const [p, sig] = t.split('.'); const exp = crypto.createHmac('sha256', SESSION_SECRET).update(p).digest('base64url'); if (sig !== exp) return null; try { const d = JSON.parse(Buffer.from(p, 'base64url').toString()); if (Date.now() > d.exp) return null; return d.u; } catch (e) { return null; } }
-
-const pendingVerifications = {};
-const passwordResetCodes = {}; 
-let activePlayers = {};
-
-function generateVerifyCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
-
-function buildPlayerData(username, data) {
-    return {
-        username, email: data.email, password: hashPassword(data.password),
-        x: 0, y: 0, z: 0, empireColor: null, character: null,
-        hp: 100, maxHp: 100, level: 1, xp: 0, ryo: 15000,
-        inventory: { wood: 0, stone: 0 }, stats: { damage: 0, defense: 0 },
-        items: {}, equip: { weapon: null, armor: null }, clan: null,
-        army: { infantry: 100, archer: 50, cavalry: 20 },
-        hospital: { infantry: 0, archer: 0, cavalry: 0 },
-        quests: { train: { target: 100, current: 0, reward: 2000, claimed: false }, attack: { target: 1, current: 0, reward: 3000, claimed: false }, boss: { target: 1, current: 0, reward: 5000, claimed: false } },
-        lastQuestReset: Date.now(), inbox: [], base: null, verified: false
-    };
-}
-
-function loadAllUsers() { try { return JSON.parse(fs.readFileSync(playersDataPath, 'utf8')); } catch(e) { return {}; } }
-function saveAllUsers(u) { fs.writeFileSync(playersDataPath, JSON.stringify(u, null, 2)); }
-
-// ═══════════════════════════════════════════
-// PASİF GELİR VE BOSS RESPAWN
-// ═══════════════════════════════════════════
-setInterval(() => {
-    const world = loadWorld(); const now = Date.now(); const allUsers = loadAllUsers(); let updated = false;
-    Object.values(world.cities).forEach(city => { if (city.owner && allUsers[city.owner]) { allUsers[city.owner].ryo += Math.floor((city.bonus?.ryo || 0.1) * 1000); city.lastIncome = now; updated = true; } });
-    Object.values(world.mines).forEach(mine => { if (mine.owner && allUsers[mine.owner]) { const m = Math.floor((now - mine.lastCollection) / 60000); if (m >= 1) { allUsers[mine.owner].ryo += mine.yield * m; mine.lastCollection = now; updated = true; } } });
-    Object.values(world.bosses).forEach(boss => { if (boss.defeated && now >= boss.respawnAt) { boss.defeated = false; boss.currentHp = boss.hp; boss.attackers = {}; io.emit('toast', { type: 'info', msg: `⚠️ ${boss.beast} yeniden uyandı!` }); updated = true; } });
-    if (updated) {
-        saveWorld(world); saveAllUsers(allUsers);
-        Object.values(activePlayers).forEach(p => { if (allUsers[p.username]) { p.ryo = allUsers[p.username].ryo; const s = Object.keys(activePlayers).find(k => activePlayers[k] === p); if (s) io.to(s).emit('ryoUpdate', p.ryo); } });
-        io.emit('worldData', world);
-    }
-}, 5 * 60 * 1000);
-
-// ═══════════════════════════════════════════
-// SOCKET.IO EVENTLERİ
-// ═══════════════════════════════════════════
-io.on('connection', (socket) => {
-    function activatePlayer(socketId, username, playerData) { activePlayers[socketId] = { ...playerData, id: socketId }; }
-
-    socket.on('loginWithToken', (token) => {
-        const u = verifyToken(token); if (!u) return socket.emit('loginError', 'Oturum süresi dolmuş.');
-        const all = loadAllUsers(); if (!all[u]) return socket.emit('loginError', 'Hesap bulunamadı.');
-        activatePlayer(socket.id, u, all[u]);
-        socket.emit('loginSuccess', { token: signToken(u), ...publicPlayer(all[u]) });
-        socket.emit('worldData', loadWorld()); socket.emit('charactersData', CHARACTERS); socket.emit('clansData', loadClans());
-    });
-
-    socket.on('register', (data) => {
-        const { username, email, password, passwordConfirm } = data;
-        if (!username || username.length < 3 || username.length > 16) return socket.emit('loginError', 'Kahraman adı 3-16 karakter olmalı.');
-        if (!/^[a-zA-Z0-9_ğüşöçıİĞÜŞÖÇ]+$/.test(username)) return socket.emit('loginError', 'Geçersiz karakter adı.');
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return socket.emit('loginError', 'Geçerli e-posta gir.');
-        if (!password || password.length < 6) return socket.emit('loginError', 'Şifre en az 6 karakter.');
-        if (password !== passwordConfirm) return socket.emit('loginError', 'Şifreler eşleşmiyor.');
+    // Şehirleri yerleştir
+    Object.values(worldData.cities).forEach(c => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        // lng ve lat'i ekrandaki % oranına çevir
+        pin.style.left = ((c.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - c.lat) / 180 * 100) + '%';
         
-        const all = loadAllUsers();
-        if (Object.keys(all).some(u => u.toLowerCase() === username.toLowerCase())) return socket.emit('loginError', 'Bu ad alınmış.');
-        if (Object.values(all).some(u => u.email && u.email.toLowerCase() === email.toLowerCase())) return socket.emit('loginError', 'Bu e-posta kayıtlı.');
-
-        const code = generateVerifyCode();
-        pendingVerifications[username] = { code, email, password, userData: buildPlayerData(username, { email, password }) };
-        sendEmail(email, '⚔️ AtlasWarfare - Doğrulama', `Kahraman ${username}, doğrulama kodunuz: ${code}\n\nBu kod 10 dakika geçerlidir.`);
-        setTimeout(() => { delete pendingVerifications[username]; }, 10 * 60 * 1000);
-        socket.emit('registerSuccess', { username });
-    });
-
-    socket.on('verifyEmail', (data) => {
-        const { username, code } = data; const p = pendingVerifications[username];
-        if (!p || p.code !== code) return socket.emit('loginError', 'Kod hatalı veya süresi dolmuş.');
-        const all = loadAllUsers(); p.userData.verified = true; all[username] = p.userData; saveAllUsers(all); delete pendingVerifications[username];
-        activatePlayer(socket.id, username, all[username]);
-        socket.emit('verifySuccess', { token: signToken(username), ...publicPlayer(all[username]) });
-        socket.emit('worldData', loadWorld()); socket.emit('charactersData', CHARACTERS); socket.emit('clansData', loadClans());
-    });
-
-    socket.on('resendVerifyCode', (data) => {
-        const { username } = data; const p = pendingVerifications[username];
-        if (!p) return socket.emit('loginError', 'Doğrulama isteği bulunamadı.');
-        const newCode = generateVerifyCode(); p.code = newCode;
-        sendEmail(p.email, '⚔️ AtlasWarfare - Yeni Doğrulama Kodu', `Yeni doğrulama kodunuz: ${newCode}`);
-        socket.emit('loginError', '');
-    });
-
-    socket.on('forgotPassword', (data) => {
-        const { email } = data; const all = loadAllUsers();
-        const user = Object.values(all).find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!user) return socket.emit('loginError', 'E-posta kayıtlı değil.');
-        const code = generateVerifyCode();
-        passwordResetCodes[email.toLowerCase()] = { code, username: user.username, expires: Date.now() + 10 * 60 * 1000 };
-        sendEmail(email, '⚔️ AtlasWarfare - Şifre Sıfırlama', `Merhaba ${user.username}, şifre sıfırlama kodun: ${code}`);
-        socket.emit('forgotPasswordCodeSent');
-    });
-
-    socket.on('verifyResetCode', (data) => {
-        const { email, code } = data; const r = passwordResetCodes[email.toLowerCase()];
-        if (!r || Date.now() > r.expires) return socket.emit('resetCodeError', 'Kod süresi dolmuş.');
-        if (r.code !== code) return socket.emit('resetCodeError', 'Kod hatalı.');
-        socket.emit('resetCodeVerified', { email: email.toLowerCase(), username: r.username });
-    });
-
-    socket.on('resetPassword', (data) => {
-        const { email, newPassword } = data;
-        if (!newPassword || newPassword.length < 6) return socket.emit('resetPasswordError', 'Şifre en az 6 karakter.');
-        const all = loadAllUsers();
-        const entry = Object.entries(all).find(([_, u]) => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!entry) return socket.emit('resetPasswordError', 'Kullanıcı yok.');
-        const [username, user] = entry; user.password = hashPassword(newPassword); all[username] = user; saveAllUsers(all);
-        delete passwordResetCodes[email.toLowerCase()];
-        socket.emit('resetPasswordSuccess');
-    });
-
-    socket.on('login', (data) => {
-        const { username, password } = data; const all = loadAllUsers();
-        let u = all[username] || Object.values(all).find(x => x.email && x.email.toLowerCase() === username.toLowerCase());
-        if (!u) return socket.emit('loginError', 'Hesap bulunamadı.');
-        if (!verifyPassword(password, u.password)) return socket.emit('loginError', 'Şifre hatalı.');
-        if (!u.verified) return socket.emit('loginError', 'E-posta doğrulanmamış.');
-        activatePlayer(socket.id, u.username, u);
-        socket.emit('loginSuccess', { token: signToken(u.username), ...publicPlayer(u) });
-        socket.emit('worldData', loadWorld()); socket.emit('charactersData', CHARACTERS); socket.emit('clansData', loadClans());
-    });
-
-    socket.on('selectCharacter', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const c = CHARACTERS.find(x => x.id === data.characterId); if (!c) return;
-        p.character = c.id; p.stats.damage = (p.stats.damage || 0) + c.damage * 0.01; p.stats.defense = (p.stats.defense || 0) + c.defense * 0.01;
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].character = c.id; all[p.username].stats = p.stats; saveAllUsers(all); }
-        socket.emit('characterSelected', { character: c.id, stats: p.stats });
-    });
-
-    socket.on('setEmpireColor', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return; p.empireColor = data.color;
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].empireColor = data.color; saveAllUsers(all); }
-        socket.emit('empireColorSet', { color: data.color });
-    });
-
-    socket.on('trainArmy', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const costs = { infantry: 100, archer: 150, cavalry: 250 };
-        const cost = (data.infantry||0)*costs.infantry + (data.archer||0)*costs.archer + (data.cavalry||0)*costs.cavalry;
-        if (p.ryo < cost) return socket.emit('error', 'Yetersiz Ryo!');
-        p.ryo -= cost; p.army.infantry += data.infantry||0; p.army.archer += data.archer||0; p.army.cavalry += data.cavalry||0;
-        if (p.quests) p.quests.train.current += (data.infantry||0)+(data.archer||0)+(data.cavalry||0);
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].ryo = p.ryo; all[p.username].army = p.army; all[p.username].quests = p.quests; saveAllUsers(all); }
-        socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-        socket.emit('toast', { type: 'success', msg: `${(data.infantry||0)+(data.archer||0)+(data.cavalry||0)} asker eğitildi!` });
-    });
-
-    socket.on('healArmy', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const cost = 50 * (Math.min(p.hospital.infantry, data.infantry||0) + Math.min(p.hospital.archer, data.archer||0) + Math.min(p.hospital.cavalry, data.cavalry||0));
-        if (p.ryo < cost) return socket.emit('error', 'Yetersiz Ryo!');
-        p.ryo -= cost;
-        p.army.infantry += Math.min(p.hospital.infantry, data.infantry||0); p.hospital.infantry -= Math.min(p.hospital.infantry, data.infantry||0);
-        p.army.archer += Math.min(p.hospital.archer, data.archer||0); p.hospital.archer -= Math.min(p.hospital.archer, data.archer||0);
-        p.army.cavalry += Math.min(p.hospital.cavalry, data.cavalry||0); p.hospital.cavalry -= Math.min(p.hospital.cavalry, data.cavalry||0);
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].ryo = p.ryo; all[p.username].army = p.army; all[p.username].hospital = p.hospital; saveAllUsers(all); }
-        socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-        socket.emit('toast', { type: 'success', msg: `Askerler iyileştirildi!` });
-    });
-
-    socket.on('attackCity', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const world = loadWorld(); const city = world.cities[data.cityId];
-        if (!city || city.shieldUntil > Date.now()) return socket.emit('error', 'Şehir kalkanlı!');
-        const sent = data.army; if (sent.infantry + sent.archer + sent.cavalry === 0) return socket.emit('error', 'Ordu gönder!');
-        const def = { garrison: city.garrison, ...city.playerDefenders };
-        const res = calculateBattle(sent, { damage: p.stats.damage }, def, { defense: city.bonus?.defense || 0 });
+        const isCap = c.type === 'capital';
+        const color = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6,'0') : '#888';
         
-        p.army.infantry = Math.max(0, p.army.infantry - sent.infantry + res.attackerSurvivors.infantry);
-        p.army.archer = Math.max(0, p.army.archer - sent.archer + res.attackerSurvivors.archer);
-        p.army.cavalry = Math.max(0, p.army.cavalry - sent.cavalry + res.attackerSurvivors.cavalry);
-        p.hospital.infantry += res.attackerHospital.infantry; p.hospital.archer += res.attackerHospital.archer; p.hospital.cavalry += res.attackerHospital.cavalry;
+        pin.innerHTML = `
+            <div class="pin-icon" style="color:${color}">${isCap ? '👑' : '🏰'}</div>
+            <div class="pin-label" style="border-color:${color}">${c.name}</div>
+        `;
+        pin.onclick = () => showCityPopup(c.id);
+        container.appendChild(pin);
+    });
 
-        if (res.attackerWins) {
-            city.owner = p.username; city.ownerClan = p.clan; city.empireColor = p.empireColor;
-            city.playerDefenders = res.attackerSurvivors; city.garrison = 0; city.shieldUntil = Date.now() + SHIELD_DURATION;
-            socket.emit('toast', { type: 'victory', msg: `🏆 ${city.name} ele geçirildi!` });
-        } else {
-            city.garrison = Math.max(100, def.garrison - res.defenderLosses.garrison);
-            city.playerDefenders.infantry = Math.max(0, def.infantry - res.defenderLosses.infantry);
-            city.playerDefenders.archer = Math.max(0, def.archer - res.defenderLosses.archer);
-            city.playerDefenders.cavalry = Math.max(0, def.cavalry - res.defenderLosses.cavalry);
-            socket.emit('toast', { type: 'defeat', msg: `💀 ${city.name} savunması kırılamadı!` });
+    // Madenleri yerleştir
+    Object.values(worldData.mines || {}).forEach(m => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        pin.style.left = ((m.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - m.lat) / 180 * 100) + '%';
+        pin.innerHTML = `<div class="pin-icon">${m.type === 'gold' ? '🟡' : '⚙️'}</div><div class="pin-label">${m.name}</div>`;
+        pin.onclick = () => showMinePopup(m.id);
+        container.appendChild(pin);
+    });
+
+    // Boss'ları yerleştir
+    Object.values(worldData.bosses || {}).forEach(b => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        pin.style.left = ((b.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - b.lat) / 180 * 100) + '%';
+        pin.innerHTML = `<div class="pin-icon">${b.defeated ? '💀' : '👹'}</div><div class="pin-label" style="color:red">${b.beast.split(' ')[0]}</div>`;
+        pin.onclick = () => showBossPopup(b.id);
+        container.appendChild(pin);
+    });
+
+    // Oyuncu Üssünü yerleştir
+    if (currentPlayer.base) {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        // Üs koordinatları zaten % olarak kaydedilmediği için map-container boyutuna göre orantıla
+        const rect = container.getBoundingClientRect();
+        pin.style.left = (((currentPlayer.base.x / 500) + 1) / 2 * 100) + '%'; // x -500 ile 500 arası
+        pin.style.top = (((currentPlayer.base.z / 250) + 1) / 2 * 100) + '%'; // z -250 ile 250 arası
+        pin.innerHTML = `<div class="pin-icon" style="font-size:3rem;">🚩</div><div class="pin-label" style="border-color:var(--primary)">Ana Üssüm</div>`;
+        container.appendChild(pin);
+    }
+}
+
+// ŞEHİR POPUP
+function showCityPopup(id) {
+    const c = worldData.cities[id]; if(!c) return;
+    selectedCityId = id; selectedMineId = null; selectedBossId = null;
+    const box = document.getElementById('modal-box');
+    const bP=[]; if(c.bonus.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus.defense)bP.push(`%${c.bonus.defense*100} Savunma`); if(c.bonus.ryo)bP.push(`%${c.bonus.ryo*100} Ryo`);
+    
+    box.innerHTML = `
+        <h2>${c.name}</h2>
+        <div class="info-row"><span>Tip</span><span>${c.type === 'capital' ? '👑 Başkent' : '🏘️ Şehir'}</span></div>
+        <div class="info-row"><span>Sahip</span><span>${c.owner||'Bağımsız'}</span></div>
+        <div class="info-row"><span>🏰 Muhafız</span><span>${c.garrison}</span></div>
+        <div class="info-row"><span>🛡️ Piyade</span><span>${c.playerDefenders.infantry}</span></div>
+        <div class="info-row"><span>🏹 Okçu</span><span>${c.playerDefenders.archer}</span></div>
+        <div class="info-row"><span>🐎 Süvari</span><span>${c.playerDefenders.cavalry}</span></div>
+        <div class="info-row"><span>Bonus</span><span style="color:var(--secondary)">${bP.join(', ')}</span></div>
+        ${c.owner === currentPlayer.username ? 
+            `<button class="btn btn-primary" onclick="openDeployModal()">Savunma Yerleştir</button>` : 
+            `<button class="btn btn-primary" onclick="openAttackModal()">⚔️ Saldır</button>`
         }
-        if (p.quests) p.quests.attack.current += 1;
-        saveWorld(world); const all = loadAllUsers(); if (all[p.username]) { all[p.username].army = p.army; all[p.username].hospital = p.hospital; all[p.username].quests = p.quests; saveAllUsers(all); }
-        io.emit('battleAnimation', { cityId: city.id, characterId: p.character, attackerColor: p.empireColor, result: res });
-        io.emit('worldData', world); socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-    });
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
 
-    socket.on('occupyMine', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const world = loadWorld(); const mine = world.mines[data.mineId]; if (!mine) return;
-        const sent = data.army; if (sent.infantry + sent.archer + sent.cavalry === 0) return socket.emit('error', 'Ordu gönder!');
-        const def = { garrison: mine.occupierArmy.infantry + mine.occupierArmy.archer + mine.occupierArmy.cavalry > 0 ? 0 : 200, ...mine.occupierArmy };
-        const res = calculateBattle(sent, { damage: p.stats.damage }, def, { defense: 0 });
-        p.army.infantry = Math.max(0, p.army.infantry - sent.infantry + res.attackerSurvivors.infantry);
-        p.army.archer = Math.max(0, p.army.archer - sent.archer + res.attackerSurvivors.archer);
-        p.army.cavalry = Math.max(0, p.army.cavalry - sent.cavalry + res.attackerSurvivors.cavalry);
-        p.hospital.infantry += res.attackerHospital.infantry; p.hospital.archer += res.attackerHospital.archer; p.hospital.cavalry += res.attackerHospital.cavalry;
-        if (res.attackerWins) { mine.owner = p.username; mine.empireColor = p.empireColor; mine.occupierArmy = res.attackerSurvivors; mine.lastCollection = Date.now(); socket.emit('toast', { type: 'success', msg: `⛏️ ${mine.name} ele geçirildi!` }); }
-        else socket.emit('toast', { type: 'defeat', msg: `⛏️ ${mine.name} savunuldu!` });
-        saveWorld(world); const all = loadAllUsers(); if (all[p.username]) { all[p.username].army = p.army; all[p.username].hospital = p.hospital; saveAllUsers(all); }
-        io.emit('battleAnimation', { cityId: mine.id, characterId: p.character, attackerColor: p.empireColor, result: res });
-        io.emit('worldData', world); socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-    });
+function showMinePopup(id) {
+    const m = worldData.mines[id]; if(!m) return;
+    selectedMineId = id; selectedCityId = null; selectedBossId = null;
+    const box = document.getElementById('modal-box');
+    box.innerHTML = `
+        <h2>${m.name}</h2>
+        <div class="info-row"><span>Sahip</span><span>${m.owner||'NPC'}</span></div>
+        <div class="info-row"><span>Gelir</span><span style="color:var(--gold)">${m.yield}/dk</span></div>
+        ${m.owner !== currentPlayer.username ? `<button class="btn btn-primary" onclick="openAttackModal('mine')">⛏️ İşgal Et</button>` : '<p style="color:var(--green);text-align:center;margin:10px 0;">Bu maden senin!</p>'}
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
 
-    socket.on('attackBoss', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const world = loadWorld(); const boss = world.bosses[data.bossId]; if (!boss || boss.defeated) return socket.emit('error', 'Boss yok!');
-        const sent = data.army; if (sent.infantry + sent.archer + sent.cavalry === 0) return socket.emit('error', 'Ordu gönder!');
-        let dmg = (sent.infantry * 15 + sent.archer * 20 + sent.cavalry * 30) * (1 + (p.stats.damage || 0)); dmg = Math.floor(dmg);
-        const lossR = 0.4;
-        const losses = { infantry: Math.floor(sent.infantry * lossR), archer: Math.floor(sent.archer * lossR), cavalry: Math.floor(sent.cavalry * lossR) };
-        p.army.infantry -= losses.infantry; p.army.archer -= losses.archer; p.army.cavalry -= losses.cavalry;
-        p.hospital.infantry += Math.floor(losses.infantry * 0.6); p.hospital.archer += Math.floor(losses.archer * 0.6); p.hospital.cavalry += Math.floor(losses.cavalry * 0.6);
-        boss.currentHp = Math.max(0, boss.currentHp - dmg); if (!boss.attackers[p.username]) boss.attackers[p.username] = 0; boss.attackers[p.username] += dmg;
-        if (p.quests) p.quests.boss.current += 1;
-        if (boss.currentHp <= 0) {
-            boss.defeated = true; boss.respawnAt = Date.now() + 2 * 60 * 60 * 1000;
-            const sorted = Object.entries(boss.attackers).sort((a, b) => b[1] - a[1]);
-            const all = loadAllUsers();
-            sorted.forEach(([un, d], i) => { const share = i === 0 ? 0.6 : 0.4 / Math.max(1, sorted.length - 1); const r = Math.floor(boss.reward * share); if (all[un]) { all[un].ryo += r; const s = Object.keys(activePlayers).find(k => activePlayers[k].username === un); if (s) { activePlayers[s].ryo = all[un].ryo; io.to(s).emit('ryoUpdate', all[un].ryo); io.to(s).emit('toast', { type: 'victory', msg: `🏆 ${boss.beast} yenildi! Ödül: ${r} Ryo!` }); } } });
-            saveAllUsers(all); io.emit('toast', { type: 'info', msg: `⚔️ ${boss.beast} ${sorted[0][0]} tarafından öldürüldü!` });
-        } else socket.emit('toast', { type: 'info', msg: `💥 ${boss.beast}'a ${dmg} hasar! (Kalan: ${boss.currentHp})` });
-        saveWorld(world); const all = loadAllUsers(); if (all[p.username]) { all[p.username].army = p.army; all[p.username].hospital = p.hospital; all[p.username].quests = p.quests; saveAllUsers(all); }
-        io.emit('battleAnimation', { cityId: boss.id, characterId: p.character, attackerColor: p.empireColor, result: { attackerWins: boss.defeated, atkPower: dmg, defPower: 0 } });
-        io.emit('worldData', world); socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-    });
+function showBossPopup(id) {
+    const b = worldData.bosses[id]; if(!b) return;
+    selectedBossId = id; selectedCityId = null; selectedMineId = null;
+    const box = document.getElementById('modal-box');
+    if(b.defeated) {
+        box.innerHTML = `<h2 style="color:red">${b.beast}</h2><p style="text-align:center;margin:10px 0;">Yenilmiş. Respawn bekleniyor.</p><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else {
+        box.innerHTML = `
+            <h2 style="color:red">${b.beast}</h2>
+            <div class="info-row"><span>HP</span><span>${b.currentHp} / ${b.hp}</span></div>
+            <div class="info-row"><span>Ödül</span><span style="color:var(--gold)">${b.reward} Ryo</span></div>
+            <button class="btn btn-primary" style="background:linear-gradient(45deg,#f00,#900)" onclick="openAttackModal('boss')">👹 Saldır</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+        `;
+    }
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
 
-    socket.on('deployDefenders', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return;
-        const world = loadWorld(); const city = world.cities[data.cityId];
-        if (!city || city.owner !== p.username) return socket.emit('error', 'Şehir senin değil!');
-        if (p.army.infantry < (data.infantry||0) || p.army.archer < (data.archer||0) || p.army.cavalry < (data.cavalry||0)) return socket.emit('error', 'Yetersiz asker!');
-        p.army.infantry -= data.infantry||0; city.playerDefenders.infantry += data.infantry||0;
-        p.army.archer -= data.archer||0; city.playerDefenders.archer += data.archer||0;
-        p.army.cavalry -= data.cavalry||0; city.playerDefenders.cavalry += data.cavalry||0;
-        saveWorld(world); const all = loadAllUsers(); if (all[p.username]) { all[p.username].army = p.army; saveAllUsers(all); }
-        io.emit('worldData', world); socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-    });
+// MODAL FONKSİYONLARI
+function openModal(t) {
+    const box = document.getElementById('modal-box');
+    document.getElementById('modal-overlay').style.display = 'flex';
+    if(t==='leaderboard'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getLeaderboard'); }
+    else if(t==='profile'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getProfile'); }
+    else if(t==='train'){ box.innerHTML=`<h2>🔨 Asker Eğit</h2><p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ryo: ${currentPlayer.ryo}</p><div class="input-group"><label>🛡️ Piyade (100 Ryo)</label><input type="number" id="t-inf" min="0" value="0"></div><div class="input-group"><label>🏹 Okçu (150 Ryo)</label><input type="number" id="t-arc" min="0" value="0"></div><div class="input-group"><label>🐎 Süvari (250 Ryo)</label><input type="number" id="t-cav" min="0" value="0"></div><button class="btn btn-primary" onclick="train()">Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
+    else if(t==='hospital'){ box.innerHTML=`<h2>🏥 Hastane</h2><p style="text-align:center;color:var(--red);margin-bottom:10px;">Yaralı: ${currentPlayer.hospital.infantry}🛡️ ${currentPlayer.hospital.archer}🏹 ${currentPlayer.hospital.cavalry}🐎</p><div class="input-group"><label>🛡️ Piyade İyileştir</label><input type="number" id="h-inf" min="0" max="${currentPlayer.hospital.infantry}" value="${currentPlayer.hospital.infantry}"></div><div class="input-group"><label>🏹 Okçu İyileştir</label><input type="number" id="h-arc" min="0" max="${currentPlayer.hospital.archer}" value="${currentPlayer.hospital.archer}"></div><div class="input-group"><label>🐎 Süvari İyileştir</label><input type="number" id="h-cav" min="0" max="${currentPlayer.hospital.cavalry}" value="${currentPlayer.hospital.cavalry}"></div><button class="btn btn-primary" style="background:linear-gradient(45deg,var(--red),#a00)" onclick="heal()">İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
+    else if(t==='clan'){ let h = Object.values(clansData).map(c=>`<div style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #333;"><span>${c.flag} ${c.name} (${c.members.length}/30)</span>${c.members.includes(currentPlayer.username)?'':`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="joinC('${Object.keys(clansData).find(k=>clansData[k]===c)}')">Katıl</button>`}</div>`).join(''); box.innerHTML=`<h2>🐉 Klan</h2>${!currentPlayer.clan?`<div style="display:flex;gap:5px;margin-bottom:10px;"><input type="text" id="c-n" placeholder="Ad" style="flex:1;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;"><input type="text" id="c-f" placeholder="Bayrak" maxlength="2" style="width:40px;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;text-align:center;"><button class="btn btn-primary" style="width:auto;padding:8px;" onclick="createC()">Kur</button></div>`:'<button class="btn btn-secondary" onclick="leaveC()" style="margin-bottom:10px;">Ayrıl</button>'}<div style="max-height:200px;overflow-y:auto;">${h||'<p style="color:#aaa;text-align:center;">Klan yok</p>'}</div><button class="btn btn-secondary" onclick="closeModal()" style="margin-top:10px;">Kapat</button>`; }
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 
-    socket.on('createClan', (data) => {
-        const p = activePlayers[socket.id]; if (!p || p.clan) return socket.emit('error', 'Zaten klandasın.');
-        if (!data.name || data.name.length < 3) return socket.emit('error', 'Klan adı en az 3 karakter.');
-        const clans = loadClans(); const id = data.name.toLowerCase().replace(/\s+/g, '_');
-        if (clans[id]) return socket.emit('error', 'Klan adı var.');
-        clans[id] = { name: data.name, leader: p.username, flag: data.flag || '🐉', color: p.empireColor || 0xff6600, members: [p.username], createdAt: Date.now() };
-        saveClans(clans); p.clan = id;
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].clan = id; saveAllUsers(all); }
-        io.emit('clansData', clans); socket.emit('toast', { type: 'success', msg: `Klan kuruldu!` });
-    });
-    socket.on('joinClan', (data) => {
-        const p = activePlayers[socket.id]; if (!p || p.clan) return socket.emit('error', 'Zaten klandasın.');
-        const clans = loadClans(); const c = clans[data.clanId]; if (!c || c.members.length >= 30) return socket.emit('error', 'Klan dolu/yok.');
-        c.members.push(p.username); p.clan = data.clanId; saveClans(clans);
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].clan = data.clanId; saveAllUsers(all); }
-        io.emit('clansData', clans); socket.emit('toast', { type: 'success', msg: `Klana katıldın!` });
-    });
-    socket.on('leaveClan', () => {
-        const p = activePlayers[socket.id]; if (!p || !p.clan) return;
-        const clans = loadClans(); const c = clans[p.clan]; if (c) { c.members = c.members.filter(m => m !== p.username); if (c.members.length === 0) delete clans[p.clan]; else if (c.leader === p.username) c.leader = c.members[0]; saveClans(clans); }
-        p.clan = null; const all = loadAllUsers(); if (all[p.username]) { all[p.username].clan = null; saveAllUsers(all); }
-        io.emit('clansData', clans);
-    });
+function openAttackModal(type = 'city') {
+    const box = document.getElementById('modal-box');
+    let targetName = "Hedef";
+    if(type === 'city' && selectedCityId) targetName = worldData.cities[selectedCityId].name;
+    else if(type === 'mine' && selectedMineId) targetName = worldData.mines[selectedMineId].name;
+    else if(type === 'boss' && selectedBossId) targetName = worldData.bosses[selectedBossId].beast;
+    
+    box.innerHTML = `
+        <h2>⚔️ ${targetName}'e Saldır</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p>
+        <div class="input-group"><label>🛡️ Piyade</label><input type="number" id="a-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div>
+        <div class="input-group"><label>🏹 Okçu</label><input type="number" id="a-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div>
+        <div class="input-group"><label>🐎 Süvari</label><input type="number" id="a-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div>
+        <button class="btn btn-primary" onclick="launchAtk('${type}')">Saldırıyı Başlat</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
 
-    socket.on('getLeaderboard', () => {
-        const all = loadAllUsers(); const world = loadWorld();
-        const arr = Object.values(all).map(p => { const c = { ...publicPlayer(p) }; c.power = calculatePlayerPower(p); c.cityCount = Object.values(world.cities).filter(x => x.owner === p.username).length; c.mineCount = Object.values(world.mines||{}).filter(x => x.owner === p.username).length; return c; });
-        arr.sort((a, b) => b.power - a.power); socket.emit('leaderboardData', arr.slice(0, 100));
-    });
-    socket.on('getProfile', () => {
-        const p = activePlayers[socket.id]; if (!p) return; checkQuestReset(p);
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].quests = p.quests; all[p.username].lastQuestReset = p.lastQuestReset; saveAllUsers(all); }
-        socket.emit('profileData', { ...publicPlayer(p), power: calculatePlayerPower(p) });
-    });
-    socket.on('claimQuest', (data) => {
-        const p = activePlayers[socket.id]; if (!p) return; checkQuestReset(p);
-        const q = p.quests[data.questId]; if (!q || q.claimed || q.current < q.target) return socket.emit('error', 'Görev tamamlanmamış!');
-        q.claimed = true; p.ryo += q.reward;
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].quests = p.quests; all[p.username].ryo = p.ryo; saveAllUsers(all); }
-        socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-        socket.emit('toast', { type: 'success', msg: `Ödül alındı: ${q.reward} Ryo!` });
-        socket.emit('profileData', { ...publicPlayer(p), power: calculatePlayerPower(p) });
-    });
+function launchAtk(type) {
+    const army = { infantry: parseInt(document.getElementById('a-inf').value)||0, archer: parseInt(document.getElementById('a-arc').value)||0, cavalry: parseInt(document.getElementById('a-cav').value)||0 };
+    if(type === 'city') socket.emit('attackCity', { cityId: selectedCityId, army });
+    else if(type === 'mine') socket.emit('occupyMine', { mineId: selectedMineId, army });
+    else if(type === 'boss') socket.emit('attackBoss', { bossId: selectedBossId, army });
+    closeModal();
+}
 
-    socket.on('sendMessage', (data) => {
-        const p = activePlayers[socket.id]; if (!p || !data.to || !data.msg) return;
-        const all = loadAllUsers(); const t = Object.values(all).find(u => u.username.toLowerCase() === data.to.toLowerCase());
-        if (!t) return socket.emit('error', 'Oyuncu yok.');
-        if (!t.inbox) t.inbox = []; t.inbox.unshift({ from: p.username, msg: data.msg, date: Date.now(), read: false });
-        if (t.inbox.length > 50) t.inbox.pop(); saveAllUsers(all);
-        const s = Object.keys(activePlayers).find(k => activePlayers[k].username === t.username); if (s) io.to(s).emit('newMessage', { from: p.username, msg: data.msg, date: Date.now() });
-        socket.emit('toast', { type: 'success', msg: 'Mesaj gönderildi.' });
-    });
-    socket.on('getInbox', () => { const p = activePlayers[socket.id]; if (!p) return; const all = loadAllUsers(); if (all[p.username] && all[p.username].inbox) { all[p.username].inbox.forEach(m => m.read = true); saveAllUsers(all); p.inbox = all[p.username].inbox; } socket.emit('inboxData', p.inbox || []); });
-    socket.on('deleteMessage', (data) => { const p = activePlayers[socket.id]; if (!p) return; const all = loadAllUsers(); if (all[p.username] && all[p.username].inbox) { all[p.username].inbox = all[p.username].inbox.filter(m => m.date !== data.date); saveAllUsers(all); p.inbox = all[p.username].inbox; socket.emit('inboxData', p.inbox); } });
+function openDeployModal() {
+    const box = document.getElementById('modal-box');
+    box.innerHTML = `
+        <h2>🛡️ Savunma Yerleştir</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p>
+        <div class="input-group"><label>🛡️ Piyade</label><input type="number" id="d-inf" max="${currentPlayer.army.infantry}" value="0"></div>
+        <div class="input-group"><label>🏹 Okçu</label><input type="number" id="d-arc" max="${currentPlayer.army.archer}" value="0"></div>
+        <div class="input-group"><label>🐎 Süvari</label><input type="number" id="d-cav" max="${currentPlayer.army.cavalry}" value="0"></div>
+        <button class="btn btn-primary" onclick="deploy()">Yerleştir</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
+function deploy() { socket.emit('deployDefenders', { cityId: selectedCityId, infantry: parseInt(document.getElementById('d-inf').value)||0, archer: parseInt(document.getElementById('d-arc').value)||0, cavalry: parseInt(document.getElementById('d-cav').value)||0 }); closeModal(); }
 
-    socket.on('buildBase', (data) => {
-        const p = activePlayers[socket.id]; if (!p || p.base) return socket.emit('error', 'Zaten üssün var!');
-        if (p.ryo < 10000) return socket.emit('error', '10.000 Ryo gerekli!');
-        p.ryo -= 10000; p.base = { x: data.x, z: data.z, level: 1, hp: 5000 };
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].ryo = p.ryo; all[p.username].base = p.base; saveAllUsers(all); }
-        socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-        socket.emit('baseBuilt', p.base); socket.emit('toast', { type: 'victory', msg: '🏆 Ana Üssün kuruldu!' });
-    });
-    socket.on('upgradeBase', () => {
-        const p = activePlayers[socket.id]; if (!p || !p.base) return;
-        const cost = p.base.level * 5000; if (p.ryo < cost) return socket.emit('error', `${cost} Ryo gerekli!`);
-        p.ryo -= cost; p.base.level += 1; p.base.hp += 2000;
-        const all = loadAllUsers(); if (all[p.username]) { all[p.username].ryo = p.ryo; all[p.username].base = p.base; saveAllUsers(all); }
-        socket.emit('armyUpdated', { army: p.army, ryo: p.ryo, hospital: p.hospital });
-        socket.emit('baseBuilt', p.base); socket.emit('toast', { type: 'success', msg: `Üs Seviye ${p.base.level}'e yükseltildi!` });
-    });
+function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
+function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere tıkla.'); }
 
-    socket.on('disconnect', () => {
-        if (activePlayers[socket.id]) {
-            const p = activePlayers[socket.id]; const all = loadAllUsers();
-            if (all[p.username]) { all[p.username].ryo = p.ryo; all[p.username].army = p.army; all[p.username].hospital = p.hospital; all[p.username].quests = p.quests; all[p.username].clan = p.clan; saveAllUsers(all); }
-            delete activePlayers[socket.id];
+document.getElementById('map-container').addEventListener('click', (e) => {
+    if(basePlacementMode) {
+        if (e.target.id === 'world-map-img' || e.target.id === 'map-container') {
+            const rect = document.getElementById('map-container').getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+            const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+            // %'yi server'ın anlayacağı -500/500 formatına çevir
+            const x = (xPct / 100 * 1000) - 500;
+            const z = (yPct / 100 * 500) - 250;
+            socket.emit('buildBase', { x, z });
+            basePlacementMode = false;
         }
-    });
+    }
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-server.listen(PORT, () => console.log(`[✓] AtlasWarfare Sunucu Port ${PORT} üzerinde aktif.`));
+function train(){ socket.emit('trainArmy', {infantry:parseInt(document.getElementById('t-inf').value)||0, archer:parseInt(document.getElementById('t-arc').value)||0, cavalry:parseInt(document.getElementById('t-cav').value)||0}); closeModal(); }
+function heal(){ socket.emit('healArmy', {infantry:parseInt(document.getElementById('h-inf').value)||0, archer:parseInt(document.getElementById('h-arc').value)||0, cavalry:parseInt(document.getElementById('h-cav').value)||0}); closeModal(); }
+function createC(){ socket.emit('createClan', {name:document.getElementById('c-n').value, flag:document.getElementById('c-f').value||'🐉'}); closeModal(); }
+function joinC(id){ socket.emit('joinClan', {clanId:id}); closeModal(); }
+function leaveC(){ socket.emit('leaveClan'); closeModal(); }
+
+// SOCKET DİNLEYİCİLERİ
+socket.on('worldData', (d) => { worldData = d; if(currentPlayer) renderMap(); });
+socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
+socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; });
+socket.on('ryoUpdate', (r) => { currentPlayer.ryo=r; document.getElementById('ui-ryo').innerText=r; });
+socket.on('leaderboardData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>🏆 Sıralama</h2>`; d.forEach((p,i)=>{ h+=`<div class="info-row"><span>${i+1}. ${p.username}</span><span style="color:var(--gold)">⚡ ${p.power}</span></div>`; }); b.innerHTML=h+`<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
+socket.on('profileData', (d) => { currentPlayer.quests=d.quests; document.getElementById('ui-power').innerText=d.power.toLocaleString(); const b=document.getElementById('modal-box'); b.innerHTML=`<h2>👤 ${d.username}</h2><div class="info-row"><span>⚡ Güç</span><span style="color:var(--gold)">${d.power.toLocaleString()}</span></div><div class="info-row"><span>🪙 Ryo</span><span style="color:var(--gold)">${d.ryo.toLocaleString()}</span></div><h3 style="margin:15px 0 10px;">Görevler</h3>${Object.entries(d.quests).map(([k,v])=>`<div class="info-row"><span>${k}</span><span>${v.current}/${v.target} ${v.claimed?'✓':v.current>=v.target?`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="claimQ('${k}')">Al</button>`:''}</span></div>`).join('')}<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
+function claimQ(id){ socket.emit('claimQuest', {questId:id}); }
+socket.on('inboxData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>✉️ Mesajlar</h2><div style="max-height:200px;overflow-y:auto;">`; d.forEach(m=>{ h+=`<div style="border:1px solid #333;padding:5px;margin:2px 0;border-radius:4px;"><strong>${m.from}</strong>: ${m.msg}<button class="btn btn-secondary" style="width:auto;padding:2px 5px;font-size:0.7rem;float:right;" onclick="socket.emit('deleteMessage',{date:${m.date}})">X</button></div>`; }); b.innerHTML=h+`</div><div class="input-group" style="margin-top:15px;"><input type="text" id="msg-to" placeholder="Kime"></div><div class="input-group"><input type="text" id="msg-t" placeholder="Mesaj"></div><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
+function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-to').value, msg:document.getElementById('msg-t').value}); closeModal(); }
+socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
+socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); });
+
+// MAFIA CITY SAVAŞ ANİMASYONU (MARCH)
+socket.on('battleAnimation', (d) => {
+    const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
+    if (!target) return;
+    
+    const container = document.getElementById('map-container');
+    const rect = container.getBoundingClientRect();
+    
+    // Başlangıç noktası (Oyuncunun üssü veya ekranın altı)
+    let startX, startY;
+    if (currentPlayer.base) {
+        startX = (((currentPlayer.base.x / 500) + 1) / 2 * rect.width);
+        startY = (((currentPlayer.base.z / 250) + 1) / 2 * rect.height);
+    } else {
+        startX = rect.width / 2; startY = rect.height; // Ekranın alt ortası
+    }
+    
+    // Hedef noktası
+    const endX = ((target.lng + 180) / 360 * rect.width) || ((target.x / 500 + 1) / 2 * rect.width);
+    const endY = ((90 - target.lat) / 180 * rect.height) || ((target.z / 250 + 1) / 2 * rect.height);
+
+    // March İkonu
+    const march = document.createElement('div');
+    march.className = 'march-icon';
+    march.innerText = '⚔️';
+    march.style.left = startX + 'px';
+    march.style.top = startY + 'px';
+    march.style.color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6,'0');
+    container.appendChild(march);
+
+    // Animasyonu tetikle
+    setTimeout(() => {
+        march.style.left = endX + 'px';
+        march.style.top = endY + 'px';
+    }, 50);
+
+    // Çarpışma ve Patlama
+    setTimeout(() => {
+        march.remove();
+        playSound('explosion');
+        
+        const boom = document.createElement('div');
+        boom.className = 'march-icon';
+        boom.innerText = '💥';
+        boom.style.left = endX + 'px';
+        boom.style.top = endY + 'px';
+        boom.style.fontSize = '3rem';
+        boom.style.transition = 'opacity 0.5s, transform 0.5s';
+        container.appendChild(boom);
+        
+        // Hasar Yazısı
+        const txt = document.createElement('div');
+        txt.className = 'march-icon';
+        txt.innerText = d.result.attackerWins ? 'Zafer!' : 'Yenilgi!';
+        txt.style.color = d.result.attackerWins ? 'var(--green)' : 'var(--red)';
+        txt.style.fontWeight = 'bold';
+        txt.style.left = endX + 'px';
+        txt.style.top = (endY - 30) + 'px';
+        txt.style.transition = 'opacity 1s, top 1s';
+        container.appendChild(txt);
+
+        setTimeout(() => {
+            boom.style.opacity = '0';
+            boom.style.transform = 'scale(2)';
+            txt.style.opacity = '0';
+            txt.style.top = (endY - 60) + 'px';
+        }, 100);
+
+        setTimeout(() => { boom.remove(); txt.remove(); }, 1000);
+    }, 1000);
+});
+
+function playSound(type) {
+    if (!audioCtx) return; const now = audioCtx.currentTime;
+    if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
+}
+
+socket.on('toast', (d) => showToast(d.type, d.msg));
+socket.on('error', (m) => showToast('error', m));
+function showToast(type, msg) { if(type==='success'||type==='victory')playSound('success'); if(type==='defeat'||type==='error')playSound('error'); const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';setTimeout(()=>t.remove(),300);},3000); }
+
+window.onload = () => { const t = localStorage.getItem('atlas_token'); if(t) socket.emit('loginWithToken', t); };
+</script>
+</body>
+</html>
