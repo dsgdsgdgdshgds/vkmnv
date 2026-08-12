@@ -2,16 +2,15 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AtlasWarfare - Dünyayı Fethet</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         :root { --primary: #ff6b00; --secondary: #00d4ff; --dark: #0a0a0a; --panel: rgba(15, 15, 20, 0.95); --panel-border: rgba(255, 107, 0, 0.3); --gold: #ffd700; --red: #ff3333; --green: #00cc44; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #000; color: white; overflow: hidden; user-select: none; }
 
+        /* GİRİŞ EKRANI */
         #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
         #auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920') no-repeat center; background-size: cover; opacity: 0.15; filter: blur(2px); }
         .auth-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
@@ -21,52 +20,14 @@
         .auth-input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(255,107,0,0.3); }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 8px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-family: 'Rajdhani'; }
         .btn-primary { background: linear-gradient(45deg, var(--primary), #cc5500); }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,107,0,0.4); animation: glowPulse 1.5s infinite; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,107,0,0.4); }
         .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
         .btn-secondary:hover { background: rgba(0,212,255,0.1); }
         .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
         .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
 
-        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; }
-        #game-canvas { display: block; }
-        .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(0,0,0,0.85), transparent); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .top-bar::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--primary), transparent); opacity: 0.7; }
-        .top-left { display: flex; align-items: center; gap: 15px; }
-        .game-logo { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 10px black; }
-        .player-info { display: flex; gap: 10px; align-items: center; }
-        .stat-badge { background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 6px; border: 1px solid #333; font-size: 0.9rem; }
-        .stat-badge span { color: var(--gold); font-weight: 700; }
-
-        .side-panel { position: absolute; left: 0; top: 60px; bottom: 0; width: 260px; background: rgba(10,10,15,0.9); border-right: 1px solid var(--panel-border); padding: 15px; overflow-y: auto; z-index: 10; backdrop-filter: blur(10px); }
-        .side-panel::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, transparent, var(--secondary), transparent); opacity: 0.5; }
-        .panel-title { font-family: 'Cinzel'; font-size: 1rem; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        .army-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 0.95rem; }
-        .army-row span:first-child { color: #aaa; } .army-row span:last-child { color: var(--gold); font-weight: 700; }
-        .panel-btn { width: 100%; padding: 10px; margin: 5px 0; background: rgba(255,107,0,0.1); border: 1px solid var(--panel-border); color: white; border-radius: 6px; cursor: pointer; font-family: 'Rajdhani'; font-weight: 600; transition: 0.3s; text-align: left; font-size: 0.95rem; }
-        .panel-btn:hover { background: rgba(255,107,0,0.25); border-color: var(--primary); }
-
-        .city-popup { position: absolute; right: 20px; top: 60px; width: 320px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 20px; z-index: 20; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideUp 0.3s; }
-        .city-popup h2 { font-family: 'Cinzel'; color: var(--primary); margin-bottom: 5px; }
-        .city-info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; font-size: 0.95rem; }
-        .city-info-row span:first-child { color: #888; }
-        .city-bonus { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3); border-radius: 6px; padding: 8px; margin: 10px 0; font-size: 0.85rem; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 50; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; }
-        .modal-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 30px; width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 50px rgba(255,107,0,0.2); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .modal-box h2 { font-family: 'Cinzel'; color: var(--primary); margin-bottom: 20px; }
-        .train-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
-        .train-row label { width: 100px; }
-        .train-row input { flex: 1; padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 4px; font-family: 'Rajdhani'; }
-
-        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        .toast { padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; animation: slideUp 0.4s; text-align: center; min-width: 250px; }
-        .toast.success { background: rgba(0,204,68,0.9); border: 1px solid #00ff66; }
-        .toast.victory { background: rgba(255,215,0,0.9); color: #000; border: 1px solid var(--gold); }
-        .toast.defeat { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
-        .toast.info { background: rgba(0,212,255,0.9); color: #000; border: 1px solid var(--secondary); }
-        .toast.error { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
-
-        #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; }
+        /* KARAKTER SEÇİM */
+        #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
         .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
         .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
         .char-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,107,0,0.3); }
@@ -78,10 +39,55 @@
         .color-swatch:hover { transform: scale(1.1); }
         .color-swatch.selected { border-color: white; box-shadow: 0 0 20px currentColor; }
 
+        /* OYUN EKRANI (MAFIA CITY ARAYÜZÜ) */
+        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
+        
+        /* Üst Bar */
+        .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(0,0,0,0.9), transparent); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+        .stat-badge { background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 15px; border: 1px solid var(--panel-border); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+        .stat-badge span { color: var(--gold); font-weight: 700; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; background: #222; }
+
+        /* Harita (2D Dünya Haritası) */
+        #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: #0a1628; }
+        #world-map-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; filter: contrast(1.2) brightness(0.8); }
+        .map-pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: 0.2s; z-index: 5; text-align: center; }
+        .map-pin:hover { transform: translate(-50%, -100%) scale(1.1); z-index: 10; }
+        .pin-icon { font-size: 2rem; filter: drop-shadow(0 0 5px black); }
+        .pin-label { background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; margin-top: -5px; border: 1px solid #333; }
+        
+        /* Alt Bar (Mafia City Toolbar) */
+        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, rgba(0,0,0,0.95), transparent); display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px; z-index: 20; pointer-events: none; }
+        .toolbar { display: flex; gap: 15px; pointer-events: auto; background: rgba(20,20,25,0.9); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--panel-border); box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+        .tool-btn { display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px 10px; border-radius: 8px; transition: 0.2s; width: 60px; }
+        .tool-btn:hover { background: rgba(255,107,0,0.2); }
+        .tool-icon { font-size: 1.8rem; margin-bottom: 2px; }
+        .tool-text { font-size: 0.7rem; color: #ccc; text-transform: uppercase; }
+
+        /* Modallar ve Popup'lar */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 50; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; }
+        .modal-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 30px; width: 450px; max-width: 90vw; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 50px rgba(255,107,0,0.2); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .modal-box h2 { font-family: 'Cinzel'; color: var(--primary); margin-bottom: 20px; text-align: center; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 1rem; }
+        .info-row span:first-child { color: #888; }
+        .input-group { margin: 10px 0; }
+        .input-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
+        .input-group input { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 6px; font-family: 'Rajdhani'; font-size: 1rem; }
+
+        /* Savaş Animasyonu (March) */
+        .march-icon { position: absolute; font-size: 1.5rem; z-index: 15; transition: left 1s linear, top 1s linear; filter: drop-shadow(0 0 3px var(--primary)); }
+
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes glowPulse { 0% { box-shadow: 0 0 5px var(--primary); } 50% { box-shadow: 0 0 20px var(--primary), 0 0 30px var(--primary); } 100% { box-shadow: 0 0 5px var(--primary); } }
+        
+        #toast-container { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        .toast { padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; animation: scaleIn 0.4s; text-align: center; min-width: 250px; }
+        .toast.success { background: rgba(0,204,68,0.9); border: 1px solid #00ff66; }
+        .toast.victory { background: rgba(255,215,0,0.9); color: #000; border: 1px solid var(--gold); }
+        .toast.defeat { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
+        .toast.info { background: rgba(0,212,255,0.9); color: #000; border: 1px solid var(--secondary); }
+        .toast.error { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
     </style>
 </head>
 <body>
@@ -101,9 +107,9 @@
         </div>
 
         <div id="register-form" style="display:none;">
-            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı (3-16 karakter)">
+            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı">
             <input type="email" id="reg-email" class="auth-input" placeholder="E-posta">
-            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6 karakter)">
+            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6)">
             <input type="password" id="reg-password-confirm" class="auth-input" placeholder="Şifre Tekrar">
             <button class="btn btn-primary" onclick="register()">Kayıt Ol</button>
             <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
@@ -112,7 +118,6 @@
 
         <div id="verify-form" style="display:none;">
             <h3 style="color:var(--secondary);margin-bottom:10px;">E-posta Doğrulama</h3>
-            <p style="margin-bottom:15px;font-size:0.9rem;color:#aaa;">E-postana gelen 6 haneli kodu gir.</p>
             <input type="text" id="verify-code" class="auth-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.5rem;letter-spacing:10px;">
             <button class="btn btn-primary" onclick="verifyEmail()">Doğrula ve Oyna</button>
             <button class="btn btn-secondary" onclick="resendCode()" style="margin-top:5px;font-size:0.85rem;padding:8px;">Kodu Tekrar Gönder</button>
@@ -123,13 +128,12 @@
             <input type="email" id="forgot-email" class="auth-input" placeholder="E-posta">
             <button class="btn btn-primary" onclick="forgotPassword()">Kod Gönder</button>
             <div id="forgot-code-area" style="display:none;margin-top:10px;">
-                <input type="text" id="forgot-code" class="auth-input" placeholder="Doğrulama Kodu" style="text-align:center;font-size:1.3rem;letter-spacing:5px;">
+                <input type="text" id="forgot-code" class="auth-input" placeholder="Kod">
                 <input type="password" id="forgot-newpass" class="auth-input" placeholder="Yeni Şifre">
-                <button class="btn btn-primary" onclick="resetPassword()">Şifreyi Sıfırla</button>
+                <button class="btn btn-primary" onclick="resetPassword()">Sıfırla</button>
             </div>
             <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
             <div id="forgot-error" class="error-msg"></div>
-            <div id="forgot-success" class="success-msg"></div>
         </div>
     </div>
 </div>
@@ -141,50 +145,42 @@
         <div id="empire-color-section" style="display:none;margin-top:25px;">
             <h3 style="color:var(--secondary);">İmparatorluk Rengini Seç</h3>
             <div class="color-grid" id="color-grid"></div>
-            <button class="btn btn-primary" style="max-width:300px;margin:15px auto 0;" onclick="startGame()">⚔️ Savaşa Başla</button>
+            <button class="btn btn-primary" style="max-width:300px;margin:15px auto 0;" onclick="startGame()">Savaşa Başla</button>
         </div>
     </div>
 </div>
 
 <div id="game-screen">
-    <canvas id="game-canvas"></canvas>
+    <div id="map-container">
+        <img id="world-map-img" src="https://images.unsplash.com/photo-1452802447250-470a88ac82bc?q=80&w=2000&auto=format&fit=crop" alt="Dünya Haritası">
+    </div>
+
     <div class="top-bar">
-        <div class="top-left"><span class="game-logo">⚔️ ATLAS WARFARE</span></div>
         <div class="player-info">
-            <button class="panel-btn" style="width:auto;padding:6px 15px;display:inline-block;" onclick="openModal('leaderboard')">🏆 Sıralama</button>
-            <button class="panel-btn" style="width:auto;padding:6px 15px;display:inline-block;" onclick="openModal('profile')">👤 Profil</button>
-            <button class="panel-btn" style="width:auto;padding:6px 15px;display:inline-block;color:var(--secondary);" onclick="socket.emit('getInbox')">✉️ Mesajlar</button>
-            <button class="panel-btn" style="width:auto;padding:6px 15px;display:inline-block;color:var(--gold);" onclick="openBaseModal()">🏰 Üssüm</button>
-            <div class="stat-badge">⚡ Güç: <span id="ui-power">0</span></div>
-            <div class="stat-badge" style="color:var(--gold)">🪙 Ryo: <span id="ui-ryo">0</span></div>
+            <div class="avatar" id="ui-avatar">🦊</div>
+            <div class="stat-badge">⚡ <span id="ui-power">0</span></div>
+            <div class="stat-badge">🪙 <span id="ui-ryo">0</span></div>
             <div class="stat-badge" id="ui-clan-badge" style="display:none;">🐉 <span id="ui-clan">-</span></div>
         </div>
+        <div class="player-info">
+            <div class="stat-badge">🛡️ <span id="ui-infantry">0</span></div>
+            <div class="stat-badge">🏹 <span id="ui-archer">0</span></div>
+            <div class="stat-badge">🐎 <span id="ui-cavalry">0</span></div>
+        </div>
     </div>
-    <div class="side-panel">
-        <div class="panel-title">⚔️ Ordum</div>
-        <div class="army-row"><span>🛡️ Piyade</span><span id="ui-infantry">0</span></div>
-        <div class="army-row"><span>🏹 Okçu</span><span id="ui-archer">0</span></div>
-        <div class="army-row"><span>🐎 Süvari</span><span id="ui-cavalry">0</span></div>
-        <button class="panel-btn" onclick="openModal('train')">🔨 Asker Eğit</button>
-        <div class="panel-title" style="margin-top:15px;color:var(--red);">🏥 Hastane</div>
-        <div class="army-row"><span>🛡️ Yaralı Piyade</span><span id="ui-h-inf">0</span></div>
-        <div class="army-row"><span>🏹 Yaralı Okçu</span><span id="ui-h-arc">0</span></div>
-        <div class="army-row"><span>🐎 Yaralı Süvari</span><span id="ui-h-cav">0</span></div>
-        <button class="panel-btn" onclick="openModal('hospital')" style="border-color:var(--red);color:var(--red);">🏥 Asker İyileştir</button>
-        <button class="panel-btn" onclick="openModal('clan')">🐉 Klan</button>
+
+    <div class="bottom-bar">
+        <div class="toolbar">
+            <div class="tool-btn" onclick="openModal('profile')"><div class="tool-icon">👤</div><div class="tool-text">Profil</div></div>
+            <div class="tool-btn" onclick="openModal('train')"><div class="tool-icon">🔨</div><div class="tool-text">Eğit</div></div>
+            <div class="tool-btn" onclick="openModal('hospital')"><div class="tool-icon">🏥</div><div class="tool-text">Hastane</div></div>
+            <div class="tool-btn" onclick="openModal('clan')"><div class="tool-icon">🐉</div><div class="tool-text">Klan</div></div>
+            <div class="tool-btn" onclick="openModal('leaderboard')"><div class="tool-icon">🏆</div><div class="tool-text">Sıralama</div></div>
+            <div class="tool-btn" onclick="socket.emit('getInbox')"><div class="tool-icon">✉️</div><div class="tool-text">Mesaj</div></div>
+            <div class="tool-btn" onclick="openBaseModal()"><div class="tool-icon">🏰</div><div class="tool-text">Üs</div></div>
+        </div>
     </div>
-    <div class="city-popup" id="city-popup">
-        <h2 id="cp-name">-</h2>
-        <div class="city-info-row"><span>👑 Sahip</span><span id="cp-owner">-</span></div>
-        <div class="city-info-row"><span>🏰 Muhafız</span><span id="cp-garrison">0</span></div>
-        <div class="city-info-row"><span>🛡️ Piyade</span><span id="cp-infantry">0</span></div>
-        <div class="city-info-row"><span>🏹 Okçu</span><span id="cp-archer">0</span></div>
-        <div class="city-info-row"><span>🐎 Süvari</span><span id="cp-cavalry">0</span></div>
-        <div class="city-bonus" id="cp-bonus"></div>
-        <button class="btn btn-primary" id="cp-attack-btn" onclick="openAttackModal()">⚔️ Saldır</button>
-        <button class="btn btn-secondary" id="cp-defend-btn" onclick="openDeployModal()" style="display:none;">🛡️ Savunma Yerleştir</button>
-        <button class="btn btn-secondary" onclick="closeCityPopup()" style="margin-top:5px;">Kapat</button>
-    </div>
+
     <div class="modal-overlay" id="modal-overlay"><div class="modal-box" id="modal-box"></div></div>
     <div id="toast-container"></div>
 </div>
@@ -194,7 +190,7 @@
 const socket = io();
 let currentPlayer = null, worldData = null, charactersData = null, clansData = {};
 let selectedCharacter = null, selectedColor = null, selectedCityId = null, selectedMineId = null, selectedBossId = null;
-let scene, camera, renderer, controls, cityMeshes = [], mineMeshes = [], bossMeshes = [], playerCommander = null, playerBaseMesh = null, raycaster, mouse, basePlacementMode = false;
+let basePlacementMode = false;
 const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
 
 let audioCtx = null;
@@ -204,20 +200,14 @@ function playSound(type) {
     if (type === 'click') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.05); o.start(now); o.stop(now+0.05); }
     else if (type === 'success') { [523.25,659.25,783.99].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(f,now+i*0.1);g.gain.setValueAtTime(0.1,now+i*0.1);g.gain.exponentialRampToValueAtTime(0.01,now+i*0.1+0.2);o.start(now+i*0.1);o.stop(now+i*0.1+0.2);}); }
     else if (type === 'error') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(now); o.stop(now+0.2); }
-    else if (type === 'explosion') { const bs=audioCtx.sampleRate*0.5,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.5); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.5); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.5); const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(80,now); o.frequency.exponentialRampToValueAtTime(20,now+0.5); g.gain.setValueAtTime(0.5,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.5); o.start(now); o.stop(now+0.5); }
 }
 document.addEventListener('click', () => initAudio(), { once: true });
-document.body.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' || e.target.closest('.panel-btn')) playSound('click'); });
+document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON') playSound('click'); });
 
-function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error','forgot-success'].forEach(id => document.getElementById(id).style.display = 'none'); }
+// AUTH
+function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none'); }
 function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
-function register() {
-    const u = document.getElementById('reg-username').value;
-    const e = document.getElementById('reg-email').value;
-    const p = document.getElementById('reg-password').value;
-    const pc = document.getElementById('reg-password-confirm').value;
-    socket.emit('register', { username: u, email: e, password: p, passwordConfirm: pc });
-}
+function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, passwordConfirm: document.getElementById('reg-password-confirm').value }); }
 function verifyEmail() { socket.emit('verifyEmail', { username: currentRegUsername, code: document.getElementById('verify-code').value }); }
 function resendCode() { socket.emit('resendVerifyCode', { username: currentRegUsername }); }
 function forgotPassword() { socket.emit('forgotPassword', { email: document.getElementById('forgot-email').value }); }
@@ -226,20 +216,16 @@ function resetPassword() { socket.emit('resetPassword', { email: document.getEle
 let currentRegUsername = '';
 socket.on('loginError', (msg) => { const ids = ['login-error','reg-error','verify-error','forgot-error']; ids.forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
 socket.on('registerSuccess', (d) => { currentRegUsername = d.username; toggleAuth('verify'); });
-socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; const el = document.getElementById('forgot-success'); el.innerText = 'Kod gönderildi!'; el.style.display = 'block'; });
-socket.on('resetCodeError', (msg) => { const el = document.getElementById('forgot-error'); el.innerText = msg; el.style.display = 'block'; });
-socket.on('resetCodeVerified', () => { document.getElementById('forgot-code').disabled = true; });
-socket.on('resetPasswordSuccess', () => { toggleAuth('login'); const el = document.getElementById('login-error'); el.innerText = 'Şifre sıfırlandı! Giriş yapabilirsin.'; el.style.color = 'var(--green)'; el.style.display = 'block'; });
+socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; });
+socket.on('resetPasswordSuccess', () => { toggleAuth('login'); });
 socket.on('verifySuccess', (d) => onLoginSuccess(d));
 socket.on('loginSuccess', (d) => onLoginSuccess(d));
 
 function onLoginSuccess(d) { localStorage.setItem('atlas_token', d.token); currentPlayer = d; document.getElementById('auth-screen').style.display = 'none'; if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d); }
 
 function showCharSelect() { document.getElementById('char-select-screen').style.display = 'flex'; renderCharGrid(); }
-
-// DÜZELTİLMİŞ KARAKTER ÇİZİM FONKSİYONU
 function renderCharGrid() {
-    if (!charactersData) return; // Veri henüz gelmediyse bekle
+    if (!charactersData) return;
     const grid = document.getElementById('char-grid'); grid.innerHTML = '';
     const elemColors = { fire:'#ff4400', water:'#00aaff', lightning:'#ffff00', wind:'#00ff88', earth:'#8B4513' };
     charactersData.forEach(c => {
@@ -249,127 +235,313 @@ function renderCharGrid() {
         grid.appendChild(card);
     });
 }
-
-// VERİ GELDİĞİNDE EKRAN AÇIKSA GERİ ÇİZ
-socket.on('charactersData', (d) => { 
-    charactersData = d; 
-    if (document.getElementById('char-select-screen').style.display === 'flex') {
-        renderCharGrid();
-    }
-});
+socket.on('charactersData', (d) => { charactersData = d; if (document.getElementById('char-select-screen').style.display === 'flex') renderCharGrid(); });
 
 function renderColorGrid() {
     const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff]; const grid = document.getElementById('color-grid'); grid.innerHTML = '';
     colors.forEach(c => { const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0'); sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; }; grid.appendChild(sw); });
 }
-function startGame() { if (!selectedCharacter || !selectedColor) return; socket.emit('setEmpireColor', { color: selectedColor }); currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); spawnCommander(selectedCharacter, selectedColor); }
+function startGame() { if (!selectedCharacter || !selectedColor) return; socket.emit('setEmpireColor', { color: selectedColor }); currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); }
 
 function enterGame(d) {
     document.getElementById('game-screen').style.display = 'block';
-    document.getElementById('ui-ryo').innerText = d.ryo; document.getElementById('ui-infantry').innerText = d.army?.infantry || 0; document.getElementById('ui-archer').innerText = d.army?.archer || 0; document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
-    if (d.hospital) { document.getElementById('ui-h-inf').innerText = d.hospital.infantry; document.getElementById('ui-h-arc').innerText = d.hospital.archer; document.getElementById('ui-h-cav').innerText = d.hospital.cavalry; }
-    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan-badge').style.display = 'block'; document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
-    init3D(); if (d.character) spawnCommander(d.character, d.empireColor); createPlayerBase();
+    document.getElementById('ui-ryo').innerText = d.ryo;
+    document.getElementById('ui-infantry').innerText = d.army?.infantry || 0;
+    document.getElementById('ui-archer').innerText = d.army?.archer || 0;
+    document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
+    document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
+    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
+    renderMap();
 }
 
-function init3D() {
-    const canvas = document.getElementById('game-canvas');
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a14); scene.fog = new THREE.Fog(0x0a0a14, 600, 1500);
-    camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 4000); camera.position.set(0, 500, 800); camera.lookAt(0,0,0);
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true; controls.maxDistance = 1200; controls.minDistance = 150;
-    scene.add(new THREE.AmbientLight(0x404060, 1.5)); const dl = new THREE.DirectionalLight(0xffffff, 1); dl.position.set(200,400,200); scene.add(dl);
+// 2D HARİTA ÇİZİMİ (MAFIA CITY MANTIĞI)
+function renderMap() {
+    const container = document.getElementById('map-container');
+    // Eski pinleri temizle
+    document.querySelectorAll('.map-pin').forEach(p => p.remove());
     
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(2000,1200), new THREE.MeshPhongMaterial({color:0x0a1628, transparent:true, opacity:0.9})); ocean.rotation.x = -Math.PI/2; ocean.position.y = -1; scene.add(ocean);
-    const grid = new THREE.GridHelper(2000, 80, 0x1a3050, 0x1a3050); scene.add(grid);
+    if (!worldData) return;
+
+    // Şehirleri yerleştir
+    Object.values(worldData.cities).forEach(c => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        // lng ve lat'i ekrandaki % oranına çevir
+        pin.style.left = ((c.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - c.lat) / 180 * 100) + '%';
+        
+        const isCap = c.type === 'capital';
+        const color = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6,'0') : '#888';
+        
+        pin.innerHTML = `
+            <div class="pin-icon" style="color:${color}">${isCap ? '👑' : '🏰'}</div>
+            <div class="pin-label" style="border-color:${color}">${c.name}</div>
+        `;
+        pin.onclick = () => showCityPopup(c.id);
+        container.appendChild(pin);
+    });
+
+    // Madenleri yerleştir
+    Object.values(worldData.mines || {}).forEach(m => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        pin.style.left = ((m.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - m.lat) / 180 * 100) + '%';
+        pin.innerHTML = `<div class="pin-icon">${m.type === 'gold' ? '🟡' : '⚙️'}</div><div class="pin-label">${m.name}</div>`;
+        pin.onclick = () => showMinePopup(m.id);
+        container.appendChild(pin);
+    });
+
+    // Boss'ları yerleştir
+    Object.values(worldData.bosses || {}).forEach(b => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        pin.style.left = ((b.lng + 180) / 360 * 100) + '%';
+        pin.style.top = ((90 - b.lat) / 180 * 100) + '%';
+        pin.innerHTML = `<div class="pin-icon">${b.defeated ? '💀' : '👹'}</div><div class="pin-label" style="color:red">${b.beast.split(' ')[0]}</div>`;
+        pin.onclick = () => showBossPopup(b.id);
+        container.appendChild(pin);
+    });
+
+    // Oyuncu Üssünü yerleştir
+    if (currentPlayer.base) {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        // Üs koordinatları zaten % olarak kaydedilmediği için map-container boyutuna göre orantıla
+        const rect = container.getBoundingClientRect();
+        pin.style.left = (((currentPlayer.base.x / 500) + 1) / 2 * 100) + '%'; // x -500 ile 500 arası
+        pin.style.top = (((currentPlayer.base.z / 250) + 1) / 2 * 100) + '%'; // z -250 ile 250 arası
+        pin.innerHTML = `<div class="pin-icon" style="font-size:3rem;">🚩</div><div class="pin-label" style="border-color:var(--primary)">Ana Üssüm</div>`;
+        container.appendChild(pin);
+    }
+}
+
+// ŞEHİR POPUP
+function showCityPopup(id) {
+    const c = worldData.cities[id]; if(!c) return;
+    selectedCityId = id; selectedMineId = null; selectedBossId = null;
+    const box = document.getElementById('modal-box');
+    const bP=[]; if(c.bonus.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus.defense)bP.push(`%${c.bonus.defense*100} Savunma`); if(c.bonus.ryo)bP.push(`%${c.bonus.ryo*100} Ryo`);
     
-    const cMat = new THREE.MeshPhongMaterial({color:0x1a3a1a, transparent:true, opacity:0.8});
-    const continents = [
-        [[-168,66],[-156,71],[-140,72],[-95,82],[-65,82],[-55,60],[-60,45],[-80,25],[-97,18],[-105,20],[-115,30],[-125,40],[-130,55],[-168,66]],
-        [[-80,12],[-60,8],[-50,5],[-35,-5],[-40,-25],[-55,-35],[-70,-55],[-75,-50],[-78,-40],[-82,-15],[-80,12]],
-        [[-10,70],[30,72],[40,60],[42,45],[25,36],[0,38],[-10,43],[-10,70]],
-        [[-18,35],[10,37],[30,32],[35,30],[48,12],[52,-10],[40,-35],[18,-35],[10,-5],[-18,15],[-18,35]],
-        [[40,72],[60,75],[100,78],[140,75],[170,65],[170,55],[145,45],[120,20],[100,5],[78,8],[60,25],[45,40],[40,60],[40,72]],
-        [[112,-12],[145,-12],[155,-28],[143,-38],[116,-35],[113,-22],[112,-12]],
-        [[-180,-70],[180,-70],[180,-90],[-180,-90],[-180,-70]]
-    ];
-    continents.forEach(coords => { const shape = new THREE.Shape(); coords.forEach((c,i) => { const x=(c[0]/180)*500, z=-(c[1]/90)*250; if(i===0) shape.moveTo(x,z); else shape.lineTo(x,z); }); const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), cMat); m.rotation.x = -Math.PI/2; m.position.y = 0.5; scene.add(m); });
-
-    raycaster = new THREE.Raycaster(); mouse = new THREE.Vector2();
-    canvas.addEventListener('click', onCanvasClick);
-    window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-    createCities(); createMines(); createBosses(); animate();
+    box.innerHTML = `
+        <h2>${c.name}</h2>
+        <div class="info-row"><span>Tip</span><span>${c.type === 'capital' ? '👑 Başkent' : '🏘️ Şehir'}</span></div>
+        <div class="info-row"><span>Sahip</span><span>${c.owner||'Bağımsız'}</span></div>
+        <div class="info-row"><span>🏰 Muhafız</span><span>${c.garrison}</span></div>
+        <div class="info-row"><span>🛡️ Piyade</span><span>${c.playerDefenders.infantry}</span></div>
+        <div class="info-row"><span>🏹 Okçu</span><span>${c.playerDefenders.archer}</span></div>
+        <div class="info-row"><span>🐎 Süvari</span><span>${c.playerDefenders.cavalry}</span></div>
+        <div class="info-row"><span>Bonus</span><span style="color:var(--secondary)">${bP.join(', ')}</span></div>
+        ${c.owner === currentPlayer.username ? 
+            `<button class="btn btn-primary" onclick="openDeployModal()">Savunma Yerleştir</button>` : 
+            `<button class="btn btn-primary" onclick="openAttackModal()">⚔️ Saldır</button>`
+        }
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
 }
 
-function createCities() { if(!worldData) return; cityMeshes.forEach(m=>scene.remove(m)); cityMeshes=[]; Object.values(worldData.cities).forEach(c => { const g = new THREE.Group(); g.position.set(c.x,0,c.z); const isCap = c.type==='capital'; const tH = isCap?30:18, r = isCap?6:4; g.add(new THREE.Mesh(new THREE.CylinderGeometry(r+2,r+3,4,8), new THREE.MeshPhongMaterial({color:0x444444})).translateY(2)); const t = new THREE.Mesh(new THREE.CylinderGeometry(r,r+1,tH,8), new THREE.MeshPhongMaterial({color:isCap?0x665533:0x555555})); t.position.y = 4+tH/2; g.add(t); const p = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,8,4), new THREE.MeshPhongMaterial({color:0x888888})); p.position.y = 4+tH+4; g.add(p); const f = new THREE.Mesh(new THREE.PlaneGeometry(5,3), new THREE.MeshPhongMaterial({color:c.empireColor||0x666666, side:THREE.DoubleSide})); f.position.set(3,4+tH+6,0); g.add(f); if(c.shieldUntil>Date.now()){ const s = new THREE.Mesh(new THREE.SphereGeometry(r+8,16,16), new THREE.MeshPhongMaterial({color:0x00aaff, transparent:true, opacity:0.2, wireframe:true})); s.position.y=10; s.name='shield'; g.add(s); } const cv=document.createElement('canvas'); cv.width=256; cv.height=64; const ctx=cv.getContext('2d'); ctx.fillStyle=isCap?'#ffd700':'#fff'; ctx.font=`bold ${isCap?28:22}px Rajdhani`; ctx.textAlign='center'; ctx.fillText(c.name,128,32); const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true})); sp.position.y=4+tH+14; sp.scale.set(30,8,1); g.add(sp); g.userData={cityId:c.id}; scene.add(g); cityMeshes.push(g); }); }
-function createMines() { if(!worldData||!worldData.mines) return; mineMeshes.forEach(m=>scene.remove(m)); mineMeshes=[]; Object.values(worldData.mines).forEach(m => { const g = new THREE.Group(); g.position.set(m.x,0,m.z); const cM = new THREE.MeshPhongMaterial({color:m.type==='gold'?0xffd700:0x888899, emissive:m.type==='gold'?0xffd700:0x888899, emissiveIntensity:0.3}); const c = new THREE.Mesh(new THREE.OctahedronGeometry(4,0), cM); c.position.y=6; c.name='crystal'; g.add(c); g.add(new THREE.Mesh(new THREE.CylinderGeometry(5,6,2,6), new THREE.MeshPhongMaterial({color:0x333322})).translateY(1)); if(m.owner){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,6,4), new THREE.MeshPhongMaterial({color:0x888888})); p.position.y=12; g.add(p); const f=new THREE.Mesh(new THREE.PlaneGeometry(4,2.5), new THREE.MeshPhongMaterial({color:m.empireColor||0xffd700, side:THREE.DoubleSide})); f.position.set(2.5,13,0); g.add(f); } g.userData={mineId:m.id}; scene.add(g); mineMeshes.push(g); }); }
-function createBosses() { if(!worldData||!worldData.bosses) return; bossMeshes.forEach(m=>scene.remove(m)); bossMeshes=[]; Object.values(worldData.bosses).forEach(b => { const g = new THREE.Group(); g.position.set(b.x,0,b.z); if(b.defeated){ const r=new THREE.Mesh(new THREE.DodecahedronGeometry(8,0), new THREE.MeshPhongMaterial({color:0x333333})); r.position.y=4; g.add(r); } else { const l=new THREE.Mesh(new THREE.ConeGeometry(12,25,6), new THREE.MeshPhongMaterial({color:0x660000, emissive:0x330000})); l.position.y=12; g.add(l); const hpC=document.createElement('canvas'); hpC.width=200; hpC.height=20; const hCtx=hpC.getContext('2d'); hCtx.fillStyle='#333'; hCtx.fillRect(0,0,200,20); hCtx.fillStyle='#f00'; hCtx.fillRect(0,0,200*(b.currentHp/b.hp),20); const hS=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(hpC), transparent:true})); hS.position.y=30; hS.scale.set(25,3,1); hS.name='hpBar'; g.add(hS); } g.userData={bossId:b.id}; scene.add(g); bossMeshes.push(g); }); }
-
-function spawnCommander(cId, color) { if(playerCommander) scene.remove(playerCommander); const g = new THREE.Group(); g.position.set(0,0,-50); const m1 = new THREE.MeshPhongMaterial({color:color||0xff6b00}); g.add(new THREE.Mesh(new THREE.ConeGeometry(5,15,6), m1).translateY(7.5)); g.add(new THREE.Mesh(new THREE.SphereGeometry(3,16,16), new THREE.MeshPhongMaterial({color:0xffcc99})).translateY(18)); const hC = {kyuubi:0xffaa00, raikage:0xffff00, alchemist:0xffdd00, mistsword:0x00ffff}[cId]||0x333333; for(let i=0;i<5;i++){ const h=new THREE.Mesh(new THREE.ConeGeometry(1,3,4), new THREE.MeshPhongMaterial({color:hC})); h.position.set((Math.random()-0.5)*3,20,(Math.random()-0.5)*3); g.add(h); } scene.add(g); playerCommander = g; }
-function createPlayerBase() { if(playerBaseMesh) scene.remove(playerBaseMesh); if(!currentPlayer.base) return; const b = currentPlayer.base; const g = new THREE.Group(); g.position.set(b.x,0,b.z); const cM = new THREE.MeshPhongMaterial({color:currentPlayer.empireColor||0xff6b00}); const c = new THREE.Mesh(new THREE.BoxGeometry(15, 20+b.level*5, 15), cM); c.position.y = (20+b.level*5)/2; g.add(c); for(let i=0;i<4;i++){ const t=new THREE.Mesh(new THREE.CylinderGeometry(4,5,25+b.level*5,8), cM); t.position.set(i%2===0?10:-10, (25+b.level*5)/2, i<2?10:-10); g.add(t); } scene.add(g); playerBaseMesh = g; }
-
-function onCanvasClick(e) {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1; raycaster.setFromCamera(mouse, camera);
-    if(basePlacementMode){ basePlacementMode = false; const hits = raycaster.intersectObjects(scene.children); if(hits.length>0){ socket.emit('buildBase', {x: hits[0].point.x, z: hits[0].point.z}); } return; }
-    const cH = raycaster.intersectObjects(cityMeshes, true); if(cH.length>0){ let o=cH[0].object; while(o&&!o.userData.cityId) o=o.parent; if(o) showCityPopup(o.userData.cityId); return; }
-    const mH = raycaster.intersectObjects(mineMeshes, true); if(mH.length>0){ let o=mH[0].object; while(o&&!o.userData.mineId) o=o.parent; if(o) showMinePopup(o.userData.mineId); return; }
-    const bH = raycaster.intersectObjects(bossMeshes, true); if(bH.length>0){ let o=bH[0].object; while(o&&!o.userData.bossId) o=o.parent; if(o) showBossPopup(o.userData.bossId); return; }
+function showMinePopup(id) {
+    const m = worldData.mines[id]; if(!m) return;
+    selectedMineId = id; selectedCityId = null; selectedBossId = null;
+    const box = document.getElementById('modal-box');
+    box.innerHTML = `
+        <h2>${m.name}</h2>
+        <div class="info-row"><span>Sahip</span><span>${m.owner||'NPC'}</span></div>
+        <div class="info-row"><span>Gelir</span><span style="color:var(--gold)">${m.yield}/dk</span></div>
+        ${m.owner !== currentPlayer.username ? `<button class="btn btn-primary" onclick="openAttackModal('mine')">⛏️ İşgal Et</button>` : '<p style="color:var(--green);text-align:center;margin:10px 0;">Bu maden senin!</p>'}
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
 }
 
-function showCityPopup(id) { const c = worldData.cities[id]; if(!c) return; selectedCityId = id; document.getElementById('cp-name').innerText = c.name; document.getElementById('cp-owner').innerText = c.owner||'Bağımsız'; document.getElementById('cp-garrison').innerText = c.garrison; document.getElementById('cp-infantry').innerText = c.playerDefenders.infantry; document.getElementById('cp-archer').innerText = c.playerDefenders.archer; document.getElementById('cp-cavalry').innerText = c.playerDefenders.cavalry; const bP=[]; if(c.bonus.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus.defense)bP.push(`%${c.bonus.defense*100} Savunma`); if(c.bonus.ryo)bP.push(`%${c.bonus.ryo*100} Ryo`); document.getElementById('cp-bonus').innerHTML = `<strong>Bonus:</strong> ${bP.join(', ')}`; document.getElementById('cp-attack-btn').style.display = c.owner === currentPlayer.username ? 'none' : 'block'; document.getElementById('cp-defend-btn').style.display = c.owner === currentPlayer.username ? 'block' : 'none'; document.getElementById('city-popup').style.display = 'block'; }
-function closeCityPopup() { document.getElementById('city-popup').style.display = 'none'; }
+function showBossPopup(id) {
+    const b = worldData.bosses[id]; if(!b) return;
+    selectedBossId = id; selectedCityId = null; selectedMineId = null;
+    const box = document.getElementById('modal-box');
+    if(b.defeated) {
+        box.innerHTML = `<h2 style="color:red">${b.beast}</h2><p style="text-align:center;margin:10px 0;">Yenilmiş. Respawn bekleniyor.</p><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else {
+        box.innerHTML = `
+            <h2 style="color:red">${b.beast}</h2>
+            <div class="info-row"><span>HP</span><span>${b.currentHp} / ${b.hp}</span></div>
+            <div class="info-row"><span>Ödül</span><span style="color:var(--gold)">${b.reward} Ryo</span></div>
+            <button class="btn btn-primary" style="background:linear-gradient(45deg,#f00,#900)" onclick="openAttackModal('boss')">👹 Saldır</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+        `;
+    }
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
 
-function openModal(t) { const b = document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display = 'flex'; if(t==='leaderboard'){ b.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getLeaderboard'); } else if(t==='profile'){ b.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getProfile'); } else if(t==='train'){ b.innerHTML=`<h2>🔨 Asker Eğit</h2><p>Ryo: <span style="color:var(--gold)">${currentPlayer.ryo}</span></p><div class="train-row"><label>🛡️ Piyade</label><input type="number" id="t-inf" min="0" value="0" oninput="updCost()"><span>100</span></div><div class="train-row"><label>🏹 Okçu</label><input type="number" id="t-arc" min="0" value="0" oninput="updCost()"><span>150</span></div><div class="train-row"><label>🐎 Süvari</label><input type="number" id="t-cav" min="0" value="0" oninput="updCost()"><span>250</span></div><div>Toplam: <span id="t-total" style="color:var(--gold)">0</span></div><button class="btn btn-primary" onclick="train()">Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else if(t==='hospital'){ b.innerHTML=`<h2>🏥 Hastane</h2><p>Yaralı: ${currentPlayer.hospital.infantry}🛡️ ${currentPlayer.hospital.archer}🏹 ${currentPlayer.hospital.cavalry}🐎</p><div class="train-row"><label>🛡️</label><input type="number" id="h-inf" min="0" max="${currentPlayer.hospital.infantry}" value="${currentPlayer.hospital.infantry}"></div><div class="train-row"><label>🏹</label><input type="number" id="h-arc" min="0" max="${currentPlayer.hospital.archer}" value="${currentPlayer.hospital.archer}"></div><div class="train-row"><label>🐎</label><input type="number" id="h-cav" min="0" max="${currentPlayer.hospital.cavalry}" value="${currentPlayer.hospital.cavalry}"></div><button class="btn btn-primary" style="background:linear-gradient(45deg,var(--red),#a00)" onclick="heal()">İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else if(t==='clan'){ let h = Object.values(clansData).map(c=>`<div>${c.flag} ${c.name} (${c.members.length}/30) ${c.members.includes(currentPlayer.username)?'':'<button onclick="joinC(\''+Object.keys(clansData).find(k=>clansData[k]===c)+'\')">Katıl</button>'}</div>`).join(''); b.innerHTML=`<h2>🐉 Klan</h2>${!currentPlayer.clan?`<input id="c-n" placeholder="Ad"><input id="c-f" placeholder="Bayrak" maxlength="2"><button onclick="createC()">Kur</button>`:'<button onclick="leaveC()">Ayrıl</button>'}<hr>${h||'<p>Klan yok</p>'}<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
+// MODAL FONKSİYONLARI
+function openModal(t) {
+    const box = document.getElementById('modal-box');
+    document.getElementById('modal-overlay').style.display = 'flex';
+    if(t==='leaderboard'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getLeaderboard'); }
+    else if(t==='profile'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getProfile'); }
+    else if(t==='train'){ box.innerHTML=`<h2>🔨 Asker Eğit</h2><p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ryo: ${currentPlayer.ryo}</p><div class="input-group"><label>🛡️ Piyade (100 Ryo)</label><input type="number" id="t-inf" min="0" value="0"></div><div class="input-group"><label>🏹 Okçu (150 Ryo)</label><input type="number" id="t-arc" min="0" value="0"></div><div class="input-group"><label>🐎 Süvari (250 Ryo)</label><input type="number" id="t-cav" min="0" value="0"></div><button class="btn btn-primary" onclick="train()">Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
+    else if(t==='hospital'){ box.innerHTML=`<h2>🏥 Hastane</h2><p style="text-align:center;color:var(--red);margin-bottom:10px;">Yaralı: ${currentPlayer.hospital.infantry}🛡️ ${currentPlayer.hospital.archer}🏹 ${currentPlayer.hospital.cavalry}🐎</p><div class="input-group"><label>🛡️ Piyade İyileştir</label><input type="number" id="h-inf" min="0" max="${currentPlayer.hospital.infantry}" value="${currentPlayer.hospital.infantry}"></div><div class="input-group"><label>🏹 Okçu İyileştir</label><input type="number" id="h-arc" min="0" max="${currentPlayer.hospital.archer}" value="${currentPlayer.hospital.archer}"></div><div class="input-group"><label>🐎 Süvari İyileştir</label><input type="number" id="h-cav" min="0" max="${currentPlayer.hospital.cavalry}" value="${currentPlayer.hospital.cavalry}"></div><button class="btn btn-primary" style="background:linear-gradient(45deg,var(--red),#a00)" onclick="heal()">İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
+    else if(t==='clan'){ let h = Object.values(clansData).map(c=>`<div style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #333;"><span>${c.flag} ${c.name} (${c.members.length}/30)</span>${c.members.includes(currentPlayer.username)?'':`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="joinC('${Object.keys(clansData).find(k=>clansData[k]===c)}')">Katıl</button>`}</div>`).join(''); box.innerHTML=`<h2>🐉 Klan</h2>${!currentPlayer.clan?`<div style="display:flex;gap:5px;margin-bottom:10px;"><input type="text" id="c-n" placeholder="Ad" style="flex:1;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;"><input type="text" id="c-f" placeholder="Bayrak" maxlength="2" style="width:40px;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;text-align:center;"><button class="btn btn-primary" style="width:auto;padding:8px;" onclick="createC()">Kur</button></div>`:'<button class="btn btn-secondary" onclick="leaveC()" style="margin-bottom:10px;">Ayrıl</button>'}<div style="max-height:200px;overflow-y:auto;">${h||'<p style="color:#aaa;text-align:center;">Klan yok</p>'}</div><button class="btn btn-secondary" onclick="closeModal()" style="margin-top:10px;">Kapat</button>`; }
+}
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
-function updCost(){ document.getElementById('t-total').innerText = (parseInt(document.getElementById('t-inf').value)||0)*100 + (parseInt(document.getElementById('t-arc').value)||0)*150 + (parseInt(document.getElementById('t-cav').value)||0)*250; }
+
+function openAttackModal(type = 'city') {
+    const box = document.getElementById('modal-box');
+    let targetName = "Hedef";
+    if(type === 'city' && selectedCityId) targetName = worldData.cities[selectedCityId].name;
+    else if(type === 'mine' && selectedMineId) targetName = worldData.mines[selectedMineId].name;
+    else if(type === 'boss' && selectedBossId) targetName = worldData.bosses[selectedBossId].beast;
+    
+    box.innerHTML = `
+        <h2>⚔️ ${targetName}'e Saldır</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p>
+        <div class="input-group"><label>🛡️ Piyade</label><input type="number" id="a-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div>
+        <div class="input-group"><label>🏹 Okçu</label><input type="number" id="a-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div>
+        <div class="input-group"><label>🐎 Süvari</label><input type="number" id="a-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div>
+        <button class="btn btn-primary" onclick="launchAtk('${type}')">Saldırıyı Başlat</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
+
+function launchAtk(type) {
+    const army = { infantry: parseInt(document.getElementById('a-inf').value)||0, archer: parseInt(document.getElementById('a-arc').value)||0, cavalry: parseInt(document.getElementById('a-cav').value)||0 };
+    if(type === 'city') socket.emit('attackCity', { cityId: selectedCityId, army });
+    else if(type === 'mine') socket.emit('occupyMine', { mineId: selectedMineId, army });
+    else if(type === 'boss') socket.emit('attackBoss', { bossId: selectedBossId, army });
+    closeModal();
+}
+
+function openDeployModal() {
+    const box = document.getElementById('modal-box');
+    box.innerHTML = `
+        <h2>🛡️ Savunma Yerleştir</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p>
+        <div class="input-group"><label>🛡️ Piyade</label><input type="number" id="d-inf" max="${currentPlayer.army.infantry}" value="0"></div>
+        <div class="input-group"><label>🏹 Okçu</label><input type="number" id="d-arc" max="${currentPlayer.army.archer}" value="0"></div>
+        <div class="input-group"><label>🐎 Süvari</label><input type="number" id="d-cav" max="${currentPlayer.army.cavalry}" value="0"></div>
+        <button class="btn btn-primary" onclick="deploy()">Yerleştir</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
+function deploy() { socket.emit('deployDefenders', { cityId: selectedCityId, infantry: parseInt(document.getElementById('d-inf').value)||0, archer: parseInt(document.getElementById('d-arc').value)||0, cavalry: parseInt(document.getElementById('d-cav').value)||0 }); closeModal(); }
+
+function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
+function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere tıkla.'); }
+
+document.getElementById('map-container').addEventListener('click', (e) => {
+    if(basePlacementMode) {
+        if (e.target.id === 'world-map-img' || e.target.id === 'map-container') {
+            const rect = document.getElementById('map-container').getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+            const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+            // %'yi server'ın anlayacağı -500/500 formatına çevir
+            const x = (xPct / 100 * 1000) - 500;
+            const z = (yPct / 100 * 500) - 250;
+            socket.emit('buildBase', { x, z });
+            basePlacementMode = false;
+        }
+    }
+});
+
 function train(){ socket.emit('trainArmy', {infantry:parseInt(document.getElementById('t-inf').value)||0, archer:parseInt(document.getElementById('t-arc').value)||0, cavalry:parseInt(document.getElementById('t-cav').value)||0}); closeModal(); }
 function heal(){ socket.emit('healArmy', {infantry:parseInt(document.getElementById('h-inf').value)||0, archer:parseInt(document.getElementById('h-arc').value)||0, cavalry:parseInt(document.getElementById('h-cav').value)||0}); closeModal(); }
 function createC(){ socket.emit('createClan', {name:document.getElementById('c-n').value, flag:document.getElementById('c-f').value||'🐉'}); closeModal(); }
 function joinC(id){ socket.emit('joinClan', {clanId:id}); closeModal(); }
 function leaveC(){ socket.emit('leaveClan'); closeModal(); }
 
-function openAttackModal() { if(!selectedCityId) return; const c=worldData.cities[selectedCityId]; document.getElementById('modal-overlay').style.display='flex'; document.getElementById('modal-box').innerHTML=`<h2>⚔️ ${c.name}'e Saldır</h2><p>Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p><div class="train-row"><label>🛡️</label><input type="number" id="a-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div><div class="train-row"><label>🏹</label><input type="number" id="a-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div><div class="train-row"><label>🐎</label><input type="number" id="a-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div><button class="btn btn-primary" onclick="launchAtk()">Saldır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-function launchAtk(){ socket.emit('attackCity', {cityId:selectedCityId, army:{infantry:parseInt(document.getElementById('a-inf').value)||0, archer:parseInt(document.getElementById('a-arc').value)||0, cavalry:parseInt(document.getElementById('a-cav').value)||0}}); closeModal(); closeCityPopup(); }
-function openDeployModal(){ if(!selectedCityId) return; document.getElementById('modal-overlay').style.display='flex'; document.getElementById('modal-box').innerHTML=`<h2>🛡️ Savunma</h2><p>Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p><div class="train-row"><label>🛡️</label><input type="number" id="d-inf" max="${currentPlayer.army.infantry}" value="0"></div><div class="train-row"><label>🏹</label><input type="number" id="d-arc" max="${currentPlayer.army.archer}" value="0"></div><div class="train-row"><label>🐎</label><input type="number" id="d-cav" max="${currentPlayer.army.cavalry}" value="0"></div><button class="btn btn-primary" onclick="deploy()">Yerleştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-function deploy(){ socket.emit('deployDefenders', {cityId:selectedCityId, infantry:parseInt(document.getElementById('d-inf').value)||0, archer:parseInt(document.getElementById('d-arc').value)||0, cavalry:parseInt(document.getElementById('d-cav').value)||0}); closeModal(); closeCityPopup(); }
-
-function showMinePopup(id) { const m=worldData.mines[id]; if(!m) return; selectedMineId=id; document.getElementById('modal-overlay').style.display='flex'; document.getElementById('modal-box').innerHTML=`<h2>⛏️ ${m.name}</h2><p>Sahip: ${m.owner||'NPC'}</p><p>Gelir: ${m.yield}/dk</p>${m.owner!==currentPlayer.username?`<div class="train-row"><label>🛡️</label><input type="number" id="m-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div><div class="train-row"><label>🏹</label><input type="number" id="m-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div><div class="train-row"><label>🐎</label><input type="number" id="m-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div><button class="btn btn-primary" onclick="occMine()">İşgal Et</button>`:'<p>Bu maden senin!</p>'}<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-function occMine(){ socket.emit('occupyMine', {mineId:selectedMineId, army:{infantry:parseInt(document.getElementById('m-inf').value)||0, archer:parseInt(document.getElementById('m-arc').value)||0, cavalry:parseInt(document.getElementById('m-cav').value)||0}}); closeModal(); }
-
-function showBossPopup(id) { const b=worldData.bosses[id]; if(!b) return; selectedBossId=id; document.getElementById('modal-overlay').style.display='flex'; if(b.defeated){ document.getElementById('modal-box').innerHTML=`<h2 style="color:var(--red)">👹 ${b.beast}</h2><p>Yenilmiş. Respawn bekleniyor.</p><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { document.getElementById('modal-box').innerHTML=`<h2 style="color:var(--red)">👹 ${b.beast}</h2><p>HP: ${b.currentHp} / ${b.hp}</p><p>Ödül: ${b.reward} Ryo</p><div class="train-row"><label>🛡️</label><input type="number" id="b-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div><div class="train-row"><label>🏹</label><input type="number" id="b-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div><div class="train-row"><label>🐎</label><input type="number" id="b-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div><button class="btn btn-primary" style="background:linear-gradient(45deg,#f00,#900)" onclick="atkBoss()">Saldır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
-function atkBoss(){ socket.emit('attackBoss', {bossId:selectedBossId, army:{infantry:parseInt(document.getElementById('b-inf').value)||0, archer:parseInt(document.getElementById('b-arc').value)||0, cavalry:parseInt(document.getElementById('b-cav').value)||0}}); closeModal(); }
-
-function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p>10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p>Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
-function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere tıkla.'); }
-
-socket.on('worldData', (d) => { worldData = d; if(scene){ createCities(); createMines(); createBosses(); } });
-socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan-badge').style.display='block'; document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
-socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; if(d.hospital){document.getElementById('ui-h-inf').innerText=d.hospital.infantry; document.getElementById('ui-h-arc').innerText=d.hospital.archer; document.getElementById('ui-h-cav').innerText=d.hospital.cavalry;} });
+// SOCKET DİNLEYİCİLERİ
+socket.on('worldData', (d) => { worldData = d; if(currentPlayer) renderMap(); });
+socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
+socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; });
 socket.on('ryoUpdate', (r) => { currentPlayer.ryo=r; document.getElementById('ui-ryo').innerText=r; });
-socket.on('leaderboardData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>🏆 Sıralama</h2>`; d.forEach((p,i)=>{ h+=`<div style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #222;"><span>${i+1}. <span style="color:#${(p.empireColor||0xffffff).toString(16).padStart(6,'0')}">${p.username}</span></span><span style="color:var(--gold)">⚡ ${p.power}</span></div>`; }); b.innerHTML=h+`<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
-socket.on('profileData', (d) => { currentPlayer.quests=d.quests; document.getElementById('ui-power').innerText=d.power.toLocaleString(); const b=document.getElementById('modal-box'); b.innerHTML=`<h2>👤 ${d.username}</h2><p>⚡ Güç: ${d.power.toLocaleString()}</p><p>🪙 Ryo: ${d.ryo.toLocaleString()}</p><hr><h3>Görevler</h3>${Object.entries(d.quests).map(([k,v])=>`<div>${k}: ${v.current}/${v.target} ${v.claimed?'<span style="color:var(--green)">Alındı</span>':v.current>=v.target?`<button onclick="claimQ('${k}')">Al</button>`:''}</div>`).join('')}<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
+socket.on('leaderboardData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>🏆 Sıralama</h2>`; d.forEach((p,i)=>{ h+=`<div class="info-row"><span>${i+1}. ${p.username}</span><span style="color:var(--gold)">⚡ ${p.power}</span></div>`; }); b.innerHTML=h+`<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
+socket.on('profileData', (d) => { currentPlayer.quests=d.quests; document.getElementById('ui-power').innerText=d.power.toLocaleString(); const b=document.getElementById('modal-box'); b.innerHTML=`<h2>👤 ${d.username}</h2><div class="info-row"><span>⚡ Güç</span><span style="color:var(--gold)">${d.power.toLocaleString()}</span></div><div class="info-row"><span>🪙 Ryo</span><span style="color:var(--gold)">${d.ryo.toLocaleString()}</span></div><h3 style="margin:15px 0 10px;">Görevler</h3>${Object.entries(d.quests).map(([k,v])=>`<div class="info-row"><span>${k}</span><span>${v.current}/${v.target} ${v.claimed?'✓':v.current>=v.target?`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="claimQ('${k}')">Al</button>`:''}</span></div>`).join('')}<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
 function claimQ(id){ socket.emit('claimQuest', {questId:id}); }
-socket.on('inboxData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>✉️ Mesajlar</h2>`; d.forEach(m=>{ h+=`<div style="border:1px solid #333;padding:5px;margin:2px 0;"><strong>${m.from}</strong>: ${m.msg}<button onclick="socket.emit('deleteMessage',{date:${m.date}})">Sil</button></div>`; }); b.innerHTML=h+`<hr><input id="msg-to" placeholder="Kime"><input id="msg-t" placeholder="Mesaj"><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
+socket.on('inboxData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>✉️ Mesajlar</h2><div style="max-height:200px;overflow-y:auto;">`; d.forEach(m=>{ h+=`<div style="border:1px solid #333;padding:5px;margin:2px 0;border-radius:4px;"><strong>${m.from}</strong>: ${m.msg}<button class="btn btn-secondary" style="width:auto;padding:2px 5px;font-size:0.7rem;float:right;" onclick="socket.emit('deleteMessage',{date:${m.date}})">X</button></div>`; }); b.innerHTML=h+`</div><div class="input-group" style="margin-top:15px;"><input type="text" id="msg-to" placeholder="Kime"></div><div class="input-group"><input type="text" id="msg-t" placeholder="Mesaj"></div><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
 function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-to').value, msg:document.getElementById('msg-t').value}); closeModal(); }
 socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
-socket.on('baseBuilt', (b) => { currentPlayer.base=b; createPlayerBase(); });
+socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); });
 
-socket.on('battleAnimation', (d) => { triggerJutsu(d.cityId, d.characterId, d.attackerColor, d.result); });
-function triggerJutsu(id, cId, col, res) {
-    const t = worldData.cities[id] || worldData.bosses?.[id]; if(!t) return;
-    const s = playerCommander ? playerCommander.position.clone() : new THREE.Vector3(0,10,-50); const e = new THREE.Vector3(t.x, 20, t.z);
-    const lM = new THREE.LineBasicMaterial({color:col||0xff6b00}); const lP=[s.clone(), new THREE.Vector3().lerpVectors(s,e,0.5).add(new THREE.Vector3(0,60,0)), e.clone()]; const lG=new THREE.BufferGeometry().setFromPoints(lP); const l=new THREE.Line(lG, lM); scene.add(l); setTimeout(()=>{let o=1;const f=setInterval(()=>{o-=0.05;l.material.opacity=o;l.material.transparent=true;if(o<=0){clearInterval(f);scene.remove(l);}},50);},1000);
-    let p; if(cId==='kyuubi'){p=new THREE.Mesh(new THREE.SphereGeometry(5,16,16),new THREE.MeshBasicMaterial({color:0x0099ff,transparent:true,opacity:0.9}));} else if(cId==='raikage'){p=new THREE.Mesh(new THREE.ConeGeometry(3,15,5),new THREE.MeshBasicMaterial({color:0xffff00}));p.rotation.x=Math.PI/2;} else {p=new THREE.Mesh(new THREE.SphereGeometry(6,8,8),new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.8}));p.scale.y=2;}
-    p.position.copy(s); scene.add(p); const st=Date.now(); const a=setInterval(()=>{const t=(Date.now()-st)/1000; p.position.lerpVectors(s,e,t); p.position.y+=Math.sin(t*Math.PI)*50; p.rotation.x+=0.2; if(t>=1){clearInterval(a);scene.remove(p);playExplosion(e,cId,res);}},16);
+// MAFIA CITY SAVAŞ ANİMASYONU (MARCH)
+socket.on('battleAnimation', (d) => {
+    const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
+    if (!target) return;
+    
+    const container = document.getElementById('map-container');
+    const rect = container.getBoundingClientRect();
+    
+    // Başlangıç noktası (Oyuncunun üssü veya ekranın altı)
+    let startX, startY;
+    if (currentPlayer.base) {
+        startX = (((currentPlayer.base.x / 500) + 1) / 2 * rect.width);
+        startY = (((currentPlayer.base.z / 250) + 1) / 2 * rect.height);
+    } else {
+        startX = rect.width / 2; startY = rect.height; // Ekranın alt ortası
+    }
+    
+    // Hedef noktası
+    const endX = ((target.lng + 180) / 360 * rect.width) || ((target.x / 500 + 1) / 2 * rect.width);
+    const endY = ((90 - target.lat) / 180 * rect.height) || ((target.z / 250 + 1) / 2 * rect.height);
+
+    // March İkonu
+    const march = document.createElement('div');
+    march.className = 'march-icon';
+    march.innerText = '⚔️';
+    march.style.left = startX + 'px';
+    march.style.top = startY + 'px';
+    march.style.color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6,'0');
+    container.appendChild(march);
+
+    // Animasyonu tetikle
+    setTimeout(() => {
+        march.style.left = endX + 'px';
+        march.style.top = endY + 'px';
+    }, 50);
+
+    // Çarpışma ve Patlama
+    setTimeout(() => {
+        march.remove();
+        playSound('explosion');
+        
+        const boom = document.createElement('div');
+        boom.className = 'march-icon';
+        boom.innerText = '💥';
+        boom.style.left = endX + 'px';
+        boom.style.top = endY + 'px';
+        boom.style.fontSize = '3rem';
+        boom.style.transition = 'opacity 0.5s, transform 0.5s';
+        container.appendChild(boom);
+        
+        // Hasar Yazısı
+        const txt = document.createElement('div');
+        txt.className = 'march-icon';
+        txt.innerText = d.result.attackerWins ? 'Zafer!' : 'Yenilgi!';
+        txt.style.color = d.result.attackerWins ? 'var(--green)' : 'var(--red)';
+        txt.style.fontWeight = 'bold';
+        txt.style.left = endX + 'px';
+        txt.style.top = (endY - 30) + 'px';
+        txt.style.transition = 'opacity 1s, top 1s';
+        container.appendChild(txt);
+
+        setTimeout(() => {
+            boom.style.opacity = '0';
+            boom.style.transform = 'scale(2)';
+            txt.style.opacity = '0';
+            txt.style.top = (endY - 60) + 'px';
+        }, 100);
+
+        setTimeout(() => { boom.remove(); txt.remove(); }, 1000);
+    }, 1000);
+});
+
+function playSound(type) {
+    if (!audioCtx) return; const now = audioCtx.currentTime;
+    if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
 }
-function playExplosion(p, cId, res) { playSound('explosion'); const c = cId==='raikage'?0xffff00:cId==='kyuubi'?0x0099ff:0xff6600; const m=new THREE.Mesh(new THREE.SphereGeometry(5,16,16),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.9})); m.position.copy(p); scene.add(m); let s=1; const i=setInterval(()=>{s+=0.5;m.scale.set(s,s,s);m.material.opacity-=0.05;if(m.material.opacity<=0){clearInterval(i);scene.remove(m);}},30); showFloatingText(p, `-${res.defPower}`, res.attackerWins?'#0f0':'#f00'); }
-function showFloatingText(p, t, c) { const cv=document.createElement('canvas'); cv.width=256; cv.height=128; const ctx=cv.getContext('2d'); ctx.font='bold 80px Rajdhani'; ctx.fillStyle=c; ctx.textAlign='center'; ctx.fillText(t,128,80); const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true})); sp.position.copy(p); sp.position.y=60; sp.scale.set(40,20,1); scene.add(sp); let y=60; const i=setInterval(()=>{y+=1;sp.position.y=y;sp.material.opacity-=0.02;if(sp.material.opacity<=0){clearInterval(i);scene.remove(sp);}},30); }
 
 socket.on('toast', (d) => showToast(d.type, d.msg));
 socket.on('error', (m) => showToast('error', m));
 function showToast(type, msg) { if(type==='success'||type==='victory')playSound('success'); if(type==='defeat'||type==='error')playSound('error'); const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';setTimeout(()=>t.remove(),300);},3000); }
-
-function animate() { requestAnimationFrame(animate); controls.update(); cityMeshes.forEach(g=>{const s=g.children.find(c=>c.name==='shield');if(s)s.rotation.y+=0.01;}); mineMeshes.forEach(g=>{const c=g.children.find(c=>c.name==='crystal');if(c){c.rotation.y+=0.02;c.rotation.x+=0.01;}}); if(playerCommander)playerCommander.rotation.y+=0.01; if(renderer)renderer.render(scene,camera); }
 
 window.onload = () => { const t = localStorage.getItem('atlas_token'); if(t) socket.emit('loginWithToken', t); };
 </script>
