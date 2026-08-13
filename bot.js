@@ -12,7 +12,6 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-// Dosya Yolu Ayarları
 let DATA_DIR = process.env.DATA_DIR || '/var/data';
 try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -38,7 +37,7 @@ app.use(express.json({ limit: '10mb' }));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ═══════════════════════════════════════════
-// MAİL SİSTEMİ (service: 'gmail' KULLANILARAK TIMEOUT HATASI ÇÖZÜLDÜ)
+// MAIL SİSTEMİ (SENİN EN BAŞTA ÇALIŞAN YAPIN)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
@@ -48,18 +47,10 @@ const transporter = nodemailer.createTransport({
 });
 
 function sendEmail(to, subject, body) {
-    const mailOptions = { 
-        from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, 
-        to, 
-        subject, 
-        text: body 
-    };
+    const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
     transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.error('❌ [MAIL] E-posta Hatası:', error);
-        } else {
-            console.log('📧 [MAIL] E-posta Gönderildi: ' + info.response);
-        }
+        if (error) console.log('❌ E-posta Hatası:', error);
+        else console.log('📧 E-posta Gönderildi: ' + info.response);
     });
 }
 
@@ -102,14 +93,14 @@ const BIJUU_LAIRS = [
 ];
 
 const CHARACTERS = [
-    { id:"kyuubi", name:"Kyuubi Varisi", element:"fire", ability:"Rasengan", damage:50, defense:20, hp:500, desc:"Ateş enerjisiyle devasa top fırlatır" },
-    { id:"alchemist", name:"Alchemist General", element:"earth", ability:"Transmutation", damage:40, defense:40, hp:800, desc:"Yeri parçalayarak alan hasarı verir" },
-    { id:"mistsword", name:"Sis Hashira", element:"water", ability:"Mist Breathing", damage:45, defense:30, hp:600, desc:"Sis bulutu içinde hızlı kesikler atar" },
-    { id:"raikage", name:"Yıldırım Varisi", element:"lightning", ability:"Chidori", damage:60, defense:15, hp:400, desc:"Yıldırım hızında delici saldırı" },
-    { id:"soulreaper", name:"Ruh Savasan", element:"wind", ability:"Bankai", damage:55, defense:25, hp:550, desc:"Dev kılıçla geniş alan hasarı verir" },
-    { id:"titan", name:"İzci Teğmen", element:"earth", ability:"ODM Slash", damage:65, defense:10, hp:350, desc:"Yüksek hızla düşmanı deler geçer" },
-    { id:"rubber", name:"Lastik Komutan", element:"lightning", ability:"Gear Second", damage:50, defense:30, hp:600, desc:"Esnek yumruklarla sarsıcı darbe vurur" },
-    { id:"icequeen", name:"Buz Kraliçesi", element:"water", ability:"Ice Mirror", damage:40, defense:35, hp:650, desc:"Ayna teknikleriyle buz şarırağı yağdırır" }
+    { id:"kyuubi", name:"Kyuubi Varisi", element:"fire", ability:"Rasengan", damage:50, defense:20, hp:500 },
+    { id:"alchemist", name:"Alchemist General", element:"earth", ability:"Transmutation", damage:40, defense:40, hp:800 },
+    { id:"mistsword", name:"Sis Hashira", element:"water", ability:"Mist Breathing", damage:45, defense:30, hp:600 },
+    { id:"raikage", name:"Yıldırım Varisi", element:"lightning", ability:"Chidori", damage:60, defense:15, hp:400 },
+    { id:"soulreaper", name:"Ruh Savasan", element:"wind", ability:"Bankai", damage:55, defense:25, hp:550 },
+    { id:"titan", name:"İzci Teğmen", element:"earth", ability:"ODM Slash", damage:65, defense:10, hp:350 },
+    { id:"rubber", name:"Lastik Komutan", element:"lightning", ability:"Gear Second", damage:50, defense:30, hp:600 },
+    { id:"icequeen", name:"Buz Kraliçesi", element:"water", ability:"Ice Mirror", damage:40, defense:35, hp:650 }
 ];
 
 const SHIELD_DURATION = 12 * 60 * 60 * 1000;
@@ -144,20 +135,16 @@ function calculateBattle(attackArmy, attackStats, defenseArmy, defenseStats) {
     atkPower *= (1 + (attackStats.damage || 0));
     let defPower = (defenseArmy.garrison || 0) * 15 + (defenseArmy.infantry || 0) * (UNIT_STATS.infantry.def + UNIT_STATS.infantry.hp) + (defenseArmy.archer || 0) * (UNIT_STATS.archer.def + UNIT_STATS.archer.hp) + (defenseArmy.cavalry || 0) * (UNIT_STATS.cavalry.def + UNIT_STATS.cavalry.hp);
     defPower *= (1 + (defenseStats.defense || 0));
-
     atkPower *= (0.9 + Math.random() * 0.2);
     defPower *= (0.9 + Math.random() * 0.2);
-
     const totalPower = atkPower + defPower || 1;
     const atkRatio = atkPower / totalPower;
     const attackerLossRatio = atkPower > defPower ? (1 - atkRatio) * 0.5 : 0.8;
     const defenderLossRatio = atkPower > defPower ? 0.8 : (1 - (1 - atkRatio)) * 0.5;
-
     const attackerLosses = { infantry: Math.floor(attackArmy.infantry * attackerLossRatio), archer: Math.floor(attackArmy.archer * attackerLossRatio), cavalry: Math.floor(attackArmy.cavalry * attackerLossRatio) };
     const defenderLosses = { garrison: Math.floor((defenseArmy.garrison || 0) * defenderLossRatio), infantry: Math.floor((defenseArmy.infantry || 0) * defenderLossRatio), archer: Math.floor((defenseArmy.archer || 0) * defenderLossRatio), cavalry: Math.floor((defenseArmy.cavalry || 0) * defenderLossRatio) };
     const attackerSurvivors = { infantry: Math.max(0, attackArmy.infantry - attackerLosses.infantry), archer: Math.max(0, attackArmy.archer - attackerLosses.archer), cavalry: Math.max(0, attackArmy.cavalry - attackerLosses.cavalry) };
     const attackerHospital = { infantry: Math.floor(attackerLosses.infantry * 0.7), archer: Math.floor(attackerLosses.archer * 0.7), cavalry: Math.floor(attackerLosses.cavalry * 0.7) };
-
     return { attackerWins: atkPower > defPower, atkPower: Math.round(atkPower), defPower: Math.round(defPower), attackerLosses, defenderLosses, attackerSurvivors, attackerHospital };
 }
 
