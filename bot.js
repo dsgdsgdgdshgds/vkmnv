@@ -12,13 +12,13 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-// Dosya Yolu Ayarları (Render Disk)
+// Orijinal Dosya Yolu Ayarları (Render Disk)
 let DATA_DIR = process.env.DATA_DIR || '/var/data';
 try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+    fs.accessSync(DATA_DIR, fs.constants.W.W_OK);
 } catch (err) {
-    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor (${err.code}). Render'da bir Disk eklenmemiş olabilir.`);
+    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor. Render'da Disk eklenmemiş olabilir.`);
     DATA_DIR = path.join(__dirname, 'data');
     console.error(`⚠️ Bunun yerine "${DATA_DIR}" kullanılıyor.`);
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -36,55 +36,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10mb' }));
 
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.SESSION_SECRET) {
-    console.error('⚠️ SESSION_SECRET ayarlı değil, geçici üretildi. Kalıcı olsun istiyorsan Render\'da SESSION_SECRET ekle.');
-}
 
 // ═══════════════════════════════════════════
-// MAİL SİSTEMİ (SMTP DOĞRUDAN - GÜÇLENDİRİLMİŞ)
+// ORİJİNAL MAİL SİSTEMİ (KESİNLİKLE ÇALIŞAN VERSİYON)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
-const MAIL_PASS = process.env.google;
-
-if (!MAIL_PASS) {
-    console.error('❌ KRİTİK HATA: Render Environment içinde "google" değişkeni (Gmail Uygulama Şifren) bulunamadı!');
-}
-
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true for 465, false for other ports
-    auth: { user: MAIL_USER, pass: MAIL_PASS }
-});
-
-// Sunucu başlarken mail bağlantısını test et
-transporter.verify(function(error, success) {
-    if (error) {
-        console.error('❌ [MAIL] SMTP Bağlantı Hatası:', error);
-    } else {
-        console.log('✅ [MAIL] E-posta sunucusu hazır ve bağlantı başarılı.');
-    }
+    service: 'gmail',
+    auth: { user: MAIL_USER, pass: process.env.google }
 });
 
 function sendEmail(to, subject, body) {
-    if (!MAIL_PASS) {
-        console.error('❌ [MAIL] Gönderilemedi: Gmail şifresi ortam değişkenlerinde yok!');
-        return;
-    }
-    console.log(`[MAIL] Hazırlanıyor -> Kime: ${to}, Konu: ${subject}`);
     const mailOptions = { 
         from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, 
         to, 
         subject, 
         text: body 
     };
-    
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            console.error('❌ [MAIL] E-posta Hatası Detayı:', error.message);
+            console.error('❌ [MAIL] E-posta Hatası:', error);
         } else {
-            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi: ' + info.response);
+            console.log('📧 [MAIL] E-posta Gönderildi: ' + info.response);
         }
     });
 }
