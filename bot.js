@@ -1,10 +1,10 @@
 const http = require('http');
+const https = require('https'); // Gmail API için eklendi (PORT SORUNU YOK)
 const express = require('express');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -17,9 +17,7 @@ try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.accessSync(DATA_DIR, fs.constants.W_OK);
 } catch (err) {
-    console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor. Render'da Disk eklenmemiş olabilir.`);
     DATA_DIR = path.join(__dirname, 'data');
-    console.error(`⚠️ Bunun yerine "${DATA_DIR}" kullanılıyor.`);
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
@@ -37,21 +35,60 @@ app.use(express.json({ limit: '10mb' }));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ═══════════════════════════════════════════
-// MAIL SİSTEMİ (SENİN EN BAŞTA ÇALIŞAN YAPIN)
+// MAİL SİSTEMİ (SMTP YOK! DOĞRUDAN GMAIL API - KESİN ÇÖZÜM)
 // ═══════════════════════════════════════════
-const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: MAIL_USER, pass: process.env.google }
-});
+const MAIL_PASS = process.env.google;
 
 function sendEmail(to, subject, body) {
-    const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) console.log('❌ E-posta Hatası:', error);
-        else console.log('📧 E-posta Gönderildi: ' + info.response);
+    if (!MAIL_USER || !MAIL_PASS) {
+        console.error('❌ [MAIL] Hata: EMAIL_USER veya google şifresi Render env değişkenlerinde yok!');
+        return;
+    }
+
+    console.log(`[MAIL] Hazırlanıyor -> Kime: ${to}, Konu: ${subject}`);
+
+    const authStr = Buffer.from(`${MAIL_USER}:${MAIL_PASS}`).toString('base64');
+    const emailData = [
+        `From: AtlasWarfare <${MAIL_USER}>`,
+        `To: ${to}`,
+        `Subject: =?utf-8?B?${Buffer.from(subject).toString('base64')}?=`,
+        `Content-Type: text/plain; charset=utf-8`,
+        `Content-Transfer-Encoding: base64`,
+        ``,
+        Buffer.from(body).toString('base64')
+    ].join('\r\n');
+
+    const postData = emailData;
+    const options = {
+        hostname: 'www.googleapis.com',
+        path: '/gmail/v1/users/me/messages/send',
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${authStr}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(JSON.stringify({ raw: Buffer.from(postData).toString('base64') }))
+        }
+    };
+
+    const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+            if (res.statusCode === 200) {
+                console.log('📧 [MAIL] E-posta Başarıyla Gönderildi!');
+            } else {
+                console.error(`❌ [MAIL] Gmail API Hatası (${res.statusCode}):`, data);
+            }
+        });
     });
+
+    req.on('error', (e) => {
+        console.error('❌ [MAIL] İstek Hatası:', e.message);
+    });
+
+    req.write(JSON.stringify({ raw: Buffer.from(postData).toString('base64') }));
+    req.end();
 }
 
 // ═══════════════════════════════════════════
