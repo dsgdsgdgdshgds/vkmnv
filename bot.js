@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 let DATA_DIR = process.env.DATA_DIR || '/var/data';
 try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.accessSync(DATA_DIR, fs.constants.W.W_OK);
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
 } catch (err) {
     console.error(`⚠️ "${DATA_DIR}" klasörüne yazılamıyor. Render'da Disk eklenmemiş olabilir.`);
     DATA_DIR = path.join(__dirname, 'data');
@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
     socket.on('forgotPassword', (data) => {
         const { email } = data; const all = loadAllUsers();
         const user = Object.values(all).find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!user) return socket.emit('loginError', 'E-posta kayıtlı değil.');
+        if (!user) return socket.emit('loginError', 'E-posta kayırlı değil.');
         const code = generateVerifyCode();
         passwordResetCodes[email.toLowerCase()] = { code, username: user.username, expires: Date.now() + 10 * 60 * 1000 };
         sendEmail(email, '⚔️ AtlasWarfare - Şifre Sıfırlama', `Merhaba ${user.username}, şifre sıfırlama kodun: ${code}`);
