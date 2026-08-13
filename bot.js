@@ -12,7 +12,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-// Orijinal Dosya Yolu Ayarları (Render Disk)
+// Dosya Yolu Ayarları (Render /var/data iznini esnet)
 let DATA_DIR = process.env.DATA_DIR || '/var/data';
 try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -38,27 +38,42 @@ app.use(express.json({ limit: '10mb' }));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ═══════════════════════════════════════════
-// ORİJİNAL MAİL SİSTEMİ (KESİNLİKLE ÇALIŞAN VERSİYON)
+// MAİL SİSTEMİ (PORT 587 - RENDER AĞ SORUNU ÇÖZÜLDÜ)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
+const MAIL_PASS = process.env.google;
+
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: MAIL_USER, pass: process.env.google }
+    host: 'smtp.gmail.com',
+    port: 587, // 465 yerine 587 kullanıyoruz (Render 465'i engeller)
+    secure: false, // 587 portu için false olmalı (STARTTLS)
+    requireTLS: true,
+    auth: { 
+        user: MAIL_USER, 
+        pass: MAIL_PASS 
+    },
+    tls: {
+        rejectUnauthorized: false // Render sertifika hatasını yoksay
+    },
+    connectionTimeout: 10000,
+    socketTimeout: 15000
 });
 
 function sendEmail(to, subject, body) {
+    console.log(`[MAIL] Hazırlanıyor -> Kime: ${to}, Konu: ${subject}`);
     const mailOptions = { 
         from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, 
         to, 
         subject, 
         text: body 
     };
+    
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            console.error('❌ [MAIL] E-posta Hatası:', error);
+            console.error('❌ [MAIL] E-posta Hatası Detayı:', error.message);
         } else {
-            console.log('📧 [MAIL] E-posta Gönderildi: ' + info.response);
+            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi: ' + info.response);
         }
     });
 }
