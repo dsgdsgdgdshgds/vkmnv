@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config();
 
 const app = express();
@@ -35,50 +35,43 @@ app.use(express.json({ limit: '10mb' }));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ═══════════════════════════════════════════
-// MAİL SİSTEMİ (GMAIL SMTP)
+// MAİL SİSTEMİ (RESEND API - HTTPS üzerinden, Render free tier SMTP portlarını engellediği için)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
-const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
-const MAIL_PASS = process.env.EMAIL_PASS; // Gmail App Password (16 haneli, boşluksuz)
+// Resend'de doğrulanmış bir domain yoksa bu adresi kullanmak zorundasın (test için):
+const MAIL_FROM_ADDRESS = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-if (!MAIL_PASS) {
-    console.error('❌ [MAIL] EMAIL_PASS environment variable tanımlı değil! E-posta gönderilemeyecek.');
+if (!RESEND_API_KEY) {
+    console.error('❌ [MAIL] RESEND_API_KEY environment variable tanımlı değil! E-posta gönderilemeyecek.');
+} else {
+    console.log('✅ [MAIL] Resend API anahtarı yüklendi, mail göndermeye hazır.');
 }
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // 587 için false, STARTTLS otomatik kullanılır
-    auth: {
-        user: MAIL_USER,
-        pass: MAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
-});
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-// Başlangıçta SMTP bağlantısını test et
-transporter.verify((err, success) => {
-    if (err) {
-        console.error('❌ [MAIL] SMTP bağlantı hatası:', err.message);
-    } else {
-        console.log('✅ [MAIL] SMTP sunucusuna bağlanıldı, mail göndermeye hazır.');
+async function sendEmail(to, subject, body) {
+    if (!resend) {
+        console.error('❌ [MAIL] Resend yapılandırılmamış, mail gönderilemedi.');
+        return false;
     }
-});
-
-function sendEmail(to, subject, body) {
-    const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
-    return transporter.sendMail(mailOptions)
-        .then(info => {
-            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi:', info.response);
-            return true;
-        })
-        .catch(error => {
-            console.error('❌ [MAIL] E-posta Hatası:', error.message);
-            console.error('❌ [MAIL] Detay:', error);
-            return false;
+    try {
+        const { data, error } = await resend.emails.send({
+            from: `${MAIL_FROM_NAME} <${MAIL_FROM_ADDRESS}>`,
+            to: [to],
+            subject: subject,
+            text: body
         });
+        if (error) {
+            console.error('❌ [MAIL] E-posta Hatası:', error.message || error);
+            return false;
+        }
+        console.log('📧 [MAIL] E-posta Başarıyla Gönderildi:', data?.id);
+        return true;
+    } catch (error) {
+        console.error('❌ [MAIL] E-posta Hatası:', error.message);
+        return false;
+    }
 }
 
 // ═══════════════════════════════════════════
