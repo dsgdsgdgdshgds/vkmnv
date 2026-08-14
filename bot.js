@@ -35,27 +35,50 @@ app.use(express.json({ limit: '10mb' }));
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ═══════════════════════════════════════════
-// MAİL SİSTEMİ (GMAIL SERVİSİ + RENDER TLS AŞMA)
+// MAİL SİSTEMİ (GMAIL SMTP)
 // ═══════════════════════════════════════════
 const MAIL_FROM_NAME = 'AtlasWarfare';
 const MAIL_USER = process.env.EMAIL_USER || 'atlaswarfare.com@gmail.com';
+const MAIL_PASS = process.env.EMAIL_PASS; // Gmail App Password (16 haneli, boşluksuz)
+
+if (!MAIL_PASS) {
+    console.error('❌ [MAIL] EMAIL_PASS environment variable tanımlı değil! E-posta gönderilemeyecek.');
+}
+
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: MAIL_USER, pass: process.env.google },
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // 587 için false, STARTTLS otomatik kullanılır
+    auth: {
+        user: MAIL_USER,
+        pass: MAIL_PASS
+    },
     tls: {
-        rejectUnauthorized: false // Render timeout hatasını kesin olarak çözer
+        rejectUnauthorized: false
+    }
+});
+
+// Başlangıçta SMTP bağlantısını test et
+transporter.verify((err, success) => {
+    if (err) {
+        console.error('❌ [MAIL] SMTP bağlantı hatası:', err.message);
+    } else {
+        console.log('✅ [MAIL] SMTP sunucusuna bağlanıldı, mail göndermeye hazır.');
     }
 });
 
 function sendEmail(to, subject, body) {
     const mailOptions = { from: `"${MAIL_FROM_NAME}" <${MAIL_USER}>`, to, subject, text: body };
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
+    return transporter.sendMail(mailOptions)
+        .then(info => {
+            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi:', info.response);
+            return true;
+        })
+        .catch(error => {
             console.error('❌ [MAIL] E-posta Hatası:', error.message);
-        } else {
-            console.log('📧 [MAIL] E-posta Başarıyla Gönderildi: ' + info.response);
-        }
-    });
+            console.error('❌ [MAIL] Detay:', error);
+            return false;
+        });
 }
 
 // ═══════════════════════════════════════════
@@ -239,7 +262,7 @@ io.on('connection', (socket) => {
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return socket.emit('loginError', 'Geçerli e-posta gir.');
         if (!password || password.length < 6) return socket.emit('loginError', 'Şifre en az 6 karakter.');
         if (password !== passwordConfirm) return socket.emit('loginError', 'Şifreler eşleşmiyor.');
-        
+
         const all = loadAllUsers();
         if (Object.keys(all).some(u => u.toLowerCase() === username.toLowerCase())) return socket.emit('loginError', 'Bu ad alınmış.');
         if (Object.values(all).some(u => u.email && u.email.toLowerCase() === email.toLowerCase())) return socket.emit('loginError', 'Bu e-posta kayırlı.');
@@ -353,7 +376,7 @@ io.on('connection', (socket) => {
         const sent = data.army; if (sent.infantry + sent.archer + sent.cavalry === 0) return socket.emit('error', 'Ordu gönder!');
         const def = { garrison: city.garrison, ...city.playerDefenders };
         const res = calculateBattle(sent, { damage: p.stats.damage }, def, { defense: city.bonus?.defense || 0 });
-        
+
         p.army.infantry = Math.max(0, p.army.infantry - sent.infantry + res.attackerSurvivors.infantry);
         p.army.archer = Math.max(0, p.army.archer - sent.archer + res.attackerSurvivors.archer);
         p.army.cavalry = Math.max(0, p.army.cavalry - sent.cavalry + res.attackerSurvivors.cavalry);
