@@ -6,20 +6,29 @@
     <title>AtlasWarfare - Dünyayı Fethet</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #ff6b00; --secondary: #00d4ff; --dark: #0a0a0a; --panel: rgba(15, 15, 20, 0.95); --panel-border: rgba(255, 107, 0, 0.3); --gold: #ffd700; --red: #ff3333; --green: #00cc44; }
+        :root { 
+            --primary: #ff6b00; 
+            --secondary: #00d4ff; 
+            --dark: #0a0a0a; 
+            --panel: rgba(15, 15, 20, 0.95); 
+            --panel-border: rgba(255, 107, 0, 0.3); 
+            --gold: #ffd700; 
+            --red: #ff3333; 
+            --green: #00cc44; 
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #000; color: white; overflow: hidden; user-select: none; }
 
         /* GİRİŞ EKRANI */
         #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
         #auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920') no-repeat center; background-size: cover; opacity: 0.15; filter: blur(2px); }
-        .auth-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
+        .auth-box { background: var(--panel); border: 2px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
         .game-title { font-family: 'Cinzel', serif; font-size: 2.8rem; font-weight: 900; background: linear-gradient(45deg, var(--primary), var(--gold), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(255, 107, 0, 0.5); margin-bottom: 5px; letter-spacing: 3px; }
         .game-subtitle { color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 4px; opacity: 0.8; }
         .auth-input { width: 100%; padding: 12px 15px; margin: 8px 0; background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 6px; color: white; font-family: 'Rajdhani'; font-size: 1.05rem; outline: none; transition: 0.3s; }
         .auth-input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(255,107,0,0.3); }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 8px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-family: 'Rajdhani'; }
-        .btn-primary { background: linear-gradient(45deg, var(--primary), #cc5500); }
+        .btn-primary { background: linear-gradient(45deg, var(--primary), #cc5500); border: 1px solid var(--gold); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,107,0,0.4); }
         .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
         .btn-secondary:hover { background: rgba(0,212,255,0.1); }
@@ -31,7 +40,7 @@
         .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
         .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
         .char-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,107,0,0.3); }
-        .char-card.selected { border-color: var(--gold); background: rgba(255,215,0,0.1); }
+        .char-card.selected { border-color: var(--gold); background: rgba(255,215,0,0.1); box-shadow: 0 0 20px var(--gold); }
         .char-icon { font-size: 3rem; margin-bottom: 8px; }
         .char-name { font-family: 'Cinzel'; font-size: 0.95rem; color: var(--primary); margin-bottom: 5px; }
         .color-grid { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
@@ -42,52 +51,117 @@
         /* OYUN EKRANI (MAFIA CITY ARAYÜZÜ) */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
         
-        /* Üst Bar */
-        .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(0,0,0,0.9), transparent); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
-        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; }
-        .stat-badge { background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 15px; border: 1px solid var(--panel-border); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
-        .stat-badge span { color: var(--gold); font-weight: 700; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; background: #222; }
-
-        /* Harita (2D Dünya Haritası) */
-        #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: #0a1628; }
-        #world-map-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; filter: contrast(1.2) brightness(0.8); }
+        /* Harita (2D Strateji Haritası) */
+        #map-container { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; 
+            background: 
+                radial-gradient(circle at 50% 50%, #1a3a1a 0%, #0a1a0a 100%),
+                repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(0,0,0,0.3) 49px, rgba(0,0,0,0.3) 50px),
+                repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.3) 49px, rgba(0,0,0,0.3) 50px);
+            background-size: 100% 100%, 50px 50px, 50px 50px;
+            cursor: grab;
+        }
         .map-pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: 0.2s; z-index: 5; text-align: center; }
-        .map-pin:hover { transform: translate(-50%, -100%) scale(1.1); z-index: 10; }
-        .pin-icon { font-size: 2rem; filter: drop-shadow(0 0 5px black); }
-        .pin-label { background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; margin-top: -5px; border: 1px solid #333; }
+        .map-pin:hover { transform: translate(-50%, -100%) scale(1.2); z-index: 10; }
+        .pin-icon { 
+            font-size: 2.5rem; 
+            filter: drop-shadow(0 0 5px black) drop-shadow(0 0 10px var(--primary));
+            background: rgba(0,0,0,0.6);
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            width: 50px; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto;
+        }
+        .pin-label { 
+            background: rgba(0,0,0,0.8); 
+            padding: 2px 8px; border-radius: 4px; 
+            font-size: 0.8rem; font-weight: 700; white-space: nowrap; 
+            margin-top: -5px; border: 1px solid var(--gold); 
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+        }
         
+        /* Üst Bar (Mafia City Tarzı) */
+        .top-bar { 
+            position: absolute; top: 0; left: 0; right: 0; z-index: 20; 
+            background: linear-gradient(180deg, rgba(0,0,0,0.95), transparent); 
+            padding: 10px 15px; display: flex; justify-content: space-between; align-items: flex-start; 
+            pointer-events: none; 
+        }
+        .player-info { display: flex; gap: 10px; align-items: center; pointer-events: auto; }
+        .stat-badge { 
+            background: rgba(20,20,25,0.9); padding: 6px 12px; border-radius: 20px; 
+            border: 1px solid var(--gold); font-size: 0.9rem; display: flex; align-items: center; gap: 5px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .stat-badge span { color: var(--gold); font-weight: 700; font-size: 1rem; }
+        .avatar { 
+            width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--gold); 
+            display: flex; justify-content: center; align-items: center; font-size: 1.8rem; 
+            background: #222; box-shadow: 0 0 10px var(--primary);
+        }
+
         /* Alt Bar (Mafia City Toolbar) */
-        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, rgba(0,0,0,0.95), transparent); display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px; z-index: 20; pointer-events: none; }
-        .toolbar { display: flex; gap: 15px; pointer-events: auto; background: rgba(20,20,25,0.9); padding: 10px 20px; border-radius: 15px; border: 1px solid var(--panel-border); box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
-        .tool-btn { display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px 10px; border-radius: 8px; transition: 0.2s; width: 60px; }
-        .tool-btn:hover { background: rgba(255,107,0,0.2); }
-        .tool-icon { font-size: 1.8rem; margin-bottom: 2px; }
-        .tool-text { font-size: 0.7rem; color: #ccc; text-transform: uppercase; }
+        .bottom-bar { 
+            position: absolute; bottom: 0; left: 0; right: 0; height: 90px; 
+            background: linear-gradient(0deg, rgba(0,0,0,0.95), transparent); 
+            display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px; z-index: 20; 
+            pointer-events: none; 
+        }
+        .toolbar { 
+            display: flex; gap: 15px; pointer-events: auto; 
+            background: linear-gradient(0deg, rgba(20,20,25,0.95), rgba(30,30,35,0.9)); 
+            padding: 10px 20px; border-radius: 15px; border-top: 2px solid var(--gold); 
+            border-left: 1px solid var(--gold); border-right: 1px solid var(--gold);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8); 
+        }
+        .tool-btn { 
+            display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px; 
+            border-radius: 8px; transition: 0.2s; width: 60px; 
+        }
+        .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-3px); }
+        .tool-icon { 
+            font-size: 2rem; margin-bottom: 2px; 
+            filter: drop-shadow(0 0 3px var(--primary));
+        }
+        .tool-text { font-size: 0.75rem; color: #ccc; text-transform: uppercase; font-weight: 600; }
 
         /* Modallar ve Popup'lar */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 50; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; }
-        .modal-box { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 30px; width: 450px; max-width: 90vw; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 50px rgba(255,107,0,0.2); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .modal-box h2 { font-family: 'Cinzel'; color: var(--primary); margin-bottom: 20px; text-align: center; }
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(0,0,0,0.8); z-index: 50; display: none; 
+            justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; 
+        }
+        .modal-box { 
+            background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; 
+            padding: 30px; width: 450px; max-width: 90vw; max-height: 80vh; overflow-y: auto; 
+            box-shadow: 0 0 50px rgba(255,107,0,0.3); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .modal-box h2 { font-family: 'Cinzel'; color: var(--gold); margin-bottom: 20px; text-align: center; text-shadow: 0 0 10px var(--primary); }
         .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 1rem; }
-        .info-row span:first-child { color: #888; }
+        .info-row span:first-child { color: #aaa; }
         .input-group { margin: 10px 0; }
         .input-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
         .input-group input { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 6px; font-family: 'Rajdhani'; font-size: 1rem; }
 
         /* Savaş Animasyonu (March) */
-        .march-icon { position: absolute; font-size: 1.5rem; z-index: 15; transition: left 1s linear, top 1s linear; filter: drop-shadow(0 0 3px var(--primary)); }
+        .march-icon { position: absolute; font-size: 2rem; z-index: 15; transition: left 1s linear, top 1s linear; filter: drop-shadow(0 0 5px var(--primary)); }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        #toast-container { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        .toast { padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; animation: scaleIn 0.4s; text-align: center; min-width: 250px; }
-        .toast.success { background: rgba(0,204,68,0.9); border: 1px solid #00ff66; }
-        .toast.victory { background: rgba(255,215,0,0.9); color: #000; border: 1px solid var(--gold); }
-        .toast.defeat { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
-        .toast.info { background: rgba(0,212,255,0.9); color: #000; border: 1px solid var(--secondary); }
-        .toast.error { background: rgba(255,51,51,0.9); border: 1px solid #ff5555; }
+        #toast-container { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        .toast { 
+            padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; 
+            animation: scaleIn 0.4s; text-align: center; min-width: 250px; 
+            border: 1px solid var(--gold);
+        }
+        .toast.success { background: rgba(0,204,68,0.9); }
+        .toast.victory { background: rgba(255,215,0,0.9); color: #000; }
+        .toast.defeat { background: rgba(255,51,51,0.9); }
+        .toast.info { background: rgba(0,212,255,0.9); color: #000; }
+        .toast.error { background: rgba(255,51,51,0.9); }
     </style>
 </head>
 <body>
@@ -151,18 +225,16 @@
 </div>
 
 <div id="game-screen">
-    <div id="map-container">
-        <img id="world-map-img" src="https://images.unsplash.com/photo-1452802447250-470a88ac82bc?q=80&w=2000&auto=format&fit=crop" alt="Dünya Haritası">
-    </div>
+    <div id="map-container"></div>
 
     <div class="top-bar">
         <div class="player-info">
             <div class="avatar" id="ui-avatar">🦊</div>
             <div class="stat-badge">⚡ <span id="ui-power">0</span></div>
-            <div class="stat-badge">🪙 <span id="ui-ryo">0</span></div>
-            <div class="stat-badge" id="ui-clan-badge" style="display:none;">🐉 <span id="ui-clan">-</span></div>
+            <div class="stat-badge" style="border-color:var(--secondary);">🐉 <span id="ui-clan">-</span></div>
         </div>
         <div class="player-info">
+            <div class="stat-badge" style="border-color:var(--gold);">🪙 <span id="ui-ryo">0</span></div>
             <div class="stat-badge">🛡️ <span id="ui-infantry">0</span></div>
             <div class="stat-badge">🏹 <span id="ui-archer">0</span></div>
             <div class="stat-badge">🐎 <span id="ui-cavalry">0</span></div>
@@ -241,7 +313,12 @@ function renderColorGrid() {
     const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff]; const grid = document.getElementById('color-grid'); grid.innerHTML = '';
     colors.forEach(c => { const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0'); sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; }; grid.appendChild(sw); });
 }
-function startGame() { if (!selectedCharacter || !selectedColor) return; socket.emit('setEmpireColor', { color: selectedColor }); currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); }
+function startGame() { 
+    if (!selectedCharacter || !selectedColor) return showToast('error', 'Karakter ve renk seçmelisin!'); 
+    socket.emit('setEmpireColor', { color: selectedColor }); 
+    currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; 
+    document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); 
+}
 
 function enterGame(d) {
     document.getElementById('game-screen').style.display = 'block';
@@ -250,23 +327,20 @@ function enterGame(d) {
     document.getElementById('ui-archer').innerText = d.army?.archer || 0;
     document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
     document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
-    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
+    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
     renderMap();
 }
 
 // 2D HARİTA ÇİZİMİ (MAFIA CITY MANTIĞI)
 function renderMap() {
     const container = document.getElementById('map-container');
-    // Eski pinleri temizle
     document.querySelectorAll('.map-pin').forEach(p => p.remove());
     
     if (!worldData) return;
 
-    // Şehirleri yerleştir
     Object.values(worldData.cities).forEach(c => {
         const pin = document.createElement('div');
         pin.className = 'map-pin';
-        // lng ve lat'i ekrandaki % oranına çevir
         pin.style.left = ((c.lng + 180) / 360 * 100) + '%';
         pin.style.top = ((90 - c.lat) / 180 * 100) + '%';
         
@@ -274,49 +348,44 @@ function renderMap() {
         const color = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6,'0') : '#888';
         
         pin.innerHTML = `
-            <div class="pin-icon" style="color:${color}">${isCap ? '👑' : '🏰'}</div>
-            <div class="pin-label" style="border-color:${color}">${c.name}</div>
+            <div class="pin-icon" style="border-color:${color}; color:${color};">${isCap ? '👑' : '🏰'}</div>
+            <div class="pin-label" style="border-color:${color}; color:${color};">${c.name}</div>
         `;
         pin.onclick = () => showCityPopup(c.id);
         container.appendChild(pin);
     });
 
-    // Madenleri yerleştir
     Object.values(worldData.mines || {}).forEach(m => {
         const pin = document.createElement('div');
         pin.className = 'map-pin';
         pin.style.left = ((m.lng + 180) / 360 * 100) + '%';
         pin.style.top = ((90 - m.lat) / 180 * 100) + '%';
-        pin.innerHTML = `<div class="pin-icon">${m.type === 'gold' ? '🟡' : '⚙️'}</div><div class="pin-label">${m.name}</div>`;
+        pin.innerHTML = `<div class="pin-icon" style="border-color:#ffd700;">${m.type === 'gold' ? '🟡' : '⚙️'}</div><div class="pin-label" style="border-color:#ffd700;">${m.name}</div>`;
         pin.onclick = () => showMinePopup(m.id);
         container.appendChild(pin);
     });
 
-    // Boss'ları yerleştir
     Object.values(worldData.bosses || {}).forEach(b => {
         const pin = document.createElement('div');
         pin.className = 'map-pin';
         pin.style.left = ((b.lng + 180) / 360 * 100) + '%';
         pin.style.top = ((90 - b.lat) / 180 * 100) + '%';
-        pin.innerHTML = `<div class="pin-icon">${b.defeated ? '💀' : '👹'}</div><div class="pin-label" style="color:red">${b.beast.split(' ')[0]}</div>`;
+        pin.innerHTML = `<div class="pin-icon" style="border-color:#ff0000;">${b.defeated ? '💀' : '👹'}</div><div class="pin-label" style="border-color:#ff0000; color:#ff0000;">${b.beast.split(' ')[0]}</div>`;
         pin.onclick = () => showBossPopup(b.id);
         container.appendChild(pin);
     });
 
-    // Oyuncu Üssünü yerleştir
     if (currentPlayer.base) {
         const pin = document.createElement('div');
         pin.className = 'map-pin';
-        // Üs koordinatları zaten % olarak kaydedilmediği için map-container boyutuna göre orantıla
         const rect = container.getBoundingClientRect();
-        pin.style.left = (((currentPlayer.base.x / 500) + 1) / 2 * 100) + '%'; // x -500 ile 500 arası
-        pin.style.top = (((currentPlayer.base.z / 250) + 1) / 2 * 100) + '%'; // z -250 ile 250 arası
-        pin.innerHTML = `<div class="pin-icon" style="font-size:3rem;">🚩</div><div class="pin-label" style="border-color:var(--primary)">Ana Üssüm</div>`;
+        pin.style.left = (((currentPlayer.base.x / 500) + 1) / 2 * 100) + '%'; 
+        pin.style.top = (((currentPlayer.base.z / 250) + 1) / 2 * 100) + '%'; 
+        pin.innerHTML = `<div class="pin-icon" style="font-size:3rem; border-color:var(--primary);">🚩</div><div class="pin-label" style="border-color:var(--primary); color:var(--primary);">Ana Üssüm</div>`;
         container.appendChild(pin);
     }
 }
 
-// ŞEHİR POPUP
 function showCityPopup(id) {
     const c = worldData.cities[id]; if(!c) return;
     selectedCityId = id; selectedMineId = null; selectedBossId = null;
@@ -373,7 +442,6 @@ function showBossPopup(id) {
     document.getElementById('modal-overlay').style.display = 'flex';
 }
 
-// MODAL FONKSİYONLARI
 function openModal(t) {
     const box = document.getElementById('modal-box');
     document.getElementById('modal-overlay').style.display = 'flex';
@@ -430,11 +498,10 @@ function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 
 
 document.getElementById('map-container').addEventListener('click', (e) => {
     if(basePlacementMode) {
-        if (e.target.id === 'world-map-img' || e.target.id === 'map-container') {
+        if (e.target.id === 'map-container') {
             const rect = document.getElementById('map-container').getBoundingClientRect();
             const xPct = ((e.clientX - rect.left) / rect.width) * 100;
             const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-            // %'yi server'ın anlayacağı -500/500 formatına çevir
             const x = (xPct / 100 * 1000) - 500;
             const z = (yPct / 100 * 500) - 250;
             socket.emit('buildBase', { x, z });
@@ -449,9 +516,8 @@ function createC(){ socket.emit('createClan', {name:document.getElementById('c-n
 function joinC(id){ socket.emit('joinClan', {clanId:id}); closeModal(); }
 function leaveC(){ socket.emit('leaveClan'); closeModal(); }
 
-// SOCKET DİNLEYİCİLERİ
 socket.on('worldData', (d) => { worldData = d; if(currentPlayer) renderMap(); });
-socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan-badge').style.display = 'flex'; document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
+socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
 socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; });
 socket.on('ryoUpdate', (r) => { currentPlayer.ryo=r; document.getElementById('ui-ryo').innerText=r; });
 socket.on('leaderboardData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>🏆 Sıralama</h2>`; d.forEach((p,i)=>{ h+=`<div class="info-row"><span>${i+1}. ${p.username}</span><span style="color:var(--gold)">⚡ ${p.power}</span></div>`; }); b.innerHTML=h+`<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
@@ -462,7 +528,6 @@ function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-
 socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
 socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); });
 
-// MAFIA CITY SAVAŞ ANİMASYONU (MARCH)
 socket.on('battleAnimation', (d) => {
     const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
     if (!target) return;
@@ -470,20 +535,17 @@ socket.on('battleAnimation', (d) => {
     const container = document.getElementById('map-container');
     const rect = container.getBoundingClientRect();
     
-    // Başlangıç noktası (Oyuncunun üssü veya ekranın altı)
     let startX, startY;
     if (currentPlayer.base) {
         startX = (((currentPlayer.base.x / 500) + 1) / 2 * rect.width);
         startY = (((currentPlayer.base.z / 250) + 1) / 2 * rect.height);
     } else {
-        startX = rect.width / 2; startY = rect.height; // Ekranın alt ortası
+        startX = rect.width / 2; startY = rect.height; 
     }
     
-    // Hedef noktası
     const endX = ((target.lng + 180) / 360 * rect.width) || ((target.x / 500 + 1) / 2 * rect.width);
     const endY = ((90 - target.lat) / 180 * rect.height) || ((target.z / 250 + 1) / 2 * rect.height);
 
-    // March İkonu
     const march = document.createElement('div');
     march.className = 'march-icon';
     march.innerText = '⚔️';
@@ -492,13 +554,11 @@ socket.on('battleAnimation', (d) => {
     march.style.color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6,'0');
     container.appendChild(march);
 
-    // Animasyonu tetikle
     setTimeout(() => {
         march.style.left = endX + 'px';
         march.style.top = endY + 'px';
     }, 50);
 
-    // Çarpışma ve Patlama
     setTimeout(() => {
         march.remove();
         playSound('explosion');
@@ -512,7 +572,6 @@ socket.on('battleAnimation', (d) => {
         boom.style.transition = 'opacity 0.5s, transform 0.5s';
         container.appendChild(boom);
         
-        // Hasar Yazısı
         const txt = document.createElement('div');
         txt.className = 'march-icon';
         txt.innerText = d.result.attackerWins ? 'Zafer!' : 'Yenilgi!';
