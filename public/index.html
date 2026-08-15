@@ -148,6 +148,40 @@
         .bld-win.w4 { bottom: 16px; right: 6px; transform: skewY(14deg); }
         /* Küçük skala varyantı: madenler / boss inleri gibi ikincil işaretler */
         .iso-bld.small { width: 52px; height: 62px; transform: scale(0.86); }
+        /* Mimari çeşitlilik: kule (dar/yüksek), depo (geniş/alçak), dükkan (küçük/basit) varyantları */
+        .iso-bld.v-tower { transform: scale(0.92) scaleY(1.22); }
+        .iso-bld.v-warehouse { transform: scale(1.08) scaleY(0.72); }
+        .iso-bld.v-shop { transform: scale(0.62); }
+        .iso-bld.v-standard { transform: scale(1); }
+
+        /* --- Arka plan dekoratif dokusu: kural 3 (derinlik/opaklık) ---
+           Bu binalar gerçek oyun nesneleriyle asla rekabet etmesin diye son derece soluk,
+           düşük kontrastlı ve neredeyse siluet halinde render edilir. */
+        .deco-bld {
+            opacity: 0.32;
+            filter: grayscale(0.55) brightness(0.62) contrast(0.85) blur(0.3px);
+        }
+        .deco-bld .iso-bld { filter: none; }
+        .deco-bld:hover .iso-bld { filter: none !important; }
+
+        /* --- Görsel hiyerarşi: kural 1 (merkez üs vurgusu) ---
+           Oyuncunun ana üssü haritanın odak noktası olsun diye bir halka-parıltı (glow ring)
+           ve hafif büyütülmüş ölçekle çevrilir; göz ilk bakışta oraya kilitlenir. */
+        .iso-house.is-focal { transform: scale(1.18); filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6)); }
+        .base-focus-ring {
+            position: absolute; left: 50%; bottom: 4px; width: 128px; height: 64px;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center, rgba(255,107,0,0.38) 0%, rgba(255,107,0,0.14) 45%, transparent 72%);
+            filter: blur(1px);
+            animation: focusPulse 2.6s ease-in-out infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+        @keyframes focusPulse {
+            0%, 100% { opacity: 0.65; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+        }
 
         /* --- SVG tabanlı detaylı bina/ev gövdesi: her zoom seviyesinde keskin kalır --- */
         .iso-svg-bld, .iso-svg-house { display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55)); overflow: visible; }
@@ -777,11 +811,20 @@ function refreshGroundTiles() {
             tile.style.top = iy + 'px';
             frag.appendChild(tile);
 
-            // Fotodaki gibi dokulu, dolu bir şehir hissi için yol karolarının çoğunun üstüne
-            // tamamen dekoratif (tıklanamaz, worldData'dan bağımsız) küçük binalar serpiştir.
-            // Gerçek nesnelerin (şehir/maden/boss/üs) hücrelerini decorativeOccupied'da işaretleyip atlıyoruz.
+            // Kural 2 (organik dağılım): binaları düzenli bir ızgara/checkerboard yerine katmanlı,
+            // yumuşak bir "değer gürültüsü" (value-noise benzeri) alan üzerinden yerleştiriyoruz.
+            // İki farklı frekanslı sinüs dalgasını topluyoruz: geniş dalga doğal "yoğun mahalle /
+            // boş arazi" kümelenmeleri yaratır, ince dalga o kümelerin içinde rastgele boşluklar
+            // ve düzensiz kenarlar bırakır -- gerçek bir arazi gibi. Sonuç asla tekrar eden bir
+            // duvar kağıdı deseni değil, coğrafi bir doku gibi görünür.
             const cellKey = gx + ',' + gz;
-            if (cls !== 't-park' && h % 2 === 0 && h !== 0 && !decorativeOccupied.has(cellKey)) {
+            const noiseA = Math.sin(gx * 0.62 + gz * 0.31) + Math.cos(gx * 0.19 - gz * 0.54);
+            const noiseB = Math.sin(gx * 1.7 + gz * 2.3 + (gx * gz) * 0.05) * 0.5;
+            const jitter = (Math.abs((gx * 12.9898 + gz * 78.233) * 43758.5453) % 1); // 0..1 sözde-rastgele
+            const density = (noiseA + noiseB + jitter * 1.4) / 4; // ~ -1..1.35 aralığında doğal alan değeri
+            const placeDecoBuilding = cls !== 't-park' && density > 0.18 && !decorativeOccupied.has(cellKey);
+
+            if (placeDecoBuilding) {
                 const deco = document.createElement('div');
                 deco.className = 'iso-obj deco-bld';
                 deco.style.left = ix + 'px';
@@ -790,12 +833,16 @@ function refreshGroundTiles() {
                 // nesnelerin (10000+) altında kalsın, iy ne kadar negatif olursa olsun.
                 deco.style.zIndex = String(5000 + Math.round(iy));
                 deco.style.pointerEvents = 'none';
-                const decoHash = Math.abs((gx * 7333 + gz * 9091) % 5);
+                // Kural 4 (mimari çeşitlilik): en az 4 farklı yapı tipi arasından hücreye özgü,
+                // deterministik bir seçim yap -- küçük dükkan, geniş depo, dar kule, standart bina.
+                const variantHash = Math.abs((gx * 7333 + gz * 9091) % 100);
+                const variant = variantHash < 30 ? 'shop' : variantHash < 55 ? 'warehouse' : variantHash < 75 ? 'tower' : 'standard';
+                const sizeForVariant = (variant === 'shop') ? 'small' : 'normal';
                 // buildingMarkup renk varyantını label'ın hash'inden seçiyor; boş string hep aynı
                 // sonucu verirdi, o yüzden hücreye özgü sahte bir etiket besliyoruz (ekranda gösterilmiyor).
                 deco.innerHTML = buildingMarkup({
                     badge: null, label: 'deco' + cellKey, color: 'transparent',
-                    size: decoHash < 3 ? 'small' : 'normal', danger: false
+                    size: sizeForVariant, danger: false, variant
                 });
                 // Dekoratif binalarda etiket kutusunu tamamen gizle (sadece atmosfer, bilgi yok)
                 deco.querySelector('.iso-label')?.remove();
@@ -833,8 +880,11 @@ function placeIsoObject(world, wx, wz, innerHtml) {
     return el;
 }
 
-function buildingMarkup({ badge, label, color, size, danger }) {
+function buildingMarkup({ badge, label, color, size, danger, variant }) {
     const sizeClass = size === 'small' ? ' small' : '';
+    // Kural 4 (mimari çeşitlilik): gerçek worldData nesneleri (şehir/maden/boss) her zaman
+    // 'standard' kalır -- oyun okunabilirliği bozulmasın. Sadece dekoratif dokuda variant değişir.
+    const variantClass = variant ? ' v-' + variant : '';
     // Etikete göre deterministik sıcak/soğuk varyant seç: aynı bina her render'da aynı tonda kalır,
     // ama şehir genelinde fotodaki gibi karışık bir doku oluşur.
     let hash = 0; for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
@@ -870,7 +920,7 @@ function buildingMarkup({ badge, label, color, size, danger }) {
            <circle cx="10" cy="49" r="2" fill="#ff2b2b" class="neon-pulse"/>`
         : '';
     return `
-        <div class="iso-bld${sizeClass}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
+        <div class="iso-bld${sizeClass}${variantClass}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
             ${badge ? `<div class="iso-badge">${badge}</div>` : ''}
             <svg class="iso-svg-bld" viewBox="0 0 70 94" width="70" height="94">
                 <defs>
@@ -907,7 +957,8 @@ function buildingMarkup({ badge, label, color, size, danger }) {
 
 function houseMarkup({ label, flag, highlight }) {
     return `
-        <div class="iso-house">
+        <div class="iso-house${highlight ? ' is-focal' : ''}">
+            ${highlight ? '<div class="base-focus-ring"></div>' : ''}
             ${flag ? `<div class="house-flag">${flag}</div>` : ''}
             <svg class="iso-svg-house" viewBox="0 0 78 74" width="78" height="74">
                 <defs>
@@ -1193,4 +1244,4 @@ function showToast(type, msg) { if(type==='success'||type==='victory')playSound(
 window.onload = () => { const t = localStorage.getItem('atlas_token'); if(t) socket.emit('loginWithToken', t); };
 </script>
 </body>
-</html>
+</html>
