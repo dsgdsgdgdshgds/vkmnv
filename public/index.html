@@ -646,12 +646,6 @@ function setupCameraControls() {
     if (!container || container.dataset.cameraBound) return;
     container.dataset.cameraBound = '1';
 
-    // NOT: Bilinçli olarak setPointerCapture KULLANMIYORUZ. Capture aktifken tarayıcı sonraki
-    // TÜM pointer event'lerini (ve onlardan türeyen click event'ini) DOM hiyerarşisine bakmaksızın
-    // doğrudan capture eden elemana yönlendirir -- bu da altındaki .iso-obj (şehir/maden/boss
-    // binaları) üzerindeki click handler'ların hiç tetiklenmemesine yol açıyordu (gerçek bug buydu).
-    // Bunun yerine sürükleme takibini document seviyesinde yapıyoruz: aynı "konteynerin dışına
-    // çıksa bile sürüklemeyi kaybetme" faydasını sağlıyor, ama click routing'ine karışmıyor.
     let activePointerId = null;
 
     container.addEventListener('pointerdown', (e) => {
@@ -797,19 +791,12 @@ function renderMap() {
     }
 }
 
-// Rastgele ama deterministik bir "şehir dokusu" izlenimi için, kamera merkezinin etrafına
-// yol/çim karoları döşer. worldData'daki gerçek nesnelerle çakışmaz, sadece fondur.
-
-// Kameranın o an gösterdiği ekran penceresini world-grid koordinatlarına çevirip,
-// o pencereyi (biraz taşırarak) dolduracak kadar karo üretir. Bu sayede pan/zoom
-// yaparken hiçbir yönde siyah/boş köşe kalmaz -- "sonsuz şehir" hissi budur.
 function refreshGroundTiles() {
     if (!groundLayer) return;
     const container = document.getElementById('map-container');
     if (!container) return;
     const rect = container.getBoundingClientRect();
 
-    // Ekranın 4 köşesini dünya-grid birimine (gx,gz) çevir, kapsanması gereken aralığı bul.
     const corners = [
         [0, 0], [rect.width, 0], [0, rect.height], [rect.width, rect.height]
     ].map(([sx, sy]) => {
@@ -820,13 +807,12 @@ function refreshGroundTiles() {
         return [gx, gz];
     });
     const gxs = corners.map(c => c[0]), gzs = corners.map(c => c[1]);
-    const PAD = 3; // taşma payı, hızlı pan'de bile boşluk görünmesin
+    const PAD = 3;
     const minGx = Math.floor(Math.min(...gxs)) - PAD, maxGx = Math.ceil(Math.max(...gxs)) + PAD;
     const minGz = Math.floor(Math.min(...gzs)) - PAD, maxGz = Math.ceil(Math.max(...gzs)) + PAD;
 
-    // Çok fazla karo üretmeyi engelle (ör. aşırı uzak zoom-out durumunda)
     const spanGx = maxGx - minGx, spanGz = maxGz - minGz;
-    if (spanGx * spanGz > 2500) return; // mevcut karoları koru, yeniden üretme
+    if (spanGx * spanGz > 2500) return;
 
     groundLayer.innerHTML = '';
     const frag = document.createDocumentFragment();
@@ -843,19 +829,11 @@ function refreshGroundTiles() {
             tile.style.top = iy + 'px';
             frag.appendChild(tile);
 
-            // Kural 2 (organik dağılım): binaları düzenli bir ızgara/checkerboard yerine katmanlı,
-            // yumuşak bir "değer gürültüsü" (value-noise benzeri) alan üzerinden yerleştiriyoruz.
-            // İki farklı frekanslı sinüs dalgasını topluyoruz: geniş dalga doğal "yoğun mahalle /
-            // boş arazi" kümelenmeleri yaratır, ince dalga o kümelerin içinde rastgele boşluklar
-            // ve düzensiz kenarlar bırakır -- gerçek bir arazi gibi. Sonuç asla tekrar eden bir
-            // duvar kağıdı deseni değil, coğrafi bir doku gibi görünür.
             const cellKey = gx + ',' + gz;
             const noiseA = Math.sin(gx * 0.62 + gz * 0.31) + Math.cos(gx * 0.19 - gz * 0.54);
             const noiseB = Math.sin(gx * 1.7 + gz * 2.3 + (gx * gz) * 0.05) * 0.5;
-            const jitter = (Math.abs((gx * 12.9898 + gz * 78.233) * 43758.5453) % 1); // 0..1 sözde-rastgele
-            const density = (noiseA + noiseB + jitter * 1.4) / 4; // ~ -1..1.35 aralığında doğal alan değeri
-            // Eşik düşürüldü: referans görseldeki gibi yoğun, dolu bir şehir -- boş arazi oranı azaldı,
-            // ama gürültü alanı sayesinde hâlâ organik boşluklar (meydanlar, açık alanlar) kalıyor.
+            const jitter = (Math.abs((gx * 12.9898 + gz * 78.233) * 43758.5453) % 1);
+            const density = (noiseA + noiseB + jitter * 1.4) / 4;
             const placeDecoBuilding = cls !== 't-park' && density > -0.05 && !decorativeOccupied.has(cellKey);
 
             if (placeDecoBuilding) {
@@ -863,29 +841,18 @@ function refreshGroundTiles() {
                 deco.className = 'iso-obj deco-bld';
                 deco.style.left = ix + 'px';
                 deco.style.top = iy + 'px';
-                // Aynı taban-ofset mantığı: dekoratif binalar hep zeminin (0) üstünde, gerçek
-                // nesnelerin (10000+) altında kalsın, iy ne kadar negatif olursa olsun.
                 deco.style.zIndex = String(5000 + Math.round(iy));
                 deco.style.pointerEvents = 'none';
-                // Kural 4 (mimari çeşitlilik): en az 4 farklı yapı tipi arasından hücreye özgü,
-                // deterministik bir seçim yap -- küçük dükkan, geniş depo, dar kule, standart bina.
                 const variantHash = Math.abs((gx * 7333 + gz * 9091) % 100);
                 const variant = variantHash < 30 ? 'shop' : variantHash < 55 ? 'warehouse' : variantHash < 75 ? 'tower' : 'standard';
                 const sizeForVariant = (variant === 'shop') ? 'small' : 'normal';
-                // buildingMarkup renk varyantını label'ın hash'inden seçiyor; boş string hep aynı
-                // sonucu verirdi, o yüzden hücreye özgü sahte bir etiket besliyoruz (ekranda gösterilmiyor).
                 deco.innerHTML = buildingMarkup({
                     badge: null, label: 'deco' + cellKey, color: 'transparent',
                     size: sizeForVariant, danger: false, variant
                 });
-                // Dekoratif binalarda etiket kutusunu tamamen gizle (sadece atmosfer, bilgi yok)
                 deco.querySelector('.iso-label')?.remove();
                 frag.appendChild(deco);
             } else if (cls !== 't-park' && !decorativeOccupied.has(cellKey) && jitter > 0.72) {
-                // Kural: bina konmayan boş yol karolarının bir kısmına küçük sokak eşyası
-                // (park halinde araba, sokak lambası, ağaç, çöp konteyneri) serpiştir. Bu, referans
-                // görüntüdeki gibi haritayı "yaşayan, kalabalık" hissettirir ama gerçek nesnelerle
-                // asla çakışmaz ve tamamen dekoratif/tıklanamaz kalır.
                 const propRoll = Math.abs((gx * 5077 + gz * 2971) % 4);
                 const propEmoji = propRoll === 0 ? '🚗' : propRoll === 1 ? '💡' : propRoll === 2 ? '🌳' : '🗑️';
                 const prop = document.createElement('div');
@@ -912,8 +879,6 @@ function renderGroundTiles(world) {
     groundLayer.style.position = 'absolute';
     groundLayer.style.zIndex = '0';
     world.appendChild(groundLayer);
-    // İlk çağrı senkron olarak display:none'dan yeni çıkmış bir container'a denk gelebilir
-    // (getBoundingClientRect 0x0 döner). Bir sonraki frame'de layout kesinleşmiş olur.
     refreshGroundTiles();
     requestAnimationFrame(() => refreshGroundTiles());
 }
@@ -924,9 +889,6 @@ function placeIsoObject(world, wx, wz, innerHtml) {
     el.className = 'iso-obj';
     el.style.left = ix + 'px';
     el.style.top = iy + 'px';
-    // Büyük sabit taban (10000) kullanıyoruz ki iy ne kadar negatif olursa olsun gerçek nesneler
-    // her zaman dekoratif binaların (taban 5000) ve zemin karolarının (0) üstünde kalsın.
-    // Sadece kendi aralarında iy'ye göre doğru derinlik sıralaması olsun yeter.
     el.style.zIndex = 10000 + Math.round(iy);
     el.innerHTML = innerHtml;
     world.appendChild(el);
@@ -935,23 +897,13 @@ function placeIsoObject(world, wx, wz, innerHtml) {
 
 function buildingMarkup({ badge, label, color, size, danger, variant }) {
     const sizeClass = size === 'small' ? ' small' : '';
-    // Kural 4 (mimari çeşitlilik): gerçek worldData nesneleri (şehir/maden/boss) her zaman
-    // 'standard' kalır -- oyun okunabilirliği bozulmasın. Sadece dekoratif dokuda variant değişir.
     const variantClass = variant ? ' v-' + variant : '';
-    // Etikete göre deterministik sıcak/soğuk varyant seç: aynı bina her render'da aynı tonda kalır,
-    // ama şehir genelinde fotodaki gibi karışık bir doku oluşur.
     let hash = 0; for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
     const cool = !danger && (hash % 3 === 0);
-    // NOT: --bld-wall'ı doğrudan kendi adıyla override etmiyoruz (--bld-wall: var(--bld-wall) döngüsel
-    // referans olur ve CSS bunu geçersiz sayıp transparent'a düşürür). Bunun yerine kaynak değişkeni
-    // (--bld-wall-warm-src / --bld-wall-cool-src) ayrı tutup, .bld-side/.bld-front'un gerçek arka planını
-    // o kaynağa göre seçiyoruz.
     const wallSrc = cool ? 'var(--bld2-wall)' : 'var(--bld-wall)';
     const wallDarkSrc = cool ? 'var(--bld2-wall-dark)' : 'var(--bld-wall-dark)';
     const roofSrc = danger ? '#a83232' : (cool ? 'var(--bld2-roof)' : 'var(--bld-roof)');
     const roofDarkSrc = danger ? '#7a1f1f' : (cool ? 'var(--bld2-roof-dark)' : 'var(--bld-roof-dark)');
-    // Etiketin hash'inden türeyen kimlik: aynı bina her render'da aynı gradient id'lerini
-    // kullanır, ama sahnedeki onlarca SVG birbirinin <defs>'iyle çakışmaz.
     const gid = 'b' + hash;
     const isCapital = badge === '👑';
     const winFront = `
@@ -960,14 +912,12 @@ function buildingMarkup({ badge, label, color, size, danger, variant }) {
     const winSide = `
             <rect x="56" y="43" width="5" height="8" rx="1" fill="var(--bld-window)" opacity="0.7"/>
             <rect x="56" y="57" width="5" height="8" rx="1" fill="var(--bld-window)" opacity="0.7"/>`;
-    // Çatı üstü detay: başkentte altın anten + neon reklam şeridi, sıradan binada klima kutusu.
     const roofProps = isCapital
         ? `<line x1="35" y1="0" x2="35" y2="-9" stroke="var(--gold)" stroke-width="1.4"/>
            <circle cx="35" cy="-11" r="2.1" fill="var(--gold)"/>
            <rect x="12" y="16" width="46" height="3.4" rx="1" fill="var(--neon-strip)" class="neon-pulse"/>`
         : `<rect x="39" y="9" width="9" height="6" rx="1" fill="#2b2b2b" stroke="#555" stroke-width="0.5"/>
            <line x1="43.5" y1="9" x2="43.5" y2="2" stroke="#666" stroke-width="1"/>`;
-    // Boss inleri için çatlak/hasar dokusu ve kızıl uyarı ışığı.
     const damage = danger
         ? `<path d="M6,52 L15,60 L9,66 L19,74" stroke="#150404" stroke-width="1.1" fill="none" opacity="0.75"/>
            <circle cx="10" cy="49" r="2" fill="#ff2b2b" class="neon-pulse"/>`
@@ -990,14 +940,10 @@ function buildingMarkup({ badge, label, color, size, danger, variant }) {
                     </filter>
                 </defs>
                 <ellipse cx="35" cy="88" rx="27" ry="6" fill="#000" opacity="0.35" filter="url(#shadow${gid})"/>
-                <!-- yan cephe (gölgede) -->
                 <polygon points="35,60 70,38 70,62 35,84" fill="var(--wall-fill-dark)"/>
-                <!-- ön cephe (aydınlık) -->
                 <polygon points="0,38 35,60 35,84 0,62" fill="url(#wallF${gid})"/>
-                <!-- kat ayrım çizgisi: tek düz duvar yerine iki katlı okuma verir -->
                 <path d="M0,50 L35,72 M35,72 L70,50" stroke="rgba(0,0,0,0.18)" stroke-width="1"/>
                 ${winFront}${winSide}
-                <!-- çatı -->
                 <polygon points="35,0 70,20 35,40 0,20" fill="url(#roof${gid})" stroke="rgba(0,0,0,0.28)" stroke-width="0.6"/>
                 <line x1="35" y1="0" x2="35" y2="40" stroke="rgba(0,0,0,0.22)" stroke-width="0.8"/>
                 ${roofProps}
@@ -1020,18 +966,13 @@ function houseMarkup({ label, flag, highlight }) {
                         <stop offset="100%" stop-color="var(--house-roof-dark)"/>
                     </linearGradient>
                 </defs>
-                <!-- bahçe zemini + küçük çit çizgileri -->
                 <polygon points="39,30 74,50 39,70 4,50" fill="var(--grass-b)" stroke="rgba(0,0,0,0.25)" stroke-width="0.5"/>
                 <path d="M10,44 L4,50 M18,40 L10,45 M26,36 L18,41" stroke="#7a6a4a" stroke-width="1" opacity="0.55"/>
-                <!-- yan duvar (gölgede) -->
                 <polygon points="40,37 64,22 64,39 40,54" fill="color-mix(in srgb, var(--house-wall) 55%, #000)"/>
-                <!-- ön duvar -->
                 <polygon points="18,22 42,37 42,54 18,39" fill="var(--house-wall)"/>
-                <!-- kapı ve pencere -->
                 <rect x="25" y="41" width="7" height="12" rx="0.5" fill="#4a2e18"/>
                 <circle cx="30.5" cy="47" r="0.6" fill="var(--gold)"/>
                 <rect x="45" y="27" width="5" height="7" rx="1" fill="var(--bld-window)" opacity="0.9"/>
-                <!-- kiremit çatı -->
                 <polygon points="39,8 66,21 39,34 12,21" fill="url(#hroof)" stroke="rgba(0,0,0,0.3)" stroke-width="0.5"/>
                 <line x1="39" y1="8" x2="39" y2="34" stroke="rgba(0,0,0,0.25)" stroke-width="0.7"/>
                 <path d="M20,19 L58,19 M23,23 L55,23" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
@@ -1042,11 +983,6 @@ function houseMarkup({ label, flag, highlight }) {
     `;
 }
 
-// ============ DAİRESEL HIZLI AKSİYON MENÜSÜ ============
-// Bir binaya dokununca tam ekran modal yerine önce 2 baloncuklu bir kısayol menüsü belirir:
-// biri her zaman "Detay" (mevcut showXPopup fonksiyonlarını açar), diğeri bağlama göre en
-// olası aksiyon (Saldır / Savunma / İşgal Et). Mevcut popup ve modal fonksiyonlarına dokunmuyoruz,
-// sadece onlara giden ikinci, daha hızlı bir yol ekliyoruz.
 function showRadialMenu(screenX, screenY, actions) {
     const menu = document.getElementById('radial-menu');
     if (!menu) return;
@@ -1072,7 +1008,6 @@ function hideRadialMenu() {
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.radial-btn')) hideRadialMenu(); });
 
 function playerFlagEmoji() {
-    // empireColor'a göre basit bir bayrak/renk rozeti; gerçek ülke bayrağı verisi yoksa nötr bir sancak gösterir.
     return '🚩';
 }
 
@@ -1186,11 +1121,9 @@ function deploy() { socket.emit('deployDefenders', { cityId: selectedCityId, inf
 function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
 function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere dokun.'); }
 
-// Ekran piksel tıklamasını, kameranın pan+zoom'unu tersine çevirip izometrik projeksiyonu
-// çözerek gerçek dünya x/z koordinatına dönüştürür. buildBase sunucuya hep aynı x/z şeklini yollar.
 document.getElementById('map-container').addEventListener('click', (e) => {
     if (!basePlacementMode) return;
-    if (camera.moved) return; // sürüklemeyi tıklama sayma
+    if (camera.moved) return;
     const container = document.getElementById('map-container');
     const rect = container.getBoundingClientRect();
     const screenX = e.clientX - rect.left, screenY = e.clientY - rect.top;
@@ -1227,9 +1160,7 @@ socket.on('battleAnimation', (d) => {
 
     const world = document.getElementById('iso-world');
 
-    // Başlangıç: oyuncunun üssü (x/z), yoksa haritanın merkezi (0,0)
     const start = currentPlayer.base ? xzToWorld(currentPlayer.base.x, currentPlayer.base.z) : { wx: 0, wz: 0 };
-    // Bitiş: hedef lat/lng'liyse şehir/maden/boss, x/z'liyse (gelecekte oyuncu hedefleri) o da desteklenir
     const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : xzToWorld(target.x, target.z);
 
     const startIso = worldToIso(start.wx, start.wz);
