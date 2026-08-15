@@ -33,6 +33,11 @@
             --house-roof: #a84632;
             --house-roof-dark: #832f1f;
             --house-wall: #e8dcc4;
+            /* Mafia noir genişletilmiş palet */
+            --neon-strip: #ff2fb0;
+            --neon-strip-glow: rgba(255, 47, 176, 0.65);
+            --danger-wall: #6b1f1f;
+            --danger-wall-dark: #3a0d0d;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; }
@@ -143,6 +148,33 @@
         .bld-win.w4 { bottom: 16px; right: 6px; transform: skewY(14deg); }
         /* Küçük skala varyantı: madenler / boss inleri gibi ikincil işaretler */
         .iso-bld.small { width: 52px; height: 62px; transform: scale(0.86); }
+
+        /* --- SVG tabanlı detaylı bina/ev gövdesi: her zoom seviyesinde keskin kalır --- */
+        .iso-svg-bld, .iso-svg-house { display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55)); overflow: visible; }
+        @keyframes neonPulse {
+            0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 2px var(--neon-strip-glow)); }
+            50% { opacity: 1; filter: drop-shadow(0 0 7px var(--neon-strip-glow)); }
+        }
+        .neon-pulse { animation: neonPulse 1.8s ease-in-out infinite; transform-origin: center; }
+
+        /* --- Dairesel/baloncuk hızlı aksiyon menüsü (bina üzerine dokununca belirir) --- */
+        #radial-menu { position: fixed; left: 0; top: 0; z-index: 60; display: none; pointer-events: none; }
+        #radial-menu.active { display: block; pointer-events: auto; }
+        .radial-btn {
+            position: absolute; width: 46px; height: 46px; border-radius: 50%;
+            background: linear-gradient(180deg, rgba(42,32,18,0.97), rgba(15,12,8,0.97));
+            border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08);
+            cursor: pointer; transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #radial-menu.active .radial-btn { transform: translate(-50%, -50%) scale(1); }
+        .radial-btn:active { transform: translate(-50%, -50%) scale(0.88); }
+        .radial-btn-label {
+            position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+            font-size: 0.6rem; color: var(--gold); white-space: nowrap; font-weight: 700;
+            text-shadow: 1px 1px 0 #000;
+        }
 
         /* Oyuncu evi: bahçeli, bayraklı konut (fotodaki oyuncu üsleri) */
         .iso-house { position: relative; width: 78px; height: 70px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55)); }
@@ -386,6 +418,7 @@
 
     <div class="modal-overlay" id="modal-overlay"><div class="modal-box" id="modal-box"></div></div>
     <div id="toast-container"></div>
+    <div id="radial-menu"></div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -634,7 +667,17 @@ function renderMap() {
             color,
             size: isCap ? 'normal' : 'normal'
         }));
-        el.onclick = () => { if (!camera.moved) showCityPopup(c.id); };
+        el.onclick = (e) => {
+            if (camera.moved) return;
+            const isOwner = c.owner === currentPlayer.username;
+            showRadialMenu(e.clientX, e.clientY, [
+                { icon: '🔍', label: 'Detay', action: () => showCityPopup(c.id) },
+                { icon: isOwner ? '🛡️' : '⚔️', label: isOwner ? 'Savunma' : 'Saldır', action: () => {
+                    selectedCityId = c.id; selectedMineId = null; selectedBossId = null;
+                    isOwner ? openDeployModal() : openAttackModal();
+                } }
+            ]);
+        };
     });
 
     Object.values(worldData.mines || {}).forEach(m => {
@@ -645,7 +688,16 @@ function renderMap() {
             color: '#ffd700',
             size: 'small'
         }));
-        el.onclick = () => { if (!camera.moved) showMinePopup(m.id); };
+        el.onclick = (e) => {
+            if (camera.moved) return;
+            const isOwner = m.owner === currentPlayer.username;
+            const actions = [{ icon: '🔍', label: 'Detay', action: () => showMinePopup(m.id) }];
+            if (!isOwner) actions.push({ icon: '⛏️', label: 'İşgal Et', action: () => {
+                selectedMineId = m.id; selectedCityId = null; selectedBossId = null;
+                openAttackModal('mine');
+            } });
+            showRadialMenu(e.clientX, e.clientY, actions);
+        };
     });
 
     Object.values(worldData.bosses || {}).forEach(b => {
@@ -657,7 +709,15 @@ function renderMap() {
             size: 'small',
             danger: true
         }));
-        el.onclick = () => { if (!camera.moved) showBossPopup(b.id); };
+        el.onclick = (e) => {
+            if (camera.moved) return;
+            const actions = [{ icon: '🔍', label: 'Detay', action: () => showBossPopup(b.id) }];
+            if (!b.defeated) actions.push({ icon: '👹', label: 'Saldır', action: () => {
+                selectedBossId = b.id; selectedCityId = null; selectedMineId = null;
+                openAttackModal('boss');
+            } });
+            showRadialMenu(e.clientX, e.clientY, actions);
+        };
     });
 
     if (currentPlayer.base) {
@@ -787,14 +847,59 @@ function buildingMarkup({ badge, label, color, size, danger }) {
     const wallDarkSrc = cool ? 'var(--bld2-wall-dark)' : 'var(--bld-wall-dark)';
     const roofSrc = danger ? '#a83232' : (cool ? 'var(--bld2-roof)' : 'var(--bld-roof)');
     const roofDarkSrc = danger ? '#7a1f1f' : (cool ? 'var(--bld2-roof-dark)' : 'var(--bld-roof-dark)');
+    // Etiketin hash'inden türeyen kimlik: aynı bina her render'da aynı gradient id'lerini
+    // kullanır, ama sahnedeki onlarca SVG birbirinin <defs>'iyle çakışmaz.
+    const gid = 'b' + hash;
+    const isCapital = badge === '👑';
+    const winFront = `
+            <rect x="7" y="65" width="6" height="9" rx="1" fill="var(--bld-window)" opacity="0.9"/>
+            <rect x="7" y="51" width="6" height="9" rx="1" fill="var(--bld-window)" opacity="0.9"/>`;
+    const winSide = `
+            <rect x="56" y="43" width="5" height="8" rx="1" fill="var(--bld-window)" opacity="0.7"/>
+            <rect x="56" y="57" width="5" height="8" rx="1" fill="var(--bld-window)" opacity="0.7"/>`;
+    // Çatı üstü detay: başkentte altın anten + neon reklam şeridi, sıradan binada klima kutusu.
+    const roofProps = isCapital
+        ? `<line x1="35" y1="0" x2="35" y2="-9" stroke="var(--gold)" stroke-width="1.4"/>
+           <circle cx="35" cy="-11" r="2.1" fill="var(--gold)"/>
+           <rect x="12" y="16" width="46" height="3.4" rx="1" fill="var(--neon-strip)" class="neon-pulse"/>`
+        : `<rect x="39" y="9" width="9" height="6" rx="1" fill="#2b2b2b" stroke="#555" stroke-width="0.5"/>
+           <line x1="43.5" y1="9" x2="43.5" y2="2" stroke="#666" stroke-width="1"/>`;
+    // Boss inleri için çatlak/hasar dokusu ve kızıl uyarı ışığı.
+    const damage = danger
+        ? `<path d="M6,52 L15,60 L9,66 L19,74" stroke="#150404" stroke-width="1.1" fill="none" opacity="0.75"/>
+           <circle cx="10" cy="49" r="2" fill="#ff2b2b" class="neon-pulse"/>`
+        : '';
     return `
         <div class="iso-bld${sizeClass}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
             ${badge ? `<div class="iso-badge">${badge}</div>` : ''}
-            <div class="bld-roof"></div>
-            <div class="bld-side"></div>
-            <div class="bld-front"></div>
-            <div class="bld-win w1"></div><div class="bld-win w2"></div>
-            <div class="bld-win w3"></div><div class="bld-win w4"></div>
+            <svg class="iso-svg-bld" viewBox="0 0 70 94" width="70" height="94">
+                <defs>
+                    <linearGradient id="roof${gid}" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" style="stop-color:var(--roof-fill)"/>
+                        <stop offset="100%" style="stop-color:var(--roof-fill-dark)"/>
+                    </linearGradient>
+                    <linearGradient id="wallF${gid}" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" style="stop-color:var(--wall-fill)"/>
+                        <stop offset="100%" style="stop-color:var(--wall-fill-dark)"/>
+                    </linearGradient>
+                    <filter id="shadow${gid}" x="-60%" y="-60%" width="220%" height="220%">
+                        <feGaussianBlur stdDeviation="2.2"/>
+                    </filter>
+                </defs>
+                <ellipse cx="35" cy="88" rx="27" ry="6" fill="#000" opacity="0.35" filter="url(#shadow${gid})"/>
+                <!-- yan cephe (gölgede) -->
+                <polygon points="35,60 70,38 70,62 35,84" fill="var(--wall-fill-dark)"/>
+                <!-- ön cephe (aydınlık) -->
+                <polygon points="0,38 35,60 35,84 0,62" fill="url(#wallF${gid})"/>
+                <!-- kat ayrım çizgisi: tek düz duvar yerine iki katlı okuma verir -->
+                <path d="M0,50 L35,72 M35,72 L70,50" stroke="rgba(0,0,0,0.18)" stroke-width="1"/>
+                ${winFront}${winSide}
+                <!-- çatı -->
+                <polygon points="35,0 70,20 35,40 0,20" fill="url(#roof${gid})" stroke="rgba(0,0,0,0.28)" stroke-width="0.6"/>
+                <line x1="35" y1="0" x2="35" y2="40" stroke="rgba(0,0,0,0.22)" stroke-width="0.8"/>
+                ${roofProps}
+                ${damage}
+            </svg>
         </div>
         <div class="iso-label" style="border-color:${color}; color:${color};">${label}</div>
     `;
@@ -804,14 +909,63 @@ function houseMarkup({ label, flag, highlight }) {
     return `
         <div class="iso-house">
             ${flag ? `<div class="house-flag">${flag}</div>` : ''}
-            <div class="house-yard"></div>
-            <div class="house-roof"></div>
-            <div class="house-side"></div>
-            <div class="house-front"></div>
+            <svg class="iso-svg-house" viewBox="0 0 78 74" width="78" height="74">
+                <defs>
+                    <linearGradient id="hroof" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="var(--house-roof)"/>
+                        <stop offset="100%" stop-color="var(--house-roof-dark)"/>
+                    </linearGradient>
+                </defs>
+                <!-- bahçe zemini + küçük çit çizgileri -->
+                <polygon points="39,30 74,50 39,70 4,50" fill="var(--grass-b)" stroke="rgba(0,0,0,0.25)" stroke-width="0.5"/>
+                <path d="M10,44 L4,50 M18,40 L10,45 M26,36 L18,41" stroke="#7a6a4a" stroke-width="1" opacity="0.55"/>
+                <!-- yan duvar (gölgede) -->
+                <polygon points="40,37 64,22 64,39 40,54" fill="color-mix(in srgb, var(--house-wall) 55%, #000)"/>
+                <!-- ön duvar -->
+                <polygon points="18,22 42,37 42,54 18,39" fill="var(--house-wall)"/>
+                <!-- kapı ve pencere -->
+                <rect x="25" y="41" width="7" height="12" rx="0.5" fill="#4a2e18"/>
+                <circle cx="30.5" cy="47" r="0.6" fill="var(--gold)"/>
+                <rect x="45" y="27" width="5" height="7" rx="1" fill="var(--bld-window)" opacity="0.9"/>
+                <!-- kiremit çatı -->
+                <polygon points="39,8 66,21 39,34 12,21" fill="url(#hroof)" stroke="rgba(0,0,0,0.3)" stroke-width="0.5"/>
+                <line x1="39" y1="8" x2="39" y2="34" stroke="rgba(0,0,0,0.25)" stroke-width="0.7"/>
+                <path d="M20,19 L58,19 M23,23 L55,23" stroke="rgba(0,0,0,0.15)" stroke-width="0.6"/>
+                <circle cx="39" cy="8" r="1.6" fill="var(--gold)"/>
+            </svg>
         </div>
         <div class="iso-label" style="border-color:${highlight ? 'var(--primary)' : 'var(--gold)'}; color:${highlight ? 'var(--primary)' : '#fff'};">🚩 ${label}</div>
     `;
 }
+
+// ============ DAİRESEL HIZLI AKSİYON MENÜSÜ ============
+// Bir binaya dokununca tam ekran modal yerine önce 2 baloncuklu bir kısayol menüsü belirir:
+// biri her zaman "Detay" (mevcut showXPopup fonksiyonlarını açar), diğeri bağlama göre en
+// olası aksiyon (Saldır / Savunma / İşgal Et). Mevcut popup ve modal fonksiyonlarına dokunmuyoruz,
+// sadece onlara giden ikinci, daha hızlı bir yol ekliyoruz.
+function showRadialMenu(screenX, screenY, actions) {
+    const menu = document.getElementById('radial-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    const radius = 58;
+    actions.forEach((a, i) => {
+        const spread = actions.length > 1 ? 50 : 0;
+        const angle = (-90 + (i - (actions.length - 1) / 2) * spread) * Math.PI / 180;
+        const bx = screenX + Math.cos(angle) * radius, by = screenY + Math.sin(angle) * radius;
+        const btn = document.createElement('div');
+        btn.className = 'radial-btn';
+        btn.style.left = bx + 'px'; btn.style.top = by + 'px';
+        btn.innerHTML = a.icon + `<span class="radial-btn-label">${a.label}</span>`;
+        btn.onclick = (e) => { e.stopPropagation(); hideRadialMenu(); a.action(); };
+        menu.appendChild(btn);
+    });
+    menu.classList.add('active');
+}
+function hideRadialMenu() {
+    const menu = document.getElementById('radial-menu');
+    if (menu) { menu.classList.remove('active'); menu.innerHTML = ''; }
+}
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.radial-btn')) hideRadialMenu(); });
 
 function playerFlagEmoji() {
     // empireColor'a göre basit bir bayrak/renk rozeti; gerçek ülke bayrağı verisi yoksa nötr bir sancak gösterir.
