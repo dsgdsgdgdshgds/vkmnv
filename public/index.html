@@ -15,9 +15,27 @@
             --gold: #ffd700; 
             --red: #ff3333; 
             --green: #00cc44; 
+            /* İzometrik şehir paleti */
+            --tile-a: #4a5049;
+            --tile-b: #3d423c;
+            --grass-a: #3f5f3a;
+            --grass-b: #35502f;
+            --road-line: #6b6f66;
+            --bld-wall: #a68a68;
+            --bld-wall-dark: #7c6446;
+            --bld-roof: #c99a4a;
+            --bld-roof-dark: #9c7530;
+            --bld-window: #ffd76b;
+            --bld2-wall: #7d8a9a;
+            --bld2-wall-dark: #56606d;
+            --bld2-roof: #3a4654;
+            --bld2-roof-dark: #262e38;
+            --house-roof: #a84632;
+            --house-roof-dark: #832f1f;
+            --house-wall: #e8dcc4;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Rajdhani', sans-serif; background: #000; color: white; overflow: hidden; user-select: none; }
+        body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; }
 
         /* GİRİŞ EKRANI */
         #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
@@ -50,38 +68,144 @@
 
         /* OYUN EKRANI (MAFIA CITY ARAYÜZÜ) */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
-        
-        /* Harita (2D Strateji Haritası) */
+
+        /* ============ İZOMETRİK ŞEHİR HARİTASI ============ */
+        /* Katman 1: görünür pencere. Sürükle/yakınlaştır burada kırpılır. */
         #map-container { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; 
-            background: 
-                radial-gradient(circle at 50% 50%, #1a3a1a 0%, #0a1a0a 100%),
-                repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(0,0,0,0.3) 49px, rgba(0,0,0,0.3) 50px),
-                repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.3) 49px, rgba(0,0,0,0.3) 50px);
-            background-size: 100% 100%, 50px 50px, 50px 50px;
+            background: #0f120e;
             cursor: grab;
+            touch-action: none;
         }
-        .map-pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; transition: 0.2s; z-index: 5; text-align: center; }
-        .map-pin:hover { transform: translate(-50%, -100%) scale(1.2); z-index: 10; }
-        .pin-icon { 
-            font-size: 2.5rem; 
-            filter: drop-shadow(0 0 5px black) drop-shadow(0 0 10px var(--primary));
-            background: rgba(0,0,0,0.6);
-            border: 2px solid var(--gold);
-            border-radius: 50%;
-            width: 50px; height: 50px;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto;
+        #map-container.grabbing { cursor: grabbing; }
+
+        /* Katman 2: sonsuz izometrik zemin. Kamera pan/zoom'u bu katmana uygulanır. */
+        #iso-world {
+            position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+            transform-style: preserve-3d;
+            will-change: transform;
         }
-        .pin-label { 
-            background: rgba(0,0,0,0.8); 
-            padding: 2px 8px; border-radius: 4px; 
-            font-size: 0.8rem; font-weight: 700; white-space: nowrap; 
-            margin-top: -5px; border: 1px solid var(--gold); 
+
+        /* Zemin karoları: 45° döndürülmüş kare = eşkenar dörtgen (diamond) görünümü verir */
+        .iso-tile {
+            position: absolute;
+            width: var(--tile-size, 96px); height: var(--tile-size, 96px);
+            transform: translate(-50%, -50%) rotate(45deg);
+            box-shadow: inset 0 0 0 1px var(--road-line);
+        }
+        .iso-tile.t-road-a { background: var(--tile-a); }
+        .iso-tile.t-road-b { background: var(--tile-b); }
+        .iso-tile.t-park {
+            background: var(--grass-a);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+        }
+        .iso-tile.t-park::after {
+            content: '🌳'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; transform: rotate(-45deg); opacity: 0.9;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.6));
+        }
+        .iso-tile.t-water { background: linear-gradient(135deg, #1c4a5e, #133344); }
+
+        /* Genel izometrik obje yerleşimi: dünya koordinatı -> ekran, dikey sıralama z-index ile */
+        .iso-obj {
+            position: absolute; left: 0; top: 0;
+            transform: translate(-50%, -100%);
+            cursor: pointer;
+        }
+        .iso-obj:hover .iso-bld { filter: brightness(1.18) drop-shadow(0 6px 14px rgba(255,180,60,0.45)); }
+        .iso-obj:hover .iso-label { border-color: var(--gold); }
+
+        /* --- İzometrik bina: 3 yüzeyli (çatı / ön cephe / yan cephe) CSS hacim --- */
+        .iso-bld { position: relative; width: 70px; height: 84px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55)); }
+        .bld-side {
+            position: absolute; bottom: 10px; left: 35px; width: 35px; height: 46px;
+            background: var(--wall-fill-dark, var(--bld-wall-dark));
+            clip-path: polygon(0 22px, 35px 0, 35px 24px, 0 46px);
+        }
+        .bld-front {
+            position: absolute; bottom: 10px; left: 0; width: 35px; height: 46px;
+            background: linear-gradient(120deg, var(--wall-fill, var(--bld-wall)) 0%, var(--wall-fill-dark, var(--bld-wall-dark)) 100%);
+            clip-path: polygon(0 0, 35px 22px, 35px 46px, 0 24px);
+        }
+        .bld-roof {
+            position: absolute; top: 0; left: 0; width: 70px; height: 40px;
+            background: linear-gradient(135deg, var(--roof-fill, var(--bld-roof)) 0%, var(--roof-fill-dark, var(--bld-roof-dark)) 100%);
+            clip-path: polygon(35px 0, 70px 20px, 35px 40px, 0 20px);
+        }
+        .bld-roof::after {
+            content: ''; position: absolute; top: 17px; left: 31px; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--bld-window); box-shadow: 0 0 6px var(--bld-window);
+        }
+        .bld-win { position: absolute; width: 6px; height: 9px; background: var(--bld-window); opacity: 0.85; box-shadow: 0 0 4px var(--bld-window); }
+        .bld-win.w1 { bottom: 26px; left: 6px; transform: skewY(-14deg); }
+        .bld-win.w2 { bottom: 16px; left: 6px; transform: skewY(-14deg); }
+        .bld-win.w3 { bottom: 26px; right: 6px; transform: skewY(14deg); }
+        .bld-win.w4 { bottom: 16px; right: 6px; transform: skewY(14deg); }
+        /* Küçük skala varyantı: madenler / boss inleri gibi ikincil işaretler */
+        .iso-bld.small { width: 52px; height: 62px; transform: scale(0.86); }
+
+        /* Oyuncu evi: bahçeli, bayraklı konut (fotodaki oyuncu üsleri) */
+        .iso-house { position: relative; width: 78px; height: 70px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55)); }
+        .house-yard {
+            position: absolute; bottom: 0; left: 4px; width: 70px; height: 40px;
+            background: var(--grass-b);
+            clip-path: polygon(35px 0, 70px 20px, 35px 40px, 0 20px);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+        }
+        .house-side {
+            position: absolute; bottom: 18px; left: 40px; width: 24px; height: 30px;
+            background: color-mix(in srgb, var(--house-wall) 60%, #000);
+            clip-path: polygon(0 15px, 24px 0, 24px 17px, 0 32px);
+        }
+        .house-front {
+            position: absolute; bottom: 18px; left: 18px; width: 24px; height: 30px;
+            background: var(--house-wall);
+            clip-path: polygon(0 0, 24px 15px, 24px 32px, 0 17px);
+        }
+        .house-roof {
+            position: absolute; bottom: 36px; left: 12px; width: 54px; height: 26px;
+            background: linear-gradient(135deg, var(--house-roof) 0%, var(--house-roof-dark) 100%);
+            clip-path: polygon(27px 0, 54px 13px, 27px 26px, 0 13px);
+        }
+        .house-flag { position: absolute; top: -22px; right: 6px; font-size: 1.05rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.6)); }
+        .house-flag::before { content: ''; position: absolute; top: 8px; left: 7px; width: 2px; height: 26px; background: #ccc; z-index: -1; }
+
+        .iso-label { 
+            background: rgba(10,10,8,0.88); 
+            padding: 2px 9px; border-radius: 4px; 
+            font-size: 0.72rem; font-weight: 700; white-space: nowrap; 
+            margin-top: 2px; border: 1px solid var(--gold); 
             color: #fff;
             text-shadow: 1px 1px 0 #000;
+            text-align: center;
         }
-        
+        .iso-badge {
+            position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+            font-size: 1.5rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
+        }
+
+        /* Yürüyüş / iz koordinat rozeti (fotodaki "X: 650 Y: 545" tarzı) */
+        #coord-badge {
+            position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,10,8,0.85); border: 1px solid var(--gold); border-radius: 6px;
+            padding: 4px 14px; font-size: 0.8rem; color: var(--gold); font-weight: 700;
+            letter-spacing: 1px; z-index: 18; pointer-events: none;
+        }
+
+        /* Zoom kontrolleri */
+        #zoom-controls {
+            position: absolute; right: 14px; bottom: 130px; z-index: 21;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .zoom-btn {
+            width: 40px; height: 40px; border-radius: 8px;
+            background: linear-gradient(180deg, rgba(30,30,26,0.95), rgba(15,15,12,0.95));
+            border: 1px solid var(--gold); color: var(--gold); font-size: 1.3rem; font-weight: 900;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+        }
+        .zoom-btn:active { transform: scale(0.92); }
+
         /* Üst Bar (Mafia City Tarzı) */
         .top-bar { 
             position: absolute; top: 0; left: 0; right: 0; z-index: 20; 
@@ -89,17 +213,18 @@
             padding: 10px 15px; display: flex; justify-content: space-between; align-items: flex-start; 
             pointer-events: none; 
         }
-        .player-info { display: flex; gap: 10px; align-items: center; pointer-events: auto; }
+        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
         .stat-badge { 
-            background: rgba(20,20,25,0.9); padding: 6px 12px; border-radius: 20px; 
-            border: 1px solid var(--gold); font-size: 0.9rem; display: flex; align-items: center; gap: 5px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            background: linear-gradient(180deg, rgba(40,32,20,0.95), rgba(18,14,8,0.95)); 
+            padding: 5px 11px; border-radius: 8px; 
+            border: 1px solid var(--gold); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; 
+            box-shadow: 0 3px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
         }
-        .stat-badge span { color: var(--gold); font-weight: 700; font-size: 1rem; }
+        .stat-badge span { color: var(--gold); font-weight: 700; font-size: 0.95rem; }
         .avatar { 
-            width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--gold); 
+            width: 48px; height: 48px; border-radius: 8px; border: 2px solid var(--gold); 
             display: flex; justify-content: center; align-items: center; font-size: 1.8rem; 
-            background: #222; box-shadow: 0 0 10px var(--primary);
+            background: linear-gradient(180deg,#2a2a30,#141418); box-shadow: 0 0 10px rgba(255,107,0,0.5), inset 0 0 8px rgba(0,0,0,0.6);
         }
 
         /* Alt Bar (Mafia City Toolbar) */
@@ -110,22 +235,22 @@
             pointer-events: none; 
         }
         .toolbar { 
-            display: flex; gap: 15px; pointer-events: auto; 
-            background: linear-gradient(0deg, rgba(20,20,25,0.95), rgba(30,30,35,0.9)); 
-            padding: 10px 20px; border-radius: 15px; border-top: 2px solid var(--gold); 
-            border-left: 1px solid var(--gold); border-right: 1px solid var(--gold);
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.8); 
+            display: flex; gap: 12px; pointer-events: auto; 
+            background: linear-gradient(180deg, rgba(46,34,20,0.97), rgba(20,14,8,0.97)); 
+            padding: 10px 18px; border-radius: 14px; border-top: 2px solid var(--gold); 
+            border-left: 1px solid var(--gold); border-right: 1px solid var(--gold); border-bottom: 1px solid var(--gold);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06); 
         }
         .tool-btn { 
             display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px; 
-            border-radius: 8px; transition: 0.2s; width: 60px; 
+            border-radius: 8px; transition: 0.2s; width: 58px; 
         }
         .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-3px); }
         .tool-icon { 
-            font-size: 2rem; margin-bottom: 2px; 
+            font-size: 1.9rem; margin-bottom: 2px; 
             filter: drop-shadow(0 0 3px var(--primary));
         }
-        .tool-text { font-size: 0.75rem; color: #ccc; text-transform: uppercase; font-weight: 600; }
+        .tool-text { font-size: 0.7rem; color: #d8c9a8; text-transform: uppercase; font-weight: 600; }
 
         /* Modallar ve Popup'lar */
         .modal-overlay { 
@@ -150,7 +275,7 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
+
         #toast-container { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); z-index: 100; }
         .toast { 
             padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; 
@@ -170,7 +295,7 @@
     <div class="auth-box">
         <div class="game-title">ATLAS WARFARE</div>
         <div class="game-subtitle">Dünyayı Fethet, İmparatorluğunu Kur</div>
-        
+
         <div id="login-form">
             <input type="text" id="login-username" class="auth-input" placeholder="Kahraman Adı veya E-posta" onkeydown="if(event.key==='Enter')login()">
             <input type="password" id="login-password" class="auth-input" placeholder="Şifre" onkeydown="if(event.key==='Enter')login()">
@@ -225,7 +350,13 @@
 </div>
 
 <div id="game-screen">
-    <div id="map-container"></div>
+    <div id="map-container"><div id="iso-world"></div></div>
+    <div id="coord-badge">X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
+    <div id="zoom-controls">
+        <div class="zoom-btn" onclick="camera.zoomBy(1.2)">+</div>
+        <div class="zoom-btn" onclick="camera.zoomBy(0.8)">−</div>
+        <div class="zoom-btn" onclick="camera.centerOnBase()" title="Üsse dön">⌖</div>
+    </div>
 
     <div class="top-bar">
         <div class="player-info">
@@ -329,61 +460,362 @@ function enterGame(d) {
     document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
     if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
     renderMap();
+    // Bir sonraki frame'de merkezle: map-container henüz layout almamış olabilir (display:none idi).
+    requestAnimationFrame(() => camera.centerOnBase());
 }
 
-// 2D HARİTA ÇİZİMİ (MAFIA CITY MANTIĞI)
-function renderMap() {
+// ============ İZOMETRİK HARİTA MOTORU (MAFIA CITY MANTIĞI) ============
+// worldData şeklini (lat/lng şehir/maden/boss, x/z oyuncu üssü) hiç değiştirmiyoruz.
+// Sadece bunları ekrana bir izometrik dünya-koordinat sistemi + kamera üzerinden çiziyoruz.
+
+const TILE = 96; // bir karonun taban genişliği (px), kamera zoom'u bununla çarpılır
+let groundLayer = null; // zemin karoları için ayrı, sık-yenilenen katman
+let decorativeOccupied = new Set(); // gerçek worldData nesnelerinin kapladığı grid hücreleri (dekoratif bina çakışmasını önler)
+
+// worldData'daki lat/lng ve x/z değerlerini tek, tutarlı bir "dünya birimi" (wx, wz) sistemine indirger.
+// Şehirler/madenler/bosslar lat/lng kullanıyor (-180..180 / -90..90), oyuncu üssü x/z kullanıyor (-1000..1000 / -500..500).
+// İkisini de aynı 2000x1000 birimlik düzleme haritalıyoruz ki hepsi aynı ızgarada tutarlı dursun.
+function latLngToWorld(lat, lng) { return { wx: (lng / 180) * 1000, wz: (-lat / 90) * 500 }; }
+function xzToWorld(x, z) { return { wx: x, wz: z }; }
+
+// Dünya birimini izometrik ekran pikseline çevirir (kameradan bağımsız, "ham" iso projeksiyon)
+function worldToIso(wx, wz) {
+    const gx = wx / 20, gz = wz / 20; // dünya birimini "karo" birimine indirger
+    return {
+        ix: (gx - gz) * (TILE / 2),
+        iy: (gx + gz) * (TILE / 4)
+    };
+}
+
+const camera = {
+    panX: 0, panY: 0, zoom: 1, minZoom: 0.5, maxZoom: 2.2,
+    dragging: false, lastX: 0, lastY: 0, moved: false,
+    apply() {
+        const world = document.getElementById('iso-world');
+        if (!world) return;
+        world.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+        updateCoordBadge();
+        this._scheduleGroundRefresh();
+    },
+    _groundRefreshHandle: null,
+    _scheduleGroundRefresh() {
+        // Sürükleme sırasında her pikselde yeniden karo üretmek yerine, bir sonraki
+        // boş frame'de tek seferde günceller -- akıcı kalır, gecikme hissettirmez.
+        if (this._groundRefreshHandle) cancelAnimationFrame(this._groundRefreshHandle);
+        this._groundRefreshHandle = requestAnimationFrame(() => refreshGroundTiles());
+    },
+    panBy(dx, dy) { this.panX += dx; this.panY += dy; this.apply(); },
+    zoomBy(f) {
+        const next = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom * f));
+        this.zoom = next; this.apply();
+    },
+    centerOn(wx, wz) {
+        const { ix, iy } = worldToIso(wx, wz);
+        const container = document.getElementById('map-container');
+        const rect = container.getBoundingClientRect();
+        this.panX = -ix * this.zoom;
+        this.panY = -iy * this.zoom + rect.height * 0.15;
+        this.apply();
+    },
+    centerOnBase() {
+        if (currentPlayer && currentPlayer.base) {
+            const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
+            this.centerOn(wx, wz);
+        } else {
+            this.panX = 0; this.panY = 0; this.apply();
+        }
+    }
+};
+
+function updateCoordBadge() {
+    const xEl = document.getElementById('coord-x'), yEl = document.getElementById('coord-y');
+    if (!xEl || !yEl) return;
+    // Kameranın ekran merkezine karşılık gelen dünya birimini geri hesapla, oyuncuya "konum" hissi ver.
     const container = document.getElementById('map-container');
-    document.querySelectorAll('.map-pin').forEach(p => p.remove());
-    
+    const rect = container.getBoundingClientRect();
+    const centerScreenX = rect.width / 2 - camera.panX;
+    const centerScreenY = rect.height / 2 - camera.panY;
+    const ix = centerScreenX / camera.zoom, iy = centerScreenY / camera.zoom;
+    const gx = (iy / (TILE / 4) + ix / (TILE / 2)) / 2;
+    const gz = (iy / (TILE / 4) - ix / (TILE / 2)) / 2;
+    xEl.innerText = Math.round(gx * 20 + 1000);
+    yEl.innerText = Math.round(gz * 20 + 500);
+}
+
+function setupCameraControls() {
+    const container = document.getElementById('map-container');
+    if (!container || container.dataset.cameraBound) return;
+    container.dataset.cameraBound = '1';
+
+    // NOT: Bilinçli olarak setPointerCapture KULLANMIYORUZ. Capture aktifken tarayıcı sonraki
+    // TÜM pointer event'lerini (ve onlardan türeyen click event'ini) DOM hiyerarşisine bakmaksızın
+    // doğrudan capture eden elemana yönlendirir -- bu da altındaki .iso-obj (şehir/maden/boss
+    // binaları) üzerindeki click handler'ların hiç tetiklenmemesine yol açıyordu (gerçek bug buydu).
+    // Bunun yerine sürükleme takibini document seviyesinde yapıyoruz: aynı "konteynerin dışına
+    // çıksa bile sürüklemeyi kaybetme" faydasını sağlıyor, ama click routing'ine karışmıyor.
+    let activePointerId = null;
+
+    container.addEventListener('pointerdown', (e) => {
+        if (basePlacementMode) return;
+        camera.dragging = true; camera.moved = false;
+        camera.lastX = e.clientX; camera.lastY = e.clientY;
+        activePointerId = e.pointerId;
+        container.classList.add('grabbing');
+    });
+
+    document.addEventListener('pointermove', (e) => {
+        if (!camera.dragging || e.pointerId !== activePointerId) return;
+        const dx = e.clientX - camera.lastX, dy = e.clientY - camera.lastY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) camera.moved = true;
+        camera.lastX = e.clientX; camera.lastY = e.clientY;
+        camera.panBy(dx, dy);
+    });
+
+    const endDrag = (e) => {
+        if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+        camera.dragging = false; container.classList.remove('grabbing');
+        activePointerId = null;
+    };
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        camera.zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
+    }, { passive: false });
+
+    // İki parmak pinch-zoom (mobil)
+    let pinchStartDist = null, pinchStartZoom = 1;
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            pinchStartZoom = camera.zoom;
+        }
+    }, { passive: true });
+    container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchStartDist) {
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            camera.zoom = Math.min(camera.maxZoom, Math.max(camera.minZoom, pinchStartZoom * (dist / pinchStartDist)));
+            camera.apply();
+        }
+    }, { passive: true });
+}
+
+function renderMap() {
+    setupCameraControls();
+    const world = document.getElementById('iso-world');
+    if (!world) return;
+    world.innerHTML = '';
+
     if (!worldData) return;
 
+    // Gerçek nesnelerin (şehir/maden/boss/üs) düştüğü grid hücrelerini önceden işaretle,
+    // ki dekoratif zemin binaları bunlarla asla çakışmasın.
+    decorativeOccupied = new Set();
+    const markOccupied = (wx, wz) => {
+        const gx = Math.round(wx / 20), gz = Math.round(wz / 20);
+        // Kendisi + 8 komşu hücreyi de işaretle: binalar birden fazla karo genişliğinde görünüyor.
+        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) decorativeOccupied.add((gx+dx) + ',' + (gz+dz));
+    };
+    Object.values(worldData.cities).forEach(c => { const { wx, wz } = latLngToWorld(c.lat, c.lng); markOccupied(wx, wz); });
+    Object.values(worldData.mines || {}).forEach(m => { const { wx, wz } = latLngToWorld(m.lat, m.lng); markOccupied(wx, wz); });
+    Object.values(worldData.bosses || {}).forEach(b => { const { wx, wz } = latLngToWorld(b.lat, b.lng); markOccupied(wx, wz); });
+    if (currentPlayer.base) markOccupied(currentPlayer.base.x, currentPlayer.base.z);
+
+    renderGroundTiles(world);
+
     Object.values(worldData.cities).forEach(c => {
-        const pin = document.createElement('div');
-        pin.className = 'map-pin';
-        pin.style.left = ((c.lng + 180) / 360 * 100) + '%';
-        pin.style.top = ((90 - c.lat) / 180 * 100) + '%';
-        
+        const { wx, wz } = latLngToWorld(c.lat, c.lng);
         const isCap = c.type === 'capital';
-        const color = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6,'0') : '#888';
-        
-        pin.innerHTML = `
-            <div class="pin-icon" style="border-color:${color}; color:${color};">${isCap ? '👑' : '🏰'}</div>
-            <div class="pin-label" style="border-color:${color}; color:${color};">${c.name}</div>
-        `;
-        pin.onclick = () => showCityPopup(c.id);
-        container.appendChild(pin);
+        const color = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6, '0') : '#9aa09a';
+        const el = placeIsoObject(world, wx, wz, buildingMarkup({
+            badge: isCap ? '👑' : null,
+            label: c.name,
+            color,
+            size: isCap ? 'normal' : 'normal'
+        }));
+        el.onclick = () => { if (!camera.moved) showCityPopup(c.id); };
     });
 
     Object.values(worldData.mines || {}).forEach(m => {
-        const pin = document.createElement('div');
-        pin.className = 'map-pin';
-        pin.style.left = ((m.lng + 180) / 360 * 100) + '%';
-        pin.style.top = ((90 - m.lat) / 180 * 100) + '%';
-        pin.innerHTML = `<div class="pin-icon" style="border-color:#ffd700;">${m.type === 'gold' ? '🟡' : '⚙️'}</div><div class="pin-label" style="border-color:#ffd700;">${m.name}</div>`;
-        pin.onclick = () => showMinePopup(m.id);
-        container.appendChild(pin);
+        const { wx, wz } = latLngToWorld(m.lat, m.lng);
+        const el = placeIsoObject(world, wx, wz, buildingMarkup({
+            badge: m.type === 'gold' ? '🟡' : '⚙️',
+            label: m.name,
+            color: '#ffd700',
+            size: 'small'
+        }));
+        el.onclick = () => { if (!camera.moved) showMinePopup(m.id); };
     });
 
     Object.values(worldData.bosses || {}).forEach(b => {
-        const pin = document.createElement('div');
-        pin.className = 'map-pin';
-        pin.style.left = ((b.lng + 180) / 360 * 100) + '%';
-        pin.style.top = ((90 - b.lat) / 180 * 100) + '%';
-        pin.innerHTML = `<div class="pin-icon" style="border-color:#ff0000;">${b.defeated ? '💀' : '👹'}</div><div class="pin-label" style="border-color:#ff0000; color:#ff0000;">${b.beast.split(' ')[0]}</div>`;
-        pin.onclick = () => showBossPopup(b.id);
-        container.appendChild(pin);
+        const { wx, wz } = latLngToWorld(b.lat, b.lng);
+        const el = placeIsoObject(world, wx, wz, buildingMarkup({
+            badge: b.defeated ? '💀' : '👹',
+            label: b.beast.split(' ')[0],
+            color: '#ff2b2b',
+            size: 'small',
+            danger: true
+        }));
+        el.onclick = () => { if (!camera.moved) showBossPopup(b.id); };
     });
 
     if (currentPlayer.base) {
-        const pin = document.createElement('div');
-        pin.className = 'map-pin';
-        const rect = container.getBoundingClientRect();
-        pin.style.left = (((currentPlayer.base.x / 500) + 1) / 2 * 100) + '%'; 
-        pin.style.top = (((currentPlayer.base.z / 250) + 1) / 2 * 100) + '%'; 
-        pin.innerHTML = `<div class="pin-icon" style="font-size:3rem; border-color:var(--primary);">🚩</div><div class="pin-label" style="border-color:var(--primary); color:var(--primary);">Ana Üssüm</div>`;
-        container.appendChild(pin);
+        const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
+        const flagEmoji = playerFlagEmoji();
+        placeIsoObject(world, wx, wz, houseMarkup({
+            label: 'Ana Üssüm',
+            flag: flagEmoji,
+            highlight: true
+        }));
     }
+}
+
+// Rastgele ama deterministik bir "şehir dokusu" izlenimi için, kamera merkezinin etrafına
+// yol/çim karoları döşer. worldData'daki gerçek nesnelerle çakışmaz, sadece fondur.
+
+// Kameranın o an gösterdiği ekran penceresini world-grid koordinatlarına çevirip,
+// o pencereyi (biraz taşırarak) dolduracak kadar karo üretir. Bu sayede pan/zoom
+// yaparken hiçbir yönde siyah/boş köşe kalmaz -- "sonsuz şehir" hissi budur.
+function refreshGroundTiles() {
+    if (!groundLayer) return;
+    const container = document.getElementById('map-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+
+    // Ekranın 4 köşesini dünya-grid birimine (gx,gz) çevir, kapsanması gereken aralığı bul.
+    const corners = [
+        [0, 0], [rect.width, 0], [0, rect.height], [rect.width, rect.height]
+    ].map(([sx, sy]) => {
+        const ix = (sx - rect.width / 2 - camera.panX) / camera.zoom;
+        const iy = (sy - rect.height / 2 - camera.panY) / camera.zoom;
+        const gx = (iy / (TILE / 4) + ix / (TILE / 2)) / 2;
+        const gz = (iy / (TILE / 4) - ix / (TILE / 2)) / 2;
+        return [gx, gz];
+    });
+    const gxs = corners.map(c => c[0]), gzs = corners.map(c => c[1]);
+    const PAD = 3; // taşma payı, hızlı pan'de bile boşluk görünmesin
+    const minGx = Math.floor(Math.min(...gxs)) - PAD, maxGx = Math.ceil(Math.max(...gxs)) + PAD;
+    const minGz = Math.floor(Math.min(...gzs)) - PAD, maxGz = Math.ceil(Math.max(...gzs)) + PAD;
+
+    // Çok fazla karo üretmeyi engelle (ör. aşırı uzak zoom-out durumunda)
+    const spanGx = maxGx - minGx, spanGz = maxGz - minGz;
+    if (spanGx * spanGz > 2500) return; // mevcut karoları koru, yeniden üretme
+
+    groundLayer.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (let gx = minGx; gx <= maxGx; gx++) {
+        for (let gz = minGz; gz <= maxGz; gz++) {
+            const { ix, iy } = worldToIso(gx * 20, gz * 20);
+            const h = Math.abs((gx * 928371 + gz * 12923) % 17);
+            let cls = (gx + gz) % 2 === 0 ? 't-road-a' : 't-road-b';
+            if (h === 0) cls = 't-park';
+            const tile = document.createElement('div');
+            tile.className = 'iso-tile ' + cls;
+            tile.style.setProperty('--tile-size', TILE + 'px');
+            tile.style.left = ix + 'px';
+            tile.style.top = iy + 'px';
+            frag.appendChild(tile);
+
+            // Fotodaki gibi dokulu, dolu bir şehir hissi için yol karolarının çoğunun üstüne
+            // tamamen dekoratif (tıklanamaz, worldData'dan bağımsız) küçük binalar serpiştir.
+            // Gerçek nesnelerin (şehir/maden/boss/üs) hücrelerini decorativeOccupied'da işaretleyip atlıyoruz.
+            const cellKey = gx + ',' + gz;
+            if (cls !== 't-park' && h % 2 === 0 && h !== 0 && !decorativeOccupied.has(cellKey)) {
+                const deco = document.createElement('div');
+                deco.className = 'iso-obj deco-bld';
+                deco.style.left = ix + 'px';
+                deco.style.top = iy + 'px';
+                // Aynı taban-ofset mantığı: dekoratif binalar hep zeminin (0) üstünde, gerçek
+                // nesnelerin (10000+) altında kalsın, iy ne kadar negatif olursa olsun.
+                deco.style.zIndex = String(5000 + Math.round(iy));
+                deco.style.pointerEvents = 'none';
+                const decoHash = Math.abs((gx * 7333 + gz * 9091) % 5);
+                // buildingMarkup renk varyantını label'ın hash'inden seçiyor; boş string hep aynı
+                // sonucu verirdi, o yüzden hücreye özgü sahte bir etiket besliyoruz (ekranda gösterilmiyor).
+                deco.innerHTML = buildingMarkup({
+                    badge: null, label: 'deco' + cellKey, color: 'transparent',
+                    size: decoHash < 3 ? 'small' : 'normal', danger: false
+                });
+                // Dekoratif binalarda etiket kutusunu tamamen gizle (sadece atmosfer, bilgi yok)
+                deco.querySelector('.iso-label')?.remove();
+                frag.appendChild(deco);
+            }
+        }
+    }
+    groundLayer.appendChild(frag);
+}
+
+function renderGroundTiles(world) {
+    groundLayer = document.createElement('div');
+    groundLayer.id = 'iso-ground';
+    groundLayer.style.position = 'absolute';
+    groundLayer.style.zIndex = '0';
+    world.appendChild(groundLayer);
+    // İlk çağrı senkron olarak display:none'dan yeni çıkmış bir container'a denk gelebilir
+    // (getBoundingClientRect 0x0 döner). Bir sonraki frame'de layout kesinleşmiş olur.
+    refreshGroundTiles();
+    requestAnimationFrame(() => refreshGroundTiles());
+}
+
+function placeIsoObject(world, wx, wz, innerHtml) {
+    const { ix, iy } = worldToIso(wx, wz);
+    const el = document.createElement('div');
+    el.className = 'iso-obj';
+    el.style.left = ix + 'px';
+    el.style.top = iy + 'px';
+    // Büyük sabit taban (10000) kullanıyoruz ki iy ne kadar negatif olursa olsun gerçek nesneler
+    // her zaman dekoratif binaların (taban 5000) ve zemin karolarının (0) üstünde kalsın.
+    // Sadece kendi aralarında iy'ye göre doğru derinlik sıralaması olsun yeter.
+    el.style.zIndex = 10000 + Math.round(iy);
+    el.innerHTML = innerHtml;
+    world.appendChild(el);
+    return el;
+}
+
+function buildingMarkup({ badge, label, color, size, danger }) {
+    const sizeClass = size === 'small' ? ' small' : '';
+    // Etikete göre deterministik sıcak/soğuk varyant seç: aynı bina her render'da aynı tonda kalır,
+    // ama şehir genelinde fotodaki gibi karışık bir doku oluşur.
+    let hash = 0; for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+    const cool = !danger && (hash % 3 === 0);
+    // NOT: --bld-wall'ı doğrudan kendi adıyla override etmiyoruz (--bld-wall: var(--bld-wall) döngüsel
+    // referans olur ve CSS bunu geçersiz sayıp transparent'a düşürür). Bunun yerine kaynak değişkeni
+    // (--bld-wall-warm-src / --bld-wall-cool-src) ayrı tutup, .bld-side/.bld-front'un gerçek arka planını
+    // o kaynağa göre seçiyoruz.
+    const wallSrc = cool ? 'var(--bld2-wall)' : 'var(--bld-wall)';
+    const wallDarkSrc = cool ? 'var(--bld2-wall-dark)' : 'var(--bld-wall-dark)';
+    const roofSrc = danger ? '#a83232' : (cool ? 'var(--bld2-roof)' : 'var(--bld-roof)');
+    const roofDarkSrc = danger ? '#7a1f1f' : (cool ? 'var(--bld2-roof-dark)' : 'var(--bld-roof-dark)');
+    return `
+        <div class="iso-bld${sizeClass}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
+            ${badge ? `<div class="iso-badge">${badge}</div>` : ''}
+            <div class="bld-roof"></div>
+            <div class="bld-side"></div>
+            <div class="bld-front"></div>
+            <div class="bld-win w1"></div><div class="bld-win w2"></div>
+            <div class="bld-win w3"></div><div class="bld-win w4"></div>
+        </div>
+        <div class="iso-label" style="border-color:${color}; color:${color};">${label}</div>
+    `;
+}
+
+function houseMarkup({ label, flag, highlight }) {
+    return `
+        <div class="iso-house">
+            ${flag ? `<div class="house-flag">${flag}</div>` : ''}
+            <div class="house-yard"></div>
+            <div class="house-roof"></div>
+            <div class="house-side"></div>
+            <div class="house-front"></div>
+        </div>
+        <div class="iso-label" style="border-color:${highlight ? 'var(--primary)' : 'var(--gold)'}; color:${highlight ? 'var(--primary)' : '#fff'};">🚩 ${label}</div>
+    `;
+}
+
+function playerFlagEmoji() {
+    // empireColor'a göre basit bir bayrak/renk rozeti; gerçek ülke bayrağı verisi yoksa nötr bir sancak gösterir.
+    return '🚩';
 }
 
 function showCityPopup(id) {
@@ -391,7 +823,7 @@ function showCityPopup(id) {
     selectedCityId = id; selectedMineId = null; selectedBossId = null;
     const box = document.getElementById('modal-box');
     const bP=[]; if(c.bonus.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus.defense)bP.push(`%${c.bonus.defense*100} Savunma`); if(c.bonus.ryo)bP.push(`%${c.bonus.ryo*100} Ryo`);
-    
+
     box.innerHTML = `
         <h2>${c.name}</h2>
         <div class="info-row"><span>Tip</span><span>${c.type === 'capital' ? '👑 Başkent' : '🏘️ Şehir'}</span></div>
@@ -459,7 +891,7 @@ function openAttackModal(type = 'city') {
     if(type === 'city' && selectedCityId) targetName = worldData.cities[selectedCityId].name;
     else if(type === 'mine' && selectedMineId) targetName = worldData.mines[selectedMineId].name;
     else if(type === 'boss' && selectedBossId) targetName = worldData.bosses[selectedBossId].beast;
-    
+
     box.innerHTML = `
         <h2>⚔️ ${targetName}'e Saldır</h2>
         <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p>
@@ -494,20 +926,23 @@ function openDeployModal() {
 function deploy() { socket.emit('deployDefenders', { cityId: selectedCityId, infantry: parseInt(document.getElementById('d-inf').value)||0, archer: parseInt(document.getElementById('d-arc').value)||0, cavalry: parseInt(document.getElementById('d-cav').value)||0 }); closeModal(); }
 
 function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
-function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere tıkla.'); }
+function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere dokun.'); }
 
+// Ekran piksel tıklamasını, kameranın pan+zoom'unu tersine çevirip izometrik projeksiyonu
+// çözerek gerçek dünya x/z koordinatına dönüştürür. buildBase sunucuya hep aynı x/z şeklini yollar.
 document.getElementById('map-container').addEventListener('click', (e) => {
-    if(basePlacementMode) {
-        if (e.target.id === 'map-container') {
-            const rect = document.getElementById('map-container').getBoundingClientRect();
-            const xPct = ((e.clientX - rect.left) / rect.width) * 100;
-            const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-            const x = (xPct / 100 * 1000) - 500;
-            const z = (yPct / 100 * 500) - 250;
-            socket.emit('buildBase', { x, z });
-            basePlacementMode = false;
-        }
-    }
+    if (!basePlacementMode) return;
+    if (camera.moved) return; // sürüklemeyi tıklama sayma
+    const container = document.getElementById('map-container');
+    const rect = container.getBoundingClientRect();
+    const screenX = e.clientX - rect.left, screenY = e.clientY - rect.top;
+    const ix = (screenX - rect.width / 2 - camera.panX) / camera.zoom;
+    const iy = (screenY - rect.height / 2 - camera.panY) / camera.zoom;
+    const gx = (iy / (TILE / 4) + ix / (TILE / 2)) / 2;
+    const gz = (iy / (TILE / 4) - ix / (TILE / 2)) / 2;
+    const x = gx * 20, z = gz * 20;
+    socket.emit('buildBase', { x, z });
+    basePlacementMode = false;
 });
 
 function train(){ socket.emit('trainArmy', {infantry:parseInt(document.getElementById('t-inf').value)||0, archer:parseInt(document.getElementById('t-arc').value)||0, cavalry:parseInt(document.getElementById('t-cav').value)||0}); closeModal(); }
@@ -526,67 +961,66 @@ function claimQ(id){ socket.emit('claimQuest', {questId:id}); }
 socket.on('inboxData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>✉️ Mesajlar</h2><div style="max-height:200px;overflow-y:auto;">`; d.forEach(m=>{ h+=`<div style="border:1px solid #333;padding:5px;margin:2px 0;border-radius:4px;"><strong>${m.from}</strong>: ${m.msg}<button class="btn btn-secondary" style="width:auto;padding:2px 5px;font-size:0.7rem;float:right;" onclick="socket.emit('deleteMessage',{date:${m.date}})">X</button></div>`; }); b.innerHTML=h+`</div><div class="input-group" style="margin-top:15px;"><input type="text" id="msg-to" placeholder="Kime"></div><div class="input-group"><input type="text" id="msg-t" placeholder="Mesaj"></div><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
 function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-to').value, msg:document.getElementById('msg-t').value}); closeModal(); }
 socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
-socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); });
+socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); camera.centerOnBase(); });
 
 socket.on('battleAnimation', (d) => {
     const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
     if (!target) return;
-    
-    const container = document.getElementById('map-container');
-    const rect = container.getBoundingClientRect();
-    
-    let startX, startY;
-    if (currentPlayer.base) {
-        startX = (((currentPlayer.base.x / 500) + 1) / 2 * rect.width);
-        startY = (((currentPlayer.base.z / 250) + 1) / 2 * rect.height);
-    } else {
-        startX = rect.width / 2; startY = rect.height; 
-    }
-    
-    const endX = ((target.lng + 180) / 360 * rect.width) || ((target.x / 500 + 1) / 2 * rect.width);
-    const endY = ((90 - target.lat) / 180 * rect.height) || ((target.z / 250 + 1) / 2 * rect.height);
+
+    const world = document.getElementById('iso-world');
+
+    // Başlangıç: oyuncunun üssü (x/z), yoksa haritanın merkezi (0,0)
+    const start = currentPlayer.base ? xzToWorld(currentPlayer.base.x, currentPlayer.base.z) : { wx: 0, wz: 0 };
+    // Bitiş: hedef lat/lng'liyse şehir/maden/boss, x/z'liyse (gelecekte oyuncu hedefleri) o da desteklenir
+    const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : xzToWorld(target.x, target.z);
+
+    const startIso = worldToIso(start.wx, start.wz);
+    const endIso = worldToIso(end.wx, end.wz);
 
     const march = document.createElement('div');
     march.className = 'march-icon';
     march.innerText = '⚔️';
-    march.style.left = startX + 'px';
-    march.style.top = startY + 'px';
+    march.style.left = startIso.ix + 'px';
+    march.style.top = startIso.iy + 'px';
+    march.style.zIndex = 500;
     march.style.color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6,'0');
-    container.appendChild(march);
+    world.appendChild(march);
 
     setTimeout(() => {
-        march.style.left = endX + 'px';
-        march.style.top = endY + 'px';
+        march.style.left = endIso.ix + 'px';
+        march.style.top = endIso.iy + 'px';
     }, 50);
 
     setTimeout(() => {
         march.remove();
         playSound('explosion');
-        
+
         const boom = document.createElement('div');
         boom.className = 'march-icon';
         boom.innerText = '💥';
-        boom.style.left = endX + 'px';
-        boom.style.top = endY + 'px';
+        boom.style.left = endIso.ix + 'px';
+        boom.style.top = endIso.iy + 'px';
+        boom.style.zIndex = 501;
         boom.style.fontSize = '3rem';
         boom.style.transition = 'opacity 0.5s, transform 0.5s';
-        container.appendChild(boom);
-        
+        world.appendChild(boom);
+
         const txt = document.createElement('div');
         txt.className = 'march-icon';
         txt.innerText = d.result.attackerWins ? 'Zafer!' : 'Yenilgi!';
         txt.style.color = d.result.attackerWins ? 'var(--green)' : 'var(--red)';
         txt.style.fontWeight = 'bold';
-        txt.style.left = endX + 'px';
-        txt.style.top = (endY - 30) + 'px';
+        txt.style.left = endIso.ix + 'px';
+        txt.style.top = (endIso.iy - 30) + 'px';
+        txt.style.zIndex = 502;
         txt.style.transition = 'opacity 1s, top 1s';
-        container.appendChild(txt);
+        world.appendChild(txt);
 
         setTimeout(() => {
             boom.style.opacity = '0';
             boom.style.transform = 'scale(2)';
             txt.style.opacity = '0';
-            txt.style.top = (endY - 60) + 'px';
+            txt.style.top = (endIso.iy - 60) + 'px';
         }, 100);
 
         setTimeout(() => { boom.remove(); txt.remove(); }, 1000);
