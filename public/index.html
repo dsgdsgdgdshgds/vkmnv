@@ -16,16 +16,17 @@
             --red: #ff3333; 
             --green: #00cc44; 
             /* İzometrik şehir paleti */
-            --tile-a: #4a5049;
-            --tile-b: #3d423c;
-            --grass-a: #3f5f3a;
-            --grass-b: #35502f;
-            --road-line: #6b6f66;
+            --tile-a: #55524a;
+            --tile-b: #47443d;
+            --curb: #6e6a5f;
+            --grass-a: #4a5a34;
+            --grass-b: #3d4c2a;
+            --road-line: #7a756a;
             --bld-wall: #a68a68;
             --bld-wall-dark: #7c6446;
             --bld-roof: #c99a4a;
             --bld-roof-dark: #9c7530;
-            --bld-window: #ffd76b;
+            --bld-window: #ffb347;
             --bld2-wall: #7d8a9a;
             --bld2-wall-dark: #56606d;
             --bld2-roof: #3a4654;
@@ -38,6 +39,7 @@
             --neon-strip-glow: rgba(255, 47, 176, 0.65);
             --danger-wall: #6b1f1f;
             --danger-wall-dark: #3a0d0d;
+            --golden-light: rgba(255, 158, 68, 0.16);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; }
@@ -78,11 +80,21 @@
         /* Katman 1: görünür pencere. Sürükle/yakınlaştır burada kırpılır. */
         #map-container { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; 
-            background: #0f120e;
+            background: #171308;
             cursor: grab;
             touch-action: none;
         }
         #map-container.grabbing { cursor: grabbing; }
+        /* Sinematik gün batımı ışığı: haritanın üstünde sabit, tıklamayı engellemeyen ılık bir
+           gradyan katmanı. Sahnenin genel tonu buradan geliyor -- sıcak turuncu üst-sol, koyu
+           mor-kahve alt-sağ köşe -- fotoğraftaki "golden hour" hissini taklit eder. */
+        #golden-hour-overlay {
+            position: absolute; inset: 0; pointer-events: none; z-index: 8;
+            background:
+                radial-gradient(ellipse at 18% 12%, rgba(255,178,90,0.22) 0%, transparent 45%),
+                linear-gradient(150deg, rgba(255,140,60,0.10) 0%, transparent 35%, rgba(20,10,30,0.28) 100%);
+            mix-blend-mode: overlay;
+        }
 
         /* Katman 2: sonsuz izometrik zemin. Kamera pan/zoom'u bu katmana uygulanır. */
         #iso-world {
@@ -100,6 +112,21 @@
         }
         .iso-tile.t-road-a { background: var(--tile-a); }
         .iso-tile.t-road-b { background: var(--tile-b); }
+        /* Asfalt çatlak/leke dokusu: SVG turbulence ile hafif, tekrar etmeyen bir gürültü katmanı.
+           Karo başına bağımsız üretilmiyor (performans), tek bir tekrarlanan doku olarak kullanılıyor
+           ama düşük opaklıkla, göze batmadan zemine "kullanılmış beton" hissi veriyor. */
+        .iso-tile.t-road-a::before, .iso-tile.t-road-b::before {
+            content: ''; position: absolute; inset: 0;
+            background-image:
+                radial-gradient(circle at 22% 30%, rgba(0,0,0,0.28) 0 3px, transparent 4px),
+                radial-gradient(circle at 68% 62%, rgba(0,0,0,0.22) 0 2px, transparent 3px),
+                linear-gradient(105deg, transparent 46%, rgba(0,0,0,0.15) 47%, transparent 48%);
+            opacity: 0.7;
+        }
+        .iso-tile.t-curb {
+            background: var(--curb);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3), inset 0 0 0 5px var(--tile-a);
+        }
         .iso-tile.t-park {
             background: var(--grass-a);
             box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
@@ -153,6 +180,10 @@
         .iso-bld.v-warehouse { transform: scale(1.08) scaleY(0.72); }
         .iso-bld.v-shop { transform: scale(0.62); }
         .iso-bld.v-standard { transform: scale(1); }
+        .iso-bld.is-capital {
+            filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 14px rgba(255,178,90,0.35));
+        }
+        .iso-bld.is-capital .iso-svg-bld { transform: scale(1.16); transform-origin: 50% 100%; }
 
         /* --- Arka plan dekoratif dokusu: kural 3 (derinlik/opaklık) ---
            Bu binalar gerçek oyun nesneleriyle asla rekabet etmesin diye son derece soluk,
@@ -417,6 +448,7 @@
 
 <div id="game-screen">
     <div id="map-container"><div id="iso-world"></div></div>
+    <div id="golden-hour-overlay"></div>
     <div id="coord-badge">X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
     <div id="zoom-controls">
         <div class="zoom-btn" onclick="camera.zoomBy(1.2)">+</div>
@@ -822,7 +854,9 @@ function refreshGroundTiles() {
             const noiseB = Math.sin(gx * 1.7 + gz * 2.3 + (gx * gz) * 0.05) * 0.5;
             const jitter = (Math.abs((gx * 12.9898 + gz * 78.233) * 43758.5453) % 1); // 0..1 sözde-rastgele
             const density = (noiseA + noiseB + jitter * 1.4) / 4; // ~ -1..1.35 aralığında doğal alan değeri
-            const placeDecoBuilding = cls !== 't-park' && density > 0.18 && !decorativeOccupied.has(cellKey);
+            // Eşik düşürüldü: referans görseldeki gibi yoğun, dolu bir şehir -- boş arazi oranı azaldı,
+            // ama gürültü alanı sayesinde hâlâ organik boşluklar (meydanlar, açık alanlar) kalıyor.
+            const placeDecoBuilding = cls !== 't-park' && density > -0.05 && !decorativeOccupied.has(cellKey);
 
             if (placeDecoBuilding) {
                 const deco = document.createElement('div');
@@ -847,6 +881,25 @@ function refreshGroundTiles() {
                 // Dekoratif binalarda etiket kutusunu tamamen gizle (sadece atmosfer, bilgi yok)
                 deco.querySelector('.iso-label')?.remove();
                 frag.appendChild(deco);
+            } else if (cls !== 't-park' && !decorativeOccupied.has(cellKey) && jitter > 0.72) {
+                // Kural: bina konmayan boş yol karolarının bir kısmına küçük sokak eşyası
+                // (park halinde araba, sokak lambası, ağaç, çöp konteyneri) serpiştir. Bu, referans
+                // görüntüdeki gibi haritayı "yaşayan, kalabalık" hissettirir ama gerçek nesnelerle
+                // asla çakışmaz ve tamamen dekoratif/tıklanamaz kalır.
+                const propRoll = Math.abs((gx * 5077 + gz * 2971) % 4);
+                const propEmoji = propRoll === 0 ? '🚗' : propRoll === 1 ? '💡' : propRoll === 2 ? '🌳' : '🗑️';
+                const prop = document.createElement('div');
+                prop.style.position = 'absolute';
+                prop.style.left = ix + 'px';
+                prop.style.top = iy + 'px';
+                prop.style.transform = 'translate(-50%, -70%)';
+                prop.style.fontSize = propRoll === 2 ? '1.1rem' : '0.85rem';
+                prop.style.opacity = '0.8';
+                prop.style.filter = 'drop-shadow(0 2px 2px rgba(0,0,0,0.6)) saturate(0.85)';
+                prop.style.zIndex = String(4000 + Math.round(iy));
+                prop.style.pointerEvents = 'none';
+                prop.textContent = propEmoji;
+                frag.appendChild(prop);
             }
         }
     }
@@ -920,7 +973,7 @@ function buildingMarkup({ badge, label, color, size, danger, variant }) {
            <circle cx="10" cy="49" r="2" fill="#ff2b2b" class="neon-pulse"/>`
         : '';
     return `
-        <div class="iso-bld${sizeClass}${variantClass}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
+        <div class="iso-bld${sizeClass}${variantClass}${isCapital ? ' is-capital' : ''}" style="--wall-fill:${wallSrc}; --wall-fill-dark:${wallDarkSrc}; --roof-fill:${roofSrc}; --roof-fill-dark:${roofDarkSrc};">
             ${badge ? `<div class="iso-badge">${badge}</div>` : ''}
             <svg class="iso-svg-bld" viewBox="0 0 70 94" width="70" height="94">
                 <defs>
@@ -1244,4 +1297,4 @@ function showToast(type, msg) { if(type==='success'||type==='victory')playSound(
 window.onload = () => { const t = localStorage.getItem('atlas_token'); if(t) socket.emit('loginWithToken', t); };
 </script>
 </body>
-</html>
+</html>
