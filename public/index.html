@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AtlasWarfare - Dünyayı Fethet</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { 
             --primary: #ff6b00; 
@@ -33,7 +34,6 @@
         .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
         .btn-secondary:hover { background: rgba(0,212,255,0.1); }
         .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
-        .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
 
         /* KARAKTER SEÇİM */
         #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
@@ -51,43 +51,42 @@
         /* OYUN EKRANI */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
 
-        /* ============ GERÇEK 3D ŞEHİR HARİTASI (WebGL / Three.js) ============ */
+        /* ============ 3D THREE.JS ŞEHİR HARİTASI ============ */
         #map-container { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; 
-            background: #171308;
+            background: #1a1c20;
             cursor: grab;
             touch-action: none;
         }
         #map-container.grabbing { cursor: grabbing; }
-        #map-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; outline: none; }
-        #css2d-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 5; }
-
-        /* Sinematik gün batımı ışığı: WebGL sahnesinin üstünde ince bir renk/atmosfer katmanı.
-           3D sahnenin kendi ışıklandırması (yönlü sıcak ışık + hemisfer + sis) zaten gerçek derinlik
-           üretiyor; bu katman sadece ekran-uzayında hafif bir "golden hour" rötuşu ekliyor. */
+        /* Sinematik gün batımı ışığı overlay katmanı */
         #golden-hour-overlay {
             position: absolute; inset: 0; pointer-events: none; z-index: 8;
             background:
-                radial-gradient(ellipse at 18% 12%, rgba(255,178,90,0.16) 0%, transparent 45%),
-                linear-gradient(150deg, rgba(255,140,60,0.07) 0%, transparent 35%, rgba(20,10,30,0.22) 100%);
+                radial-gradient(ellipse at 18% 12%, rgba(255,178,90,0.18) 0%, transparent 45%),
+                linear-gradient(150deg, rgba(255,140,60,0.08) 0%, transparent 35%, rgba(20,10,30,0.35) 100%);
             mix-blend-mode: overlay;
         }
+        #city3d-canvas { display: block; width: 100%; height: 100%; }
 
-        .iso-label { 
-            background: rgba(10,10,8,0.88); 
-            padding: 2px 9px; border-radius: 4px; 
-            font-size: 0.72rem; font-weight: 700; white-space: nowrap; 
-            border: 1px solid var(--gold); 
-            color: #fff;
-            text-shadow: 1px 1px 0 #000;
-            text-align: center;
-            transform: translate(-50%, -100%);
+        /* Dairesel/baloncuk hızlı aksiyon menüsü */
+        #radial-menu { position: fixed; left: 0; top: 0; z-index: 60; display: none; pointer-events: none; }
+        #radial-menu.active { display: block; pointer-events: auto; }
+        .radial-btn {
+            position: absolute; width: 46px; height: 46px; border-radius: 50%;
+            background: linear-gradient(180deg, rgba(42,32,18,0.97), rgba(15,12,8,0.97));
+            border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08);
+            cursor: pointer; transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .iso-label.focal { border-color: var(--primary); color: var(--primary); }
-
-        .fx-icon { position: absolute; font-size: 1.6rem; transform: translate(-50%,-50%); filter: drop-shadow(0 0 5px var(--primary)); }
-        .fx-boom { position: absolute; font-size: 2.6rem; transform: translate(-50%,-50%); transition: opacity 0.5s, transform 0.5s; }
-        .fx-text { position: absolute; font-weight: 900; font-size: 1.1rem; transform: translate(-50%,-50%); text-shadow: 1px 1px 0 #000; transition: opacity 1s, top 1s; }
+        #radial-menu.active .radial-btn { transform: translate(-50%, -50%) scale(1); }
+        .radial-btn:active { transform: translate(-50%, -50%) scale(0.88); }
+        .radial-btn-label {
+            position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+            font-size: 0.6rem; color: var(--gold); white-space: nowrap; font-weight: 700;
+            text-shadow: 1px 1px 0 #000;
+        }
 
         /* Yürüyüş / iz koordinat rozeti */
         #coord-badge {
@@ -110,25 +109,6 @@
             box-shadow: 0 3px 8px rgba(0,0,0,0.6);
         }
         .zoom-btn:active { transform: scale(0.92); }
-
-        /* Dairesel/baloncuk hızlı aksiyon menüsü */
-        #radial-menu { position: fixed; left: 0; top: 0; z-index: 60; display: none; pointer-events: none; }
-        #radial-menu.active { display: block; pointer-events: auto; }
-        .radial-btn {
-            position: absolute; width: 46px; height: 46px; border-radius: 50%;
-            background: linear-gradient(180deg, rgba(42,32,18,0.97), rgba(15,12,8,0.97));
-            border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
-            font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08);
-            cursor: pointer; transform: translate(-50%, -50%) scale(0);
-            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        #radial-menu.active .radial-btn { transform: translate(-50%, -50%) scale(1); }
-        .radial-btn:active { transform: translate(-50%, -50%) scale(0.88); }
-        .radial-btn-label {
-            position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
-            font-size: 0.6rem; color: var(--gold); white-space: nowrap; font-weight: 700;
-            text-shadow: 1px 1px 0 #000;
-        }
 
         /* Üst Bar */
         .top-bar { 
@@ -170,10 +150,7 @@
             border-radius: 8px; transition: 0.2s; width: 58px; 
         }
         .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-3px); }
-        .tool-icon { 
-            font-size: 1.9rem; margin-bottom: 2px; 
-            filter: drop-shadow(0 0 3px var(--primary));
-        }
+        .tool-icon { font-size: 1.9rem; margin-bottom: 2px; filter: drop-shadow(0 0 3px var(--primary)); }
         .tool-text { font-size: 0.7rem; color: #d8c9a8; text-transform: uppercase; font-weight: 600; }
 
         /* Modallar ve Popup'lar */
@@ -193,6 +170,9 @@
         .input-group { margin: 10px 0; }
         .input-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
         .input-group input { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 6px; font-family: 'Rajdhani'; font-size: 1rem; }
+
+        /* Savaş Animasyonu */
+        .march-icon { position: absolute; font-size: 2rem; z-index: 15; transition: left 1s linear, top 1s linear; filter: drop-shadow(0 0 5px var(--primary)); }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -271,14 +251,11 @@
 </div>
 
 <div id="game-screen">
-    <div id="map-container">
-        <canvas id="map-canvas"></canvas>
-        <div id="css2d-layer"></div>
-    </div>
+    <div id="map-container"><canvas id="city3d-canvas"></canvas></div>
     <div id="golden-hour-overlay"></div>
     <div id="coord-badge">X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
     <div id="zoom-controls">
-        <div class="zoom-btn" onclick="camera.zoomBy(1.25)">+</div>
+        <div class="zoom-btn" onclick="camera.zoomBy(1.2)">+</div>
         <div class="zoom-btn" onclick="camera.zoomBy(0.8)">−</div>
         <div class="zoom-btn" onclick="camera.centerOnBase()" title="Üsse dön">⌖</div>
     </div>
@@ -329,7 +306,6 @@ function playSound(type) {
     if (type === 'click') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.05); o.start(now); o.stop(now+0.05); }
     else if (type === 'success') { [523.25,659.25,783.99].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(f,now+i*0.1);g.gain.setValueAtTime(0.1,now+i*0.1);g.gain.exponentialRampToValueAtTime(0.01,now+i*0.1+0.2);o.start(now+i*0.1);o.stop(now+i*0.1+0.2);}); }
     else if (type === 'error') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(now); o.stop(now+0.2); }
-    else if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
 }
 document.addEventListener('click', () => initAudio(), { once: true });
 document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON') playSound('click'); });
@@ -386,833 +362,528 @@ function enterGame(d) {
     document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
     document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
     if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
+    
+    City3D.init();
     renderMap();
     requestAnimationFrame(() => camera.centerOnBase());
 }
 
-// =====================================================================================
-// ============ GERÇEK 3D ŞEHİR HARİTASI MOTORU (WebGL / Three.js tabanlı) ============
-// worldData şeklini (lat/lng şehir/maden/boss, x/z oyuncu üssü) hiç değiştirmiyoruz.
-// Bunları artık gerçek hacimli 3D geometriden oluşan, perspektif kameralı bir sahnede çiziyoruz.
-// Three.js modülü dinamik import() ile yükleniyor ki bu script "classic/global" kalsın ve
-// index.html'deki tüm inline onclick="" çağrıları (login(), camera.zoomBy(), train() vb.) çalışmaya devam etsin.
-// =====================================================================================
+// ============ 3D THREE.JS ŞEHİR MOTORU ============
+const City3D = {
+    scene: null, camera: null, renderer: null, raycaster: null, mouse: null,
+    interactiveMeshes: [], groundPlane: null, labels: [],
+    init() {
+        if (this.scene) return; // Already initialized
+        const canvas = document.getElementById('city3d-canvas');
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x1a1c20);
+        this.scene.fog = new THREE.Fog(0x1a1c20, 150, 400);
 
-let THREE = null, CSS2DRenderer = null, CSS2DObject = null;
-const threeReadyPromise = (async () => {
-    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
-    const mod = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js');
-    CSS2DRenderer = mod.CSS2DRenderer; CSS2DObject = mod.CSS2DObject;
-})().catch(err => console.error('Three.js yüklenemedi:', err));
+        const aspect = window.innerWidth / window.innerHeight;
+        const d = 25;
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.camera.position.set(80, 80, 80);
+        this.camera.lookAt(0, 0, 0);
 
-const GRID = 20;          // bir "karo"nun dünya birimi genişliği
-const DYN_RADIUS = 15;    // kamera hedefinin etrafında dinamik olarak yaşatılan karo yarıçapı
-const ELEV = Math.PI * (52 / 180); // kamera yükseklik açısı (3/4 şehir-strateji perspektifi)
+        this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-let scene, camera3d, renderer, labelRenderer;
-let groundMesh, dynamicGroup, entitiesGroup, sunLight;
-let raycaster, mouseNDC;
-let lastDynCell = null;
-let mapEngineReady = false;
-let resizeObserverBound = false;
+        // Lighting - Warm Cinematic Sunset
+        const ambient = new THREE.AmbientLight(0xffeacc, 0.4);
+        this.scene.add(ambient);
+        
+        const hemi = new THREE.HemisphereLight(0xffd0a0, 0x221100, 0.6);
+        this.scene.add(hemi);
 
-const camState = { target: null, distance: 300, minDist: 90, maxDist: 900, azimuth: Math.PI * 0.25, dragging: false, moved: false, lastX: 0, lastY: 0 };
+        const dir = new THREE.DirectionalLight(0xffd9a0, 1.5);
+        dir.position.set(60, 100, 40);
+        dir.castShadow = true;
+        dir.shadow.mapSize.width = 2048;
+        dir.shadow.mapSize.height = 2048;
+        dir.shadow.camera.near = 10;
+        dir.shadow.camera.far = 300;
+        dir.shadow.camera.left = -100;
+        dir.shadow.camera.right = 100;
+        dir.shadow.camera.top = 100;
+        dir.shadow.camera.bottom = -100;
+        dir.shadow.bias = -0.0005;
+        this.scene.add(dir);
 
-function hashStr(str) { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
-function rand01(seed) { const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453123; return x - Math.floor(x); }
+        // Ground
+        this.createGround();
+        this.generateEnvironment();
 
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+
+        window.addEventListener('resize', () => this.onResize());
+        this.animate();
+    },
+    onResize() {
+        if (!this.camera) return;
+        const aspect = window.innerWidth / window.innerHeight;
+        const d = 25 / camera.zoom;
+        this.camera.left = -d * aspect;
+        this.camera.right = d * aspect;
+        this.camera.top = d;
+        this.camera.bottom = -d;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    },
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        // Slightly animate labels to face camera if needed, or just render
+        this.renderer.render(this.scene, this.camera);
+    },
+    createGround() {
+        // Asphalt base
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.9 });
+        this.groundPlane = new THREE.Mesh(groundGeo, groundMat);
+        this.groundPlane.rotation.x = -Math.PI / 2;
+        this.groundPlane.receiveShadow = true;
+        this.scene.add(this.groundPlane);
+
+        // Procedural city blocks (Roads & Sidewalks)
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1d, roughness: 0.8 });
+        const curbMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+        
+        for (let x = -120; x <= 120; x += 24) {
+            for (let z = -120; z <= 120; z += 24) {
+                // Grass block
+                const grass = new THREE.Mesh(new THREE.BoxGeometry(20, 0.2, 20), new THREE.MeshStandardMaterial({ color: 0x2d3a1f, roughness: 1 }));
+                grass.position.set(x, 0.1, z);
+                grass.receiveShadow = true;
+                this.scene.add(grass);
+                
+                // Sidewalk
+                const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(22, 0.4, 22), curbMat);
+                sidewalk.position.set(x, 0.1, z);
+                sidewalk.receiveShadow = true;
+                this.scene.add(sidewalk);
+            }
+        }
+    },
+    generateEnvironment() {
+        // Scatter decorative buildings, trees, and street props
+        for (let x = -120; x <= 120; x += 24) {
+            for (let z = -120; z <= 120; z += 24) {
+                if (Math.abs(x) < 30 && Math.abs(z) < 30) continue; // Keep center clear for base
+
+                const r = Math.random();
+                if (r < 0.3) {
+                    this.addBuilding(x, z, Math.random() > 0.5 ? 'tall' : 'wide');
+                } else if (r < 0.5) {
+                    this.addTree(x + (Math.random()*10-5), z + (Math.random()*10-5));
+                } else if (r < 0.6) {
+                    this.addStreetLight(x, z);
+                } else if (r < 0.7) {
+                    this.addCar(x, z);
+                }
+            }
+        }
+    },
+    addBuilding(x, z, type) {
+        let h = type === 'tall' ? 15 + Math.random() * 10 : 6 + Math.random() * 4;
+        let w = type === 'tall' ? 6 + Math.random() * 2 : 10 + Math.random() * 4;
+        let d = type === 'tall' ? 6 + Math.random() * 2 : 10 + Math.random() * 4;
+
+        const colors = [0x8a8a8a, 0x6e6e6e, 0x7a6a5a, 0x5a6a7a, 0x4a4a4a];
+        const baseColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const bldGeo = new THREE.BoxGeometry(w, h, d);
+        const bldMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.8 });
+        const bld = new THREE.Mesh(bldGeo, bldMat);
+        bld.position.set(x, h / 2 + 0.3, z);
+        bld.castShadow = true;
+        bld.receiveShadow = true;
+        this.scene.add(bld);
+
+        // Roof details
+        if (Math.random() > 0.3) {
+            const roofGeo = new THREE.BoxGeometry(w * 0.4, 1.5, d * 0.4);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.set(x + (Math.random()*4-2), h + 1, z + (Math.random()*4-2));
+            roof.castShadow = true;
+            this.scene.add(roof);
+        }
+    },
+    addTree(x, z) {
+        const tree = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2, 6), new THREE.MeshStandardMaterial({ color: 0x4a2e18 }));
+        trunk.position.y = 1;
+        trunk.castShadow = true;
+        const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 8), new THREE.MeshStandardMaterial({ color: 0x2d4a22 }));
+        leaves.position.y = 4;
+        leaves.castShadow = true;
+        tree.add(trunk); tree.add(leaves);
+        tree.position.set(x, 0.3, z);
+        this.scene.add(tree);
+    },
+    addStreetLight(x, z) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 5, 6), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 }));
+        pole.position.set(x, 2.5, z);
+        pole.castShadow = true;
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffeeaa, emissive: 0xffaa00, emissiveIntensity: 0.8 }));
+        bulb.position.set(x, 5, z);
+        this.scene.add(pole); this.scene.add(bulb);
+    },
+    addCar(x, z) {
+        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffffff, 0xffaa00];
+        const car = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random()*colors.length)], metalness: 0.6, roughness: 0.3 }));
+        car.position.set(x, 0.8, z);
+        car.rotation.y = Math.random() * Math.PI * 2;
+        car.castShadow = true;
+        this.scene.add(car);
+    },
+    clearInteractive() {
+        this.interactiveMeshes.forEach(m => {
+            this.scene.remove(m);
+            if (m.geometry) m.geometry.dispose();
+            if (m.material) m.material.dispose();
+        });
+        this.interactiveMeshes = [];
+        this.labels.forEach(l => {
+            this.scene.remove(l);
+            if (l.material.map) l.material.map.dispose();
+            l.material.dispose();
+        });
+        this.labels = [];
+    },
+    addInteractiveBuilding(wx, wz, type, data, label, badgeColor) {
+        const x = wx * 0.1; // Scale down to fit scene
+        const z = wz * 0.1;
+        
+        let group = new THREE.Group();
+
+        if (type === 'city') {
+            // Detailed City Building
+            const h = data.type === 'capital' ? 25 : 15 + Math.random() * 5;
+            const w = data.type === 'capital' ? 12 : 8;
+            const mat = new THREE.MeshStandardMaterial({ color: data.type === 'capital' ? 0xffd700 : 0x8a8a8a, roughness: 0.6, metalness: 0.2 });
+            const bld = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat);
+            bld.castShadow = true; bld.receiveShadow = true;
+            bld.position.y = h / 2 + 0.3;
+            group.add(bld);
+
+            if (data.type === 'capital') {
+                // Golden crown / roof
+                const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.7, 8, 4), new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 0.2 }));
+                roof.position.y = h + 4;
+                roof.rotation.y = Math.PI / 4;
+                roof.castShadow = true;
+                group.add(roof);
+            } else {
+                // Antenna
+                const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4, 4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                ant.position.y = h + 2;
+                group.add(ant);
+            }
+        } else if (type === 'mine') {
+            // Industrial Mine
+            const mat = new THREE.MeshStandardMaterial({ color: 0x556b2f, roughness: 0.9 });
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 4, 8), mat);
+            base.position.y = 2 + 0.3;
+            base.castShadow = true; base.receiveShadow = true;
+            group.add(base);
+            const rig = new THREE.Mesh(new THREE.ConeGeometry(1, 4, 8), new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.8 }));
+            rig.position.y = 6;
+            group.add(rig);
+        } else if (type === 'boss') {
+            // Dark Ruined Building
+            const mat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.9 });
+            const bld = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 10), mat);
+            bld.position.y = 6 + 0.3;
+            bld.castShadow = true;
+            group.add(bld);
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1 }));
+            eye.position.set(0, 8, 5);
+            group.add(eye);
+        } else if (type === 'base') {
+            // Player Fortress
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.8 });
+            const wallH = 4;
+            const wallGeo = new THREE.BoxGeometry(20, wallH, 1.5);
+            const w1 = new THREE.Mesh(wallGeo, wallMat); w1.position.set(0, wallH/2 + 0.3, 10); group.add(w1);
+            const w2 = new THREE.Mesh(wallGeo, wallMat); w2.position.set(0, wallH/2 + 0.3, -10); group.add(w2);
+            const w3 = new THREE.Mesh(wallGeo, wallMat); w3.position.set(10, wallH/2 + 0.3, 0); w3.rotation.y = Math.PI/2; group.add(w3);
+            const w4 = new THREE.Mesh(wallGeo, wallMat); w4.position.set(-10, wallH/2 + 0.3, 0); w4.rotation.y = Math.PI/2; group.add(w4);
+
+            // Towers
+            const towerMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+            const towerGeo = new THREE.CylinderGeometry(2, 2.5, 10, 8);
+            const coneGeo = new THREE.ConeGeometry(2.5, 4, 8);
+            const coneMat = new THREE.MeshStandardMaterial({ color: '#' + data.color.toString(16).padStart(6, '0') || '0xff0000', emissive: 0x222222 });
+
+            [[10,10], [10,-10], [-10,10], [-10,-10]].forEach(pos => {
+                const t = new THREE.Mesh(towerGeo, towerMat);
+                t.position.set(pos[0], 5 + 0.3, pos[1]);
+                t.castShadow = true;
+                group.add(t);
+                const c = new THREE.Mesh(coneGeo, coneMat);
+                c.position.set(pos[0], 12, pos[1]);
+                group.add(c);
+            });
+
+            // Main Keep
+            const keep = new THREE.Mesh(new THREE.BoxGeometry(8, 16, 8), new THREE.MeshStandardMaterial({ color: 0x998888, roughness: 0.7 }));
+            keep.position.y = 8 + 0.3;
+            keep.castShadow = true;
+            group.add(keep);
+            
+            const flag = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.1), new THREE.MeshStandardMaterial({ color: '#' + data.color.toString(16).padStart(6, '0'), emissive: 0x444444 }));
+            flag.position.set(2, 18, 0);
+            group.add(flag);
+        }
+
+        group.position.x = x;
+        group.position.z = z;
+        group.userData = { id: data.id, type: type, data: data };
+        
+        // Add invisible bounding box for easier raycasting
+        const box = new THREE.Mesh(new THREE.BoxGeometry(15, 20, 15), new THREE.MeshBasicMaterial({ visible: false }));
+        box.position.y = 10;
+        box.userData = group.userData;
+        group.add(box);
+
+        this.scene.add(group);
+        this.interactiveMeshes.push(group);
+
+        // Label
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 256; labelCanvas.height = 64;
+        const ctx = labelCanvas.getContext('2d');
+        ctx.fillStyle = 'rgba(10,10,8,0.85)';
+        ctx.fillRect(0, 0, 256, 64);
+        ctx.strokeStyle = '#' + (badgeColor || 0xffd700).toString(16).padStart(6, '0');
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, 252, 60);
+        ctx.font = 'bold 30px Rajdhani';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, 128, 32);
+        
+        const tex = new THREE.CanvasTexture(labelCanvas);
+        const labelMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+        const sprite = new THREE.Sprite(labelMat);
+        sprite.position.set(x, 22, z);
+        sprite.scale.set(10, 2.5, 1);
+        this.scene.add(sprite);
+        this.labels.push(sprite);
+    },
+    getWorldCoordsFromScreen(clientX, clientY) {
+        const rect = document.getElementById('map-container').getBoundingClientRect();
+        this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObject(this.groundPlane);
+        if (intersects.length > 0) {
+            return { x: intersects[0].point.x * 10, z: intersects[0].point.z * 10 };
+        }
+        return null;
+    }
+};
+
+// Coordinate mapping helpers (kept from original logic)
 function latLngToWorld(lat, lng) { return { wx: (lng / 180) * 1000, wz: (-lat / 90) * 500 }; }
 function xzToWorld(x, z) { return { wx: x, wz: z }; }
 
-// ---------- Prosedürel dokular: gerçekçi zemin + duvar + çatı ----------
-let TEX = null;
-function buildTextures() {
-    TEX = {
-        asphalt: makeAsphaltTexture(),
-        curbTop: makeCurbTexture(),
-        wallWarm: makeWallTexture('#a68a68', '#7c6446', true),
-        wallCool: makeWallTexture('#7d8a9a', '#56606d', false),
-        wallDanger: makeWallTexture('#6b3a3a', '#3a0d0d', true),
-        wallCapital: makeWallTexture('#b89152', '#8a6a34', true),
-        roofWarm: makeRoofTexture('#c99a4a', '#9c7530'),
-        roofCool: makeRoofTexture('#3a4654', '#262e38'),
-        roofDanger: makeRoofTexture('#a83232', '#7a1f1f'),
-        houseWall: makeWallTexture('#e8dcc4', '#b8ab8c', true, true),
-        houseRoof: makeRoofTexture('#a84632', '#832f1f'),
-    };
-}
-
-function makeAsphaltTexture() {
-    const c = document.createElement('canvas'); c.width = 512; c.height = 512;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#4a4740'; ctx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 700; i++) {
-        const x = Math.random() * 512, y = Math.random() * 512, r = 3 + Math.random() * 18;
-        const dark = Math.random() < 0.5;
-        ctx.fillStyle = dark ? `rgba(15,14,12,${0.05 + Math.random() * 0.10})` : `rgba(90,86,74,${0.04 + Math.random() * 0.08})`;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.strokeStyle = 'rgba(12,11,9,0.55)'; ctx.lineWidth = 1.1;
-    for (let i = 0; i < 22; i++) {
-        let x = Math.random() * 512, y = Math.random() * 512;
-        ctx.beginPath(); ctx.moveTo(x, y);
-        for (let j = 0; j < 5; j++) { x += (Math.random() - 0.5) * 46; y += (Math.random() - 0.5) * 46; ctx.lineTo(x, y); }
-        ctx.stroke();
-    }
-    for (let i = 0; i < 4; i++) { ctx.fillStyle = 'rgba(58,54,46,0.45)'; ctx.fillRect(Math.random() * 440, Math.random() * 440, 36 + Math.random() * 50, 26 + Math.random() * 36); }
-    ctx.strokeStyle = 'rgba(255,210,90,0.5)'; ctx.lineWidth = 4; ctx.setLineDash([20, 16]);
-    ctx.beginPath(); ctx.moveTo(0, 256); ctx.lineTo(512, 256); ctx.stroke(); ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(225,220,205,0.28)'; ctx.lineWidth = 2.4;
-    ctx.beginPath(); ctx.moveTo(0, 30); ctx.lineTo(512, 30); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, 482); ctx.lineTo(512, 482); ctx.stroke();
-    ctx.strokeStyle = 'rgba(18,16,13,0.7)'; ctx.lineWidth = 2;
-    [[120, 140], [380, 350]].forEach(([mx, my]) => {
-        ctx.beginPath(); ctx.arc(mx, my, 15, 0, Math.PI * 2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(mx, my, 9, 0, Math.PI * 2); ctx.stroke();
-    });
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-}
-function makeCurbTexture() {
-    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
-    const ctx = c.getContext('2d'); ctx.fillStyle = '#6e6a5f'; ctx.fillRect(0, 0, 64, 64);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    for (let i = 0; i < 6; i++) ctx.fillRect(Math.random() * 60, Math.random() * 60, 3, 3);
-    const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    return tex;
-}
-function makeWallTexture(baseHex, darkHex, warm, cottage) {
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = baseHex; ctx.fillRect(0, 0, 128, 128);
-    ctx.globalAlpha = 0.14; ctx.fillStyle = darkHex;
-    for (let y = 0; y < 128; y += 10) ctx.fillRect(0, y, 128, 1);
-    ctx.globalAlpha = 1;
-    const winW = cottage ? 10 : 12, winH = cottage ? 14 : 16, gapX = cottage ? 26 : 22, gapY = cottage ? 34 : 26;
-    for (let y = 12; y < 118; y += gapY) {
-        for (let x = 8; x < 120; x += gapX) {
-            const lit = Math.random() < 0.42;
-            ctx.fillStyle = lit ? '#ffcf7a' : (warm ? '#332920' : '#1b2229');
-            ctx.fillRect(x, y, winW, winH);
-            ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1; ctx.strokeRect(x, y, winW, winH);
-            if (lit) { ctx.fillStyle = 'rgba(255,207,122,0.25)'; ctx.fillRect(x - 2, y - 2, winW + 4, winH + 4); }
-        }
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-}
-function makeRoofTexture(hex, darkHex) {
-    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = hex; ctx.fillRect(0, 0, 64, 64);
-    ctx.strokeStyle = darkHex; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
-    for (let y = 0; y < 64; y += 7) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(64, y); ctx.stroke(); }
-    ctx.globalAlpha = 1;
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    return tex;
-}
-
-// ---------- Paylaşılan geometriler (performans için tek sefer oluşturulur) ----------
-let GEO = null, MAT = null;
-function buildGeometryLibrary() {
-    GEO = {
-        box: new THREE.BoxGeometry(1, 1, 1),
-        cylinder: new THREE.CylinderGeometry(1, 1, 1, 14),
-        cone: new THREE.ConeGeometry(1, 1, 10),
-        circle: new THREE.CircleGeometry(1, 28),
-        plane: new THREE.PlaneGeometry(1, 1),
-        sphere: new THREE.SphereGeometry(1, 10, 8),
-    };
-    MAT = {
-        ground: new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.95, metalness: 0.02 }),
-        curb: new THREE.MeshStandardMaterial({ map: TEX.curbTop, roughness: 0.9 }),
-        grass: new THREE.MeshStandardMaterial({ color: 0x3d4c2a, roughness: 1 }),
-        treeTrunk: new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 1 }),
-        treeLeaves: new THREE.MeshStandardMaterial({ color: 0x4f7a34, roughness: 0.9 }),
-        wallWarm: new THREE.MeshStandardMaterial({ map: TEX.wallWarm, roughness: 0.85 }),
-        wallCool: new THREE.MeshStandardMaterial({ map: TEX.wallCool, roughness: 0.7, metalness: 0.15 }),
-        wallDanger: new THREE.MeshStandardMaterial({ map: TEX.wallDanger, roughness: 0.9 }),
-        wallCapital: new THREE.MeshStandardMaterial({ map: TEX.wallCapital, roughness: 0.75, metalness: 0.1 }),
-        houseWall: new THREE.MeshStandardMaterial({ map: TEX.houseWall, roughness: 0.85 }),
-        roofWarm: new THREE.MeshStandardMaterial({ map: TEX.roofWarm, roughness: 0.6 }),
-        roofCool: new THREE.MeshStandardMaterial({ map: TEX.roofCool, roughness: 0.5, metalness: 0.2 }),
-        roofDanger: new THREE.MeshStandardMaterial({ color: 0x7a1f1f, roughness: 0.6 }),
-        houseRoof: new THREE.MeshStandardMaterial({ map: TEX.houseRoof, roughness: 0.65 }),
-        stoneWall: new THREE.MeshStandardMaterial({ color: 0x8f8574, roughness: 0.95 }),
-        stoneWallDark: new THREE.MeshStandardMaterial({ color: 0x5a5346, roughness: 0.95 }),
-        metalDark: new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.5, metalness: 0.6 }),
-        carBody: [0x8a2a2a, 0x2a4a7a, 0x3a3a3a, 0x6a6a20, 0x555].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, metalness: 0.4 })),
-        carGlass: new THREE.MeshStandardMaterial({ color: 0x111417, roughness: 0.2, metalness: 0.6 }),
-        container: [0xa03a2a, 0x1f5a7a, 0x3a6a2a, 0xa08a1f].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, metalness: 0.2 })),
-        lampPole: new THREE.MeshStandardMaterial({ color: 0x2c2c2c, roughness: 0.6, metalness: 0.4 }),
-        lampGlow: new THREE.MeshStandardMaterial({ color: 0xffcf7a, emissive: 0xffb347, emissiveIntensity: 1.4 }),
-        barrier: new THREE.MeshStandardMaterial({ color: 0xdd8a1f, roughness: 0.7 }),
-        pallet: new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1 }),
-        trash: new THREE.MeshStandardMaterial({ color: 0x3a4a3a, roughness: 0.8, metalness: 0.15 }),
-        signPole: new THREE.MeshStandardMaterial({ color: 0x555, roughness: 0.5, metalness: 0.5 }),
-        signFace: new THREE.MeshStandardMaterial({ color: 0xdadada, roughness: 0.4 }),
-        gold: new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.35, metalness: 0.7, emissive: 0x552d00, emissiveIntensity: 0.3 }),
-        helipad: new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.7 }),
-        courtyard: new THREE.MeshStandardMaterial({ color: 0x3a3630, roughness: 0.95 }),
-        shadowBlob: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }),
-    };
-}
-
-function box(mat, sx, sy, sz, x, y, z) {
-    const m = new THREE.Mesh(GEO.box, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z);
-    m.castShadow = true; m.receiveShadow = true; return m;
-}
-function cyl(mat, r, h, x, y, z) {
-    const m = new THREE.Mesh(GEO.cylinder, mat); m.scale.set(r, h, r); m.position.set(x, y, z);
-    m.castShadow = true; m.receiveShadow = true; return m;
-}
-function cone(mat, r, h, x, y, z) {
-    const m = new THREE.Mesh(GEO.cone, mat); m.scale.set(r, h, r); m.position.set(x, y, z);
-    m.castShadow = true; return m;
-}
-function contactShadow(radius, y = 0.03) {
-    const m = new THREE.Mesh(GEO.circle, MAT.shadowBlob);
-    m.rotation.x = -Math.PI / 2; m.scale.set(radius, radius, 1); m.position.y = y;
-    return m;
-}
-
-// ---------- Bina aileleri: her biri gerçek hacimli, farklı silüetli 3D obje üretir ----------
-function familyForSeed(seed) {
-    const r = seed % 100;
-    if (r < 20) return 'tower';
-    if (r < 40) return 'warehouse';
-    if (r < 60) return 'industrial';
-    if (r < 80) return 'residential';
-    return 'shop';
-}
-
-function createBuildingGroup(opts) {
-    // opts: { label, family, danger, capitalScale, seed }
-    const seed = opts.seed ?? hashStr(opts.label || 'bina');
-    const family = opts.family || familyForSeed(seed);
-    const cool = !opts.danger && (seed % 3 === 0);
-    const wallMat = opts.danger ? MAT.wallDanger : (opts.capital ? MAT.wallCapital : (cool ? MAT.wallCool : MAT.wallWarm));
-    const roofMat = opts.danger ? MAT.roofDanger : (cool ? MAT.roofCool : MAT.roofWarm);
-    const g = new THREE.Group();
-    const jitter = rand01(seed);
-
-    let footprint = 12, height = 16;
-    if (family === 'tower') { footprint = 10; height = 28 + jitter * 14; }
-    else if (family === 'warehouse') { footprint = 18; height = 9 + jitter * 3; }
-    else if (family === 'industrial') { footprint = 14; height = 12 + jitter * 6; }
-    else if (family === 'residential') { footprint = 13; height = 13 + jitter * 8; }
-    else if (family === 'shop') { footprint = 9; height = 6 + jitter * 2; }
-
-    const fx = footprint * (0.85 + jitter * 0.3);
-    const fz = footprint * (0.85 + rand01(seed + 7) * 0.3);
-
-    // ana gövde
-    const body = box(wallMat, fx, height, fz, 0, height / 2, 0);
-    g.add(body);
-    // hafif üst kademe (silüet çeşitliliği)
-    if (family === 'tower' || family === 'residential') {
-        const stepH = height * 0.28;
-        g.add(box(wallMat, fx * 0.62, stepH, fz * 0.62, 0, height + stepH / 2, 0));
-    }
-    if (family === 'residential') {
-        // balkon çıkıntıları
-        for (let i = 0; i < 3; i++) {
-            const by = height * (0.3 + i * 0.22);
-            g.add(box(MAT.stoneWallDark, fx * 0.9, 0.6, 1.6, 0, by, fz / 2 + 0.9));
-        }
-    }
-    if (family === 'industrial') {
-        // baca + boru detayları
-        g.add(cyl(MAT.metalDark, 0.9, height * 0.55, fx * 0.28, height + height * 0.28, -fz * 0.2));
-        g.add(cyl(MAT.metalDark, 1.3, height * 0.9, -fx * 0.3, height * 0.9 / 2 + 0.2, fz * 0.25));
-    }
-    if (family === 'warehouse') {
-        // yükleme rampası kapı şeridi
-        g.add(box(MAT.metalDark, fx * 0.5, height * 0.55, 0.3, 0, height * 0.3, fz / 2 + 0.15));
-    }
-    if (family === 'shop') {
-        // tente / tabela
-        g.add(box(opts.danger ? MAT.wallDanger : MAT.roofWarm, fx * 1.05, 0.5, 1.6, 0, height * 0.72, fz / 2 + 0.9));
-    }
-
-    // çatı
-    const roofH = height * 0.16;
-    g.add(box(roofMat, fx * 1.06, roofH, fz * 1.06, 0, height + roofH / 2, 0));
-    if (family === 'tower') {
-        g.add(cone(roofMat, fx * 0.5, height * 0.22, 0, height + roofH + (height * 0.22) / 2, 0));
-        g.add(cyl(MAT.metalDark, 0.15, height * 0.18, 0, height + roofH + height * 0.22 + (height * 0.18) / 2, 0));
-    }
-
-    // hasar/tehlike detayları (boss inleri için)
-    if (opts.danger) {
-        const spike = cone(MAT.metalDark, 0.5, 3.2, fx * 0.3, height + roofH + 1.6, fz * 0.2);
-        g.add(spike);
-    }
-
-    g.add(contactShadow(Math.max(fx, fz) * 0.62));
-
-    if (opts.capital) {
-        g.scale.setScalar(1.35);
-    }
-
-    g.userData.topY = (opts.capital ? 1.35 : 1) * (height + roofH + (family === 'tower' ? height * 0.22 + height * 0.18 : 0)) + 2.2;
-    g.userData.footprint = Math.max(fx, fz) * (opts.capital ? 1.35 : 1);
-    return g;
-}
-
-function createHouseGroup(opts) {
-    const g = new THREE.Group();
-    const seed = hashStr(opts.label || 'ev');
-    const fx = 12, fz = 12, height = 7 + rand01(seed) * 2;
-    g.add(box(MAT.grass, fx * 1.6, 0.15, fz * 1.6, 0, 0.08, 0));
-    g.add(box(MAT.houseWall, fx, height, fz, 0, height / 2, 0));
-    const roofH = height * 0.55;
-    const roofMesh = new THREE.Mesh(GEO.cone, MAT.houseRoof);
-    roofMesh.scale.set(fx * 0.78, roofH, fz * 0.78);
-    roofMesh.position.set(0, height + roofH / 2, 0);
-    roofMesh.rotation.y = Math.PI / 4;
-    roofMesh.castShadow = true;
-    // dört kenarlı çatı hissi için koniyi kareye yakın low-poly bırakıyoruz (cone segment=10 zaten çokgen)
-    g.add(roofMesh);
-    g.add(box(MAT.metalDark, 2.2, height * 0.6, 0.3, 0, height * 0.32, fz / 2 + 0.05));
-    if (opts.highlight) {
-        const ring = new THREE.Mesh(GEO.circle, new THREE.MeshBasicMaterial({ color: 0xff6b00, transparent: true, opacity: 0.35 }));
-        ring.rotation.x = -Math.PI / 2; ring.scale.set(fx * 1.5, fz * 1.5, 1); ring.position.y = 0.04;
-        g.add(ring);
-        const pole = cyl(MAT.metalDark, 0.15, height * 1.1, fx / 2, height * 0.55 + height * 1.1 / 2, -fz / 2);
-        g.add(pole);
-        const flagColor = (currentPlayer && currentPlayer.empireColor) ? currentPlayer.empireColor : 0xff6b00;
-        const flag = box(new THREE.MeshStandardMaterial({ color: flagColor, roughness: 0.6 }), 3, 1.8, 0.1, fx / 2 + 1.5, height * 0.55 + height * 1.1 - 0.9, -fz / 2);
-        g.add(flag);
-    }
-    g.add(contactShadow(fx * 0.95));
-    g.userData.topY = height + roofH + 2.4;
-    g.userData.footprint = fx * 1.6;
-    return g;
-}
-
-// ---------- Ana üs / başkent: sahnenin en büyük ve en detaylı yapısı ----------
-function createCapitalGroup(opts) {
-    const g = new THREE.Group();
-    const R = 30; // sur yarıçapı
-
-    // avlu zemini
-    const yard = new THREE.Mesh(GEO.circle, MAT.courtyard);
-    yard.rotation.x = -Math.PI / 2; yard.scale.set(R * 0.96, R * 0.96, 1); yard.position.y = 0.05;
-    yard.receiveShadow = true;
-    g.add(yard);
-
-    // dış sur (4 kenar, bir kenarda kapı boşluğu)
-    const wallH = 9, wallT = 2.2;
-    const sides = [
-        { x: 0, z: -R, w: R * 2, gate: true },
-        { x: 0, z: R, w: R * 2, gate: false },
-        { x: -R, z: 0, w: R * 2, rot: true },
-        { x: R, z: 0, w: R * 2, rot: true },
-    ];
-    sides.forEach(s => {
-        if (s.gate) {
-            const half = (s.w - 9) / 2;
-            g.add(box(MAT.stoneWall, half, wallH, wallT, -s.w / 4 - 2.25, wallH / 2, s.z));
-            g.add(box(MAT.stoneWall, half, wallH, wallT, s.w / 4 + 2.25, wallH / 2, s.z));
-            // kapı kemeri
-            g.add(box(MAT.stoneWallDark, 9, 2, wallT * 1.3, 0, wallH - 1, s.z));
-            g.add(cyl(MAT.gold, 0.35, wallH * 0.85, -4.5, wallH * 0.42, s.z));
-            g.add(cyl(MAT.gold, 0.35, wallH * 0.85, 4.5, wallH * 0.42, s.z));
-        } else if (s.rot) {
-            const m = box(MAT.stoneWall, wallT, wallH, s.w, s.x, wallH / 2, 0);
-            g.add(m);
-        } else {
-            g.add(box(MAT.stoneWall, s.w, wallH, wallT, s.x, wallH / 2, s.z));
-        }
-    });
-    // sur mazgalları (crenellation)
-    for (let i = -R; i <= R; i += 4) {
-        g.add(box(MAT.stoneWallDark, 1.6, 1.4, 1.6, i, wallH + 0.7, -R));
-        g.add(box(MAT.stoneWallDark, 1.6, 1.4, 1.6, i, wallH + 0.7, R));
-        g.add(box(MAT.stoneWallDark, 1.6, 1.4, 1.6, -R, wallH + 0.7, i));
-        g.add(box(MAT.stoneWallDark, 1.6, 1.4, 1.6, R, wallH + 0.7, i));
-    }
-    // köşe kuleleri
-    [[-R, -R], [R, -R], [-R, R], [R, R]].forEach(([tx, tz]) => {
-        const th = wallH * 2.1;
-        g.add(cyl(MAT.stoneWall, 3.6, th, tx, th / 2, tz));
-        g.add(cone(MAT.roofDanger, 4.2, 5.5, tx, th + 2.75, tz));
-        g.add(cyl(MAT.gold, 0.18, 2.5, tx, th + 6.3, tz));
-    });
-
-    // merkez kale (ana bina, çok katmanlı)
-    const keepMats = [MAT.wallCapital, MAT.wallCapital, MAT.wallCapital];
-    g.add(box(MAT.wallCapital, 15, 11, 15, 0, 5.5, 0));
-    g.add(box(MAT.wallCapital, 10, 8, 10, 0, 11 + 4, 0));
-    g.add(box(MAT.roofWarm, 16, 1.4, 16, 0, 11.7, 0));
-    const spire = cone(MAT.roofWarm, 7.4, 8, 0, 11 + 8 + 4, 0);
-    g.add(spire);
-    g.add(cyl(MAT.gold, 0.25, 3, 0, 11 + 8 + 8 + 1.5, 0));
-    // kale bayrağı
-    const flagColor = (currentPlayer && currentPlayer.empireColor) ? currentPlayer.empireColor : 0xffd700;
-    g.add(box(new THREE.MeshStandardMaterial({ color: flagColor, roughness: 0.6 }), 3.4, 2, 0.12, 1.9, 11 + 8 + 8 + 2.4, 0));
-
-    // kale çevresine ışık kuleleri (spot light kaideleri)
-    [[-9, -9], [9, -9], [-9, 9], [9, 9]].forEach(([lx, lz]) => {
-        g.add(cyl(MAT.metalDark, 0.4, 5.5, lx, 2.75, lz));
-        const lamp = new THREE.Mesh(GEO.sphere, MAT.lampGlow);
-        lamp.scale.setScalar(0.55); lamp.position.set(lx, 5.6, lz);
-        g.add(lamp);
-        const pl = new THREE.PointLight(0xffb347, 6, 30, 2);
-        pl.position.set(lx, 6, lz);
-        g.add(pl);
-    });
-
-    // helikopter pisti
-    const pad = new THREE.Mesh(GEO.circle, MAT.helipad);
-    pad.rotation.x = -Math.PI / 2; pad.scale.set(6.5, 6.5, 1); pad.position.set(20, 0.08, -16);
-    g.add(pad);
-    const padRing = new THREE.Mesh(GEO.circle, new THREE.MeshBasicMaterial({ color: 0xffd700 }));
-    padRing.rotation.x = -Math.PI / 2; padRing.scale.set(6.6, 6.6, 1); padRing.position.set(20, 0.06, -16);
-    g.add(padRing);
-    const padH1 = box(MAT.gold, 3.2, 0.15, 0.9, 20, 0.14, -16);
-    const padH2 = box(MAT.gold, 0.9, 0.15, 3.2, 20, 0.14, -16);
-    g.add(padH1, padH2);
-
-    // araç girişi (kapıdan avluya yol şeridi)
-    g.add(box(new THREE.MeshStandardMaterial({ color: 0x2c2a26, roughness: 0.9 }), 8, 0.06, 14, 0, 0.03, -R + 7));
-
-    g.add(contactShadow(R * 1.05, 0.02));
-
-    g.userData.topY = 11 + 8 + 8 + 4;
-    g.userData.footprint = R * 1.5;
-    return g;
-}
-
-// ---------- Kentsel dolgu objeleri (arabalar, konteynerler, sokak lambaları vb.) ----------
-function createProp(kind, seed) {
-    const g = new THREE.Group();
-    const r = rand01(seed);
-    if (kind === 'car') {
-        const mat = MAT.carBody[Math.floor(r * MAT.carBody.length)];
-        g.add(box(mat, 4.2, 1.3, 1.9, 0, 0.75, 0));
-        g.add(box(MAT.carGlass, 2.2, 0.8, 1.7, -0.2, 1.65, 0));
-        [[-1.4, -0.9], [1.4, -0.9], [-1.4, 0.9], [1.4, 0.9]].forEach(([wx, wz]) => g.add(cyl(MAT.metalDark, 0.42, 0.3, wx, 0.42, wz)));
-    } else if (kind === 'truck') {
-        g.add(box(MAT.carBody[2], 3, 1.6, 2.1, -1.6, 0.9, 0));
-        g.add(box(MAT.container[Math.floor(r * MAT.container.length)], 5.6, 2.4, 2.2, 1.6, 1.3, 0));
-        [[-2.6, -1], [-0.6, -1], [2.6, -1], [0.6, -1], [-2.6, 1], [-0.6, 1], [2.6, 1], [0.6, 1]].forEach(([wx, wz]) => g.add(cyl(MAT.metalDark, 0.45, 0.32, wx, 0.45, wz)));
-    } else if (kind === 'container') {
-        g.add(box(MAT.container[Math.floor(r * MAT.container.length)], 6, 2.6, 2.4, 0, 1.3, 0));
-        g.add(box(MAT.metalDark, 6.05, 0.15, 2.45, 0, 2.62, 0));
-    } else if (kind === 'trash') {
-        g.add(cyl(MAT.trash, 0.7, 1.5, 0, 0.75, 0));
-        g.add(cyl(MAT.metalDark, 0.72, 0.12, 0, 1.5, 0));
-    } else if (kind === 'lamp') {
-        g.add(cyl(MAT.lampPole, 0.22, 6.5, 0, 3.25, 0));
-        g.add(box(MAT.lampPole, 2.2, 0.22, 0.22, 1, 6.4, 0));
-        const bulb = new THREE.Mesh(GEO.sphere, MAT.lampGlow); bulb.scale.setScalar(0.42); bulb.position.set(2, 6.3, 0); g.add(bulb);
-        if (r < 0.35) { const pl = new THREE.PointLight(0xffb347, 4, 22, 2); pl.position.set(2, 6.2, 0); g.add(pl); }
-    } else if (kind === 'pole') {
-        g.add(cyl(MAT.lampPole, 0.18, 8, 0, 4, 0));
-        g.add(box(MAT.metalDark, 3, 0.12, 0.12, 0, 7.6, 0));
-    } else if (kind === 'barrier') {
-        for (let i = 0; i < 3; i++) g.add(box(MAT.barrier, 1.4, 0.9, 0.15, i * 1.7 - 1.7, 0.45, 0));
-    } else if (kind === 'sign') {
-        g.add(cyl(MAT.signPole, 0.12, 3.4, 0, 1.7, 0));
-        g.add(box(MAT.signFace, 1.4, 1.4, 0.08, 0, 3.2, 0));
-    } else if (kind === 'pallet') {
-        for (let i = 0; i < 2; i++) g.add(box(MAT.pallet, 2, 0.35, 2, 0, 0.2 + i * 0.4, 0));
-        g.add(box(MAT.container[Math.floor(r * MAT.container.length)], 1.6, 1.2, 1.6, 0, 1.4, 0));
-    } else if (kind === 'tree') {
-        g.add(cyl(MAT.treeTrunk, 0.28, 2.2, 0, 1.1, 0));
-        const leaves = new THREE.Mesh(GEO.sphere, MAT.treeLeaves); leaves.scale.setScalar(1.6 + r); leaves.position.y = 3.4; leaves.castShadow = true; g.add(leaves);
-    }
-    g.rotation.y = r * Math.PI * 2;
-    return g;
-}
-
-// ---------- Sahne kurulumu ----------
-function initMapEngine() {
-    if (mapEngineReady) return;
-    mapEngineReady = true;
-    buildTextures();
-    buildGeometryLibrary();
-
-    const container = document.getElementById('map-container');
-    const canvas = document.getElementById('map-canvas');
-    const rect = container.getBoundingClientRect();
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x171308);
-    scene.fog = new THREE.FogExp2(0x1b1710, 0.0032);
-
-    camera3d = new THREE.PerspectiveCamera(38, rect.width / rect.height, 1, 3000);
-    camState.target = new THREE.Vector3(0, 0, 0);
-    updateCameraPosition();
-
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(rect.width, rect.height);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-
-    labelRenderer = new CSS2DRenderer();
-    labelRenderer.setSize(rect.width, rect.height);
-    document.getElementById('css2d-layer').appendChild(labelRenderer.domElement);
-
-    // ışıklandırma: sıcak yönlü ana ışık + hemisfer dolgu + hafif atmosferik sis
-    const hemi = new THREE.HemisphereLight(0xffcf9a, 0x241a10, 0.55);
-    scene.add(hemi);
-    sunLight = new THREE.DirectionalLight(0xffb066, 1.55);
-    sunLight.position.set(-140, 160, 90);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
-    sunLight.shadow.camera.left = -220; sunLight.shadow.camera.right = 220;
-    sunLight.shadow.camera.top = 220; sunLight.shadow.camera.bottom = -220;
-    sunLight.shadow.camera.near = 10; sunLight.shadow.camera.far = 600;
-    sunLight.shadow.bias = -0.0015;
-    scene.add(sunLight);
-    scene.add(sunLight.target);
-    const fillLight = new THREE.DirectionalLight(0x3a5a7a, 0.28);
-    fillLight.position.set(120, 80, -100);
-    scene.add(fillLight);
-
-    // zemin (tek büyük düzlem, tekrarlanan asfalt dokusu -- performanslı ve tutarlı)
-    const groundGeo = new THREE.PlaneGeometry(4000, 4000, 1, 1);
-    groundMesh = new THREE.Mesh(groundGeo, MAT.ground);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.receiveShadow = true;
-    TEX.asphalt.repeat.set(4000 / GRID, 4000 / GRID);
-    scene.add(groundMesh);
-
-    dynamicGroup = new THREE.Group(); scene.add(dynamicGroup);
-    entitiesGroup = new THREE.Group(); scene.add(entitiesGroup);
-
-    raycaster = new THREE.Raycaster();
-    mouseNDC = new THREE.Vector2();
-
-    setupCameraControls();
-    window.addEventListener('resize', onWindowResize);
-    onWindowResize();
-    animate();
-}
-
-function onWindowResize() {
-    if (!renderer) return;
-    const rect = document.getElementById('map-container').getBoundingClientRect();
-    if (rect.width < 2 || rect.height < 2) return;
-    camera3d.aspect = rect.width / rect.height;
-    camera3d.updateProjectionMatrix();
-    renderer.setSize(rect.width, rect.height);
-    labelRenderer.setSize(rect.width, rect.height);
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    if (!renderer) return;
-    renderer.render(scene, camera3d);
-    labelRenderer.render(scene, camera3d);
-}
-
-// ---------- Kamera: pan / zoom / merkezleme (gerçek perspektif, top-down değil) ----------
-function updateCameraPosition() {
-    if (!camera3d || !camState.target) return;
-    const horiz = Math.cos(ELEV) * camState.distance;
-    const y = Math.sin(ELEV) * camState.distance;
-    camera3d.position.set(
-        camState.target.x + Math.cos(camState.azimuth) * horiz,
-        y,
-        camState.target.z + Math.sin(camState.azimuth) * horiz
-    );
-    camera3d.lookAt(camState.target);
-    if (sunLight) {
-        sunLight.target.position.copy(camState.target);
-        sunLight.position.set(camState.target.x - 140, 160, camState.target.z + 90);
-    }
-    updateCoordBadge();
-    scheduleDynamicRefresh();
-}
-
+// Camera Controller adapted for Three.js
 const camera = {
+    zoom: 1, minZoom: 0.5, maxZoom: 2.2,
+    dragging: false, lastX: 0, lastY: 0, moved: false,
+    target: new THREE.Vector3(0, 0, 0),
+    apply() {
+        if (!City3D.camera) return;
+        const aspect = window.innerWidth / window.innerHeight;
+        const d = 25 / this.zoom;
+        City3D.camera.left = -d * aspect;
+        City3D.camera.right = d * aspect;
+        City3D.camera.top = d;
+        City3D.camera.bottom = -d;
+        City3D.camera.position.set(this.target.x + 80, 80, this.target.z + 80);
+        City3D.camera.lookAt(this.target.x, 0, this.target.z);
+        City3D.camera.updateProjectionMatrix();
+        updateCoordBadge();
+    },
+    panBy(dx, dy) {
+        const panScale = 0.1 / this.zoom;
+        // Iso pan mapping
+        this.target.x -= (dx - dy) * panScale;
+        this.target.z -= (dx + dy) * panScale;
+        this.apply();
+    },
     zoomBy(f) {
-        camState.distance = Math.min(camState.maxDist, Math.max(camState.minDist, camState.distance / f));
-        updateCameraPosition();
+        const next = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom * f));
+        this.zoom = next;
+        this.apply();
     },
-    panBy(dxScreen, dyScreen) {
-        const scale = camState.distance / 620;
-        const fwd = new THREE.Vector3(Math.cos(camState.azimuth), 0, Math.sin(camState.azimuth));
-        const right = new THREE.Vector3(-Math.sin(camState.azimuth), 0, Math.cos(camState.azimuth));
-        camState.target.addScaledVector(right, -dxScreen * scale);
-        camState.target.addScaledVector(fwd, dyScreen * scale);
-        updateCameraPosition();
+    centerOn(wx, wz) {
+        this.target.set(wx * 0.1, 0, wz * 0.1);
+        this.apply();
     },
-    centerOn(wx, wz) { if (!camState.target) return; camState.target.set(wx, 0, wz); updateCameraPosition(); },
     centerOnBase() {
         if (currentPlayer && currentPlayer.base) {
             const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
             this.centerOn(wx, wz);
-        } else { this.centerOn(0, 0); }
-    },
-    get moved() { return camState.moved; }
+        } else {
+            this.centerOn(0, 0);
+        }
+    }
 };
 
 function updateCoordBadge() {
     const xEl = document.getElementById('coord-x'), yEl = document.getElementById('coord-y');
-    if (!xEl || !yEl || !camState.target) return;
-    xEl.innerText = Math.round(camState.target.x + 1000);
-    yEl.innerText = Math.round(camState.target.z + 500);
+    if (!xEl || !yEl || !City3D.camera) return;
+    xEl.innerText = Math.round(camera.target.x * 10);
+    yEl.innerText = Math.round(camera.target.z * 10);
 }
 
 function setupCameraControls() {
     const container = document.getElementById('map-container');
-    if (container.dataset.cameraBound) return;
+    if (!container || container.dataset.cameraBound) return;
     container.dataset.cameraBound = '1';
+
     let activePointerId = null;
 
     container.addEventListener('pointerdown', (e) => {
-        camState.dragging = true; camState.moved = false;
-        camState.lastX = e.clientX; camState.lastY = e.clientY;
+        if (basePlacementMode) return;
+        camera.dragging = true; camera.moved = false;
+        camera.lastX = e.clientX; camera.lastY = e.clientY;
         activePointerId = e.pointerId;
         container.classList.add('grabbing');
     });
+
     document.addEventListener('pointermove', (e) => {
-        if (!camState.dragging || e.pointerId !== activePointerId) return;
-        const dx = e.clientX - camState.lastX, dy = e.clientY - camState.lastY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) camState.moved = true;
-        camState.lastX = e.clientX; camState.lastY = e.clientY;
+        if (!camera.dragging || e.pointerId !== activePointerId) return;
+        const dx = e.clientX - camera.lastX, dy = e.clientY - camera.lastY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) camera.moved = true;
+        camera.lastX = e.clientX; camera.lastY = e.clientY;
         camera.panBy(dx, dy);
     });
+
     const endDrag = (e) => {
         if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
-        camState.dragging = false; container.classList.remove('grabbing'); activePointerId = null;
+        camera.dragging = false; container.classList.remove('grabbing');
+        activePointerId = null;
     };
-    document.addEventListener('pointerup', (e) => { endDrag(e); handleContainerClick(e); });
+    document.addEventListener('pointerup', endDrag);
     document.addEventListener('pointercancel', endDrag);
 
-    container.addEventListener('wheel', (e) => { e.preventDefault(); camera.zoomBy(e.deltaY < 0 ? 1.12 : 0.89); }, { passive: false });
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        camera.zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
+    }, { passive: false });
 
-    let pinchStartDist = null, pinchStartZoomDist = 300;
+    let pinchStartDist = null, pinchStartZoom = 1;
     container.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            pinchStartZoomDist = camState.distance;
+            pinchStartZoom = camera.zoom;
         }
     }, { passive: true });
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && pinchStartDist) {
             const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            camState.distance = Math.min(camState.maxDist, Math.max(camState.minDist, pinchStartZoomDist / (dist / pinchStartDist)));
-            updateCameraPosition();
+            camera.zoom = Math.min(camera.maxZoom, Math.max(camera.minZoom, pinchStartZoom * (dist / pinchStartDist)));
+            camera.apply();
         }
     }, { passive: true });
+
+    // Raycaster Click Event
+    container.addEventListener('click', (e) => {
+        if (camera.moved) return;
+        
+        if (basePlacementMode) {
+            const coords = City3D.getWorldCoordsFromScreen(e.clientX, e.clientY);
+            if (coords) {
+                socket.emit('buildBase', { x: coords.x, z: coords.z });
+                basePlacementMode = false;
+            }
+            return;
+        }
+
+        const rect = container.getBoundingClientRect();
+        City3D.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        City3D.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        City3D.raycaster.setFromCamera(City3D.mouse, City3D.camera);
+
+        const intersects = City3D.raycaster.intersectObjects(City3D.interactiveMeshes, true);
+        if (intersects.length > 0) {
+            let target = intersects[0].object;
+            while(target.userData && !target.userData.id && target.parent) {
+                target = target.parent;
+            }
+            if (target.userData.id) {
+                handleObjectClick(target.userData.id, target.userData.type, target.userData.data, e.clientX, e.clientY);
+            }
+        }
+    });
 }
 
-function screenToGroundPoint(clientX, clientY) {
-    const rect = document.getElementById('map-container').getBoundingClientRect();
-    mouseNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    mouseNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouseNDC, camera3d);
-    const hit = raycaster.intersectObject(groundMesh)[0];
-    return hit ? hit.point : null;
-}
-
-function handleContainerClick(e) {
-    if (!mapEngineReady || camState.moved) return;
-    const container = document.getElementById('map-container');
-    const rect = container.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
-
-    if (basePlacementMode) {
-        const p = screenToGroundPoint(e.clientX, e.clientY);
-        if (p) { socket.emit('buildBase', { x: p.x, z: p.z }); basePlacementMode = false; }
-        return;
-    }
-
-    mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouseNDC, camera3d);
-    const hits = raycaster.intersectObjects(entitiesGroup.children, true);
-    for (const hit of hits) {
-        let obj = hit.object;
-        while (obj && !obj.userData.kind) obj = obj.parent;
-        if (obj && obj.userData.kind) { dispatchEntityClick(obj.userData.kind, obj.userData.ref, e.clientX, e.clientY); return; }
-    }
-}
-
-function dispatchEntityClick(kind, ref, clientX, clientY) {
-    if (kind === 'city') {
-        const c = ref;
+function handleObjectClick(id, type, data, sx, sy) {
+    if (type === 'city') {
+        const c = data;
         const isOwner = c.owner === currentPlayer.username;
-        showRadialMenu(clientX, clientY, [
+        showRadialMenu(sx, sy, [
             { icon: '🔍', label: 'Detay', action: () => showCityPopup(c.id) },
             { icon: isOwner ? '🛡️' : '⚔️', label: isOwner ? 'Savunma' : 'Saldır', action: () => {
                 selectedCityId = c.id; selectedMineId = null; selectedBossId = null;
                 isOwner ? openDeployModal() : openAttackModal();
-            } }
+            }}
         ]);
-    } else if (kind === 'mine') {
-        const m = ref;
+    } else if (type === 'mine') {
+        const m = data;
         const isOwner = m.owner === currentPlayer.username;
         const actions = [{ icon: '🔍', label: 'Detay', action: () => showMinePopup(m.id) }];
-        if (!isOwner) actions.push({ icon: '⛏️', label: 'İşgal Et', action: () => { selectedMineId = m.id; selectedCityId = null; selectedBossId = null; openAttackModal('mine'); } });
-        showRadialMenu(clientX, clientY, actions);
-    } else if (kind === 'boss') {
-        const b = ref;
+        if (!isOwner) actions.push({ icon: '⛏️', label: 'İşgal Et', action: () => {
+            selectedMineId = m.id; selectedCityId = null; selectedBossId = null;
+            openAttackModal('mine');
+        }});
+        showRadialMenu(sx, sy, actions);
+    } else if (type === 'boss') {
+        const b = data;
         const actions = [{ icon: '🔍', label: 'Detay', action: () => showBossPopup(b.id) }];
-        if (!b.defeated) actions.push({ icon: '👹', label: 'Saldır', action: () => { selectedBossId = b.id; selectedCityId = null; selectedMineId = null; openAttackModal('boss'); } });
-        showRadialMenu(clientX, clientY, actions);
-    }
-}
-
-// ---------- Statik nesneler: gerçek worldData şehirleri / madenleri / bosslar / oyuncu üssü ----------
-function makeLabel(text, focal) {
-    const div = document.createElement('div');
-    div.className = 'iso-label' + (focal ? ' focal' : '');
-    div.textContent = text;
-    return new CSS2DObject(div);
-}
-
-function renderStaticEntities() {
-    entitiesGroup.clear();
-    if (!worldData) return;
-
-    Object.values(worldData.cities).forEach(c => {
-        const { wx, wz } = latLngToWorld(c.lat, c.lng);
-        const isCap = c.type === 'capital';
-        let group;
-        if (isCap) group = createCapitalGroup({});
-        else group = createBuildingGroup({ label: c.name, capital: false });
-        group.position.set(wx, 0, wz);
-        group.userData.kind = 'city'; group.userData.ref = c;
-        const label = makeLabel((isCap ? '👑 ' : '') + c.name, isCap);
-        label.position.set(0, group.userData.topY, 0);
-        group.add(label);
-        entitiesGroup.add(group);
-    });
-
-    Object.values(worldData.mines || {}).forEach(m => {
-        const { wx, wz } = latLngToWorld(m.lat, m.lng);
-        const group = createBuildingGroup({ label: m.name, family: 'industrial' });
-        group.scale.setScalar(0.72);
-        group.position.set(wx, 0, wz);
-        group.userData.kind = 'mine'; group.userData.ref = m;
-        const label = makeLabel((m.type === 'gold' ? '🟡 ' : '⚙️ ') + m.name, false);
-        label.position.set(0, group.userData.topY * 0.72, 0);
-        group.add(label);
-        entitiesGroup.add(group);
-    });
-
-    Object.values(worldData.bosses || {}).forEach(b => {
-        const { wx, wz } = latLngToWorld(b.lat, b.lng);
-        const group = createBuildingGroup({ label: b.beast, family: 'tower', danger: true });
-        group.scale.setScalar(0.8);
-        group.position.set(wx, 0, wz);
-        group.userData.kind = 'boss'; group.userData.ref = b;
-        const label = makeLabel((b.defeated ? '💀 ' : '👹 ') + b.beast.split(' ')[0], false);
-        label.position.set(0, group.userData.topY * 0.8, 0);
-        group.add(label);
-        entitiesGroup.add(group);
-    });
-
-    if (currentPlayer.base) {
-        const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
-        const group = createHouseGroup({ label: 'Ana Üssüm', highlight: true });
-        group.position.set(wx, 0, wz);
-        const label = makeLabel('🚩 Ana Üssüm', true);
-        label.position.set(0, group.userData.topY, 0);
-        group.add(label);
-        entitiesGroup.add(group);
-    }
-}
-
-// worldData nesnelerinin kapladığı grid hücrelerini işaretle: dekoratif dolgu bunlarla çakışmasın
-function computeOccupiedCells() {
-    const occ = new Set();
-    const mark = (wx, wz) => {
-        const gx = Math.round(wx / GRID), gz = Math.round(wz / GRID);
-        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) occ.add((gx + dx) + ',' + (gz + dz));
-    };
-    if (worldData) {
-        Object.values(worldData.cities).forEach(c => { const { wx, wz } = latLngToWorld(c.lat, c.lng); mark(wx, wz); });
-        Object.values(worldData.mines || {}).forEach(m => { const { wx, wz } = latLngToWorld(m.lat, m.lng); mark(wx, wz); });
-        Object.values(worldData.bosses || {}).forEach(b => { const { wx, wz } = latLngToWorld(b.lat, b.lng); mark(wx, wz); });
-    }
-    if (currentPlayer && currentPlayer.base) mark(currentPlayer.base.x, currentPlayer.base.z);
-    return occ;
-}
-
-// ---------- Dinamik şehir dolgusu: kameranın etrafında yoğun, organik şehir kalabalığı ----------
-function scheduleDynamicRefresh() {
-    if (!camState.target) return;
-    const cx = Math.round(camState.target.x / GRID), cz = Math.round(camState.target.z / GRID);
-    const key = cx + ',' + cz;
-    if (key === lastDynCell) return;
-    lastDynCell = key;
-    requestAnimationFrame(() => refreshDynamicContent(cx, cz));
-}
-
-const propKinds = ['car', 'car', 'truck', 'container', 'trash', 'lamp', 'pole', 'barrier', 'sign', 'pallet', 'tree'];
-
-function refreshDynamicContent(cx, cz) {
-    if (!dynamicGroup) return;
-    dynamicGroup.clear();
-    const occ = computeOccupiedCells();
-    const centerDist = 0; // odak mesafesi hesaplaması için merkez (0,0) kabul edilir
-    for (let gx = cx - DYN_RADIUS; gx <= cx + DYN_RADIUS; gx++) {
-        for (let gz = cz - DYN_RADIUS; gz <= cz + DYN_RADIUS; gz++) {
-            const cellKey = gx + ',' + gz;
-            if (occ.has(cellKey)) continue;
-            const wx = gx * GRID, wz = gz * GRID;
-            const seed = Math.abs(gx * 928371 + gz * 12923);
-            const noiseA = Math.sin(gx * 0.62 + gz * 0.31) + Math.cos(gx * 0.19 - gz * 0.54);
-            const noiseB = Math.sin(gx * 1.7 + gz * 2.3 + gx * gz * 0.05) * 0.5;
-            const jitter = rand01(gx * 12.9898 + gz * 78.233);
-            const density = (noiseA + noiseB + jitter * 1.4) / 4;
-
-            // merkeze (ana odak) yakınlık: uzak bölgelerde yoğunluk ve detay azaltılır (görsel hiyerarşi)
-            const distFromFocus = Math.hypot(wx, wz);
-            const farFactor = Math.max(0, 1 - distFromFocus / 900);
-
-            if (density > -0.02 && jitter < 0.42) {
-                const variant = familyForSeed(seed);
-                const group = createBuildingGroup({ label: 'deco' + cellKey, family: variant, seed });
-                const scaleDown = 0.55 + rand01(seed + 3) * 0.35;
-                group.scale.setScalar(scaleDown);
-                group.position.set(wx, 0, wz);
-                // uzak binalar: soluk, düşük kontrast (renk tonu griye kaydırılır) -- 2D'ye dönüşmeden derinlik hissi
-                if (farFactor < 0.7) {
-                    group.traverse(o => { if (o.isMesh && o.material && o.material.color) { /* paylaşımlı materyal - klonlamadan kaçın, sadece opacity ile derinlik veriyoruz */ } });
-                }
-                dynamicGroup.add(group);
-            } else if (jitter > 0.55 && jitter < 0.62) {
-                const tree = createProp('tree', seed);
-                tree.position.set(wx, 0, wz);
-                dynamicGroup.add(tree);
-            } else if (jitter >= 0.62) {
-                const kindIdx = Math.floor(rand01(seed + 11) * propKinds.length);
-                const prop = createProp(propKinds[kindIdx], seed + 11);
-                prop.position.set(wx + (rand01(seed + 2) - 0.5) * GRID * 0.5, 0, wz + (rand01(seed + 5) - 0.5) * GRID * 0.5);
-                dynamicGroup.add(prop);
-            }
-        }
+        if (!b.defeated) actions.push({ icon: '👹', label: 'Saldır', action: () => {
+            selectedBossId = b.id; selectedCityId = null; selectedMineId = null;
+            openAttackModal('boss');
+        }});
+        showRadialMenu(sx, sy, actions);
     }
 }
 
 function renderMap() {
-    (async () => {
-        await threeReadyPromise;
-        if (!THREE) return;
-        if (!mapEngineReady) initMapEngine();
-        if (!worldData) return;
-        renderStaticEntities();
-        lastDynCell = null;
-        scheduleDynamicRefresh();
-    })();
+    setupCameraControls();
+    if (!worldData) return;
+
+    City3D.clearInteractive();
+
+    Object.values(worldData.cities).forEach(c => {
+        const { wx, wz } = latLngToWorld(c.lat, c.lng);
+        City3D.addInteractiveBuilding(wx, wz, 'city', c, c.name, c.empireColor || 0xffd700);
+    });
+
+    Object.values(worldData.mines || {}).forEach(m => {
+        const { wx, wz } = latLngToWorld(m.lat, m.lng);
+        City3D.addInteractiveBuilding(wx, wz, 'mine', m, m.name, 0xffd700);
+    });
+
+    Object.values(worldData.bosses || {}).forEach(b => {
+        const { wx, wz } = latLngToWorld(b.lat, b.lng);
+        City3D.addInteractiveBuilding(wx, wz, 'boss', b, b.beast.split(' ')[0], 0xff2b2b);
+    });
+
+    if (currentPlayer.base) {
+        const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
+        City3D.addInteractiveBuilding(wx, wz, 'base', { id: 'base', color: currentPlayer.empireColor }, 'Ana Üssüm', currentPlayer.empireColor);
+    }
 }
 
+// ============ DAİRESEL HIZLI AKSİYON MENÜSÜ ============
 function showRadialMenu(screenX, screenY, actions) {
     const menu = document.getElementById('radial-menu');
     if (!menu) return;
@@ -1236,8 +907,6 @@ function hideRadialMenu() {
     if (menu) { menu.classList.remove('active'); menu.innerHTML = ''; }
 }
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.radial-btn')) hideRadialMenu(); });
-
-function playerFlagEmoji() { return '🚩'; }
 
 function showCityPopup(id) {
     const c = worldData.cities[id]; if(!c) return;
@@ -1367,52 +1036,85 @@ function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-
 socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
 socket.on('baseBuilt', (b) => { currentPlayer.base=b; renderMap(); camera.centerOnBase(); });
 
-// ---------- Savaş animasyonu: 3D dünya koordinatları arasında CSS2D emoji-sprite ile ----------
 socket.on('battleAnimation', (d) => {
-    (async () => {
-        await threeReadyPromise;
-        if (!THREE || !mapEngineReady || !worldData) return;
-        const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
-        if (!target) return;
+    const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
+    if (!target) return;
 
-        const start = currentPlayer.base ? xzToWorld(currentPlayer.base.x, currentPlayer.base.z) : { wx: 0, wz: 0 };
-        const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : xzToWorld(target.x, target.z);
+    const start = currentPlayer.base ? xzToWorld(currentPlayer.base.x, currentPlayer.base.z) : { wx: 0, wz: 0 };
+    const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : xzToWorld(target.x, target.z);
 
-        const marchDiv = document.createElement('div'); marchDiv.className = 'fx-icon'; marchDiv.textContent = '⚔️';
-        marchDiv.style.color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6, '0');
-        const marchObj = new CSS2DObject(marchDiv);
-        marchObj.position.set(start.wx, 6, start.wz);
-        scene.add(marchObj);
+    // Create 3D March Sprite
+    const marchCanvas = document.createElement('canvas');
+    marchCanvas.width = 64; marchCanvas.height = 64;
+    const ctx = marchCanvas.getContext('2d');
+    ctx.font = '48px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚔️', 32, 32);
+    const marchTex = new THREE.CanvasTexture(marchCanvas);
+    const marchMat = new THREE.SpriteMaterial({ map: marchTex, depthTest: false });
+    const marchSprite = new THREE.Sprite(marchMat);
+    marchSprite.scale.set(4, 4, 1);
+    marchSprite.position.set(start.wx * 0.1, 10, start.wz * 0.1);
+    City3D.scene.add(marchSprite);
 
-        const t0 = performance.now(), dur = 1000;
-        function tick(now) {
-            const p = Math.min(1, (now - t0) / dur);
-            marchObj.position.set(start.wx + (end.wx - start.wx) * p, 6, start.wz + (end.wz - start.wz) * p);
-            if (p < 1) requestAnimationFrame(tick);
-            else finishBattle();
-        }
-        requestAnimationFrame(tick);
-
-        function finishBattle() {
-            scene.remove(marchObj);
+    // Animate movement
+    const startTime = Date.now();
+    const duration = 1000;
+    const animateMarch = () => {
+        const elapsed = Date.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const curX = start.wx * 0.1 + (end.wx * 0.1 - start.wx * 0.1) * t;
+        const curZ = start.wz * 0.1 + (end.wz * 0.1 - start.wz * 0.1) * t;
+        marchSprite.position.x = curX;
+        marchSprite.position.z = curZ;
+        if (t < 1) {
+            requestAnimationFrame(animateMarch);
+        } else {
+            City3D.scene.remove(marchSprite);
+            marchTex.dispose(); marchMat.dispose();
+            
+            // Explosion
             playSound('explosion');
-
-            const boomDiv = document.createElement('div'); boomDiv.className = 'fx-boom'; boomDiv.textContent = '💥';
-            const boomObj = new CSS2DObject(boomDiv);
-            boomObj.position.set(end.wx, 8, end.wz);
-            scene.add(boomObj);
-
-            const txtDiv = document.createElement('div'); txtDiv.className = 'fx-text'; txtDiv.textContent = d.result.attackerWins ? 'Zafer!' : 'Yenilgi!';
-            txtDiv.style.color = d.result.attackerWins ? 'var(--green)' : 'var(--red)';
-            const txtObj = new CSS2DObject(txtDiv);
-            txtObj.position.set(end.wx, 14, end.wz);
-            scene.add(txtObj);
-
-            setTimeout(() => { boomDiv.style.opacity = '0'; boomDiv.style.transform = 'translate(-50%,-50%) scale(2)'; txtDiv.style.opacity = '0'; }, 100);
-            setTimeout(() => { scene.remove(boomObj); scene.remove(txtObj); }, 1000);
+            const boomCanvas = document.createElement('canvas');
+            boomCanvas.width = 64; boomCanvas.height = 64;
+            const bCtx = boomCanvas.getContext('2d');
+            bCtx.font = '48px serif';
+            bCtx.textAlign = 'center';
+            bCtx.textBaseline = 'middle';
+            bCtx.fillText('💥', 32, 32);
+            const boomTex = new THREE.CanvasTexture(boomCanvas);
+            const boomMat = new THREE.SpriteMaterial({ map: boomTex, depthTest: false });
+            const boomSprite = new THREE.Sprite(boomMat);
+            boomSprite.scale.set(6, 6, 1);
+            boomSprite.position.set(end.wx * 0.1, 10, end.wz * 0.1);
+            City3D.scene.add(boomSprite);
+            
+            setTimeout(() => {
+                // Fade out explosion
+                const fadeStart = Date.now();
+                const fadeDur = 500;
+                const fadeAnim = () => {
+                    const t = (Date.now() - fadeStart) / fadeDur;
+                    boomSprite.material.opacity = 1 - t;
+                    boomSprite.scale.set(6 + t * 4, 6 + t * 4, 1);
+                    if (t < 1) requestAnimationFrame(fadeAnim);
+                    else {
+                        City3D.scene.remove(boomSprite);
+                        boomTex.dispose(); boomMat.dispose();
+                    }
+                };
+                fadeAnim();
+            }, 100);
         }
-    })();
+    };
+    animateMarch();
 });
+
+function playSound(type) {
+    if (!audioCtx) return; const now = audioCtx.currentTime;
+    if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
+}
 
 socket.on('toast', (d) => showToast(d.type, d.msg));
 socket.on('error', (m) => showToast('error', m));
