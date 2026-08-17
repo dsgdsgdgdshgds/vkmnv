@@ -3,23 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AtlasWarfare - 3D Mafia Strategy</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <title>AtlasWarfare - Dünyayı Fethet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --primary: #ff6b00; 
-            --secondary: #00d4ff; 
-            --dark: #0a0a0a; 
-            --panel: rgba(15, 15, 20, 0.95); 
-            --panel-border: rgba(255, 107, 0, 0.3); 
-            --gold: #ffd700; 
-            --red: #ff3333; 
-            --green: #00cc44; 
+        :root {
+            --primary: #ff6b00;
+            --secondary: #00d4ff;
+            --dark: #0a0a0a;
+            --panel: rgba(15, 15, 20, 0.95);
+            --panel-border: rgba(255, 107, 0, 0.3);
+            --gold: #ffd700;
+            --red: #ff3333;
+            --green: #00cc44;
+            --mansion-blue: #5a7fa8;
+            --mansion-blue-dark: #2f4663;
+            --wall-stone: #8a8275;
+            --wall-stone-dark: #5d574b;
+            --gold-glow: rgba(255, 215, 0, 0.45);
+            --concrete: #6e6a5f;
+            --asphalt: #3d3a33;
+            --asphalt-dark: #2a2820;
+            --grass: #4a5a34;
+            --grass-dark: #3d4c2a;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; }
+        body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
+        canvas { display: block; }
 
-        /* GİRİŞ EKRANI */
+        /* ====== AUTH SCREEN (KORUNDU) ====== */
         #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%); position: relative; z-index: 100; }
         #auth-screen::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920') no-repeat center; background-size: cover; opacity: 0.15; filter: blur(2px); }
         .auth-box { background: var(--panel); border: 2px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 1; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
@@ -33,8 +44,12 @@
         .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
         .btn-secondary:hover { background: rgba(0,212,255,0.1); }
         .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
+        .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
+        .auth-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .auth-tab { flex: 1; padding: 8px; background: rgba(0,0,0,0.4); border: 1px solid #333; color: #aaa; cursor: pointer; border-radius: 4px; font-family: 'Rajdhani'; font-weight: 600; }
+        .auth-tab.active { background: rgba(255,107,0,0.2); border-color: var(--primary); color: white; }
 
-        /* KARAKTER SEÇİM */
+        /* ====== CHAR SELECT (KORUNDU) ====== */
         #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
         .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
         .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
@@ -47,216 +62,417 @@
         .color-swatch:hover { transform: scale(1.1); }
         .color-swatch.selected { border-color: white; box-shadow: 0 0 20px currentColor; }
 
-        /* OYUN EKRANI (3D MAFIA CITY) */
-        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; }
-        
-        /* Three.js Canvas Container */
-        #map-container { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; 
-            cursor: grab;
-            touch-action: none;
-        }
-        #map-container.grabbing { cursor: grabbing; }
+        /* ====== GAME SCREEN ====== */
+        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #000; }
+        #scene-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+        #scene-container.grabbing { cursor: grabbing; }
+        #scene-container canvas { display: block; }
 
-        /* Koordinat Rozeti ve Zoom */
-        #coord-badge {
-            position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
-            background: rgba(10,10,8,0.85); border: 1px solid var(--gold); border-radius: 6px;
-            padding: 4px 14px; font-size: 0.8rem; color: var(--gold); font-weight: 700;
-            letter-spacing: 1px; z-index: 18; pointer-events: none;
+        /* Sinematik golden hour overlay — 3D sahnenin üstünde, tıklamayı engellemez */
+        #golden-hour-overlay {
+            position: absolute; inset: 0; pointer-events: none; z-index: 8;
+            background:
+                radial-gradient(ellipse at 18% 12%, rgba(255,178,90,0.22) 0%, transparent 45%),
+                linear-gradient(150deg, rgba(255,140,60,0.10) 0%, transparent 35%, rgba(20,10,30,0.28) 100%);
+            mix-blend-mode: overlay;
         }
+
+        /* Loading screen (üç varlık indirilirken) */
+        #loading-screen {
+            position: fixed; inset: 0; background: #0a0a0a; z-index: 200;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.6s;
+        }
+        #loading-screen .game-title { font-size: 3rem; }
+        .loading-bar { width: 280px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 30px; overflow: hidden; }
+        .loading-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--gold)); width: 0%; transition: width 0.3s; }
+        .loading-text { color: #888; font-size: 0.9rem; margin-top: 12px; letter-spacing: 2px; }
+
+        /* ====== HUD ====== */
+        .top-bar {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+            background: linear-gradient(180deg, rgba(0,0,0,0.85), transparent);
+            padding: 10px 15px; display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: none;
+        }
+        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
+        .stat-badge {
+            background: linear-gradient(180deg, rgba(40,32,20,0.95), rgba(18,14,8,0.95));
+            padding: 5px 11px; border-radius: 8px;
+            border: 1px solid var(--gold); font-size: 0.85rem; display: flex; align-items: center; gap: 5px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+        .stat-badge .label { color: #c9b890; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-badge .value { color: var(--gold); font-weight: 700; font-size: 0.95rem; }
+        .avatar {
+            width: 48px; height: 48px; border-radius: 8px; border: 2px solid var(--gold);
+            display: flex; justify-content: center; align-items: center; font-size: 1.8rem;
+            background: linear-gradient(180deg,#2a2a30,#141418); box-shadow: 0 0 10px rgba(255,107,0,0.5), inset 0 0 8px rgba(0,0,0,0.6);
+        }
+
+        .right-actions {
+            position: absolute; top: 80px; right: 12px; z-index: 21;
+            display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
+        }
+        .action-btn {
+            width: 50px; height: 50px; border-radius: 12px;
+            background: linear-gradient(180deg, rgba(40,30,18,0.95), rgba(20,14,8,0.95));
+            border: 1px solid var(--gold); color: var(--gold);
+            display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+            cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,0.7);
+            position: relative;
+        }
+        .action-btn:active { transform: scale(0.92); }
+        .action-btn .badge {
+            position: absolute; top: -4px; right: -4px; background: var(--red); color: white;
+            font-size: 0.65rem; min-width: 18px; height: 18px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; padding: 0 4px; font-weight: 700;
+        }
+
+        /* BOTTOM TOOLBAR */
+        .bottom-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 100px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.92), transparent);
+            display: flex; justify-content: center; align-items: flex-end; padding-bottom: 14px; z-index: 20;
+            pointer-events: none;
+        }
+        .toolbar {
+            display: flex; gap: 8px; pointer-events: auto;
+            background: linear-gradient(180deg, rgba(46,34,20,0.97), rgba(20,14,8,0.97));
+            padding: 8px 14px; border-radius: 14px;
+            border: 1px solid var(--gold);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+            overflow-x: auto; max-width: 96vw;
+        }
+        .tool-btn {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 6px 4px;
+            border-radius: 8px; transition: 0.2s; min-width: 60px;
+        }
+        .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-3px); }
+        .tool-icon { font-size: 1.7rem; margin-bottom: 2px; filter: drop-shadow(0 0 3px var(--primary)); }
+        .tool-text { font-size: 0.68rem; color: #d8c9a8; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+
+        /* ZOOM CONTROLS */
         #zoom-controls {
             position: absolute; right: 14px; bottom: 130px; z-index: 21;
             display: flex; flex-direction: column; gap: 8px;
         }
         .zoom-btn {
-            width: 40px; height: 40px; border-radius: 8px;
+            width: 42px; height: 42px; border-radius: 10px;
             background: linear-gradient(180deg, rgba(30,30,26,0.95), rgba(15,15,12,0.95));
-            border: 1px solid var(--gold); color: var(--gold); font-size: 1.3rem; font-weight: 900;
+            border: 1px solid var(--gold); color: var(--gold); font-size: 1.4rem; font-weight: 900;
             display: flex; align-items: center; justify-content: center; cursor: pointer;
             box-shadow: 0 3px 8px rgba(0,0,0,0.6);
         }
         .zoom-btn:active { transform: scale(0.92); }
 
-        /* Üst Bar (Mafia City Tarzı) */
-        .top-bar { 
-            position: absolute; top: 0; left: 0; right: 0; z-index: 20; 
-            background: linear-gradient(180deg, rgba(0,0,0,0.95), transparent); 
-            padding: 10px 15px; display: flex; justify-content: space-between; align-items: flex-start; 
-            pointer-events: none; 
+        /* MODAL — Mafia City tarzı parşömen/ahşap çerçeve */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.78); z-index: 90; display: none; justify-content: center; align-items: center; padding: 16px;
         }
-        .player-info { display: flex; gap: 8px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
-        .stat-badge { 
-            background: linear-gradient(180deg, rgba(40,32,20,0.95), rgba(18,14,8,0.95)); 
-            padding: 5px 11px; border-radius: 8px; 
-            border: 1px solid var(--gold); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; 
-            box-shadow: 0 3px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+        .modal-box {
+            background: linear-gradient(180deg, #2a1d10, #15100a);
+            border: 2px solid var(--gold); border-radius: 10px;
+            padding: 22px 22px 18px; max-width: 520px; width: 100%; max-height: 86vh; overflow-y: auto;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8), inset 0 0 30px rgba(0,0,0,0.4);
+            position: relative;
         }
-        .stat-badge span { color: var(--gold); font-weight: 700; font-size: 0.95rem; }
-        .avatar { 
-            width: 48px; height: 48px; border-radius: 8px; border: 2px solid var(--gold); 
-            display: flex; justify-content: center; align-items: center; font-size: 1.8rem; 
-            background: linear-gradient(180deg,#2a2a30,#141418); box-shadow: 0 0 10px rgba(255,107,0,0.5), inset 0 0 8px rgba(0,0,0,0.6);
+        .modal-box::before, .modal-box::after {
+            content: ''; position: absolute; width: 22px; height: 22px;
+            border: 2px solid var(--gold); border-radius: 4px;
+        }
+        .modal-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .modal-box::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+        .modal-box h2 {
+            font-family: 'Cinzel', serif; color: var(--gold);
+            text-align: center; margin-bottom: 14px; font-size: 1.4rem; letter-spacing: 1.5px;
+            text-shadow: 0 0 12px rgba(255,215,0,0.4);
+        }
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 10px; border-bottom: 1px solid rgba(255,215,0,0.1);
+            font-size: 0.95rem;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row span:first-child { color: #c9b890; }
+        .input-group { margin: 8px 0; }
+        .input-group label { display: block; font-size: 0.85rem; color: #c9b890; margin-bottom: 4px; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 10px; background: rgba(0,0,0,0.5);
+            border: 1px solid #444; color: white; border-radius: 4px;
+            font-family: 'Rajdhani'; font-size: 1rem;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--gold); outline: none; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .modal-actions .btn { margin: 0; }
+
+        /* Resource bar upgrade gösterimi (modal içi) */
+        .res-bar { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+        .res-bar .icon { font-size: 1.2rem; }
+        .res-bar .name { flex: 0 0 100px; color: #c9b890; font-size: 0.9rem; }
+        .res-bar .progress { flex: 1; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .res-bar .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--gold)); }
+        .res-bar .value { color: var(--gold); font-weight: 700; min-width: 80px; text-align: right; font-size: 0.9rem; }
+
+        /* TOAST */
+        #toast-container {
+            position: fixed; top: 80px; right: 12px; z-index: 100;
+            display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+        }
+        .toast {
+            background: var(--panel); border: 1px solid var(--gold); color: white;
+            padding: 10px 16px; border-radius: 6px; font-size: 0.9rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6); min-width: 200px;
+            animation: toastIn 0.3s; font-weight: 600;
+        }
+        .toast.success { border-color: var(--green); }
+        .toast.error, .toast.defeat { border-color: var(--red); }
+        .toast.info, .toast.victory { border-color: var(--secondary); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* TUTORIAL OVERLAY */
+        #tutorial-overlay {
+            position: fixed; inset: 0; z-index: 85; pointer-events: none;
+            display: none;
+        }
+        #tutorial-overlay.active { display: block; pointer-events: auto; }
+        #tutorial-overlay .dim { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+        #tutorial-card {
+            position: absolute; right: 20px; bottom: 130px;
+            background: var(--panel); border: 2px solid var(--gold); border-radius: 10px;
+            padding: 16px 18px; max-width: 320px; width: calc(100vw - 40px);
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+        #tutorial-card h3 { color: var(--gold); font-family: 'Cinzel'; margin-bottom: 10px; font-size: 1.2rem; }
+        #tutorial-card p { color: #ddd; line-height: 1.5; font-size: 0.95rem; }
+        #tutorial-card .actions { display: flex; gap: 8px; margin-top: 14px; }
+
+        /* WORLD MAP */
+        #world-map-overlay {
+            position: absolute; inset: 0; z-index: 50; background: #0a0a0a; display: none;
+        }
+        #world-map-overlay.active { display: block; }
+        #world-map-canvas { width: 100%; height: 100%; display: block; }
+        #world-map-close {
+            position: absolute; top: 12px; right: 12px; z-index: 51;
+            background: var(--panel); border: 1px solid var(--gold); color: var(--gold);
+            width: 40px; height: 40px; border-radius: 8px; font-size: 1.4rem; cursor: pointer;
+        }
+        #world-map-title {
+            position: absolute; top: 12px; left: 12px; z-index: 51;
+            background: var(--panel); border: 1px solid var(--gold); border-radius: 8px;
+            padding: 8px 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 1rem; letter-spacing: 1.5px;
         }
 
-        /* Alt Bar */
-        .bottom-bar { 
-            position: absolute; bottom: 0; left: 0; right: 0; height: 90px; 
-            background: linear-gradient(0deg, rgba(0,0,0,0.95), transparent); 
-            display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px; z-index: 20; 
-            pointer-events: none; 
-        }
-        .toolbar { 
-            display: flex; gap: 12px; pointer-events: auto; 
-            background: linear-gradient(180deg, rgba(46,34,20,0.97), rgba(20,14,8,0.97)); 
-            padding: 10px 18px; border-radius: 14px; border-top: 2px solid var(--gold); 
-            border-left: 1px solid var(--gold); border-right: 1px solid var(--gold); border-bottom: 1px solid var(--gold);
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06); 
-        }
-        .tool-btn { 
-            display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 5px; 
-            border-radius: 8px; transition: 0.2s; width: 58px; 
-        }
-        .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-3px); }
-        .tool-icon { font-size: 1.9rem; margin-bottom: 2px; filter: drop-shadow(0 0 3px var(--primary)); }
-        .tool-text { font-size: 0.7rem; color: #d8c9a8; text-transform: uppercase; font-weight: 600; }
-
-        /* Modallar */
-        .modal-overlay { 
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-            background: rgba(0,0,0,0.8); z-index: 50; display: none; 
-            justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s; 
-        }
-        .modal-box { 
-            background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; 
-            padding: 30px; width: 450px; max-width: 90vw; max-height: 80vh; overflow-y: auto; 
-            box-shadow: 0 0 50px rgba(255,107,0,0.3); animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-        .modal-box h2 { font-family: 'Cinzel'; color: var(--gold); margin-bottom: 20px; text-align: center; text-shadow: 0 0 10px var(--primary); }
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 1rem; }
-        .info-row span:first-child { color: #aaa; }
-        .input-group { margin: 10px 0; }
-        .input-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
-        .input-group input { width: 100%; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: white; border-radius: 6px; font-family: 'Rajdhani'; font-size: 1rem; }
-
-        /* Toast ve Radial Menü */
-        #toast-container { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        .toast { padding: 12px 25px; border-radius: 8px; margin-top: 8px; font-weight: 700; animation: scaleIn 0.4s; text-align: center; min-width: 250px; border: 1px solid var(--gold); }
-        .toast.success { background: rgba(0,204,68,0.9); }
-        .toast.victory { background: rgba(255,215,0,0.9); color: #000; }
-        .toast.defeat { background: rgba(255,51,51,0.9); }
-        .toast.info { background: rgba(0,212,255,0.9); color: #000; }
-        .toast.error { background: rgba(255,51,51,0.9); }
-
+        /* Radial menu (KORUNDU) */
         #radial-menu { position: fixed; left: 0; top: 0; z-index: 60; display: none; pointer-events: none; }
         #radial-menu.active { display: block; pointer-events: auto; }
         .radial-btn {
-            position: absolute; width: 46px; height: 46px; border-radius: 50%;
+            position: absolute; width: 50px; height: 50px; border-radius: 50%;
             background: linear-gradient(180deg, rgba(42,32,18,0.97), rgba(15,12,8,0.97));
             border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
-            font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08);
+            font-size: 1.3rem; box-shadow: 0 4px 14px rgba(0,0,0,0.65);
             cursor: pointer; transform: translate(-50%, -50%) scale(0);
             transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         #radial-menu.active .radial-btn { transform: translate(-50%, -50%) scale(1); }
         .radial-btn:active { transform: translate(-50%, -50%) scale(0.88); }
-        .radial-btn-label { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: var(--gold); white-space: nowrap; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+        .radial-btn-label {
+            position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+            font-size: 0.65rem; color: var(--gold); white-space: nowrap; font-weight: 700;
+            text-shadow: 1px 1px 0 #000;
+        }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        /* Coord badge */
+        #coord-badge {
+            position: absolute; bottom: 116px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,10,8,0.85); border: 1px solid var(--gold); border-radius: 6px;
+            padding: 4px 14px; font-size: 0.8rem; color: var(--gold); font-weight: 700;
+            letter-spacing: 1px; z-index: 18; pointer-events: none;
+        }
+
+        /* Lang switch */
+        #lang-switch {
+            position: absolute; top: 10px; right: 50%; transform: translateX(50%);
+            z-index: 22; pointer-events: auto;
+        }
+        #lang-switch button {
+            background: rgba(0,0,0,0.6); border: 1px solid var(--gold); color: var(--gold);
+            padding: 4px 10px; font-size: 0.7rem; cursor: pointer; border-radius: 4px;
+            font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        }
+        #lang-switch button.active { background: var(--gold); color: #000; }
+
+        /* Build preview ghost */
+        #build-ghost-info {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); border: 1px solid var(--gold); border-radius: 6px;
+            padding: 8px 16px; color: var(--gold); font-size: 0.9rem; z-index: 22;
+            display: none;
+        }
+        #build-ghost-info.active { display: block; }
+
+        /* MOBILE tweaks */
+        @media (max-width: 720px) {
+            .toolbar { padding: 6px 8px; gap: 4px; }
+            .tool-btn { min-width: 52px; padding: 4px 2px; }
+            .tool-icon { font-size: 1.4rem; }
+            .tool-text { font-size: 0.6rem; }
+            .right-actions { top: 70px; right: 8px; gap: 6px; }
+            .action-btn { width: 42px; height: 42px; font-size: 1.2rem; }
+            #zoom-controls { right: 8px; bottom: 120px; }
+            .stat-badge { padding: 4px 8px; font-size: 0.78rem; }
+            .avatar { width: 40px; height: 40px; font-size: 1.5rem; }
+        }
+
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
 
-<!-- AUTH SCREEN (Korundu) -->
-<div id="auth-screen">
+<!-- ===== LOADING ===== -->
+<div id="loading-screen">
+    <div class="game-title">ATLAS WARFARE</div>
+    <div class="game-subtitle">Loading the city…</div>
+    <div class="loading-bar"><div class="loading-bar-fill" id="loading-fill"></div></div>
+    <div class="loading-text" id="loading-text">Initializing 3D engine</div>
+</div>
+
+<!-- ===== AUTH (KORUNDU) ===== -->
+<div id="auth-screen" style="display:none;">
     <div class="auth-box">
         <div class="game-title">ATLAS WARFARE</div>
-        <div class="game-subtitle">3D Mafia Strategy</div>
+        <div class="game-subtitle" data-i18n="subtitle">Dünyayı Fethet</div>
+        <div class="auth-tabs">
+            <div class="auth-tab active" onclick="toggleAuth('login')" data-i18n="login">Giriş</div>
+            <div class="auth-tab" onclick="toggleAuth('register')" data-i18n="register">Kayıt</div>
+            <div class="auth-tab" onclick="toggleAuth('forgot')" data-i18n="forgot">Şifremi Unuttum</div>
+        </div>
+
         <div id="login-form">
-            <input type="text" id="login-username" class="auth-input" placeholder="Kahraman Adı veya E-posta" onkeydown="if(event.key==='Enter')login()">
-            <input type="password" id="login-password" class="auth-input" placeholder="Şifre" onkeydown="if(event.key==='Enter')login()">
-            <button class="btn btn-primary" onclick="login()">Giriş Yap</button>
-            <button class="btn btn-secondary" onclick="toggleAuth('register')">Hesap Oluştur</button>
-            <button class="btn btn-secondary" onclick="toggleAuth('forgot')" style="margin-top:5px;font-size:0.85rem;padding:8px;">Şifremi Unuttum</button>
-            <div id="login-error" class="error-msg"></div>
+            <input class="auth-input" id="login-username" data-i18n-ph="username" placeholder="Kullanıcı Adı">
+            <input class="auth-input" id="login-password" type="password" data-i18n-ph="password" placeholder="Şifre">
+            <button class="btn btn-primary" onclick="login()" data-i18n="enter">Giriş Yap</button>
+            <div class="error-msg" id="login-error"></div>
         </div>
         <div id="register-form" style="display:none;">
-            <input type="text" id="reg-username" class="auth-input" placeholder="Kahraman Adı">
-            <input type="email" id="reg-email" class="auth-input" placeholder="E-posta">
-            <input type="password" id="reg-password" class="auth-input" placeholder="Şifre (min 6)">
-            <input type="password" id="reg-password-confirm" class="auth-input" placeholder="Şifre Tekrar">
-            <button class="btn btn-primary" onclick="register()">Kayıt Ol</button>
-            <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
-            <div id="reg-error" class="error-msg"></div>
+            <input class="auth-input" id="reg-username" data-i18n-ph="username" placeholder="Kullanıcı Adı">
+            <input class="auth-input" id="reg-email" type="email" data-i18n-ph="email" placeholder="E-posta">
+            <input class="auth-input" id="reg-password" type="password" data-i18n-ph="password" placeholder="Şifre">
+            <input class="auth-input" id="reg-password-confirm" type="password" data-i18n-ph="passwordConfirm" placeholder="Şifre (Tekrar)">
+            <button class="btn btn-primary" onclick="register()" data-i18n="create">Hesap Oluştur</button>
+            <div class="error-msg" id="reg-error"></div>
         </div>
         <div id="verify-form" style="display:none;">
-            <h3 style="color:var(--secondary);margin-bottom:10px;">E-posta Doğrulama</h3>
-            <input type="text" id="verify-code" class="auth-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:1.5rem;letter-spacing:10px;">
-            <button class="btn btn-primary" onclick="verifyEmail()">Doğrula ve Oyna</button>
-            <button class="btn btn-secondary" onclick="resendCode()" style="margin-top:5px;font-size:0.85rem;padding:8px;">Kodu Tekrar Gönder</button>
-            <div id="verify-error" class="error-msg"></div>
+            <p style="color:#c9b890;margin-bottom:10px;" data-i18n="verifySent">E-postana gönderilen kodu gir:</p>
+            <input class="auth-input" id="verify-code" data-i18n-ph="code" placeholder="Doğrulama Kodu">
+            <button class="btn btn-primary" onclick="verifyEmail()" data-i18n="verify">Doğrula</button>
+            <button class="btn btn-secondary" onclick="resendCode()" data-i18n="resend">Yeniden Gönder</button>
+            <div class="error-msg" id="verify-error"></div>
         </div>
         <div id="forgot-form" style="display:none;">
-            <input type="email" id="forgot-email" class="auth-input" placeholder="E-posta">
-            <button class="btn btn-primary" onclick="forgotPassword()">Kod Gönder</button>
-            <div id="forgot-code-area" style="display:none;margin-top:10px;">
-                <input type="text" id="forgot-code" class="auth-input" placeholder="Kod">
-                <input type="password" id="forgot-newpass" class="auth-input" placeholder="Yeni Şifre">
-                <button class="btn btn-primary" onclick="resetPassword()">Sıfırla</button>
+            <input class="auth-input" id="forgot-email" type="email" data-i18n-ph="email" placeholder="E-posta">
+            <button class="btn btn-primary" onclick="forgotPassword()" data-i18n="sendCode">Kod Gönder</button>
+            <div id="forgot-code-area" style="display:none;margin-top:14px;">
+                <input class="auth-input" id="forgot-code" data-i18n-ph="code" placeholder="Kod">
+                <input class="auth-input" id="forgot-newpass" type="password" data-i18n-ph="newPassword" placeholder="Yeni Şifre">
+                <button class="btn btn-primary" onclick="resetPassword()" data-i18n="resetPassword">Şifreyi Sıfırla</button>
             </div>
-            <button class="btn btn-secondary" onclick="toggleAuth('login')">Geri Dön</button>
-            <div id="forgot-error" class="error-msg"></div>
+            <div class="error-msg" id="forgot-error"></div>
         </div>
     </div>
 </div>
 
-<!-- CHAR SELECT (Korundu) -->
+<!-- ===== CHAR SELECT (KORUNDU) ===== -->
 <div id="char-select-screen">
-    <div style="text-align:center;width:100%;">
-        <h1 style="font-family:'Cinzel';color:var(--primary);font-size:2rem;margin-bottom:20px;">Kahramanını Seç</h1>
+    <div style="text-align:center; max-width:900px; width:100%;">
+        <div class="game-title" style="font-size:2.2rem; margin-bottom:5px;" data-i18n="chooseChar">Karakterini Seç</div>
+        <div class="game-subtitle" data-i18n="chooseCharSub">İmparatorluğunu kur</div>
         <div class="char-grid" id="char-grid"></div>
-        <div id="empire-color-section" style="display:none;margin-top:25px;">
-            <h3 style="color:var(--secondary);">İmparatorluk Rengini Seç</h3>
+        <div id="empire-color-section" style="display:none; margin-top:24px;">
+            <div class="game-subtitle" data-i18n="chooseColor">İmparatorluk Rengini Seç</div>
             <div class="color-grid" id="color-grid"></div>
-            <button class="btn btn-primary" style="max-width:300px;margin:15px auto 0;" onclick="startGame()">Savaşa Başla</button>
+            <button class="btn btn-primary" onclick="startGame()" data-i18n="enterWorld">Dünyaya Adım At</button>
         </div>
     </div>
 </div>
 
-<!-- GAME SCREEN (3D Motor entegre edildi) -->
+<!-- ===== GAME SCREEN ===== -->
 <div id="game-screen">
-    <div id="map-container"></div>
-    <div id="coord-badge">X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
-    <div id="zoom-controls">
-        <div class="zoom-btn" onclick="camera3D.zoomBy(1.2)">+</div>
-        <div class="zoom-btn" onclick="camera3D.zoomBy(0.8)">−</div>
-        <div class="zoom-btn" onclick="camera3D.centerOnBase()" title="Üsse dön">⌖</div>
+    <div id="scene-container"></div>
+    <div id="golden-hour-overlay"></div>
+
+    <div id="lang-switch">
+        <button id="lang-en" onclick="setLang('en')">EN</button>
+        <button id="lang-tr" onclick="setLang('tr')" class="active">TR</button>
     </div>
 
+    <!-- Top bar -->
     <div class="top-bar">
         <div class="player-info">
             <div class="avatar" id="ui-avatar">🦊</div>
-            <div class="stat-badge">⚡ <span id="ui-power">0</span></div>
-            <div class="stat-badge" style="border-color:var(--secondary);">🐉 <span id="ui-clan">-</span></div>
-        </div>
-        <div class="player-info">
-            <div class="stat-badge" style="border-color:var(--gold);">🪙 <span id="ui-ryo">0</span></div>
-            <div class="stat-badge">🛡️ <span id="ui-infantry">0</span></div>
-            <div class="stat-badge">🏹 <span id="ui-archer">0</span></div>
-            <div class="stat-badge">🐎 <span id="ui-cavalry">0</span></div>
+            <div>
+                <div style="font-size:0.9rem;color:#c9b890;" id="ui-clan-row"><span data-i18n="clanLabel">Klan:</span> <span id="ui-clan" style="color:var(--gold);">-</span></div>
+                <div style="font-size:0.85rem;color:#c9b890;"><span data-i18n="powerLabel">Güç:</span> <span id="ui-power" style="color:var(--gold);">0</span></div>
+            </div>
+            <div class="stat-badge" title="Cash"><span class="label">💵</span><span class="value" id="ui-cash">0</span></div>
+            <div class="stat-badge" title="Cargo"><span class="label">📦</span><span class="value" id="ui-cargo">0</span></div>
+            <div class="stat-badge" title="Arms"><span class="label">🔫</span><span class="value" id="ui-arms">0</span></div>
+            <div class="stat-badge" title="Metal"><span class="label">⚙️</span><span class="value" id="ui-metal">0</span></div>
+            <div class="stat-badge" title="Crew"><span class="label">👥</span><span class="value" id="ui-crew">0</span></div>
         </div>
     </div>
 
+    <!-- Right actions -->
+    <div class="right-actions">
+        <div class="action-btn" id="btn-quests" onclick="openModal('profile')" title="Quests"><span>📜</span><span class="badge" id="badge-quests" style="display:none;">!</span></div>
+        <div class="action-btn" id="btn-mail" onclick="openModal('mail')" title="Mail"><span>✉️</span><span class="badge" id="badge-mail" style="display:none;">!</span></div>
+        <div class="action-btn" id="btn-leader" onclick="openModal('leaderboard')" title="Leaderboard"><span>🏆</span></div>
+        <div class="action-btn" id="btn-worldmap" onclick="openWorldMap()" title="World Map"><span>🗺️</span></div>
+    </div>
+
+    <!-- Zoom controls -->
+    <div id="zoom-controls">
+        <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+        <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+        <button class="zoom-btn" id="zoom-home" title="Center on base" style="font-size:1rem;">🏠</button>
+    </div>
+
+    <div id="coord-badge">X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
+
+    <div id="build-ghost-info">📍 <span data-i18n="placeBuild">Haritada boş bir alana tıkla</span></div>
+
+    <!-- Bottom toolbar -->
     <div class="bottom-bar">
         <div class="toolbar">
-            <div class="tool-btn" onclick="openModal('profile')"><div class="tool-icon">👤</div><div class="tool-text">Profil</div></div>
-            <div class="tool-btn" onclick="openModal('train')"><div class="tool-icon">🔨</div><div class="tool-text">Eğit</div></div>
-            <div class="tool-btn" onclick="openModal('hospital')"><div class="tool-icon">🏥</div><div class="tool-text">Hastane</div></div>
-            <div class="tool-btn" onclick="openModal('clan')"><div class="tool-icon">🐉</div><div class="tool-text">Klan</div></div>
-            <div class="tool-btn" onclick="openModal('leaderboard')"><div class="tool-icon">🏆</div><div class="tool-text">Sıralama</div></div>
-            <div class="tool-btn" onclick="socket.emit('getInbox')"><div class="tool-icon">✉️</div><div class="tool-text">Mesaj</div></div>
-            <div class="tool-btn" onclick="openBaseModal()"><div class="tool-icon">🏰</div><div class="tool-text">Üs</div></div>
+            <div class="tool-btn" onclick="openBaseModal()"><div class="tool-icon">🏰</div><div class="tool-text" data-i18n="base">Üs</div></div>
+            <div class="tool-btn" onclick="openModal('train')"><div class="tool-icon">🔨</div><div class="tool-text" data-i18n="train">Eğit</div></div>
+            <div class="tool-btn" onclick="openModal('hospital')"><div class="tool-icon">🏥</div><div class="tool-text" data-i18n="hospital">Hastane</div></div>
+            <div class="tool-btn" onclick="openInvestCenter()"><div class="tool-icon">💼</div><div class="tool-text" data-i18n="invest">Yatırım</div></div>
+            <div class="tool-btn" onclick="openDiner()"><div class="tool-icon">🍽️</div><div class="tool-text" data-i18n="diner">Lokanta</div></div>
+            <div class="tool-btn" onclick="openModal('clan')"><div class="tool-icon">🐉</div><div class="tool-text" data-i18n="clan">Klan</div></div>
+            <div class="tool-btn" onclick="openHeroes()"><div class="tool-icon">🦸</div><div class="tool-text" data-i18n="heroes">Kahramanlar</div></div>
+        </div>
+    </div>
+
+    <!-- World Map Overlay -->
+    <div id="world-map-overlay">
+        <canvas id="world-map-canvas"></canvas>
+        <div id="world-map-title" data-i18n="worldMap">Dünya Haritası</div>
+        <button id="world-map-close" onclick="closeWorldMap()">✕</button>
+    </div>
+
+    <!-- Tutorial -->
+    <div id="tutorial-overlay">
+        <div class="dim"></div>
+        <div id="tutorial-card">
+            <h3 id="tut-title">Welcome</h3>
+            <p id="tut-body">Loading…</p>
+            <div class="actions">
+                <button class="btn btn-primary" id="tut-next" onclick="nextTutorial()">Next</button>
+                <button class="btn btn-secondary" onclick="skipTutorial()">Skip</button>
+            </div>
         </div>
     </div>
 
@@ -265,14 +481,26 @@
     <div id="radial-menu"></div>
 </div>
 
-<!-- Three.js Kütüphanesi -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
 <script>
-// ==================== MEVCUT OYUN STATE VE SOCKET YAPISI (KORUNDU) ====================
+/* ============================================================
+   ATLAS WARFARE 3D — Mevcut state ve auth tamamen korunur.
+   Üzerine 3D şehir motoru, i18n, tutorial, gelişmiş UI bind edilir.
+   ============================================================ */
+
+// Three.js yüklenmediyse (CDN erişilemezse) 3D'yi devre dışı bırak,
+// ama oyunun auth/UI/state kısmı normal çalışsın.
+if (typeof THREE === 'undefined') {
+    window.__NO_3D__ = true;
+    window.THREE = new Proxy({}, { get: () => function() { return new Proxy({}, { get: () => () => {} }); } });
+}
+
 const socket = io();
 let currentPlayer = null, worldData = null, charactersData = null, clansData = {};
-let selectedCharacter = null, selectedColor = null, selectedCityId = null, selectedMineId = null, selectedBossId = null;
+let selectedCharacter = null, selectedColor = null;
 let basePlacementMode = false;
 const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
 
@@ -283,12 +511,86 @@ function playSound(type) {
     if (type === 'click') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.05); o.start(now); o.stop(now+0.05); }
     else if (type === 'success') { [523.25,659.25,783.99].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(f,now+i*0.1);g.gain.setValueAtTime(0.1,now+i*0.1);g.gain.exponentialRampToValueAtTime(0.01,now+i*0.1+0.2);o.start(now+i*0.1);o.stop(now+i*0.1+0.2);}); }
     else if (type === 'error') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(now); o.stop(now+0.2); }
+    else if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
 }
 document.addEventListener('click', () => initAudio(), { once: true });
-document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON') playSound('click'); });
+document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON' || e.target.closest('.action-btn') || e.target.closest('.zoom-btn')) playSound('click'); });
 
-// AUTH (Tamamen korundu)
-function toggleAuth(t) { ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none'); document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block'; ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none'); }
+/* ===== i18n (YENİ, geriye uyumlu) ===== */
+const I18N = {
+    en: {
+        subtitle: 'Conquer the World',
+        login: 'Login', register: 'Register', forgot: 'Forgot',
+        username: 'Username', password: 'Password', email: 'Email',
+        passwordConfirm: 'Confirm Password', code: 'Code', newPassword: 'New Password',
+        enter: 'Enter', create: 'Create Account', verify: 'Verify',
+        verifySent: 'Enter the code sent to your email:',
+        resend: 'Resend', sendCode: 'Send Code', resetPassword: 'Reset Password',
+        chooseChar: 'Choose Your Character', chooseCharSub: 'Build your empire',
+        chooseColor: 'Pick your empire color', enterWorld: 'Enter the World',
+        base: 'Base', train: 'Train', hospital: 'Hospital',
+        invest: 'Invest', diner: 'Diner', clan: 'Clan', heroes: 'Heroes',
+        placeBuild: 'Click on an empty plot on the map',
+        powerLabel: 'Power:', clanLabel: 'Clan:',
+        worldMap: 'World Map',
+        loading: 'Loading 3D city…',
+        tut1_title: 'Welcome, Boss', tut1_body: 'Your mansion is the heart of your empire. Tap it to view details and upgrade it.',
+        tut2_title: 'Raise the Wall', tut2_body: 'Your wall must match the mansion level to upgrade further. Tap an empty plot near your mansion to place a Wall.',
+        tut3_title: 'Resource Hubs', tut3_body: 'Build Cargo Hubs and Counterfeiters to produce Cash and Cargo. Tap an empty plot to place a Cargo Hub.',
+        tut4_title: 'Crew Training', tut4_body: 'Train your crew at the Training Camp. Open Train from the bottom toolbar to start.',
+        tut5_title: 'Investments', tut5_body: 'Visit the Investment Center to research economic, military, and resource bonuses.',
+        tut6_title: 'World Map', tut6_body: 'When you are ready, open the World Map (top-right) to attack other players, rob resources, and join Turf Wars.',
+        next: 'Next', skip: 'Skip', done: 'Done',
+    },
+    tr: {
+        subtitle: 'Dünyayı Fethet',
+        login: 'Giriş', register: 'Kayıt', forgot: 'Şifremi Unuttum',
+        username: 'Kullanıcı Adı', password: 'Şifre', email: 'E-posta',
+        passwordConfirm: 'Şifre (Tekrar)', code: 'Kod', newPassword: 'Yeni Şifre',
+        enter: 'Giriş Yap', create: 'Hesap Oluştur', verify: 'Doğrula',
+        verifySent: 'E-postana gönderilen kodu gir:',
+        resend: 'Yeniden Gönder', sendCode: 'Kod Gönder', resetPassword: 'Şifreyi Sıfırla',
+        chooseChar: 'Karakterini Seç', chooseCharSub: 'İmparatorluğunu kur',
+        chooseColor: 'İmparatorluk Rengini Seç', enterWorld: 'Dünyaya Adım At',
+        base: 'Üs', train: 'Eğit', hospital: 'Hastane',
+        invest: 'Yatırım', diner: 'Lokanta', clan: 'Klan', heroes: 'Kahramanlar',
+        placeBuild: 'Haritada boş bir alana tıkla',
+        powerLabel: 'Güç:', clanLabel: 'Klan:',
+        worldMap: 'Dünya Haritası',
+        loading: '3D şehir yükleniyor…',
+        tut1_title: 'Hoş geldin, Patron', tut1_body: 'Mansion imparatorluğunun kalbidir. Detayları görmek ve yükseltmek için üzerine tıkla.',
+        tut2_title: 'Duvarı Yükselt', tut2_body: 'Mansion seviyesini geçmek için duvarın da aynı seviyede olmalı. Mansion yakınında boş bir alana duvar yerleştir.',
+        tut3_title: 'Kaynak Binaları', tut3_body: 'Cash ve Cargo üretmek için Cargo Hub ve Counterfeiter inşa et. Boş bir alana Cargo Hub koy.',
+        tut4_title: 'Asker Eğit', tut4_body: 'Eğitim Kampları\'nda crew\'unu eğit. Başlamak için alttaki Eğit butonunu kullan.',
+        tut5_title: 'Yatırımlar', tut5_body: 'Yatırım Merkezi\'nde ekonomi, askeri ve kaynak bonuslarını araştır.',
+        tut6_title: 'Dünya Haritası', tut6_body: 'Hazır olduğunda sağ üstteki Dünya Haritası\'nı aç, diğer oyunculara saldır, kaynak yağmala ve Turf Savaşları\'na katıl.',
+        next: 'İleri', skip: 'Atla', done: 'Tamam',
+    }
+};
+let currentLang = localStorage.getItem('atlas_lang') || ((navigator.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en');
+function setLang(l) {
+    currentLang = l; localStorage.setItem('atlas_lang', l);
+    document.getElementById('lang-en').classList.toggle('active', l === 'en');
+    document.getElementById('lang-tr').classList.toggle('active', l === 'tr');
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[l][key]) el.textContent = I18N[l][key];
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (I18N[l][key]) el.setAttribute('placeholder', I18N[l][key]);
+    });
+}
+
+/* ===== AUTH (KORUNDU) ===== */
+function toggleAuth(t) {
+    ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block';
+    ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('.auth-tab').forEach((el,i) => el.classList.toggle('active',
+        (t==='login'&&i===0)||(t==='register'&&i===1)||(t==='forgot'&&i===2)));
+}
 function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
 function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, passwordConfirm: document.getElementById('reg-password-confirm').value }); }
 function verifyEmail() { socket.emit('verifyEmail', { username: currentRegUsername, code: document.getElementById('verify-code').value }); }
@@ -304,7 +606,12 @@ socket.on('resetPasswordSuccess', () => { toggleAuth('login'); });
 socket.on('verifySuccess', (d) => onLoginSuccess(d));
 socket.on('loginSuccess', (d) => onLoginSuccess(d));
 
-function onLoginSuccess(d) { localStorage.setItem('atlas_token', d.token); currentPlayer = d; document.getElementById('auth-screen').style.display = 'none'; if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d); }
+function onLoginSuccess(d) {
+    localStorage.setItem('atlas_token', d.token);
+    currentPlayer = d;
+    document.getElementById('auth-screen').style.display = 'none';
+    if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d);
+}
 
 function showCharSelect() { document.getElementById('char-select-screen').style.display = 'flex'; renderCharGrid(); }
 function renderCharGrid() {
@@ -321,415 +628,1889 @@ function renderCharGrid() {
 socket.on('charactersData', (d) => { charactersData = d; if (document.getElementById('char-select-screen').style.display === 'flex') renderCharGrid(); });
 
 function renderColorGrid() {
-    const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff]; const grid = document.getElementById('color-grid'); grid.innerHTML = '';
-    colors.forEach(c => { const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0'); sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; }; grid.appendChild(sw); });
+    const colors = [0xff6b00, 0x00d4ff, 0xff0066, 0x00ff44, 0xffd700, 0x9d00ff, 0xff3333, 0xffffff];
+    const grid = document.getElementById('color-grid'); grid.innerHTML = '';
+    colors.forEach(c => {
+        const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = '#' + c.toString(16).padStart(6,'0');
+        sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; };
+        grid.appendChild(sw);
+    });
 }
-function startGame() { 
-    if (!selectedCharacter || !selectedColor) return showToast('error', 'Karakter ve renk seçmelisin!'); 
-    socket.emit('setEmpireColor', { color: selectedColor }); 
-    currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor; 
-    document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer); 
+function startGame() {
+    if (!selectedCharacter || !selectedColor) return showToast('error', 'Karakter ve renk seçmelisin!');
+    socket.emit('setEmpireColor', { color: selectedColor });
+    currentPlayer.character = selectedCharacter; currentPlayer.empireColor = selectedColor;
+    document.getElementById('char-select-screen').style.display = 'none'; enterGame(currentPlayer);
 }
 
+/* ============================================================
+   3D CITY ENGINE — Three.js
+   Gerçek 3D geometri, perspektif kamera, gölge, golden hour.
+   ============================================================ */
+const City3D = (() => {
+    let scene, camera, renderer, raycaster, mouse, controls = {};
+    let worldGroup, groundMesh, buildingGroup, propGroup, marchGroup;
+    let pickedBuilding = null;     // { type, id, level, mesh, basePos, label }
+    let baseGridCells = new Set();
+    let gridUnit = 6;             // 1 grid cell = 6 world units — daha geniş, gerçekçi yerleşim
+    const tileMap = new Map();    // key "gx,gz" -> { type: 'road'|'grass'|'concrete'|'park', deco }
+    const buildingMeshes = [];    // pickable meshes
+    const clock = new THREE.Clock();
+    let pointerDownAt = null;
+    let pointerMoved = false;
+    let basePlacementGhost = null;
+
+    function init() {
+        const container = document.getElementById('scene-container');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0a);
+        scene.fog = new THREE.Fog(0x0a0a0a, 80, 260);
+
+        const aspect = container.clientWidth / container.clientHeight;
+        camera = new THREE.PerspectiveCamera(38, aspect, 0.5, 600);
+        camera.position.set(40, 90, 40);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(renderer.domElement);
+
+        // Lights — golden hour
+        const sun = new THREE.DirectionalLight(0xffd9a0, 1.2);
+        sun.position.set(80, 100, 40);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
+        sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
+        sun.shadow.camera.near = 1; sun.shadow.camera.far = 250;
+        sun.shadow.bias = -0.0005;
+        scene.add(sun);
+
+        const ambient = new THREE.AmbientLight(0x6b5a3a, 0.55);
+        scene.add(ambient);
+
+        const hemi = new THREE.HemisphereLight(0xffd9a0, 0x2a1f0e, 0.5);
+        scene.add(hemi);
+
+        // Ground plane
+        const groundGeo = new THREE.PlaneGeometry(400, 400, 1, 1);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a2418, roughness: 0.95, metalness: 0.0 });
+        groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // Subtle hex pattern overlay on ground for depth
+        const ringGeo = new THREE.RingGeometry(180, 182, 80, 1);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x1a1610, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.01;
+        scene.add(ring);
+
+        worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+        buildingGroup = new THREE.Group();
+        worldGroup.add(buildingGroup);
+        propGroup = new THREE.Group();
+        worldGroup.add(propGroup);
+        marchGroup = new THREE.Group();
+        worldGroup.add(marchGroup);
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        setupControls(container);
+        window.addEventListener('resize', onResize);
+        onResize();
+        animate();
+    }
+
+    function onResize() {
+        const container = document.getElementById('scene-container');
+        if (!container || !renderer) return;
+        const w = container.clientWidth, h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    function setupControls(container) {
+        // Orbit-style: sağ tık ya da orta tuş ile döndür, sol ile pan, wheel ile zoom
+        // Hem PC hem mobil için tek parmak pan + pinch zoom
+        let isDragging = false, lastX = 0, lastY = 0;
+        let pinchStart = 0, pinchDist0 = 0;
+        let cameraAngle = Math.PI / 4;        // yatay açı
+        let cameraHeightAngle = Math.PI / 2.6;  // dikey açı (daha yüksek/kuşbakışı)
+        const minPolar = 0.2, maxPolar = 1.35;
+        let camDist = 80;
+
+        function applyCamera() {
+            const cx = Math.cos(cameraAngle) * camDist * Math.cos(cameraHeightAngle);
+            const cz = Math.sin(cameraAngle) * camDist * Math.cos(cameraHeightAngle);
+            const cy = camDist * Math.sin(cameraHeightAngle);
+            camera.position.set(cx, cy, cz);
+            camera.lookAt(0, 0, 0);
+            updateCoordBadge();
+        }
+        controls.applyCamera = applyCamera;
+        controls.setCamDist = (d) => { camDist = Math.max(20, Math.min(180, d)); applyCamera(); };
+        controls.getCamDist = () => camDist;
+        controls.setAngle = (a) => { cameraAngle = a; applyCamera(); };
+        controls.getAngle = () => cameraAngle;
+        controls.setPolar = (p) => { cameraHeightAngle = Math.max(minPolar, Math.min(maxPolar, p)); applyCamera(); };
+        controls.getPolar = () => cameraHeightAngle;
+        controls.centerOn = (wx, wz) => { worldGroup.position.x = -wx; worldGroup.position.z = -wz; };
+        controls.centerOnBase = () => {
+            if (currentPlayer && currentPlayer.base) {
+                controls.centerOn(currentPlayer.base.x, currentPlayer.base.z);
+            } else {
+                worldGroup.position.set(0, 0, 0);
+            }
+            applyCamera();
+        };
+
+        container.addEventListener('pointerdown', (e) => {
+            if (e.target !== renderer.domElement) return;
+            pointerDownAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+            pointerMoved = false;
+            isDragging = true;
+            lastX = e.clientX; lastY = e.clientY;
+            container.classList.add('grabbing');
+        });
+        container.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastX, dy = e.clientY - lastY;
+            if (Math.abs(dx) + Math.abs(dy) > 4) pointerMoved = true;
+            lastX = e.clientX; lastY = e.clientY;
+            // Sol drag: pan (kamerayı ters yönde kaydır)
+            if (e.buttons & 1 || e.pointerType === 'touch') {
+                const speed = camDist * 0.0014;
+                const forwardX = -Math.cos(cameraAngle), forwardZ = -Math.sin(cameraAngle);
+                const rightX = -Math.sin(cameraAngle), rightZ = Math.cos(cameraAngle);
+                worldGroup.position.x += (forwardX * dy * speed) + (rightX * dx * speed);
+                worldGroup.position.z += (forwardZ * dy * speed) + (rightZ * dx * speed);
+                updateCoordBadge();
+            }
+            // Sağ drag: rotate
+            if (e.buttons & 2) {
+                cameraAngle -= dx * 0.005;
+                cameraHeightAngle = Math.max(minPolar, Math.min(maxPolar, cameraHeightAngle - dy * 0.005));
+                applyCamera();
+            }
+        });
+        container.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            container.classList.remove('grabbing');
+            if (!pointerMoved && pointerDownAt) {
+                handlePick(e);
+            }
+        });
+        container.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Wheel zoom
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 0.92 : 1.08;
+            controls.setCamDist(camDist * factor);
+        }, { passive: false });
+
+        // Touch pinch
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                pinchDist0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                pinchStart = camDist;
+            }
+        }, { passive: true });
+        container.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && pinchDist0) {
+                const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                controls.setCamDist(pinchStart * (pinchDist0 / d));
+            }
+        }, { passive: true });
+
+        applyCamera();
+    }
+
+    function handlePick(e) {
+        const container = document.getElementById('scene-container');
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(buildingMeshes, false);
+        if (hits.length) {
+            const hit = hits[0].object;
+            const data = hit.userData;
+            onBuildingClicked(data, e.clientX, e.clientY);
+        } else if (basePlacementMode) {
+            // raycast against ground plane y=0
+            const groundHits = raycaster.intersectObject(groundMesh);
+            if (groundHits.length) {
+                const p = groundHits[0].point;
+                // Convert world-group local coords
+                const lx = p.x - worldGroup.position.x;
+                const lz = p.z - worldGroup.position.z;
+                const gx = Math.round(lx / gridUnit), gz = Math.round(lz / gridUnit);
+                const key = gx + ',' + gz;
+                if (!baseGridCells.has(key)) {
+                    socket.emit('buildBase', { x: gx * gridUnit, z: gz * gridUnit });
+                    basePlacementMode = false;
+                    document.getElementById('build-ghost-info').classList.remove('active');
+                } else {
+                    showToast('error', 'Bu alan dolu');
+                }
+            }
+        }
+    }
+
+    function onBuildingClicked(data, sx, sy) {
+        if (basePlacementMode) return;
+        const actions = [{ icon: '🔍', label: 'Detay', action: () => showBuildingPopup(data) }];
+        if (data.type === 'mansion') {
+            actions.push({ icon: '⬆️', label: 'Yükselt', action: () => upgradeBuilding(data) });
+        } else if (data.type === 'wall') {
+            actions.push({ icon: '⬆️', label: 'Yükselt', action: () => upgradeBuilding(data) });
+        } else if (data.type === 'resource') {
+            actions.push({ icon: '⬆️', label: 'Yükselt', action: () => upgradeBuilding(data) });
+        }
+        showRadialMenu(sx, sy, actions);
+    }
+
+    function updateCoordBadge() {
+        const xEl = document.getElementById('coord-x'), yEl = document.getElementById('coord-y');
+        if (!xEl || !yEl) return;
+        // Inverse: worldGroup.position + 0 = world origin in scene
+        // Camera looks at world origin
+        const wx = -worldGroup.position.x, wz = -worldGroup.position.z;
+        xEl.innerText = Math.round(wx);
+        yEl.innerText = Math.round(wz);
+    }
+
+    /* ===== MATERIAL FACTORY ===== */
+    function mat(color, opts = {}) {
+        return new THREE.MeshStandardMaterial({
+            color,
+            roughness: opts.roughness ?? 0.7,
+            metalness: opts.metalness ?? 0.1,
+            emissive: opts.emissive ?? 0x000000,
+            emissiveIntensity: opts.emissiveIntensity ?? 0,
+        });
+    }
+    function emissiveMat(color, intensity = 1) {
+        return new THREE.MeshStandardMaterial({
+            color, emissive: color, emissiveIntensity: intensity, roughness: 0.5, metalness: 0.2
+        });
+    }
+
+    /* ===== GROUND TILE SYSTEM ===== */
+    function gridKey(gx, gz) { return gx + ',' + gz; }
+    function buildGround() {
+        // Main ground base — geniş asfalt şehir zemini
+        const cityBase = new THREE.Mesh(
+            new THREE.PlaneGeometry(120, 120),
+            mat(0x2a2620, { roughness: 0.95 })
+        );
+        cityBase.rotation.x = -Math.PI / 2;
+        cityBase.position.y = 0.005;
+        cityBase.receiveShadow = true;
+        worldGroup.add(cityBase);
+
+        // Road grid (Manhattan-ish) — daha belirgin
+        for (let gx = -8; gx <= 8; gx++) {
+            for (let gz = -8; gz <= 8; gz++) {
+                const isAveH = (gx % 4 === 0);
+                const isAveV = (gz % 4 === 0);
+                const isRoad = isAveH || isAveV;
+                const type = isRoad ? 'road' : (((gx*7+gz*3) % 11 === 0) ? 'park' : 'concrete');
+                tileMap.set(gridKey(gx, gz), { type });
+                const wx = gx * gridUnit, wz = gz * gridUnit;
+                let m, color;
+                if (type === 'road') {
+                    color = isAveH && isAveV ? 0x3a352a : 0x322d24;
+                    const w = isAveH && isAveV ? gridUnit * 1.1 : isAveH ? gridUnit * 0.7 : gridUnit;
+                    const d = isAveH && isAveV ? gridUnit * 1.1 : isAveV ? gridUnit * 0.7 : gridUnit;
+                    const g = new THREE.PlaneGeometry(w, d);
+                    m = new THREE.Mesh(g, mat(color, { roughness: 0.95 }));
+                } else if (type === 'park') {
+                    const g = new THREE.PlaneGeometry(gridUnit, gridUnit);
+                    m = new THREE.Mesh(g, mat(0x3d5a28, { roughness: 0.9 }));
+                } else {
+                    const g = new THREE.PlaneGeometry(gridUnit, gridUnit);
+                    m = new THREE.Mesh(g, mat(0x5a5246, { roughness: 0.92 }));
+                }
+                m.rotation.x = -Math.PI / 2;
+                m.position.set(wx, 0.04, wz);
+                m.receiveShadow = true;
+                worldGroup.add(m);
+
+                // Road markings — dashed yellow center line
+                if (isAveH && !isAveV) {
+                    for (let s = -0.3; s <= 0.3; s += 0.2) {
+                        const line = new THREE.Mesh(
+                            new THREE.PlaneGeometry(gridUnit * 0.05, gridUnit * 0.15),
+                            mat(0xfff0a0, { roughness: 0.5 })
+                        );
+                        line.rotation.x = -Math.PI / 2;
+                        line.position.set(wx + s*gridUnit, 0.045, wz);
+                        worldGroup.add(line);
+                    }
+                }
+                // Sidewalk strip along avenues
+                if (isAveH && !isAveV) {
+                    const curb = new THREE.Mesh(
+                        new THREE.BoxGeometry(gridUnit * 1.0, 0.1, 0.3),
+                        mat(0x8a8472, { roughness: 0.7 })
+                    );
+                    curb.position.set(wx, 0.07, wz + gridUnit * 0.4);
+                    curb.receiveShadow = true;
+                    worldGroup.add(curb);
+                }
+                if (isAveV && !isAveH) {
+                    const curb = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.3, 0.1, gridUnit * 1.0),
+                        mat(0x8a8472, { roughness: 0.7 })
+                    );
+                    curb.position.set(wx + gridUnit * 0.4, 0.07, wz);
+                    curb.receiveShadow = true;
+                    worldGroup.add(curb);
+                }
+            }
+        }
+    }
+
+    function buildSidewalks() {
+        // Curb strips along major roads
+        for (let gx = -40; gx <= 40; gx++) {
+            for (let gz = -40; gz <= 40; gz++) {
+                if (gx % 8 === 0 || gz % 8 === 0) {
+                    // Add curb edges — just a slightly raised concrete strip
+                    const c = new THREE.Mesh(
+                        new THREE.BoxGeometry(gridUnit*0.05, 0.15, gridUnit*0.05),
+                        mat(0x8a8472, { roughness: 0.85 })
+                    );
+                    c.position.set(gx*gridUnit, 0.075, gz*gridUnit);
+                    c.castShadow = true; c.receiveShadow = true;
+                    worldGroup.add(c);
+                }
+            }
+        }
+    }
+
+    function buildStreetProps() {
+        // Street lamps along avenues — daha sık
+        for (let gx = -8; gx <= 8; gx++) {
+            for (let gz = -8; gz <= 8; gz++) {
+                if (gx % 4 === 0 && gz % 4 === 0) continue; // intersection
+                if (Math.random() < 0.5) addStreetLamp(gx*gridUnit, gz*gridUnit);
+            }
+        }
+        // Trees: park alanlarında yoğun, kaldırım kenarlarında
+        for (let gx = -8; gx <= 8; gx++) {
+            for (let gz = -8; gz <= 8; gz++) {
+                if (gx % 4 === 0 || gz % 4 === 0) continue;
+                if (tileMap.get(gridKey(gx,gz))?.type === 'park') {
+                    if (Math.random() < 0.7) addTree(gx*gridUnit, gz*gridUnit, 0.9 + Math.random()*0.4);
+                } else if (Math.random() < 0.15) {
+                    addTree(gx*gridUnit, gz*gridUnit, 0.6 + Math.random()*0.2);
+                }
+            }
+        }
+        // Park halinde arabalar — yol kenarlarında
+        for (let i = 0; i < 18; i++) {
+            const side = Math.random() < 0.5 ? 1 : -1;
+            const x = (Math.floor(Math.random() * 8) - 4) * gridUnit * 4;
+            const z = side * (gridUnit * 1.0 + Math.random() * gridUnit * 1.5);
+            const rot = side > 0 ? 0 : Math.PI;
+            // Kaldırım kenarına paralel
+            addParkedCar(x + (Math.random() - 0.5) * 1.5, z, rot);
+        }
+        // Park halinde motorsikletler
+        for (let i = 0; i < 8; i++) {
+            const side = Math.random() < 0.5 ? 1 : -1;
+            const x = (Math.floor(Math.random() * 8) - 4) * gridUnit * 4 + (Math.random()-0.5) * 2;
+            const z = side * (gridUnit * 1.2);
+            addParkedMotorcycle(x, z, side > 0 ? 0 : Math.PI);
+        }
+        // Park bankları — park alanlarında
+        for (let i = 0; i < 6; i++) {
+            const gx = (Math.floor(Math.random() * 6) - 3) * gridUnit;
+            const gz = (Math.floor(Math.random() * 6) - 3) * gridUnit;
+            if (gx % 4 === 0 || gz % 4 === 0) continue;
+            addBench(gx + 1.5, gz + 1.5, Math.random() * Math.PI * 2);
+        }
+        // Çöp kutuları — yol kenarları
+        for (let i = 0; i < 10; i++) {
+            const gx = (Math.floor(Math.random() * 8) - 4) * gridUnit * 4;
+            const gz = (Math.random() < 0.5 ? -1 : 1) * gridUnit * 1.0;
+            addTrashBin(gx, gz);
+        }
+        // Çiçek saksıları — yol kenarları + bina girişleri
+        for (let i = 0; i < 12; i++) {
+            const gx = (Math.floor(Math.random() * 8) - 4) * gridUnit * 4;
+            const gz = (Math.random() < 0.5 ? -1 : 1) * gridUnit * 1.2;
+            addFlowerPot(gx, gz);
+        }
+    }
+
+    function addStreetLamp(x, z) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 3.2, 8), mat(0x1a1610, { metalness: 0.6, roughness: 0.5 }));
+        pole.position.set(x, 1.6, z);
+        pole.castShadow = true;
+        worldGroup.add(pole);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), emissiveMat(0xffd9a0, 0.8));
+        head.position.set(x, 3.3, z);
+        worldGroup.add(head);
+        const halo = new THREE.PointLight(0xffd9a0, 0.5, 6);
+        halo.position.set(x, 3.3, z);
+        worldGroup.add(halo);
+    }
+
+    function addTree(x, z, scale = 1) {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1*scale, 0.15*scale, 1.0*scale, 6), mat(0x4a2e18, { roughness: 0.95 }));
+        trunk.position.set(x, 0.5*scale, z);
+        trunk.castShadow = true;
+        worldGroup.add(trunk);
+        const foliage = new THREE.Mesh(new THREE.SphereGeometry(0.7*scale, 6, 5), mat(0x3d5a28, { roughness: 0.85 }));
+        foliage.position.set(x, 1.2*scale, z);
+        foliage.castShadow = true;
+        worldGroup.add(foliage);
+    }
+
+    // Park halinde araba
+    function addParkedCar(x, z, rotation, color) {
+        color = color || [0x4a4a52, 0x1a1a22, 0x6a2a1a, 0x3a3a3a, 0x2a3a4a][Math.floor(Math.random()*5)];
+        const car = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.45, 1.7), mat(color, { metalness: 0.6, roughness: 0.3 }));
+        body.position.y = 0.4; body.castShadow = true; car.add(body);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.35, 0.9), mat(color, { metalness: 0.7, roughness: 0.25 }));
+        cabin.position.set(0, 0.82, 0.05); car.add(cabin);
+        const windshield = new THREE.Mesh(
+            new THREE.BoxGeometry(0.65, 0.3, 0.85),
+            new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.4, roughness: 0.1, transparent: true, opacity: 0.6 })
+        );
+        windshield.position.set(0, 0.82, 0.05); car.add(windshield);
+        [[-0.42, -0.6], [0.42, -0.6], [-0.42, 0.6], [0.42, 0.6]].forEach(([wx, wz]) => {
+            const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 8), mat(0x0a0a0a, { roughness: 0.8 }));
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(wx, 0.17, wz);
+            car.add(wheel);
+        });
+        car.position.set(x, 0, z);
+        car.rotation.y = rotation || 0;
+        worldGroup.add(car);
+    }
+
+    // Park halinde motorsiklet
+    function addParkedMotorcycle(x, z, rotation) {
+        const moto = new THREE.Group();
+        const fWheel = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.07, 6, 10), mat(0x1a1a1a));
+        fWheel.rotation.y = Math.PI / 2; fWheel.position.set(0, 0.22, 0.55); moto.add(fWheel);
+        const rWheel = fWheel.clone(); rWheel.position.z = -0.55; moto.add(rWheel);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 1.0), mat(0xaa0000, { metalness: 0.5, roughness: 0.4 }));
+        frame.position.y = 0.4; moto.add(frame);
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.6), mat(0x0a0a0a, { roughness: 0.7 }));
+        seat.position.set(0, 0.6, 0.05); moto.add(seat);
+        moto.position.set(x, 0, z);
+        moto.rotation.y = rotation || 0;
+        worldGroup.add(moto);
+    }
+
+    // Çöp kutusu
+    function addTrashBin(x, z) {
+        const bin = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.28, 0.32, 0.7, 8),
+            mat(0x3a4a5a, { metalness: 0.4, roughness: 0.6 })
+        );
+        bin.position.set(x, 0.35, z);
+        bin.castShadow = true;
+        worldGroup.add(bin);
+    }
+
+    // Park bankı
+    function addBench(x, z, rotation) {
+        const bench = new THREE.Group();
+        const seat = new THREE.Mesh(
+            new THREE.BoxGeometry(1.0, 0.06, 0.35),
+            mat(0x6a3a1a, { roughness: 0.85 })
+        );
+        seat.position.y = 0.4; seat.castShadow = true; bench.add(seat);
+        for (let lx of [-0.4, 0.4]) {
+            const leg = new THREE.Mesh(
+                new THREE.BoxGeometry(0.06, 0.4, 0.3),
+                mat(0x2a2a2a, { metalness: 0.5 })
+            );
+            leg.position.set(lx, 0.2, 0); bench.add(leg);
+        }
+        const back = new THREE.Mesh(
+            new THREE.BoxGeometry(1.0, 0.3, 0.06),
+            mat(0x6a3a1a, { roughness: 0.85 })
+        );
+        back.position.set(0, 0.55, -0.15); bench.add(back);
+        bench.position.set(x, 0, z);
+        bench.rotation.y = rotation || 0;
+        worldGroup.add(bench);
+    }
+
+    // Çiçek saksısı
+    function addFlowerPot(x, z) {
+        const pot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.25, 0.32, 0.4, 8),
+            mat(0x8a5a3a, { roughness: 0.85 })
+        );
+        pot.position.set(x, 0.2, z);
+        pot.castShadow = true;
+        worldGroup.add(pot);
+        const flowerColors = [0xff6b00, 0xff0066, 0xffd700, 0x9d00ff];
+        for (let i = 0; i < 4; i++) {
+            const f = new THREE.Mesh(
+                new THREE.SphereGeometry(0.13, 6, 5),
+                mat(flowerColors[i % 4], { roughness: 0.7 })
+            );
+            f.position.set(x + Math.cos(i) * 0.18, 0.5, z + Math.sin(i) * 0.18);
+            worldGroup.add(f);
+        }
+    }
+
+    /* ===== BUILDING FACTORIES — her bina tipi farklı silüet ===== */
+    function buildMansion(level = 1) {
+        const g = new THREE.Group();
+        const scale = 1 + (level - 1) * 0.12; // yüksek seviyede büyür
+        const s = scale;
+        // === GENİŞLETİLMİŞ COURT YARD (parchemin mermer, çok büyük) ===
+        const court = new THREE.Mesh(
+            new THREE.CylinderGeometry(11 * s, 11 * s, 0.12, 32),
+            mat(0xd8c8a8, { roughness: 0.35, metalness: 0.1 })
+        );
+        court.position.y = 0.05; court.receiveShadow = true;
+        g.add(court);
+        // İç iç taş halka (desen)
+        const innerRing = new THREE.Mesh(
+            new THREE.RingGeometry(8 * s, 8.3 * s, 48),
+            mat(0x8a8472, { roughness: 0.6 })
+        );
+        innerRing.rotation.x = -Math.PI / 2; innerRing.position.y = 0.07;
+        g.add(innerRing);
+        // Yürüyüş yolu (mansion'dan kapıya parke taşı)
+        for (let i = 0; i < 6; i++) {
+            const paver = new THREE.Mesh(
+                new THREE.BoxGeometry(1.0, 0.04, 0.7),
+                mat(0xa89878, { roughness: 0.6 })
+            );
+            paver.position.set(0, 0.08, 5 + i * 1.1);
+            paver.receiveShadow = true;
+            g.add(paver);
+        }
+        // === SUR HALKASI — 20 segment, daha yüksek ve detaylı ===
+        for (let i = 0; i < 20; i++) {
+            const a = (i / 20) * Math.PI * 2;
+            const seg = new THREE.Mesh(
+                new THREE.BoxGeometry(2.0, 2.8 + level * 0.25, 0.5),
+                mat(0x8a8472, { roughness: 0.85 })
+            );
+            seg.position.set(Math.cos(a) * 9.5 * s, 1.4, Math.sin(a) * 9.5 * s);
+            seg.lookAt(0, 1.4, 0);
+            seg.castShadow = true; seg.receiveShadow = true;
+            g.add(seg);
+            // 3 crenellation
+            for (let k = -1; k <= 1; k++) {
+                const cr = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.5), mat(0x8a8472, { roughness: 0.85 }));
+                cr.position.set(seg.position.x + k * 0.6, seg.position.y + 1.7, seg.position.z);
+                cr.lookAt(0, cr.position.y, 0);
+                g.add(cr);
+            }
+        }
+        // === KÖŞK TOWER'LAR (4 köşede) ===
+        for (let c = 0; c < 4; c++) {
+            const ca = (c / 4) * Math.PI * 2 + Math.PI / 4;
+            const tx = Math.cos(ca) * 9.5 * s, tz = Math.sin(ca) * 9.5 * s;
+            const tower = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.0, 1.2, 5.0 + level * 0.2, 10),
+                mat(0x9a8a6a, { roughness: 0.7 })
+            );
+            tower.position.set(tx, 2.5, tz);
+            tower.castShadow = true; tower.receiveShadow = true;
+            g.add(tower);
+            // Tower cone roof
+            const tCone = new THREE.Mesh(
+                new THREE.ConeGeometry(1.3, 1.5, 8),
+                mat(0x3a6fa8, { roughness: 0.4, metalness: 0.2 })
+            );
+            tCone.position.set(tx, 5.7, tz);
+            tCone.castShadow = true;
+            g.add(tCone);
+            const tSpire = new THREE.Mesh(
+                new THREE.ConeGeometry(0.12, 0.7, 6),
+                mat(0xffd700, { metalness: 0.95, roughness: 0.15 })
+            );
+            tSpire.position.set(tx, 7.3, tz);
+            g.add(tSpire);
+            // Tower window emissive
+            const tWin = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.4, 0.7),
+                new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 0.8 })
+            );
+            tWin.position.set(tx + 1.01, 3.5, tz);
+            tWin.lookAt(0, 3.5, 0);
+            g.add(tWin);
+        }
+        // === ANA BİNA (büyük merkez yapı) ===
+        const mainBody = new THREE.Mesh(
+            new THREE.BoxGeometry(6.5 * s, 4.5, 6.5 * s),
+            mat(0xede0c8, { roughness: 0.55 })
+        );
+        mainBody.position.y = 2.25; mainBody.castShadow = true; mainBody.receiveShadow = true;
+        g.add(mainBody);
+        // Pencere detayları ana binada (emissive sıcak ışık)
+        for (let r = 0; r < 2; r++) {
+            for (let c = -2; c <= 2; c++) {
+                const win = new THREE.Mesh(
+                    new THREE.PlaneGeometry(0.5, 0.7),
+                    new THREE.MeshStandardMaterial({ color: 0xffe0a0, emissive: 0xffd9a0, emissiveIntensity: 0.7, roughness: 0.3 })
+                );
+                win.position.set(c * 1.1, 1.3 + r * 1.5, 3.26);
+                g.add(win);
+                const winBack = win.clone();
+                winBack.position.z = -3.26; winBack.rotation.y = Math.PI;
+                g.add(winBack);
+            }
+        }
+        // Yan kanatlar
+        const wL = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.0, 4.5), mat(0xddc8a0, { roughness: 0.65 }));
+        wL.position.set(-4.0, 1.5, 0); wL.castShadow = true; wL.receiveShadow = true;
+        g.add(wL);
+        const wR = wL.clone(); wR.position.x = 4.0; g.add(wR);
+        // Kanat pencereleri
+        for (let side of [-1, 1]) {
+            for (let r = 0; r < 2; r++) {
+                const wwin = new THREE.Mesh(
+                    new THREE.PlaneGeometry(0.5, 0.6),
+                    new THREE.MeshStandardMaterial({ color: 0xffe0a0, emissive: 0xffd9a0, emissiveIntensity: 0.6 })
+                );
+                wwin.position.set(4.01 * side, 1.5 + r * 1.2, 0);
+                wwin.rotation.y = side > 0 ? Math.PI/2 : -Math.PI/2;
+                g.add(wwin);
+            }
+        }
+        // Yan kanat ikincil kubbeleri
+        for (let s2 of [-4.0, 4.0]) {
+            const sd = new THREE.Mesh(
+                new THREE.SphereGeometry(0.7, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+                mat(0x3a6fa8, { roughness: 0.35, metalness: 0.25 })
+            );
+            sd.position.set(s2, 3.0, 0); sd.castShadow = true; g.add(sd);
+            const sp = new THREE.Mesh(
+                new THREE.ConeGeometry(0.08, 0.6, 6),
+                mat(0xffd700, { metalness: 0.95, roughness: 0.15 })
+            );
+            sp.position.set(s2, 3.85, 0); g.add(sp);
+        }
+        // === BÜYÜK ANA KUBBE ===
+        const dome = new THREE.Mesh(
+            new THREE.SphereGeometry(2.0 * s, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+            mat(0x3a6fa8, { roughness: 0.3, metalness: 0.3 })
+        );
+        dome.position.y = 4.5; dome.castShadow = true;
+        g.add(dome);
+        // Kubbe altın alem
+        const spire = new THREE.Mesh(
+            new THREE.ConeGeometry(0.22, 1.8, 12),
+            mat(0xffd700, { metalness: 0.95, roughness: 0.1 })
+        );
+        spire.position.y = 6.6; g.add(spire);
+        // Küçük alem top
+        const orb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 12, 8),
+            mat(0xffd700, { metalness: 1.0, roughness: 0.05 })
+        );
+        orb.position.y = 7.6; g.add(orb);
+        // === GİRİŞ YAPISI — büyük köprülü giriş ===
+        // Sütunlu portico
+        for (let i = -2.0; i <= 2.0; i += 1.0) {
+            const col = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.22, 0.22, 4.0, 12),
+                mat(0xeee0c0, { roughness: 0.25, metalness: 0.2 })
+            );
+            col.position.set(i, 2.0, 3.4); col.castShadow = true;
+            g.add(col);
+        }
+        // Portico çatısı
+        const portRoof = new THREE.Mesh(
+            new THREE.BoxGeometry(5.5, 0.3, 1.4),
+            mat(0xeed8a8, { roughness: 0.5 })
+        );
+        portRoof.position.set(0, 4.15, 3.9); portRoof.castShadow = true;
+        g.add(portRoof);
+        // Pediment (üçgen alınlık)
+        const ped = new THREE.Mesh(
+            new THREE.ConeGeometry(3.1, 1.2, 3),
+            mat(0xddc898, { roughness: 0.5 })
+        );
+        ped.position.set(0, 4.85, 3.9); ped.rotation.y = Math.PI / 2;
+        g.add(ped);
+        // === BAYRAK DİREĞİ + BAYRAK ===
+        const pole = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8),
+            mat(0x1a1a1a, { metalness: 0.6 })
+        );
+        pole.position.set(0, 6.8, 0); g.add(pole);
+        const flag = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.3, 0.7),
+            new THREE.MeshStandardMaterial({
+                color: currentPlayer?.empireColor ? currentPlayer.empireColor : 0xff6b00,
+                side: THREE.DoubleSide, roughness: 0.8
+            })
+        );
+        flag.position.set(0.7, 7.6, 0);
+        flag.userData.flag = true; // animate
+        g.add(flag);
+        // === GİRİŞ MERDİVENLERİ (3 basamak) ===
+        for (let step = 0; step < 3; step++) {
+            const st = new THREE.Mesh(
+                new THREE.BoxGeometry(5.0 - step * 0.4, 0.18, 0.6),
+                mat(0xc9b890, { roughness: 0.5 })
+            );
+            st.position.set(0, 0.12 + step * 0.18, 4.5 + step * 0.6);
+            st.receiveShadow = true;
+            g.add(st);
+        }
+        // === KAPlI GİRİŞ KEMERİ ===
+        const archL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.8, 0.7), mat(0x5a5246, { roughness: 0.7 }));
+        archL.position.set(-3.0, 1.9, 9.0); archL.castShadow = true; g.add(archL);
+        const archR = archL.clone(); archR.position.x = 3.0; g.add(archR);
+        const archTop = new THREE.Mesh(new THREE.BoxGeometry(6.7, 0.8, 0.8), mat(0x5a5246, { roughness: 0.7 }));
+        archTop.position.set(0, 4.0, 9.0); archTop.castShadow = true; g.add(archTop);
+        // === İÇ AVLU DETAYLARI ===
+        // Çeşme (daha büyük ve detaylı)
+        const fountBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.1, 1.3, 0.5, 12),
+            mat(0x7a7a82, { roughness: 0.4, metalness: 0.5 })
+        );
+        fountBase.position.set(0, 0.28, 0); fountBase.castShadow = true; g.add(fountBase);
+        const fountInner = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.85, 0.85, 0.4, 12),
+            new THREE.MeshStandardMaterial({ color: 0x3399cc, transparent: true, opacity: 0.75, roughness: 0.05, metalness: 0.7 })
+        );
+        fountInner.position.set(0, 0.5, 0); g.add(fountInner);
+        // Çeşme ortası sütun + su
+        const fCol = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.18, 1.4, 8),
+            mat(0x6a6a72, { roughness: 0.5 })
+        );
+        fCol.position.set(0, 1.2, 0); fCol.castShadow = true; g.add(fCol);
+        const fTop = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 10, 8),
+            mat(0x6a6a72, { roughness: 0.5, metalness: 0.5 })
+        );
+        fTop.position.set(0, 2.0, 0); g.add(fTop);
+        // Çeşme su topu
+        const waterOrb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 12, 8),
+            new THREE.MeshStandardMaterial({
+                color: 0x66ccff, transparent: true, opacity: 0.85, roughness: 0.05, metalness: 0.8, emissive: 0x3399cc, emissiveIntensity: 0.2
+            })
+        );
+        waterOrb.position.set(0, 2.4, 0); g.add(waterOrb);
+        // Havuz çevresinde 4 bank
+        for (let bi = 0; bi < 4; bi++) {
+            const ba = (bi / 4) * Math.PI * 2 + Math.PI / 4;
+            const bench = new THREE.Mesh(
+                new THREE.BoxGeometry(1.0, 0.4, 0.4),
+                mat(0x5a3a1a, { roughness: 0.85 })
+            );
+            bench.position.set(Math.cos(ba) * 2.0, 0.2, Math.sin(ba) * 2.0);
+            bench.lookAt(0, 0.2, 0);
+            bench.castShadow = true;
+            g.add(bench);
+        }
+        // Avlu ağaçları (4 köşede)
+        for (let ti = 0; ti < 4; ti++) {
+            const ta = (ti / 4) * Math.PI * 2;
+            const tx = Math.cos(ta) * 6.5, tz = Math.sin(ta) * 6.5;
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.2, 1.2, 6),
+                mat(0x4a2e18, { roughness: 0.95 })
+            );
+            trunk.position.set(tx, 0.6, tz); trunk.castShadow = true; g.add(trunk);
+            const fol = new THREE.Mesh(
+                new THREE.SphereGeometry(0.95, 8, 6),
+                mat(0x3d5a28, { roughness: 0.85 })
+            );
+            fol.position.set(tx, 1.5, tz); fol.castShadow = true; g.add(fol);
+        }
+        // === DIŞ GÜVENLİK NOKTALARI — sur köşelerinde spot ışık ===
+        const spotPositions = [[10, 0, 0], [-10, 0, 0], [0, 0, 10], [0, 0, -10]];
+        spotPositions.forEach(([sx, , sz]) => {
+            const poleS = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08, 0.08, 4.5, 6),
+                mat(0x1a1a1a, { metalness: 0.6 })
+            );
+            poleS.position.set(sx, 2.25, sz);
+            poleS.castShadow = true;
+            g.add(poleS);
+            const spot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 10, 8),
+                new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 1.2 })
+            );
+            spot.position.set(sx, 4.6, sz);
+            g.add(spot);
+            // Halo
+            const halo = new THREE.PointLight(0xffe0a0, 0.7, 12);
+            halo.position.set(sx, 4.6, sz);
+            g.add(halo);
+        });
+        // === PARLAK ALTIN IŞIK HUZMESİ (mansion yukarı) ===
+        const beam = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.4, 12, 8, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+        );
+        beam.position.y = 12; g.add(beam);
+        // === GLOW RING (yerde) ===
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(10.5, 11.6, 64),
+            new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+        );
+        ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07;
+        ring.userData.glow = true;
+        g.add(ring);
+        const ring2 = new THREE.Mesh(
+            new THREE.RingGeometry(12.0, 12.4, 64),
+            new THREE.MeshBasicMaterial({ color: 0xff6b00, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+        );
+        ring2.rotation.x = -Math.PI / 2; ring2.position.y = 0.07;
+        ring2.userData.glow = true;
+        g.add(ring2);
+        // === PICKABLE HITBOX ===
+        const hitbox = new THREE.Mesh(
+            new THREE.BoxGeometry(22 * s, 8, 22 * s),
+            new THREE.MeshBasicMaterial({ visible: false })
+        );
+        hitbox.position.y = 4;
+        hitbox.userData = { type: 'mansion', id: 'mansion', level, label: 'Mansion' };
+        g.add(hitbox); buildingMeshes.push(hitbox);
+        return g;
+    }
+
+    function buildWallSegment(level = 1) {
+        const g = new THREE.Group();
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8 + level*0.2, 0.6), mat(0x8a8472, { roughness: 0.85 }));
+        wall.position.y = 0.9 + level*0.1; wall.castShadow = true; wall.receiveShadow = true;
+        g.add(wall);
+        // Top crenellations
+        for (let i = -1; i <= 1; i += 0.6) {
+            const c = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.7), mat(0x8a8472, { roughness: 0.85 }));
+            c.position.set(i, wall.position.y + 0.3 + level*0.1, 0);
+            g.add(c);
+        }
+        const hitbox = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.5, 0.8), new THREE.MeshBasicMaterial({ visible: false }));
+        hitbox.userData = { type: 'wall', id: 'wall_'+g.id, level, label: 'Wall' };
+        g.add(hitbox); buildingMeshes.push(hitbox);
+        return g;
+    }
+
+    function buildResourceBuilding(kind, level = 1) {
+        // Cargo Hub — wide low warehouse
+        // Counterfeiter — mid industrial w/ smokestack
+        // Ammu-Nation — reinforced bunker
+        // Smelter — tall with smokestack + glow
+        const g = new THREE.Group();
+        let label = kind;
+        if (kind === 'cargo') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.0, 3.0), mat(0x7a6a4a, { roughness: 0.8 }));
+            body.position.y = 1.0; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.2, 3.2), mat(0x5d4e34, { roughness: 0.9 }));
+            roof.position.y = 2.1; g.add(roof);
+            // Crates outside
+            for (let i = 0; i < 3; i++) {
+                const crate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), mat(0x8a6840, { roughness: 0.95 }));
+                crate.position.set(2.2, 0.25, -1 + i*1); crate.castShadow = true; g.add(crate);
+            }
+            // Door
+            const door = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.2), mat(0x3a2a18, { roughness: 0.9 }));
+            door.position.set(0, 0.6, 1.51); g.add(door);
+        } else if (kind === 'counterfeiter') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.4, 2.6), mat(0xc9b890, { roughness: 0.6, metalness: 0.2 }));
+            body.position.y = 1.2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.2, 2.8), mat(0x6a5a3a, { roughness: 0.7 }));
+            roof.position.y = 2.5; g.add(roof);
+            // Money sign
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.05), emissiveMat(0x00cc44, 0.5));
+            sign.position.set(0, 2.0, 1.32); g.add(sign);
+            // Window
+            const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), mat(0x222, { emissive: 0xffd9a0, emissiveIntensity: 0.3 }));
+            win.position.set(0, 1.4, 1.31); g.add(win);
+        } else if (kind === 'ammu') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.2, 3.0), mat(0x4a4a52, { roughness: 0.7, metalness: 0.4 }));
+            body.position.y = 1.1; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Reinforced slats
+            for (let i = 0; i < 3; i++) {
+                const slat = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 0.05), mat(0x2a2a32, { metalness: 0.6 }));
+                slat.position.set(0, 0.4 + i*0.7, 1.52); g.add(slat);
+            }
+            // Roof turret
+            const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.6, 8), mat(0x3a3a42, { metalness: 0.5 }));
+            turret.position.set(0, 2.5, 0); turret.castShadow = true; g.add(turret);
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7, 6), mat(0x1a1a22, { metalness: 0.7 }));
+            barrel.rotation.z = Math.PI/2; barrel.position.set(0.4, 2.5, 0); g.add(barrel);
+        } else if (kind === 'smelter') {
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 2.6, 10), mat(0x5a4a3a, { roughness: 0.9 }));
+            body.position.y = 1.3; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Glow inside
+            const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 1.8, 10), emissiveMat(0xff6b00, 0.9));
+            glow.position.y = 0.9; g.add(glow);
+            // Smokestack
+            const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.0, 8), mat(0x3a2a1a, { roughness: 0.9 }));
+            stack.position.set(0.8, 3.2, 0.8); stack.castShadow = true; g.add(stack);
+            // Smoke puff
+            const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), mat(0x6a6a6a, { roughness: 1 }));
+            smoke.position.set(0.8, 4.3, 0.8); g.add(smoke);
+        } else if (kind === 'invest') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.4, 2.6), mat(0x2a2a3a, { roughness: 0.5, metalness: 0.3 }));
+            body.position.y = 1.7; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Glass windows (emissive)
+            for (let row = 0; row < 3; row++) {
+                for (let col = -1; col <= 1; col++) {
+                    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), emissiveMat(0xffd9a0, 0.4));
+                    win.position.set(col*0.9, 0.8 + row*1, 1.31);
+                    g.add(win);
+                }
+            }
+            // Sign
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.1), mat(0x000, { emissive: 0xffd700, emissiveIntensity: 0.8 }));
+            sign.position.set(0, 3.5, 0); g.add(sign);
+        } else if (kind === 'diner') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.8, 2.4), mat(0xeedcb4, { roughness: 0.5 }));
+            body.position.y = 0.9; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Neon sign
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 0.1), emissiveMat(0xff2fb0, 1.0));
+            sign.position.set(0, 2.3, 0); g.add(sign);
+            // Awning
+            const awning = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.05, 0.8), mat(0xff2fb0, { roughness: 0.6 }));
+            awning.position.set(0, 1.6, 1.5); g.add(awning);
+            // Window
+            const win = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.9), mat(0x111, { emissive: 0xffd9a0, emissiveIntensity: 0.5 }));
+            win.position.set(0, 1.2, 1.21); g.add(win);
+        } else if (kind === 'hospital') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.6, 2.8), mat(0xf0f0f0, { roughness: 0.6 }));
+            body.position.y = 1.3; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Red cross
+            const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.05), mat(0xff3333, { emissive: 0xff3333, emissiveIntensity: 0.6 }));
+            crossH.position.set(0, 2.6, 0); g.add(crossH);
+            const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.05), mat(0xff3333, { emissive: 0xff3333, emissiveIntensity: 0.6 }));
+            crossV.position.set(0, 2.6, 0); g.add(crossV);
+        } else if (kind === 'vault') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.0, 3.0), mat(0x6a6a72, { roughness: 0.3, metalness: 0.7 }));
+            body.position.y = 1.0; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Vault door
+            const door = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.2, 16), mat(0x4a4a52, { metalness: 0.9, roughness: 0.2 }));
+            door.rotation.z = Math.PI/2; door.position.set(0, 1.0, 1.55); g.add(door);
+            // Spokes
+            for (let i = 0; i < 4; i++) {
+                const sp = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.05), mat(0x8a8472, { metalness: 0.7 }));
+                sp.position.set(0, 1.0, 1.66);
+                sp.rotation.z = (i/4) * Math.PI;
+                g.add(sp);
+            }
+        } else if (kind === 'camp') {
+            // Training camp — outdoor yard with target dummies
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), mat(0x4a3a28, { roughness: 0.95 }));
+            ground.rotation.x = -Math.PI/2; ground.position.y = 0.03;
+            g.add(ground);
+            const shed = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 1.0), mat(0x8a5a3a, { roughness: 0.85 }));
+            shed.position.set(0, 0.6, -1); shed.castShadow = true; g.add(shed);
+            // Dummies
+            for (let i = 0; i < 2; i++) {
+                const d = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.0, 6), mat(0x6a4a2a, { roughness: 0.9 }));
+                d.position.set(-0.8 + i*1.6, 0.5, 0.6); d.castShadow = true; g.add(d);
+            }
+        } else if (kind === 'pawnbroker') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.0), mat(0x8a6840, { roughness: 0.7 }));
+            body.position.y = 1.1; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Three gold balls sign
+            for (let i = 0; i < 3; i++) {
+                const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), mat(0xffd700, { metalness: 0.9, roughness: 0.2 }));
+                ball.position.set(-0.4 + i*0.4, 2.5, 0); g.add(ball);
+            }
+        } else if (kind === 'blackmarket') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.0, 2.4), mat(0x3a2a1a, { roughness: 0.9 }));
+            body.position.y = 1.0; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            // Fence
+            for (let i = -1.2; i <= 1.2; i += 0.4) {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 4), mat(0x1a1a1a, { metalness: 0.5 }));
+                post.position.set(i, 0.5, 1.4); g.add(post);
+            }
+        } else if (kind === 'radar') {
+            const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.0, 0.6, 10), mat(0x4a4a52, { roughness: 0.5, metalness: 0.4 }));
+            base2.position.y = 0.3; g.add(base2);
+            const dish = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 8, 0, Math.PI*2, 0, Math.PI/2), mat(0xc9b890, { metalness: 0.5, roughness: 0.4 }));
+            dish.position.y = 0.6; dish.rotation.x = -Math.PI/4; g.add(dish);
+            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 6), mat(0x2a2a32, { metalness: 0.6 }));
+            stalk.position.set(0, 1.2, 0); g.add(stalk);
+        } else if (kind === 'security') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.0, 2.6), mat(0x3a4a4a, { roughness: 0.6, metalness: 0.4 }));
+            body.position.y = 1.0; body.castShadow = true; body.receiveShadow = true; g.add(body);
+            const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), mat(0x1a1a1a));
+            antenna.position.set(0, 2.0, 0); g.add(antenna);
+            const blink = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), emissiveMat(0xff0000, 1.0));
+            blink.position.set(0, 2.7, 0); g.add(blink);
+        } else {
+            // Generic
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.2, 2.4), mat(0x9a8a6a, { roughness: 0.8 }));
+            body.position.y = 1.1; body.castShadow = true; g.add(body);
+        }
+
+        // === DEKORASYON: her binanın etrafına bina tipine uygun objeler ===
+        addBuildingDecor(g, kind, level);
+
+        const hitbox = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({ visible: false }));
+        hitbox.userData = { type: 'resource', kind, id: kind+'_'+g.id, level, label };
+        g.add(hitbox); buildingMeshes.push(hitbox);
+        return g;
+    }
+
+    // Her bina tipi için etrafına özgü dekor objeleri ekler — şehir dokusunu zenginleştirir
+    function addBuildingDecor(g, kind, level) {
+        // Çit — her binanın çevresine
+        const fenceColors = { cargo: 0x6a5a3a, counterfeiter: 0x4a3a2a, ammu: 0x4a4a52, smelter: 0x5a4a3a, invest: 0x2a2a3a, diner: 0xc9b890, hospital: 0xf0f0f0, camp: 0x6a4a2a, vault: 0x6a6a72, pawnbroker: 0x8a6840, blackmarket: 0x3a2a1a, radar: 0x4a4a52, security: 0x3a4a4a };
+        const fenceC = fenceColors[kind] || 0x555555;
+        // Çit direkleri
+        const fenceR = 2.4;
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            const post = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.04, 0.04, 0.8, 4),
+                mat(fenceC, { roughness: 0.9 })
+            );
+            post.position.set(Math.cos(a) * fenceR, 0.4, Math.sin(a) * fenceR);
+            g.add(post);
+        }
+        // Çit ray (üst)
+        for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2;
+            const rail = new THREE.Mesh(
+                new THREE.BoxGeometry(0.04, 0.04, fenceR * 1.3),
+                mat(fenceC, { roughness: 0.9 })
+            );
+            rail.position.set(Math.cos(a) * fenceR, 0.55 + i * 0.1, Math.sin(a) * fenceR);
+            rail.rotation.y = -a;
+            g.add(rail);
+        }
+
+        // Tip-spesifik objeler
+        if (kind === 'cargo') {
+            // Park halinde kamyon
+            const truck = new THREE.Group();
+            const cab = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.7), mat(0x3a5a8a, { metalness: 0.5, roughness: 0.5 }));
+            cab.position.set(2.6, 0.5, 0); truck.add(cab);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.8), mat(0xc9b890, { roughness: 0.6 }));
+            box.position.set(2.6, 0.95, 1.4); truck.add(box);
+            [[-0.3, 0.15], [0.3, 0.15], [-0.3, 1.7], [0.3, 1.7]].forEach(([wx, wz]) => {
+                const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.12, 8), mat(0x1a1a1a));
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(2.6 + wx, 0.18, wz);
+                truck.add(wheel);
+            });
+            g.add(truck);
+            // Yığılmış sandıklar
+            for (let i = 0; i < 4; i++) {
+                const crate = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                    mat(0x8a6840, { roughness: 0.95 })
+                );
+                crate.position.set(-2.0, 0.25 + (i > 1 ? 0.5 : 0), -1.5 + (i % 2));
+                crate.castShadow = true; g.add(crate);
+            }
+        } else if (kind === 'counterfeiter') {
+            // Para yığını (altın)
+            const coinPile = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.6, 0.4, 8),
+                mat(0xffd700, { metalness: 0.9, roughness: 0.2 })
+            );
+            coinPile.position.set(-2.2, 0.2, 1.6); g.add(coinPile);
+            // Tabela direği
+            const signPole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 4), mat(0x1a1a1a));
+            signPole.position.set(2.4, 0.8, -1.6); g.add(signPole);
+            const signBoard = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.05), mat(0x000, { emissive: 0x00cc44, emissiveIntensity: 0.6 }));
+            signBoard.position.set(2.4, 1.4, -1.6); g.add(signBoard);
+        } else if (kind === 'ammu') {
+            // Telsiz anteni
+            const antPole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.0, 4), mat(0x1a1a1a));
+            antPole.position.set(2.0, 1.0, 2.0); g.add(antPole);
+            const antTop = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), mat(0xff0000, { emissive: 0xff0000, emissiveIntensity: 0.8 }));
+            antTop.position.set(2.0, 2.1, 2.0); g.add(antTop);
+            // Çimento bariyer
+            for (let bi = 0; bi < 3; bi++) {
+                const barrier = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 0.5, 1.4),
+                    mat(0x6a6a6a, { roughness: 0.95 })
+                );
+                barrier.position.set(-2.4, 0.25, -1.0 + bi * 1.0);
+                barrier.castShadow = true; g.add(barrier);
+            }
+        } else if (kind === 'smelter') {
+            // Konteynerler (atık)
+            for (let i = 0; i < 2; i++) {
+                const container = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.2, 0.8, 0.8),
+                    mat(i === 0 ? 0x6a4a2a : 0x3a3a3a, { roughness: 0.85 })
+                );
+                container.position.set(-2.2, 0.4, 1.6 - i * 1.2);
+                container.castShadow = true; g.add(container);
+            }
+            // Duman
+            for (let i = 0; i < 3; i++) {
+                const smoke = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.35 + i * 0.1, 6, 5),
+                    mat(0x5a5a5a, { transparent: true, opacity: 0.5 - i * 0.1, roughness: 1 })
+                );
+                smoke.position.set(1.4, 3.5 + i * 0.5, 1.2);
+                g.add(smoke);
+            }
+        } else if (kind === 'invest') {
+            // Park halinde lüks araba
+            const car = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(1.0, 0.5, 2.0),
+                mat(0x1a1a1a, { metalness: 0.7, roughness: 0.2 })
+            );
+            body.position.y = 0.45; car.add(body);
+            const cabin = new THREE.Mesh(
+                new THREE.BoxGeometry(0.85, 0.4, 1.0),
+                mat(0x0a0a0a, { metalness: 0.5, roughness: 0.3 })
+            );
+            cabin.position.set(0, 0.9, 0.1); car.add(cabin);
+            [[-0.5, -0.7], [0.5, -0.7], [-0.5, 0.7], [0.5, 0.7]].forEach(([wx, wz]) => {
+                const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 8), mat(0x0a0a0a));
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(wx, 0.18, wz);
+                car.add(wheel);
+            });
+            car.position.set(2.6, 0, 0);
+            car.rotation.y = -0.3;
+            g.add(car);
+            // Çiçeklik
+            const flower = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.4, 8), mat(0x6a3a1a));
+            flower.position.set(-2.4, 0.2, 1.8); g.add(flower);
+            for (let i = 0; i < 5; i++) {
+                const petal = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 5), mat([0xff6b00, 0xff0066, 0xffd700, 0x9d00ff, 0x00ff44][i]));
+                petal.position.set(-2.4 + Math.cos(i) * 0.3, 0.5, 1.8 + Math.sin(i) * 0.3);
+                g.add(petal);
+            }
+        } else if (kind === 'diner') {
+            // Tabela direği
+            const signPole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 4), mat(0x1a1a1a));
+            signPole.position.set(-2.2, 1.0, 1.8); g.add(signPole);
+            const neonSign = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.5, 0.05),
+                new THREE.MeshStandardMaterial({ color: 0xff2fb0, emissive: 0xff2fb0, emissiveIntensity: 1.2 })
+            );
+            neonSign.position.set(-2.2, 1.7, 1.8); g.add(neonSign);
+            // Park halinde motosiklet
+            const moto = new THREE.Group();
+            const fWheel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.06, 6, 10), mat(0x1a1a1a));
+            fWheel.position.set(0, 0.2, 0.5); fWheel.rotation.y = Math.PI / 2; moto.add(fWheel);
+            const rWheel = fWheel.clone(); rWheel.position.z = -0.5; moto.add(rWheel);
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, 1.0), mat(0xcc0000, { metalness: 0.5, roughness: 0.4 }));
+            frame.position.y = 0.4; moto.add(frame);
+            moto.position.set(2.4, 0, -0.5);
+            moto.rotation.y = -0.6;
+            g.add(moto);
+            // Çöp kutusu
+            const trash = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.25, 0.3, 0.7, 8),
+                mat(0x3a4a5a, { metalness: 0.4, roughness: 0.6 })
+            );
+            trash.position.set(-2.2, 0.35, -1.4); trash.castShadow = true; g.add(trash);
+        } else if (kind === 'hospital') {
+            // Ambulans
+            const amb = new THREE.Group();
+            const aBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 1.6), mat(0xf0f0f0, { roughness: 0.5 }));
+            aBody.position.y = 0.5; amb.add(aBody);
+            const aTop = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 1.0), mat(0xf0f0f0, { roughness: 0.5 }));
+            aTop.position.set(0, 0.95, 0.1); amb.add(aTop);
+            // Red cross
+            const ah = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.02), mat(0xff3333));
+            ah.position.set(0, 0.5, 0.81); amb.add(ah);
+            const av = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.02), mat(0xff3333));
+            av.position.set(0, 0.5, 0.81); amb.add(av);
+            [[-0.4, -0.55], [0.4, -0.55], [-0.4, 0.55], [0.4, 0.55]].forEach(([wx, wz]) => {
+                const w = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 8), mat(0x1a1a1a));
+                w.rotation.z = Math.PI / 2; w.position.set(wx, 0.16, wz); amb.add(w);
+            });
+            amb.position.set(2.6, 0, 0);
+            amb.rotation.y = 0.4;
+            g.add(amb);
+        } else if (kind === 'vault') {
+            // Güvenlik kameraları
+            for (let c = 0; c < 2; c++) {
+                const cam = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.3), mat(0x2a2a2a, { metalness: 0.5 }));
+                cam.position.set(-1.8 + c * 3.6, 2.5, -1.6);
+                cam.lookAt(0, 0, -2.5);
+                g.add(cam);
+                const blink = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), mat(0xff0000, { emissive: 0xff0000, emissiveIntensity: 1.5 }));
+                blink.position.copy(cam.position);
+                g.add(blink);
+            }
+        } else if (kind === 'camp') {
+            // Halat işaretleri ve hedefler
+            for (let i = 0; i < 3; i++) {
+                const target = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.25, 0.3, 0.05, 8),
+                    mat([0xff3333, 0xffd700, 0x3333ff][i])
+                );
+                target.position.set(-1.5 + i * 0.0, 1.0, -1.5);
+                target.lookAt(0, 1.0, 0);
+                g.add(target);
+            }
+            // Baraka
+            const shack = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.4, 0.4),
+                mat(0x4a3a2a, { roughness: 0.95 })
+            );
+            shack.position.set(2.0, 0.2, 1.8); shack.castShadow = true; g.add(shack);
+        } else if (kind === 'pawnbroker') {
+            // 3 altın top (daha büyük)
+            for (let i = 0; i < 3; i++) {
+                const ball = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.28, 10, 8),
+                    mat(0xffd700, { metalness: 0.95, roughness: 0.15 })
+                );
+                ball.position.set(-1.8 + i * 0.45, 0.3, 2.0);
+                ball.castShadow = true; g.add(ball);
+            }
+        } else if (kind === 'blackmarket') {
+            // Variller
+            for (let i = 0; i < 3; i++) {
+                const barrel = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.25, 0.25, 0.7, 8),
+                    mat([0x6a4a2a, 0x3a3a3a, 0x4a3a2a][i], { roughness: 0.9 })
+                );
+                barrel.position.set(2.0 + (i % 2) * 0.6, 0.35, 1.5 - i * 0.6);
+                barrel.castShadow = true; g.add(barrel);
+            }
+        } else if (kind === 'radar') {
+            // Çevre çit
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                const p = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 4), mat(0x1a1a1a, { metalness: 0.5 }));
+                p.position.set(Math.cos(a) * 1.8, 0.6, Math.sin(a) * 1.8);
+                g.add(p);
+            }
+        }
+    }
+
+    function buildCityObject(obj) {
+        // obj.type: capital | city | mine | boss
+        const g = new THREE.Group();
+        if (obj.type === 'mine') {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 2.0), mat(0x6a5a3a, { roughness: 0.85 }));
+            body.position.y = 0.7; body.castShadow = true; g.add(body);
+            const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 4), mat(0x4a3a2a));
+            sh.position.set(0, 1.8, 0); g.add(sh);
+            const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), mat(obj.type === 'gold' ? 0xffd700 : 0xc0c0c0));
+            flag.position.set(0.3, 2.1, 0); g.add(flag);
+        } else if (obj.type === 'boss') {
+            const body = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.2, 6), mat(0x6b1f1f, { roughness: 0.7 }));
+            body.position.y = 1.1; body.castShadow = true; g.add(body);
+            // eyes glow
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), emissiveMat(0xff0000, 1.0));
+            eye.position.set(0.35, 1.7, 0.5); g.add(eye);
+            const eye2 = eye.clone(); eye2.position.x = -0.35; g.add(eye2);
+        } else {
+            // City / capital — small fortified town
+            const wallH = obj.type === 'capital' ? 1.4 : 1.0;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, wallH*1.6, 3.2), mat(obj.empireColor ? obj.empireColor : 0x9aa09a, { roughness: 0.7 }));
+            body.position.y = wallH*0.8; body.castShadow = true; g.add(body);
+            // Roof
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.0, 4), mat(0x6a3a2a, { roughness: 0.7 }));
+            roof.position.y = wallH*1.6 + 0.5; roof.rotation.y = Math.PI/4; g.add(roof);
+            // Flag
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 4), mat(0x1a1a1a));
+            pole.position.set(0, wallH*1.6 + 1.5, 0); g.add(pole);
+            const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), mat(obj.empireColor || 0xffffff));
+            flag.position.set(0.3, wallH*1.6 + 1.7, 0); g.add(flag);
+            if (obj.type === 'capital') {
+                // gold accent
+                const star = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), mat(0xffd700, { metalness: 0.9, roughness: 0.2 }));
+                star.position.set(0, wallH*1.6 + 2.0, 0); g.add(star);
+            }
+        }
+        const hitbox = new THREE.Mesh(new THREE.BoxGeometry(3.5, 4, 3.5), new THREE.MeshBasicMaterial({ visible: false }));
+        hitbox.userData = { type: 'city', id: obj.id, worldObj: obj, label: obj.name || obj.beast };
+        g.add(hitbox); buildingMeshes.push(hitbox);
+        return g;
+    }
+
+    /* ===== REBUILD FROM worldData ===== */
+    let groundBuilt = false;
+    function rebuildFromWorld() {
+        // Clear previous
+        buildingMeshes.length = 0;
+        while (buildingGroup.children.length) {
+            const c = buildingGroup.children[0];
+            buildingGroup.remove(c);
+            c.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) n.material.dispose(); });
+        }
+        while (propGroup.children.length) {
+            const c = propGroup.children[0];
+            propGroup.remove(c);
+        }
+        baseGridCells.clear();
+
+        // Ground + city furniture (sadece ilk seferde)
+        if (!groundBuilt) {
+            buildGround();
+            buildSidewalks();
+            buildStreetProps();
+            groundBuilt = true;
+        }
+
+        if (!worldData) return;
+
+        // Player mansion
+        if (currentPlayer && currentPlayer.base) {
+            const lvl = currentPlayer.base.level || 1;
+            const m = buildMansion(lvl);
+            m.position.set(currentPlayer.base.x, 0, currentPlayer.base.z);
+            buildingGroup.add(m);
+            baseGridCells.add(Math.round(currentPlayer.base.x/gridUnit) + ',' + Math.round(currentPlayer.base.z/gridUnit));
+        }
+
+        // Demo starter buildings — gerçek backend yoksa demo için (sadece oyuncu base'i varsa)
+        if (currentPlayer && currentPlayer.base && (!currentPlayer.buildings || currentPlayer.buildings.length === 0)) {
+            const bx = currentPlayer.base.x, bz = currentPlayer.base.z;
+            // Yoğun şehir dokusu — 50+ bina, 4 halka
+            const layout = [
+                // === İÇ HALKA (mansion surunun hemen dışı, level 4-5) ===
+                { kind: 'cargo', dx: -3, dz: 2, lv: 4 },
+                { kind: 'cargo', dx: 3, dz: 2, lv: 4 },
+                { kind: 'counterfeiter', dx: -3, dz: -2, lv: 4 },
+                { kind: 'counterfeiter', dx: 3, dz: -2, lv: 4 },
+                { kind: 'invest', dx: 0, dz: 3, lv: 5 },
+                { kind: 'diner', dx: 0, dz: -3, lv: 5 },
+                { kind: 'ammu', dx: 3, dz: 0, lv: 4 },
+                { kind: 'smelter', dx: -3, dz: 0, lv: 4 },
+                // === ORTA HALKA (ana fonksiyon, level 3) ===
+                { kind: 'hospital', dx: -2, dz: 4, lv: 3 },
+                { kind: 'pawnbroker', dx: 2, dz: 4, lv: 3 },
+                { kind: 'vault', dx: 2, dz: -4, lv: 3 },
+                { kind: 'camp', dx: -2, dz: -4, lv: 3 },
+                { kind: 'cargo', dx: 4, dz: 2, lv: 3 },
+                { kind: 'cargo', dx: -4, dz: 2, lv: 3 },
+                { kind: 'counterfeiter', dx: 4, dz: -2, lv: 3 },
+                { kind: 'counterfeiter', dx: -4, dz: -2, lv: 3 },
+                { kind: 'ammu', dx: 0, dz: 4, lv: 3 },
+                { kind: 'smelter', dx: 0, dz: -4, lv: 3 },
+                // === DIŞ HALKA (destek, level 2) ===
+                { kind: 'diner', dx: 5, dz: 0, lv: 2 },
+                { kind: 'diner', dx: -5, dz: 0, lv: 2 },
+                { kind: 'hospital', dx: 0, dz: 5, lv: 2 },
+                { kind: 'hospital', dx: 0, dz: -5, lv: 2 },
+                { kind: 'blackmarket', dx: 5, dz: 3, lv: 2 },
+                { kind: 'blackmarket', dx: -5, dz: -3, lv: 2 },
+                { kind: 'pawnbroker', dx: -5, dz: 3, lv: 2 },
+                { kind: 'pawnbroker', dx: 5, dz: -3, lv: 2 },
+                { kind: 'radar', dx: 6, dz: -1, lv: 2 },
+                { kind: 'security', dx: -6, dz: 1, lv: 2 },
+                { kind: 'vault', dx: 1, dz: 6, lv: 2 },
+                { kind: 'vault', dx: -1, dz: -6, lv: 2 },
+                // === ÇOK DIŞ (şehir dokusu, level 1) ===
+                { kind: 'cargo', dx: 7, dz: 2, lv: 1 },
+                { kind: 'cargo', dx: -7, dz: -2, lv: 1 },
+                { kind: 'counterfeiter', dx: 7, dz: -2, lv: 1 },
+                { kind: 'counterfeiter', dx: -7, dz: 2, lv: 1 },
+                { kind: 'ammu', dx: 2, dz: 7, lv: 1 },
+                { kind: 'ammu', dx: -2, dz: -7, lv: 1 },
+                { kind: 'smelter', dx: -2, dz: 7, lv: 1 },
+                { kind: 'smelter', dx: 2, dz: -7, lv: 1 },
+                { kind: 'diner', dx: 8, dz: 4, lv: 1 },
+                { kind: 'diner', dx: -8, dz: -4, lv: 1 },
+                { kind: 'cargo', dx: 4, dz: 7, lv: 1 },
+                { kind: 'counterfeiter', dx: -4, dz: -7, lv: 1 },
+                { kind: 'camp', dx: 7, dz: 0, lv: 1 },
+                { kind: 'camp', dx: -7, dz: 0, lv: 1 },
+                { kind: 'pawnbroker', dx: 0, dz: 7, lv: 1 },
+                { kind: 'pawnbroker', dx: 0, dz: -7, lv: 1 },
+            ];
+            layout.forEach(({ kind, dx, dz, lv }) => {
+                const b = kind === 'wall' ? buildWallSegment(lv) : buildResourceBuilding(kind, lv);
+                b.position.set(bx + dx*gridUnit, 0, bz + dz*gridUnit);
+                buildingGroup.add(b);
+                baseGridCells.add((bx/gridUnit + dx) + ',' + (bz/gridUnit + dz));
+            });
+        }
+
+        // Backend'den gelen binalar (varsa)
+        if (currentPlayer && currentPlayer.buildings) {
+            currentPlayer.buildings.forEach(b => {
+                const built = b.kind === 'wall' ? buildWallSegment(b.level||1) : buildResourceBuilding(b.kind, b.level||1);
+                built.position.set(b.x, 0, b.z);
+                buildingGroup.add(built);
+                baseGridCells.add(Math.round(b.x/gridUnit) + ',' + Math.round(b.z/gridUnit));
+            });
+        }
+
+        // World objects — şehirler, madenler, bosslar
+        Object.values(worldData.cities || {}).forEach(c => {
+            const { wx, wz } = latLngToWorld(c.lat, c.lng);
+            const obj = buildCityObject({ ...c, type: c.type === 'capital' ? 'capital' : 'city' });
+            obj.position.set(wx, 0, wz);
+            buildingGroup.add(obj);
+        });
+        Object.values(worldData.mines || {}).forEach(m => {
+            const { wx, wz } = latLngToWorld(m.lat, m.lng);
+            const obj = buildCityObject({ ...m, type: 'mine' });
+            obj.position.set(wx, 0, wz);
+            buildingGroup.add(obj);
+        });
+        Object.values(worldData.bosses || {}).forEach(b => {
+            const { wx, wz } = latLngToWorld(b.lat, b.lng);
+            const obj = buildCityObject({ ...b, type: 'boss' });
+            obj.position.set(wx, 0, wz);
+            buildingGroup.add(obj);
+        });
+    }
+
+    /* ===== WORLD HELPERS (lat/lng ↔ world, eskisiyle uyumlu) ===== */
+    function latLngToWorld(lat, lng) { return { wx: (lng / 180) * 1000, wz: (-lat / 90) * 500 }; }
+
+    function startBasePlacement() {
+        basePlacementMode = true;
+        document.getElementById('build-ghost-info').classList.add('active');
+        if (currentPlayer && currentPlayer.base) {
+            showToast('info', 'Zaten bir üssün var. Önce mevcut üssü geliştir.');
+            basePlacementMode = false;
+            document.getElementById('build-ghost-info').classList.remove('active');
+        }
+    }
+
+    /* ===== ANIMATION LOOP ===== */
+    function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        // Subtle breathing on glow rings
+        buildingGroup.traverse(o => {
+            if (o.userData && o.userData.glow) {
+                o.material.opacity = 0.3 + Math.sin(t * 1.5) * 0.1;
+            }
+        });
+        // Foliage sway simulation (move trees very slightly)
+        renderer.render(scene, camera);
+    }
+
+    /* ===== BATTLE ANIMATION (KORUNDU, mevcut battleAnimation event'i) ===== */
+    function playMarchAnimation(d) {
+        const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
+        if (!target) return;
+        const start = currentPlayer?.base ? { wx: currentPlayer.base.x, wz: currentPlayer.base.z } : { wx: 0, wz: 0 };
+        const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : { wx: target.x, wz: target.z };
+        const color = '#' + (d.attackerColor || 0xff6b00).toString(16).padStart(6,'0');
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), new THREE.MeshBasicMaterial({ color }));
+        sphere.position.set(start.wx, 2, start.wz);
+        marchGroup.add(sphere);
+        const startTime = performance.now();
+        const duration = 1500;
+        function step() {
+            const elapsed = performance.now() - startTime;
+            const k = Math.min(1, elapsed / duration);
+            sphere.position.x = start.wx + (end.wx - start.wx) * k;
+            sphere.position.z = start.wz + (end.wz - start.wz) * k;
+            sphere.position.y = 2 + Math.sin(k * Math.PI) * 3;
+            if (k < 1) requestAnimationFrame(step);
+            else {
+                // explosion
+                playSound('explosion');
+                const boom = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+                boom.position.set(end.wx, 2, end.wz);
+                marchGroup.add(boom);
+                let s = 1;
+                const boomAnim = () => {
+                    s += 0.08;
+                    boom.scale.set(s, s, s);
+                    boom.material.opacity = Math.max(0, 1 - (s-1)/1.5);
+                    boom.material.transparent = true;
+                    if (s < 2.5) requestAnimationFrame(boomAnim);
+                    else { marchGroup.remove(boom); marchGroup.remove(sphere); }
+                };
+                boomAnim();
+            }
+        }
+        step();
+    }
+
+    return {
+        init, rebuildFromWorld, startBasePlacement, centerOnBase: () => controls.centerOnBase?.(),
+        zoomIn: () => controls.setCamDist?.(controls.getCamDist() * 0.85),
+        zoomOut: () => controls.setCamDist?.(controls.getCamDist() * 1.18),
+        getWorld: () => worldGroup,
+        playMarchAnimation,
+    };
+})();
+
+/* ============================================================
+   GAME ENTRY & UI
+   ============================================================ */
 function enterGame(d) {
     document.getElementById('game-screen').style.display = 'block';
-    document.getElementById('ui-ryo').innerText = d.ryo;
-    document.getElementById('ui-infantry').innerText = d.army?.infantry || 0;
-    document.getElementById('ui-archer').innerText = d.army?.archer || 0;
-    document.getElementById('ui-cavalry').innerText = d.army?.cavalry || 0;
+    // Hide loading
+    document.getElementById('loading-fill').style.width = '60%';
+    document.getElementById('loading-text').textContent = 'Building your turf';
+    setTimeout(() => {
+        // Init 3D (skip if Three.js failed to load — show flat fallback)
+        if (window.__NO_3D__) {
+            document.getElementById('loading-text').textContent = '3D unavailable (CDN blocked) — running in 2D mode';
+            showToast('error', '3D engine yüklenemedi — CDN erişimi gerekli');
+            setTimeout(() => {
+                document.getElementById('loading-fill').style.width = '100%';
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 600);
+            }, 400);
+            return;
+        }
+        try {
+            City3D.init();
+            City3D.rebuildFromWorld();
+            City3D.centerOnBase();
+            setTimeout(() => {
+                document.getElementById('loading-fill').style.width = '100%';
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 600);
+            }, 400);
+        } catch (e) {
+            console.error('3D init failed', e);
+            document.getElementById('loading-text').textContent = '3D init error — see console';
+        }
+    }, 300);
+
+    // HUD
+    if (d.empireColor) document.getElementById('ui-avatar').style.background = 'linear-gradient(180deg, #' + d.empireColor.toString(16).padStart(6,'0') + ', #141418)';
     document.getElementById('ui-avatar').innerText = icons[d.character] || '🦊';
-    if (d.clan && clansData[d.clan]) { document.getElementById('ui-clan').innerText = clansData[d.clan].name; }
-    
-    // 3D Motoru Başlat
-    if (!scene3D) init3DEngine();
-    render3DMap();
-    requestAnimationFrame(() => camera3D.centerOnBase());
-}
+    if (d.clan && clansData[d.clan]) document.getElementById('ui-clan').innerText = clansData[d.clan].name;
+    updateResources(d);
 
-// ==================== THREE.JS 3D MAFIA CITY MOTORU ====================
-let scene3D, camera3D, renderer3D, raycaster, mouse;
-let groundMesh, buildingsGroup, decorGroup;
-let interactableMeshes = []; // Saldırı/Detay için tıklanabilir binalar
+    // Zoom controls
+    document.getElementById('zoom-in').onclick = City3D.zoomIn;
+    document.getElementById('zoom-out').onclick = City3D.zoomOut;
+    document.getElementById('zoom-home').onclick = City3D.centerOnBase;
 
-function latLngToWorld(lat, lng) { return { wx: (lng / 180) * 1000, wz: (-lat / 90) * 500 }; }
-function xzToWorld(x, z) { return { wx: x, wz: z }; }
-
-function init3DEngine() {
-    const container = document.getElementById('map-container');
-    
-    // Scene
-    scene3D = new THREE.Scene();
-    scene3D.background = new THREE.Color(0x111114);
-    scene3D.fog = new THREE.Fog(0x111114, 150, 500);
-
-    // Camera
-    camera3D = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera3D.position.set(0, 100, 100);
-    camera3D.lookAt(0, 0, 0);
-
-    // Renderer
-    renderer3D = new THREE.WebGLRenderer({ antialias: true });
-    renderer3D.setSize(window.innerWidth, window.innerHeight);
-    renderer3D.shadowMap.enabled = true;
-    renderer3D.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(renderer3D.domElement);
-
-    // Lights (Mafia City Golden Hour Atmosphere)
-    const ambientLight = new THREE.AmbientLight(0xffeac4, 0.4);
-    scene3D.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffa45c, 1.2);
-    dirLight.position.set(50, 100, 30);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.left = -150;
-    dirLight.shadow.camera.right = 150;
-    dirLight.shadow.camera.top = 150;
-    dirLight.shadow.camera.bottom = -150;
-    scene3D.add(dirLight);
-
-    // Neon/Street lights için nokta ışıkları
-    const pointLight1 = new THREE.PointLight(0xff6b00, 1, 100);
-    pointLight1.position.set(0, 20, 0);
-    scene3D.add(pointLight1);
-
-    // Ground (Asfalt ve Çim dokusu)
-    const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
-    groundMesh = new THREE.Mesh(groundGeo, groundMat);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.receiveShadow = true;
-    scene3D.add(groundMesh);
-
-    // Groups
-    buildingsGroup = new THREE.Group();
-    decorGroup = new THREE.Group();
-    scene3D.add(buildingsGroup);
-    scene3D.add(decorGroup);
-
-    // Raycaster for clicks
-    raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
-
-    // Controls
-    setup3DCameraControls();
-    
-    // Generate City Decor (Background buildings)
-    generateDecorCity();
-
-    // Handle Resize
-    window.addEventListener('resize', onWindowResize, false);
-    animate3D();
-}
-
-function onWindowResize() {
-    camera3D.aspect = window.innerWidth / window.innerHeight;
-    camera3D.updateProjectionMatrix();
-    renderer3D.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate3D() {
-    requestAnimationFrame(animate3D);
-    renderer3D.render(scene3D, camera3D);
-}
-
-// Kamera Kontrolleri (Mobil ve PC)
-function setup3DCameraControls() {
-    const container = document.getElementById('map-container');
-    let isDragging = false;
-    let prevX = 0, prevY = 0;
-    let activePointerId = null;
-    let pinchStartDist = null, pinchStartZoom = 1;
-
-    container.addEventListener('pointerdown', (e) => {
-        if (basePlacementMode) return;
-        isDragging = true;
-        prevX = e.clientX; prevY = e.clientY;
-        activePointerId = e.pointerId;
-        container.classList.add('grabbing');
-    });
-
-    document.addEventListener('pointermove', (e) => {
-        if (!isDragging || e.pointerId !== activePointerId) return;
-        const dx = e.clientX - prevX;
-        const dy = e.clientY - prevY;
-        prevX = e.clientX; prevY = e.clientY;
-
-        // Kamera hareketi (Pan)
-        camera3D.position.x -= dx * 0.5;
-        camera3D.position.z -= dy * 0.5;
-        camera3D.lookAt(camera3D.position.x, 0, camera3D.position.z - 50);
-    });
-
-    document.addEventListener('pointerup', (e) => {
-        if (e.pointerId !== activePointerId) return;
-        isDragging = false;
-        container.classList.remove('grabbing');
-        activePointerId = null;
-    });
-
-    container.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        camera3D.zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
-    }, { passive: false });
-
-    // Pinch Zoom (Mobil)
-    container.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-            pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            pinchStartZoom = camera3D.position.y;
-        }
-    }, { passive: true });
-
-    container.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 2 && pinchStartDist) {
-            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            const newZoom = Math.max(40, Math.min(200, pinchStartZoom * (pinchStartDist / dist)));
-            camera3D.position.y = newZoom;
-        }
-    }, { passive: true });
-
-    // Tıklama işlemleri (Raycaster)
-    container.addEventListener('click', (e) => {
-        if (isDragging) return; // Sürükleme varsa tıklama sayma
-        
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, camera3D);
-        const intersects = raycaster.intersectObjects(interactableMeshes);
-
-        if (intersects.length > 0) {
-            const obj = intersects[0].object.userData;
-            if (obj.type === 'city') showRadialMenu(e.clientX, e.clientY, [
-                { icon: '🔍', label: 'Detay', action: () => showCityPopup(obj.id) },
-                { icon: obj.isOwner ? '🛡️' : '⚔️', label: obj.isOwner ? 'Savunma' : 'Saldır', action: () => { selectedCityId = obj.id; obj.isOwner ? openDeployModal() : openAttackModal(); } }
-            ]);
-            else if (obj.type === 'mine') showRadialMenu(e.clientX, e.clientY, [
-                { icon: '🔍', label: 'Detay', action: () => showMinePopup(obj.id) },
-                { icon: '⛏️', label: 'İşgal Et', action: () => { selectedMineId = obj.id; openAttackModal('mine'); } }
-            ]);
-            else if (obj.type === 'boss') showRadialMenu(e.clientX, e.clientY, [
-                { icon: '🔍', label: 'Detay', action: () => showBossPopup(obj.id) },
-                { icon: '👹', label: 'Saldır', action: () => { selectedBossId = obj.id; openAttackModal('boss'); } }
-            ]);
-        } else if (basePlacementMode) {
-            // Boş bir yere tıklandığında üs kur
-            const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5);
-            vector.unproject(camera3D);
-            const dir = vector.sub(camera3D.position).normalize();
-            const distance = -camera3D.position.y / dir.y;
-            const pos = camera3D.position.clone().add(dir.multiplyScalar(distance));
-            socket.emit('buildBase', { x: pos.x, z: pos.z });
-            basePlacementMode = false;
-        }
-    });
-}
-
-// Kamera API (Eski kontrollerle uyumlu)
-camera3D = {
-    zoomBy(f) {
-        camera3D.position.y = Math.max(40, Math.min(200, camera3D.position.y / f));
-    },
-    centerOnBase() {
-        if (currentPlayer && currentPlayer.base) {
-            const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
-            camera3D.position.set(wx, 100, wz + 100);
-            camera3D.lookAt(wx, 0, wz);
-        } else {
-            camera3D.position.set(0, 100, 100);
-            camera3D.lookAt(0, 0, 0);
-        }
-    },
-    centerOn(wx, wz) {
-        camera3D.position.set(wx, 100, wz + 100);
-        camera3D.lookAt(wx, 0, wz);
-    }
-};
-
-// 3D Bina ve Obje Oluşturma Fonksiyonları
-function createBuilding(type, color = 0xffffff, isCapital = false) {
-    const group = new THREE.Group();
-    let height = isCapital ? 30 : 15 + Math.random() * 10;
-    let width = isCapital ? 20 : 12;
-    
-    const wallColor = isCapital ? 0xe8dcc4 : 0x8a8a8a;
-    const roofColor = color;
-
-    // Ana Gövde
-    const geo = new THREE.BoxGeometry(width, height, width);
-    const mat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.7 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.y = height / 2;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-
-    // Çatı
-    const roofGeo = new THREE.ConeGeometry(width * 0.7, width * 0.5, 4);
-    const roofMat = new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.6 });
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = height + width * 0.25;
-    roof.rotation.y = Math.PI / 4;
-    roof.castShadow = true;
-    group.add(roof);
-
-    // Pencereler (Basit neon izlenimi)
-    const winMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
-    for(let i=1; i<height; i+=4) {
-        for(let j=-1; j<=1; j+=2) {
-            const wGeo = new THREE.PlaneGeometry(2, 2);
-            const win = new THREE.Mesh(wGeo, winMat);
-            win.position.set(j * (width/2 + 0.1), i, 0);
-            win.rotation.y = j * Math.PI / 2;
-            group.add(win);
-        }
-    }
-
-    return group;
-}
-
-function createHouse(color = 0xff6b00) {
-    const group = new THREE.Group();
-    const baseGeo = new THREE.BoxGeometry(10, 8, 10);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc4 });
-    const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.y = 4;
-    base.castShadow = true;
-    group.add(base);
-
-    const roofGeo = new THREE.ConeGeometry(8, 6, 4);
-    const roofMat = new THREE.MeshStandardMaterial({ color: color });
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 11;
-    roof.rotation.y = Math.PI / 4;
-    roof.castShadow = true;
-    group.add(roof);
-
-    // Glow Ring (Mansion vurgusu)
-    const ringGeo = new THREE.RingGeometry(12, 15, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.1;
-    group.add(ring);
-
-    return group;
-}
-
-// Şehir Dekorasyonu (Arka plan binaları)
-function generateDecorCity() {
-    for(let i=0; i<150; i++) {
-        const x = (Math.random() - 0.5) * 800;
-        const z = (Math.random() - 0.5) * 800;
-        
-        // Merkez bölgeyi boş bırak (oyuncu üssü ve ana şehirler için)
-        if (Math.abs(x) < 50 && Math.abs(z) < 50) continue;
-
-        const h = 10 + Math.random() * 30;
-        const w = 8 + Math.random() * 6;
-        const geo = new THREE.BoxGeometry(w, h, w);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, h/2, z);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        decorGroup.add(mesh);
-
-        // Sokak lambası efekti
-        if (Math.random() > 0.7) {
-            const lightGeo = new THREE.SphereGeometry(0.5, 8, 8);
-            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffaa44 });
-            const light = new THREE.Mesh(lightGeo, lightMat);
-            light.position.set(x, h+1, z);
-            decorGroup.add(light);
-        }
-    }
-    
-    // Yol ve çizgiler (Basit)
-    const roadGeo = new THREE.PlaneGeometry(1000, 20);
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const road1 = new THREE.Mesh(roadGeo, roadMat);
-    road1.rotation.x = -Math.PI / 2;
-    road1.position.y = 0.1;
-    decorGroup.add(road1);
-    
-    const road2 = new THREE.Mesh(roadGeo, roadMat);
-    road2.rotation.x = -Math.PI / 2;
-    road2.rotation.z = Math.PI / 2;
-    road2.position.y = 0.1;
-    decorGroup.add(road2);
-}
-
-// 3D Haritayı Doldur
-function render3DMap() {
-    if (!worldData) return;
-    
-    // Eski binaları temizle
-    while(buildingsGroup.children.length > 0) {
-        buildingsGroup.remove(buildingsGroup.children[0]);
-    }
-    interactableMeshes = [];
-
-    // Şehirler
-    Object.values(worldData.cities).forEach(c => {
-        const { wx, wz } = latLngToWorld(c.lat, c.lng);
-        const isCap = c.type === 'capital';
-        const color = c.empireColor ? c.empireColor : 0x9aa09a;
-        
-        const building = createBuilding('city', color, isCap);
-        building.position.set(wx, 0, wz);
-        building.userData = { type: 'city', id: c.id, isOwner: c.owner === currentPlayer.username };
-        
-        // Tıklanabilir alan için invisible mesh
-        const hitGeo = new THREE.BoxGeometry(30, 40, 30);
-        const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
-        const hitMesh = new THREE.Mesh(hitGeo, hitMat);
-        hitMesh.position.y = 20;
-        hitMesh.userData = building.userData;
-        
-        building.add(hitMesh);
-        interactableMeshes.push(hitMesh);
-        buildingsGroup.add(building);
-    });
-
-    // Madenler
-    Object.values(worldData.mines || {}).forEach(m => {
-        const { wx, wz } = latLngToWorld(m.lat, m.lng);
-        const mineGeo = new THREE.CylinderGeometry(8, 10, 12, 8);
-        const mineMat = new THREE.MeshStandardMaterial({ color: 0xffd700 });
-        const mine = new THREE.Mesh(mineGeo, mineMat);
-        mine.position.set(wx, 6, wz);
-        mine.castShadow = true;
-        mine.userData = { type: 'mine', id: m.id };
-        interactableMeshes.push(mine);
-        buildingsGroup.add(mine);
-    });
-
-    // Boss'lar
-    Object.values(worldData.bosses || {}).forEach(b => {
-        const { wx, wz } = latLngToWorld(b.lat, b.lng);
-        const bossGeo = new THREE.OctahedronGeometry(10);
-        const bossMat = new THREE.MeshStandardMaterial({ color: 0xff2b2b });
-        const boss = new THREE.Mesh(bossGeo, bossMat);
-        boss.position.set(wx, 12, wz);
-        boss.castShadow = true;
-        boss.userData = { type: 'boss', id: b.id };
-        interactableMeshes.push(boss);
-        buildingsGroup.add(boss);
-    });
-
-    // Oyuncu Üssü (Mansion)
-    if (currentPlayer.base) {
-        const { wx, wz } = xzToWorld(currentPlayer.base.x, currentPlayer.base.z);
-        const house = createHouse(currentPlayer.empireColor || 0xff6b00);
-        house.position.set(wx, 0, wz);
-        buildingsGroup.add(house);
+    // Tutorial ilk kez login olanlar için
+    if (!localStorage.getItem('atlas_tutorial_done')) {
+        setTimeout(startTutorial, 1200);
     }
 }
 
-// ==================== MEVCUT UI VE POPUP SİSTEMLERİ (KORUNDU) ====================
+function updateResources(d) {
+    if (d.cash !== undefined) document.getElementById('ui-cash').innerText = formatNum(d.cash);
+    if (d.cargo !== undefined) document.getElementById('ui-cargo').innerText = formatNum(d.cargo);
+    if (d.arms !== undefined) document.getElementById('ui-arms').innerText = formatNum(d.arms);
+    if (d.metal !== undefined) document.getElementById('ui-metal').innerText = formatNum(d.metal);
+    if (d.crew !== undefined) document.getElementById('ui-crew').innerText = formatNum(d.crew);
+    if (d.ryo !== undefined) document.getElementById('ui-cash').innerText = formatNum(d.ryo);
+    if (d.power !== undefined) document.getElementById('ui-power').innerText = formatNum(d.power);
+}
+function formatNum(n) {
+    if (n === undefined) return '0';
+    if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+    return n.toString();
+}
+
+/* ============================================================
+   TUTORIAL
+   ============================================================ */
+let tutorialStep = 0;
+const TUT_STEPS = [
+    { key: 'tut1' }, { key: 'tut2' }, { key: 'tut3' }, { key: 'tut4' }, { key: 'tut5' }, { key: 'tut6' }
+];
+function startTutorial() {
+    tutorialStep = 0;
+    document.getElementById('tutorial-overlay').classList.add('active');
+    showTutorialStep();
+}
+function showTutorialStep() {
+    const step = TUT_STEPS[tutorialStep];
+    document.getElementById('tut-title').textContent = I18N[currentLang][step.key + '_title'];
+    document.getElementById('tut-body').textContent = I18N[currentLang][step.key + '_body'];
+    document.getElementById('tut-next').textContent = tutorialStep === TUT_STEPS.length - 1 ? I18N[currentLang].done : I18N[currentLang].next;
+}
+function nextTutorial() {
+    tutorialStep++;
+    if (tutorialStep >= TUT_STEPS.length) {
+        skipTutorial();
+        return;
+    }
+    showTutorialStep();
+}
+function skipTutorial() {
+    document.getElementById('tutorial-overlay').classList.remove('active');
+    localStorage.setItem('atlas_tutorial_done', '1');
+}
+
+/* ============================================================
+   MODAL & POPUP (KORUNDU + YENİLER)
+   ============================================================ */
+function showCityPopup(id) {
+    const c = worldData.cities[id]; if(!c) return;
+    const box = document.getElementById('modal-box');
+    const bP=[]; if(c.bonus?.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus?.defense)bP.push(`%${c.bonus.defense*100} Savunma`);
+    box.innerHTML = `
+        <h2>${c.name}</h2>
+        <div class="info-row"><span>Tip</span><span>${c.type === 'capital' ? '👑 Başkent' : '🏘️ Şehir'}</span></div>
+        <div class="info-row"><span>Sahip</span><span>${c.owner||'Bağımsız'}</span></div>
+        <div class="info-row"><span>🏰 Muhafız</span><span>${c.garrison || 0}</span></div>
+        <div class="info-row"><span>Bonus</span><span style="color:var(--secondary)">${bP.join(', ')||'—'}</span></div>
+        ${c.owner === currentPlayer.username ?
+            `<button class="btn btn-primary" onclick="openDeployModal()">Savunma Yerleştir</button>` :
+            `<button class="btn btn-primary" onclick="openAttackModal('city')">⚔️ Saldır</button>`
+        }
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function showMinePopup(id) {
+    const m = worldData.mines[id]; if(!m) return;
+    const box = document.getElementById('modal-box');
+    box.innerHTML = `
+        <h2>${m.name}</h2>
+        <div class="info-row"><span>Sahip</span><span>${m.owner||'NPC'}</span></div>
+        <div class="info-row"><span>Gelir</span><span style="color:var(--gold)">${m.yield}/dk</span></div>
+        ${m.owner !== currentPlayer.username ? `<button class="btn btn-primary" onclick="openAttackModal('mine')">⛏️ İşgal Et</button>` : '<p style="color:var(--green);text-align:center;margin:10px 0;">Bu maden senin!</p>'}
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function showBossPopup(id) {
+    const b = worldData.bosses[id]; if(!b) return;
+    const box = document.getElementById('modal-box');
+    if(b.defeated) {
+        box.innerHTML = `<h2 style="color:red">${b.beast}</h2><p style="text-align:center;margin:10px 0;">Yenilmiş. Respawn bekleniyor.</p><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else {
+        box.innerHTML = `
+            <h2 style="color:red">${b.beast}</h2>
+            <div class="info-row"><span>HP</span><span>${b.currentHp} / ${b.hp}</span></div>
+            <div class="info-row"><span>Ödül</span><span style="color:var(--gold)">${b.reward} Ryo</span></div>
+            <button class="btn btn-primary" style="background:linear-gradient(45deg,#f00,#900)" onclick="openAttackModal('boss')">👹 Saldır</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+        `;
+    }
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function showBuildingPopup(data) {
+    const box = document.getElementById('modal-box');
+    const lvl = data.level || 1;
+    const nextCost = computeNextCost(data.kind || data.type, lvl);
+    const isOwn = currentPlayer && (data.type === 'mansion' || data.type === 'wall' || data.type === 'resource');
+    box.innerHTML = `
+        <h2>${data.label} — Lv ${lvl}</h2>
+        <div class="info-row"><span>Tip</span><span>${data.type}</span></div>
+        <div class="info-row"><span>Durum</span><span style="color:var(--green)">Aktif</span></div>
+        <h3 style="color:var(--gold);margin:14px 0 8px;font-size:1rem;">Yükseltme Maliyeti</h3>
+        ${nextCost.map(r => `<div class="res-bar">
+            <span class="icon">${r.icon}</span>
+            <span class="name">${r.name}</span>
+            <span class="progress"><span class="progress-fill" style="width:${Math.min(100,(currentPlayer[r.key]||0)/r.need*100)}%"></span></span>
+            <span class="value">${formatNum(r.need)}</span>
+        </div>`).join('')}
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="upgradeBuilding(${JSON.stringify(data).replace(/"/g,'&quot;')})">⬆️ Yükselt</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+        </div>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function computeNextCost(kind, level) {
+    // Basit üstel: base * (1.5^level)
+    const table = {
+        mansion: [{key:'cash', name:'Cash', icon:'💵', need: 5000 * Math.pow(1.5, level)}, {key:'cargo', name:'Cargo', icon:'📦', need: 5000 * Math.pow(1.5, level)}],
+        wall: [{key:'cash', name:'Cash', icon:'💵', need: 2000 * Math.pow(1.5, level)}, {key:'cargo', name:'Cargo', icon:'📦', need: 2000 * Math.pow(1.5, level)}],
+        cargo: [{key:'cash', name:'Cash', icon:'💵', need: 1000 * Math.pow(1.5, level)}],
+        counterfeiter: [{key:'cash', name:'Cash', icon:'💵', need: 1000 * Math.pow(1.5, level)}],
+        ammu: [{key:'cargo', name:'Cargo', icon:'📦', need: 1500 * Math.pow(1.5, level)}],
+        smelter: [{key:'cargo', name:'Cargo', icon:'📦', need: 1500 * Math.pow(1.5, level)}],
+        invest: [{key:'cash', name:'Cash', icon:'💵', need: 3000 * Math.pow(1.5, level)}],
+        diner: [{key:'cash', name:'Cash', icon:'💵', need: 2500 * Math.pow(1.5, level)}],
+        hospital: [{key:'cash', name:'Cash', icon:'💵', need: 2500 * Math.pow(1.5, level)}],
+        camp: [{key:'cargo', name:'Cargo', icon:'📦', need: 2000 * Math.pow(1.5, level)}],
+        vault: [{key:'cash', name:'Cash', icon:'💵', need: 5000 * Math.pow(1.5, level)}],
+        pawnbroker: [{key:'cash', name:'Cash', icon:'💵', need: 2000 * Math.pow(1.5, level)}],
+        blackmarket: [{key:'cargo', name:'Cargo', icon:'📦', need: 2500 * Math.pow(1.5, level)}],
+        radar: [{key:'cash', name:'Cash', icon:'💵', need: 4000 * Math.pow(1.5, level)}, {key:'cargo', name:'Cargo', icon:'📦', need: 4000 * Math.pow(1.5, level)}],
+        security: [{key:'cash', name:'Cash', icon:'💵', need: 3500 * Math.pow(1.5, level)}, {key:'cargo', name:'Cargo', icon:'📦', need: 3500 * Math.pow(1.5, level)}],
+    };
+    return table[kind] || table.wall;
+}
+
+function upgradeBuilding(data) {
+    const lvl = data.level || 1;
+    const cost = computeNextCost(data.kind || data.type, lvl);
+    // Client-side: server'a gönder, server doğrular
+    socket.emit('upgradeBuilding', { id: data.id, kind: data.kind || data.type, currentLevel: lvl });
+    showToast('info', 'Yükseltme isteği gönderildi…');
+    closeModal();
+}
+
+function openModal(t) {
+    const box = document.getElementById('modal-box');
+    document.getElementById('modal-overlay').style.display = 'flex';
+    if (t === 'leaderboard') {
+        box.innerHTML = '<h2>Yükleniyor...</h2>';
+        socket.emit('getLeaderboard');
+    } else if (t === 'profile') {
+        box.innerHTML = '<h2>Yükleniyor...</h2>';
+        socket.emit('getProfile');
+    } else if (t === 'mail') {
+        box.innerHTML = '<h2>Yükleniyor...</h2>';
+        socket.emit('getInbox');
+    } else if (t === 'train') {
+        const c = currentPlayer.crew || currentPlayer.army?.infantry || 0;
+        box.innerHTML = `
+            <h2>🔨 Asker Eğit</h2>
+            <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Mevcut: ${formatNum(c)}</p>
+            <div class="input-group"><label>👥 Eğitilecek Asker (100 Cash)</label><input type="number" id="t-amt" min="0" value="0"></div>
+            <button class="btn btn-primary" onclick="train()">Eğit</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else if (t === 'hospital') {
+        box.innerHTML = `
+            <h2>🏥 Hastane</h2>
+            <p style="text-align:center;color:var(--red);margin-bottom:10px;">Yaralı: ${formatNum(currentPlayer.hospital?.infantry || 0)}</p>
+            <div class="input-group"><label>👥 İyileştirilecek Asker</label><input type="number" id="h-amt" min="0" value="${currentPlayer.hospital?.infantry || 0}"></div>
+            <button class="btn btn-primary" style="background:linear-gradient(45deg,var(--red),#a00)" onclick="heal()">İyileştir</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else if (t === 'clan') {
+        let h = Object.values(clansData).map(c=>`<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #333;align-items:center;"><span>${c.flag} ${c.name} (${c.members.length}/30)</span>${c.members.includes(currentPlayer.username)?'':`<button class="btn btn-primary" style="width:auto;padding:4px 10px;font-size:0.85rem;" onclick="joinC('${Object.keys(clansData).find(k=>clansData[k]===c)}')">Katıl</button>`}</div>`).join('');
+        box.innerHTML = `<h2>🐉 Klan</h2>${!currentPlayer.clan?`<div style="display:flex;gap:5px;margin-bottom:12px;"><input type="text" id="c-n" placeholder="Ad" style="flex:1;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;"><input type="text" id="c-f" placeholder="Bayrak" maxlength="2" style="width:50px;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;text-align:center;"><button class="btn btn-primary" style="width:auto;padding:8px;" onclick="createC()">Kur</button></div>`:'<button class="btn btn-secondary" onclick="leaveC()" style="margin-bottom:12px;">Ayrıl</button>'}<div style="max-height:300px;overflow-y:auto;">${h||'<p style="color:#aaa;text-align:center;">Klan yok</p>'}</div><button class="btn btn-secondary" onclick="closeModal()" style="margin-top:12px;">Kapat</button>`;
+    }
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+function openAttackModal(type = 'city') {
+    const box = document.getElementById('modal-box');
+    let targetName = "Hedef";
+    if (type === 'city' && selectedCityId) targetName = worldData.cities[selectedCityId]?.name;
+    else if (type === 'mine' && selectedMineId) targetName = worldData.mines[selectedMineId]?.name;
+    else if (type === 'boss' && selectedBossId) targetName = worldData.bosses[selectedBossId]?.beast;
+    const crew = currentPlayer.crew || 0;
+    box.innerHTML = `
+        <h2>⚔️ ${targetName}'e Saldır</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${formatNum(crew)}</p>
+        <div class="input-group"><label>👥 Gönderilecek Asker</label><input type="number" id="a-amt" max="${crew}" value="${crew}"></div>
+        <button class="btn btn-primary" onclick="launchAtk('${type}')">Saldırıyı Başlat</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
+
+function launchAtk(type) {
+    const amt = parseInt(document.getElementById('a-amt').value) || 0;
+    if (type === 'city') socket.emit('attackCity', { cityId: selectedCityId, army: { total: amt } });
+    else if (type === 'mine') socket.emit('occupyMine', { mineId: selectedMineId, army: { total: amt } });
+    else if (type === 'boss') socket.emit('attackBoss', { bossId: selectedBossId, army: { total: amt } });
+    closeModal();
+}
+
+function openDeployModal() {
+    const box = document.getElementById('modal-box');
+    const crew = currentPlayer.crew || 0;
+    box.innerHTML = `
+        <h2>🛡️ Savunma Yerleştir</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${formatNum(crew)}</p>
+        <div class="input-group"><label>👥 Yerleştirilecek Asker</label><input type="number" id="d-amt" max="${crew}" value="0"></div>
+        <button class="btn btn-primary" onclick="deploy()">Yerleştir</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Kapat</button>
+    `;
+}
+function deploy() {
+    const amt = parseInt(document.getElementById('d-amt').value) || 0;
+    socket.emit('deployDefenders', { cityId: selectedCityId, total: amt });
+    closeModal();
+}
+
+function openBaseModal() {
+    const box = document.getElementById('modal-box');
+    document.getElementById('modal-overlay').style.display = 'flex';
+    if (!currentPlayer.base) {
+        box.innerHTML = `<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">5.000 Cash gerekli.</p><button class="btn btn-primary" onclick="City3D.startBasePlacement(); closeModal();">📍 Haritada Yer Seç</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    } else {
+        const lvl = currentPlayer.base.level || 1;
+        const c = lvl * 5000;
+        box.innerHTML = `<h2>🏰 Üssüm (Lv ${lvl})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${formatNum(c)} Cash</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">⬆️ Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
+    }
+}
+
+function openInvestCenter() {
+    const box = document.getElementById('modal-box');
+    const cats = [
+        { id: 'economy', name: '💰 Ekonomi', items: [
+            { name: 'Cash Üretim +5%', cost: 1000 },
+            { name: 'Cargo Üretim +5%', cost: 1000 },
+            { name: 'Depolama +10%', cost: 1500 },
+        ]},
+        { id: 'military', name: '⚔️ Askeri', items: [
+            { name: 'Saldırı +3%', cost: 2000 },
+            { name: 'Savunma +3%', cost: 2000 },
+            { name: 'Eğitim Hızı +5%', cost: 1500 },
+        ]},
+        { id: 'resource', name: '📦 Kaynak', items: [
+            { name: 'Arms Üretimi +5%', cost: 1800 },
+            { name: 'Metal Üretimi +5%', cost: 1800 },
+        ]},
+        { id: 'crime', name: '🔪 Suç', items: [
+            { name: 'Crime Ops Kapasitesi +50', cost: 3000 },
+            { name: 'Yağma Hızı +10%', cost: 2500 },
+        ]},
+        { id: 'defense', name: '🛡️ Savunma', items: [
+            { name: 'Duvar Dayanıklılığı +5%', cost: 1500 },
+            { name: 'Tuzak Hasarı +10%', cost: 2000 },
+        ]},
+    ];
+    box.innerHTML = `<h2>💼 Yatırım Merkezi</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">${cats.map(c=>`<button class="btn btn-secondary" style="width:auto;padding:6px 10px;font-size:0.85rem;" onclick="document.querySelectorAll('.inv-cat').forEach(x=>x.style.display='none'); document.getElementById('inv-${c.id}').style.display='block';">${c.name}</button>`).join('')}</div>
+        ${cats.map(c=>`<div id="inv-${c.id}" class="inv-cat" style="display:none;">${c.items.map(it=>`<div class="info-row"><span>${it.name}</span><button class="btn btn-primary" style="width:auto;padding:4px 10px;font-size:0.8rem;" onclick="socket.emit('invest',{category:'${c.id}',item:'${it.name}'}); showToast('success','Araştırılıyor: ${it.name}');">${formatNum(it.cost)} 💵</button></div>`).join('')}</div>`).join('')}
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+    document.getElementById('inv-economy').style.display = 'block';
+}
+
+function openDiner() {
+    const box = document.getElementById('modal-box');
+    const ops = currentPlayer.crimeOps || 0;
+    box.innerHTML = `<h2>🍽️ Lokanta (Crime Ops)</h2>
+        <p style="text-align:center;color:var(--gold);margin-bottom:10px;">Crime Ops Kapasitesi: ${formatNum(ops)}</p>
+        <p style="color:#aaa;line-height:1.5;">Düşman şehirlere, madenlere ve bosslara bu kapasite kadar asker gönderebilirsin. Yükselt: <button class="btn btn-primary" style="width:auto;padding:4px 10px;font-size:0.85rem;display:inline-block;margin:0 4px;" onclick="socket.emit('upgradeBuilding',{kind:'diner',id:'diner_main'}); closeModal();">⬆️ 2,500 Cash</button></p>
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function openHeroes() {
+    const box = document.getElementById('modal-box');
+    const heroes = currentPlayer.heroes || [];
+    box.innerHTML = `<h2>🦸 Kahramanlar</h2>
+        ${heroes.length === 0 ? '<p style="text-align:center;color:#aaa;padding:20px 0;">Henüz kahramanın yok. Mansion 5\'e ulaştığında ilk kahramanını alacaksın.</p>' : heroes.map(h => `<div class="info-row"><span>${h.icon || '🦸'} ${h.name}</span><span style="color:var(--gold)">⭐ ${h.stars || 1}</span></div>`).join('')}
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeModal()">Kapat</button>
+    `;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function train() { socket.emit('trainArmy', { amount: parseInt(document.getElementById('t-amt').value)||0 }); closeModal(); }
+function heal() { socket.emit('healArmy', { amount: parseInt(document.getElementById('h-amt').value)||0 }); closeModal(); }
+function createC() { socket.emit('createClan', { name: document.getElementById('c-n').value, flag: document.getElementById('c-f').value||'🐉' }); closeModal(); }
+function joinC(id) { socket.emit('joinClan', { clanId: id }); closeModal(); }
+function leaveC() { socket.emit('leaveClan'); closeModal(); }
+
+/* ===== RADIAL MENU (KORUNDU) ===== */
+let selectedCityId = null, selectedMineId = null, selectedBossId = null;
 function showRadialMenu(screenX, screenY, actions) {
     const menu = document.getElementById('radial-menu');
     if (!menu) return;
@@ -748,151 +2529,197 @@ function showRadialMenu(screenX, screenY, actions) {
     });
     menu.classList.add('active');
 }
-function hideRadialMenu() { const menu = document.getElementById('radial-menu'); if (menu) { menu.classList.remove('active'); menu.innerHTML = ''; } }
+function hideRadialMenu() { const m = document.getElementById('radial-menu'); if (m) { m.classList.remove('active'); m.innerHTML = ''; } }
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.radial-btn')) hideRadialMenu(); });
 
-function showCityPopup(id) {
-    const c = worldData.cities[id]; if(!c) return;
-    selectedCityId = id; selectedMineId = null; selectedBossId = null;
-    const box = document.getElementById('modal-box');
-    const bP=[]; if(c.bonus.damage)bP.push(`%${c.bonus.damage*100} Hasar`); if(c.bonus.defense)bP.push(`%${c.bonus.defense*100} Savunma`); if(c.bonus.ryo)bP.push(`%${c.bonus.ryo*100} Ryo`);
-    box.innerHTML = `<h2>${c.name}</h2><div class="info-row"><span>Tip</span><span>${c.type === 'capital' ? '👑 Başkent' : '🏘️ Şehir'}</span></div><div class="info-row"><span>Sahip</span><span>${c.owner||'Bağımsız'}</span></div><div class="info-row"><span>🏰 Muhafız</span><span>${c.garrison}</span></div><div class="info-row"><span>🛡️ Piyade</span><span>${c.playerDefenders.infantry}</span></div><div class="info-row"><span>🏹 Okçu</span><span>${c.playerDefenders.archer}</span></div><div class="info-row"><span>🐎 Süvari</span><span>${c.playerDefenders.cavalry}</span></div><div class="info-row"><span>Bonus</span><span style="color:var(--secondary)">${bP.join(', ')}</span></div>${c.owner === currentPlayer.username ? `<button class="btn btn-primary" onclick="openDeployModal()">Savunma Yerleştir</button>` : `<button class="btn btn-primary" onclick="openAttackModal()">⚔️ Saldır</button>`}<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
-    document.getElementById('modal-overlay').style.display = 'flex';
+/* ===== WORLD MAP OVERLAY ===== */
+function openWorldMap() {
+    document.getElementById('world-map-overlay').classList.add('active');
+    drawWorldMap();
+}
+function closeWorldMap() {
+    document.getElementById('world-map-overlay').classList.remove('active');
+}
+function drawWorldMap() {
+    const canvas = document.getElementById('world-map-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    const w = canvas.width, h = canvas.height;
+    // Background
+    const grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, Math.max(w,h));
+    grad.addColorStop(0, '#2a3a2a'); grad.addColorStop(1, '#0a0a0a');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    // Grid
+    ctx.strokeStyle = 'rgba(255,215,0,0.1)'; ctx.lineWidth = 1;
+    for (let i = 0; i < w; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
+    for (let i = 0; i < h; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke(); }
+    if (!worldData) { ctx.fillStyle = '#888'; ctx.font = '16px Rajdhani'; ctx.fillText('Veri bekleniyor...', w/2-60, h/2); return; }
+    // Cities
+    Object.values(worldData.cities || {}).forEach(c => {
+        const { wx, wz } = latLngToWorld(c.lat, c.lng);
+        const x = w/2 + wx * 0.4, y = h/2 + wz * 0.4;
+        ctx.fillStyle = c.empireColor ? '#' + c.empireColor.toString(16).padStart(6,'0') : '#9aa09a';
+        ctx.beginPath(); ctx.arc(x, y, c.type === 'capital' ? 10 : 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = c.type === 'capital' ? 2 : 1;
+        if (c.type === 'capital') { ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2); ctx.stroke(); }
+        ctx.fillStyle = '#fff'; ctx.font = '10px Rajdhani'; ctx.fillText(c.name, x + 8, y + 4);
+    });
+    Object.values(worldData.mines || {}).forEach(m => {
+        const { wx, wz } = latLngToWorld(m.lat, m.lng);
+        const x = w/2 + wx * 0.4, y = h/2 + wz * 0.4;
+        ctx.fillStyle = m.type === 'gold' ? '#ffd700' : '#c0c0c0';
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
+    });
+    Object.values(worldData.bosses || {}).forEach(b => {
+        const { wx, wz } = latLngToWorld(b.lat, b.lng);
+        const x = w/2 + wx * 0.4, y = h/2 + wz * 0.4;
+        ctx.fillStyle = b.defeated ? '#666' : '#ff3333';
+        ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill();
+        if (!b.defeated) {
+            ctx.strokeStyle = 'rgba(255,51,51,0.4)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2); ctx.stroke();
+        }
+    });
+    if (currentPlayer?.base) {
+        const x = w/2 + currentPlayer.base.x * 0.4, y = h/2 + currentPlayer.base.z * 0.4;
+        ctx.fillStyle = '#ff6b00';
+        ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.stroke();
+    }
 }
 
-function showMinePopup(id) {
-    const m = worldData.mines[id]; if(!m) return;
-    selectedMineId = id; selectedCityId = null; selectedBossId = null;
-    const box = document.getElementById('modal-box');
-    box.innerHTML = `<h2>${m.name}</h2><div class="info-row"><span>Sahip</span><span>${m.owner||'NPC'}</span></div><div class="info-row"><span>Gelir</span><span style="color:var(--gold)">${m.yield}/dk</span></div>${m.owner !== currentPlayer.username ? `<button class="btn btn-primary" onclick="openAttackModal('mine')">⛏️ İşgal Et</button>` : '<p style="color:var(--green);text-align:center;margin:10px 0;">Bu maden senin!</p>'}<button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
-    document.getElementById('modal-overlay').style.display = 'flex';
-}
-
-function showBossPopup(id) {
-    const b = worldData.bosses[id]; if(!b) return;
-    selectedBossId = id; selectedCityId = null; selectedMineId = null;
-    const box = document.getElementById('modal-box');
-    if(b.defeated) { box.innerHTML = `<h2 style="color:red">${b.beast}</h2><p style="text-align:center;margin:10px 0;">Yenilmiş. Respawn bekleniyor.</p><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-    else { box.innerHTML = `<h2 style="color:red">${b.beast}</h2><div class="info-row"><span>HP</span><span>${b.currentHp} / ${b.hp}</span></div><div class="info-row"><span>Ödül</span><span style="color:var(--gold)">${b.reward} Ryo</span></div><button class="btn btn-primary" style="background:linear-gradient(45deg,#f00,#900)" onclick="openAttackModal('boss')">👹 Saldır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-    document.getElementById('modal-overlay').style.display = 'flex';
-}
-
-function openModal(t) {
-    const box = document.getElementById('modal-box');
-    document.getElementById('modal-overlay').style.display = 'flex';
-    if(t==='leaderboard'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getLeaderboard'); }
-    else if(t==='profile'){ box.innerHTML='<h2>Yükleniyor...</h2>'; socket.emit('getProfile'); }
-    else if(t==='train'){ box.innerHTML=`<h2>🔨 Asker Eğit</h2><p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ryo: ${currentPlayer.ryo}</p><div class="input-group"><label>🛡️ Piyade (100 Ryo)</label><input type="number" id="t-inf" min="0" value="0"></div><div class="input-group"><label>🏹 Okçu (150 Ryo)</label><input type="number" id="t-arc" min="0" value="0"></div><div class="input-group"><label>🐎 Süvari (250 Ryo)</label><input type="number" id="t-cav" min="0" value="0"></div><button class="btn btn-primary" onclick="train()">Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-    else if(t==='hospital'){ box.innerHTML=`<h2>🏥 Hastane</h2><p style="text-align:center;color:var(--red);margin-bottom:10px;">Yaralı: ${currentPlayer.hospital.infantry}🛡️ ${currentPlayer.hospital.archer}🏹 ${currentPlayer.hospital.cavalry}🐎</p><div class="input-group"><label>🛡️ Piyade İyileştir</label><input type="number" id="h-inf" min="0" max="${currentPlayer.hospital.infantry}" value="${currentPlayer.hospital.infantry}"></div><div class="input-group"><label>🏹 Okçu İyileştir</label><input type="number" id="h-arc" min="0" max="${currentPlayer.hospital.archer}" value="${currentPlayer.hospital.archer}"></div><div class="input-group"><label>🐎 Süvari İyileştir</label><input type="number" id="h-cav" min="0" max="${currentPlayer.hospital.cavalry}" value="${currentPlayer.hospital.cavalry}"></div><button class="btn btn-primary" style="background:linear-gradient(45deg,var(--red),#a00)" onclick="heal()">İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; }
-    else if(t==='clan'){ let h = Object.values(clansData).map(c=>`<div style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #333;"><span>${c.flag} ${c.name} (${c.members.length}/30)</span>${c.members.includes(currentPlayer.username)?'':`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="joinC('${Object.keys(clansData).find(k=>clansData[k]===c)}')">Katıl</button>`}</div>`).join(''); box.innerHTML=`<h2>🐉 Klan</h2>${!currentPlayer.clan?`<div style="display:flex;gap:5px;margin-bottom:10px;"><input type="text" id="c-n" placeholder="Ad" style="flex:1;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;"><input type="text" id="c-f" placeholder="Bayrak" maxlength="2" style="width:40px;padding:8px;background:rgba(0,0,0,0.5);border:1px solid #333;color:white;border-radius:4px;text-align:center;"><button class="btn btn-primary" style="width:auto;padding:8px;" onclick="createC()">Kur</button></div>`:'<button class="btn btn-secondary" onclick="leaveC()" style="margin-bottom:10px;">Ayrıl</button>'}<div style="max-height:200px;overflow-y:auto;">${h||'<p style="color:#aaa;text-align:center;">Klan yok</p>'}</div><button class="btn btn-secondary" onclick="closeModal()" style="margin-top:10px;">Kapat</button>`; }
-}
-function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
-
-function openAttackModal(type = 'city') {
-    const box = document.getElementById('modal-box');
-    let targetName = "Hedef";
-    if(type === 'city' && selectedCityId) targetName = worldData.cities[selectedCityId].name;
-    else if(type === 'mine' && selectedMineId) targetName = worldData.mines[selectedMineId].name;
-    else if(type === 'boss' && selectedBossId) targetName = worldData.bosses[selectedBossId].beast;
-    box.innerHTML = `<h2>⚔️ ${targetName}'e Saldır</h2><p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p><div class="input-group"><label>🛡️ Piyade</label><input type="number" id="a-inf" max="${currentPlayer.army.infantry}" value="${currentPlayer.army.infantry}"></div><div class="input-group"><label>🏹 Okçu</label><input type="number" id="a-arc" max="${currentPlayer.army.archer}" value="${currentPlayer.army.archer}"></div><div class="input-group"><label>🐎 Süvari</label><input type="number" id="a-cav" max="${currentPlayer.army.cavalry}" value="${currentPlayer.army.cavalry}"></div><button class="btn btn-primary" onclick="launchAtk('${type}')">Saldırıyı Başlat</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
-}
-function launchAtk(type) {
-    const army = { infantry: parseInt(document.getElementById('a-inf').value)||0, archer: parseInt(document.getElementById('a-arc').value)||0, cavalry: parseInt(document.getElementById('a-cav').value)||0 };
-    if(type === 'city') socket.emit('attackCity', { cityId: selectedCityId, army });
-    else if(type === 'mine') socket.emit('occupyMine', { mineId: selectedMineId, army });
-    else if(type === 'boss') socket.emit('attackBoss', { bossId: selectedBossId, army });
+/* ===== SOCKET EVENTS (KORUNDU + YENİLER) ===== */
+socket.on('worldData', (d) => {
+    worldData = d;
+    if (currentPlayer) {
+        City3D.rebuildFromWorld?.();
+        drawWorldMap();
+    }
+});
+socket.on('clansData', (d) => {
+    clansData = d;
+    if (currentPlayer?.clan && d[currentPlayer.clan]) document.getElementById('ui-clan').innerText = d[currentPlayer.clan].name;
+});
+socket.on('armyUpdated', (d) => {
+    if (d.army) currentPlayer.army = d.army;
+    if (d.ryo !== undefined) currentPlayer.ryo = d.ryo;
+    if (d.cash !== undefined) currentPlayer.cash = d.cash;
+    if (d.crew !== undefined) currentPlayer.crew = d.crew;
+    if (d.hospital) currentPlayer.hospital = d.hospital;
+    updateResources(currentPlayer);
+});
+socket.on('ryoUpdate', (r) => { currentPlayer.ryo = r; updateResources(currentPlayer); });
+socket.on('resourcesUpdate', (d) => { // YENİ — server bu event'i gönderirse çalışır
+    Object.assign(currentPlayer, d);
+    updateResources(currentPlayer);
+});
+socket.on('leaderboardData', (d) => {
+    const b = document.getElementById('modal-box');
+    let h = `<h2>🏆 Sıralama</h2>`;
+    d.forEach((p, i) => { h += `<div class="info-row"><span>${i+1}. ${p.username}</span><span style="color:var(--gold)">⚡ ${formatNum(p.power)}</span></div>`; });
+    b.innerHTML = h + `<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`;
+});
+socket.on('profileData', (d) => {
+    currentPlayer.quests = d.quests;
+    document.getElementById('ui-power').innerText = formatNum(d.power);
+    const b = document.getElementById('modal-box');
+    b.innerHTML = `<h2>👤 ${d.username}</h2>
+        <div class="info-row"><span>⚡ Güç</span><span style="color:var(--gold)">${formatNum(d.power)}</span></div>
+        <div class="info-row"><span>💵 Cash</span><span style="color:var(--gold)">${formatNum(d.cash || d.ryo)}</span></div>
+        <h3 style="margin:15px 0 10px;color:var(--gold);">Görevler</h3>
+        ${Object.entries(d.quests || {}).map(([k, v]) => `<div class="info-row"><span>${k}</span><span>${v.current}/${v.target} ${v.claimed ? '✓' : v.current >= v.target ? `<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="claimQ('${k}')">Al</button>` : ''}</span></div>`).join('')}
+        <button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`;
+});
+socket.on('inboxData', (d) => {
+    const b = document.getElementById('modal-box');
+    let h = `<h2>✉️ Mesajlar</h2><div style="max-height:300px;overflow-y:auto;">`;
+    d.forEach(m => { h += `<div style="border:1px solid #333;padding:8px;margin:4px 0;border-radius:4px;"><strong style="color:var(--gold);">${m.from}</strong>: ${m.msg}</div>`; });
+    b.innerHTML = h + `</div><div class="input-group" style="margin-top:15px;"><input type="text" id="msg-to" data-i18n-ph="username" placeholder="Kime"></div><div class="input-group"><input type="text" id="msg-t" placeholder="Mesaj"></div><div class="modal-actions"><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>`;
+});
+function claimQ(id) { socket.emit('claimQuest', { questId: id }); }
+function sendMsg() {
+    socket.emit('sendMessage', { to: document.getElementById('msg-to').value, msg: document.getElementById('msg-t').value });
     closeModal();
 }
-function openDeployModal() {
-    const box = document.getElementById('modal-box');
-    box.innerHTML = `<h2>🛡️ Savunma Yerleştir</h2><p style="text-align:center;color:var(--gold);margin-bottom:10px;">Ordun: ${currentPlayer.army.infantry}🛡️ ${currentPlayer.army.archer}🏹 ${currentPlayer.army.cavalry}🐎</p><div class="input-group"><label>🛡️ Piyade</label><input type="number" id="d-inf" max="${currentPlayer.army.infantry}" value="0"></div><div class="input-group"><label>🏹 Okçu</label><input type="number" id="d-arc" max="${currentPlayer.army.archer}" value="0"></div><div class="input-group"><label>🐎 Süvari</label><input type="number" id="d-cav" max="${currentPlayer.army.cavalry}" value="0"></div><button class="btn btn-primary" onclick="deploy()">Yerleştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`;
-}
-function deploy() { socket.emit('deployDefenders', { cityId: selectedCityId, infantry: parseInt(document.getElementById('d-inf').value)||0, archer: parseInt(document.getElementById('d-arc').value)||0, cavalry: parseInt(document.getElementById('d-cav').value)||0 }); closeModal(); }
-
-function openBaseModal() { const b=document.getElementById('modal-box'); document.getElementById('modal-overlay').style.display='flex'; if(!currentPlayer.base){ b.innerHTML=`<h2>🏰 Üs Kur</h2><p style="text-align:center;margin-bottom:10px;">10.000 Ryo gerekli.</p><button class="btn btn-primary" onclick="startBase()">Kur</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } else { const c=currentPlayer.base.level*5000; b.innerHTML=`<h2>🏰 Üssüm (Sv ${currentPlayer.base.level})</h2><p style="text-align:center;margin-bottom:10px;">Yükseltme: ${c} Ryo</p><button class="btn btn-primary" onclick="socket.emit('upgradeBase')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; } }
-function startBase(){ basePlacementMode = true; closeModal(); showToast('info', 'Haritada boş bir yere dokun.'); }
-
-function train(){ socket.emit('trainArmy', {infantry:parseInt(document.getElementById('t-inf').value)||0, archer:parseInt(document.getElementById('t-arc').value)||0, cavalry:parseInt(document.getElementById('t-cav').value)||0}); closeModal(); }
-function heal(){ socket.emit('healArmy', {infantry:parseInt(document.getElementById('h-inf').value)||0, archer:parseInt(document.getElementById('h-arc').value)||0, cavalry:parseInt(document.getElementById('h-cav').value)||0}); closeModal(); }
-function createC(){ socket.emit('createClan', {name:document.getElementById('c-n').value, flag:document.getElementById('c-f').value||'🐉'}); closeModal(); }
-function joinC(id){ socket.emit('joinClan', {clanId:id}); closeModal(); }
-function leaveC(){ socket.emit('leaveClan'); closeModal(); }
-
-// SOCKET LISTENERS (Korundu ve 3D'ye bağlandı)
-socket.on('worldData', (d) => { worldData = d; if(currentPlayer) render3DMap(); });
-socket.on('clansData', (d) => { clansData = d; if(currentPlayer?.clan && d[currentPlayer.clan]){ document.getElementById('ui-clan').innerText=d[currentPlayer.clan].name; } });
-socket.on('armyUpdated', (d) => { currentPlayer.army=d.army; currentPlayer.ryo=d.ryo; if(d.hospital)currentPlayer.hospital=d.hospital; document.getElementById('ui-infantry').innerText=d.army.infantry; document.getElementById('ui-archer').innerText=d.army.archer; document.getElementById('ui-cavalry').innerText=d.army.cavalry; document.getElementById('ui-ryo').innerText=d.ryo; });
-socket.on('ryoUpdate', (r) => { currentPlayer.ryo=r; document.getElementById('ui-ryo').innerText=r; });
-socket.on('leaderboardData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>🏆 Sıralama</h2>`; d.forEach((p,i)=>{ h+=`<div class="info-row"><span>${i+1}. ${p.username}</span><span style="color:var(--gold)">⚡ ${p.power}</span></div>`; }); b.innerHTML=h+`<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
-socket.on('profileData', (d) => { currentPlayer.quests=d.quests; document.getElementById('ui-power').innerText=d.power.toLocaleString(); const b=document.getElementById('modal-box'); b.innerHTML=`<h2>👤 ${d.username}</h2><div class="info-row"><span>⚡ Güç</span><span style="color:var(--gold)">${d.power.toLocaleString()}</span></div><div class="info-row"><span>🪙 Ryo</span><span style="color:var(--gold)">${d.ryo.toLocaleString()}</span></div><h3 style="margin:15px 0 10px;">Görevler</h3>${Object.entries(d.quests).map(([k,v])=>`<div class="info-row"><span>${k}</span><span>${v.current}/${v.target} ${v.claimed?'✓':v.current>=v.target?`<button class="btn btn-primary" style="width:auto;padding:2px 8px;font-size:0.8rem;" onclick="claimQ('${k}')">Al</button>`:''}</span></div>`).join('')}<button class="btn btn-secondary" onclick="closeModal()" style="margin-top:15px;">Kapat</button>`; });
-function claimQ(id){ socket.emit('claimQuest', {questId:id}); }
-socket.on('inboxData', (d) => { const b=document.getElementById('modal-box'); let h=`<h2>✉️ Mesajlar</h2><div style="max-height:200px;overflow-y:auto;">`; d.forEach(m=>{ h+=`<div style="border:1px solid #333;padding:5px;margin:2px 0;border-radius:4px;"><strong>${m.from}</strong>: ${m.msg}<button class="btn btn-secondary" style="width:auto;padding:2px 5px;font-size:0.7rem;float:right;" onclick="socket.emit('deleteMessage',{date:${m.date}})">X</button></div>`; }); b.innerHTML=h+`</div><div class="input-group" style="margin-top:15px;"><input type="text" id="msg-to" placeholder="Kime"></div><div class="input-group"><input type="text" id="msg-t" placeholder="Mesaj"></div><button class="btn btn-primary" onclick="sendMsg()">Gönder</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button>`; });
-function sendMsg(){ socket.emit('sendMessage', {to:document.getElementById('msg-to').value, msg:document.getElementById('msg-t').value}); closeModal(); }
-socket.on('newMessage', (m) => { showToast('info', `✉️ ${m.from} mesaj gönderdi.`); });
-socket.on('baseBuilt', (b) => { currentPlayer.base=b; render3DMap(); camera3D.centerOnBase(); });
-
-socket.on('battleAnimation', (d) => {
-    // 3D Savaş animasyonu
-    const target = worldData.cities[d.cityId] || worldData.bosses?.[d.cityId] || worldData.mines?.[d.cityId];
-    if (!target) return;
-
-    const start = currentPlayer.base ? xzToWorld(currentPlayer.base.x, currentPlayer.base.z) : { wx: 0, wz: 0 };
-    const end = (target.lat !== undefined) ? latLngToWorld(target.lat, target.lng) : xzToWorld(target.x, target.z);
-
-    // 3D'de saldırı oku/particle efekti
-    const sphereGeo = new THREE.SphereGeometry(2, 8, 8);
-    const sphereMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const projectile = new THREE.Mesh(sphereGeo, sphereMat);
-    projectile.position.set(start.wx, 20, start.wz);
-    scene3D.add(projectile);
-
-    // Animasyon
-    const startTime = Date.now();
-    const duration = 1000;
-    function animateProjectile() {
-        const elapsed = Date.now() - startTime;
-        const t = Math.min(elapsed / duration, 1);
-        projectile.position.x = start.wx + (end.wx - start.wx) * t;
-        projectile.position.z = start.wz + (end.wz - start.wz) * t;
-        projectile.position.y = 20 + Math.sin(t * Math.PI) * 20; // Yay hareketi
-
-        if (t < 1) {
-            requestAnimationFrame(animateProjectile);
-        } else {
-            scene3D.remove(projectile);
-            // Patlama efekti
-            playSound('explosion');
-            const explosionGeo = new THREE.SphereGeometry(5, 16, 16);
-            const explosionMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true });
-            const explosion = new THREE.Mesh(explosionGeo, explosionMat);
-            explosion.position.set(end.wx, 15, end.wz);
-            scene3D.add(explosion);
-
-            let scale = 1;
-            const explodeAnim = setInterval(() => {
-                scale += 0.2;
-                explosion.scale.set(scale, scale, scale);
-                explosionMat.opacity = 1 - (scale / 5);
-                if (scale > 5) {
-                    clearInterval(explodeAnim);
-                    scene3D.remove(explosion);
-                }
-            }, 50);
-        }
-    }
-    animateProjectile();
+socket.on('newMessage', (m) => {
+    showToast('info', `✉️ ${m.from} mesaj gönderdi.`);
+    const bm = document.getElementById('badge-mail');
+    if (bm) bm.style.display = 'flex';
 });
-
-function playSound(type) {
-    if (!audioCtx) return; const now = audioCtx.currentTime;
-    if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
-}
-
+socket.on('baseBuilt', (b) => {
+    currentPlayer.base = b;
+    City3D.rebuildFromWorld?.();
+    City3D.centerOnBase?.();
+    showToast('success', '🏰 Üs kuruldu!');
+});
+socket.on('buildingUpgraded', (d) => {
+    // Server'dan: { id, kind, level, x, z }
+    if (!currentPlayer.buildings) currentPlayer.buildings = [];
+    const idx = currentPlayer.buildings.findIndex(b => b.id === d.id);
+    if (idx >= 0) currentPlayer.buildings[idx] = d;
+    else currentPlayer.buildings.push(d);
+    if (d.id === 'mansion' && currentPlayer.base) currentPlayer.base.level = d.level;
+    City3D.rebuildFromWorld?.();
+    showToast('success', '⬆️ Bina yükseltildi!');
+});
+socket.on('battleAnimation', (d) => {
+    City3D.playMarchAnimation(d);
+    if (d.result) {
+        setTimeout(() => {
+            if (d.result.attackerWins) {
+                showToast('victory', '⚔️ Zafer!');
+                playSound('success');
+            } else {
+                showToast('defeat', '💀 Yenilgi!');
+                playSound('error');
+            }
+        }, 1600);
+    }
+});
 socket.on('toast', (d) => showToast(d.type, d.msg));
 socket.on('error', (m) => showToast('error', m));
-function showToast(type, msg) { if(type==='success'||type==='victory')playSound('success'); if(type==='defeat'||type==='error')playSound('error'); const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(-20px)';setTimeout(()=>t.remove(),300);},3000); }
 
-window.onload = () => { const t = localStorage.getItem('atlas_token'); if(t) socket.emit('loginWithToken', t); };
+function showToast(type, msg) {
+    if (type === 'success' || type === 'victory') playSound('success');
+    if (type === 'defeat' || type === 'error') playSound('error');
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerText = msg;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-20px)'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+/* ===== BOOT ===== */
+window.onload = () => {
+    // Hide loading regardless of socket state
+    document.getElementById('loading-fill').style.width = '100%';
+    setTimeout(() => {
+        const ls = document.getElementById('loading-screen');
+        if (ls) { ls.style.opacity = '0'; setTimeout(() => ls.style.display = 'none', 600); }
+    }, 400);
+    // Show auth screen even if socket unavailable (UI must always render)
+    document.getElementById('auth-screen').style.display = 'flex';
+    setLang(currentLang);
+    if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+        const t = localStorage.getItem('atlas_token');
+        if (t) socket.emit('loginWithToken', t);
+    }
+};
+
+// Also handle case where socket.io fails to load: define a safe stub
+if (typeof io === 'undefined') {
+    window.io = function() {
+        const noop = () => {};
+        const stub = {
+            on: noop, off: noop, emit: noop,
+            connect: noop, disconnect: noop,
+            connected: false,
+        };
+        return stub;
+    };
+}
 </script>
 </body>
 </html>
