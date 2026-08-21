@@ -830,7 +830,7 @@ function startGame() {
    2.5D ISOMETRIC CITY ENGINE
    Mafia City tarzı: CSS+SVG sprite'lar, izometrik grid, zengin şehir dokusu
    ============================================================ */
-const TILE = 96;  // her karonun taban px
+const TILE = 140; // her karonun taban px — fotoğraftaki ölçeğe yakın (dev parsel)
 let groundLayer = null;
 let decorativeOccupied = new Set();
 const tileMap = new Map();
@@ -934,51 +934,37 @@ function setupCameraControls() {
 
 function gridKey(gx, gz) { return gx + ',' + gz; }
 
-/* ===== YOL AĞI — Manhattan grid (ULTRA DETAY) ===== */
+/* ===== YOL AĞI — Manhattan grid (Mafia City ölçeğinde) ===== */
 function buildRoadNetwork() {
     groundLayer.innerHTML = '';
     const frag = document.createDocumentFragment();
-    const extent = 22; // 22x22 grid
+    const extent = 8; // 8x8 grid — fotoğraftaki gibi ekrana sığacak kadar
     for (let gx = -extent; gx <= extent; gx++) {
         for (let gz = -extent; gz <= extent; gz++) {
-            const isAveH = (gx % 3 === 0);
-            const isAveV = (gz % 3 === 0);
+            const isAveH = (gx % 2 === 0);
+            const isAveV = (gz % 2 === 0);
             const isRoad = isAveH || isAveV;
-            // Özel alanlar: parke, su, çimen
-            const dist = Math.abs(gx) + Math.abs(gz);
+            // Tüm karolar: ya yol ya da bina parseli (çim koyu yeşil, asfalt standart)
             let cls;
             if (isRoad) {
                 cls = isAveH && isAveV ? 't-road-int' : (isAveH ? 't-road-h' : 't-road-v');
             } else {
-                // Su alanı: belirli bir bölgede (örneğin sol-alt köşe)
-                if (gx >= 12 && gz >= 12 && (gx + gz) % 5 === 0) {
-                    cls = 't-water';
-                }
-                // Parke plaza: merkez etrafında bazı karolar
-                else if (dist > 6 && (gx * 13 + gz * 7) % 17 === 0) {
-                    cls = 't-plaza';
-                }
-                else {
-                    cls = 't-grass';
-                }
+                cls = 't-grass';
             }
-            const type = isRoad ? 'road' : (cls === 't-water' ? 'water' : (cls === 't-plaza' ? 'plaza' : 'lot'));
-            tileMap.set(gridKey(gx, gz), { type, isAveH, isAveV, cls });
+            tileMap.set(gridKey(gx, gz), { type: isRoad ? 'road' : 'lot', isAveH, isAveV, cls });
             const { ix, iy } = worldToIso(gx * 20, gz * 20);
 
-            // KARO (taban)
+            // KARO
             const tile = document.createElement('div');
             tile.className = 'iso-tile ' + cls;
             tile.style.setProperty('--tile-size', TILE + 'px');
             tile.style.left = ix + 'px';
             tile.style.top = iy + 'px';
-            // Yumuşak gölge altta
-            tile.style.filter = 'drop-shadow(0 2px 3px rgba(0,0,0,0.25))';
             frag.appendChild(tile);
 
-            // YOL ÇİZGİLERİ — sarı kesik merkez çizgisi
+            // YOL ORTA ÇİZGİSİ (kesik sarı)
             if (isAveH && !isAveV) {
-                for (let s = -0.32; s <= 0.32; s += 0.16) {
+                for (let s = -0.35; s <= 0.35; s += 0.18) {
                     const stripe = document.createElement('div');
                     stripe.className = 'iso-road-stripe h';
                     stripe.style.left = (ix + s * TILE) + 'px';
@@ -987,79 +973,13 @@ function buildRoadNetwork() {
                 }
             }
             if (isAveV && !isAveH) {
-                for (let s = -0.32; s <= 0.32; s += 0.16) {
+                for (let s = -0.35; s <= 0.35; s += 0.18) {
                     const stripe = document.createElement('div');
                     stripe.className = 'iso-road-stripe v';
                     stripe.style.left = ix + 'px';
                     stripe.style.top = (iy + s * TILE) + 'px';
                     frag.appendChild(stripe);
                 }
-            }
-            // Kavşak köşelerinde dur çizgisi (yaya geçidi)
-            if (isAveH && isAveV) {
-                // 4 köşeye 4 yaya geçidi
-                const pedPositions = [
-                    { dx: -TILE * 0.42, dy: 0, w: 4, h: 12 },
-                    { dx:  TILE * 0.42, dy: 0, w: 4, h: 12 },
-                    { dx: 0, dy: -TILE * 0.42, w: 12, h: 4 },
-                    { dx: 0, dy:  TILE * 0.42, w: 12, h: 4 }
-                ];
-                pedPositions.forEach(p => {
-                    const ped = document.createElement('div');
-                    ped.style.position = 'absolute';
-                    ped.style.left = (ix + p.dx) + 'px';
-                    ped.style.top = (iy + p.dy) + 'px';
-                    ped.style.width = p.w + 'px';
-                    ped.style.height = p.h + 'px';
-                    ped.style.background = 'repeating-linear-gradient(90deg, #fff 0 1.5px, transparent 1.5px 3px)';
-                    ped.style.transform = 'translate(-50%, -50%)';
-                    ped.style.opacity = '0.85';
-                    frag.appendChild(ped);
-                });
-            }
-
-            // KALDIRIM KENARLARI (her iki tarafta — 3D görünüm)
-            if (isAveH && !isAveV) {
-                // Üst kenar (kuzey kaldırım)
-                const curbTop = document.createElement('div');
-                curbTop.className = 'iso-curb';
-                curbTop.style.left = ix + 'px';
-                curbTop.style.top = (iy - TILE * 0.46) + 'px';
-                curbTop.style.width = TILE * 0.98 + 'px';
-                curbTop.style.height = '4px';
-                curbTop.style.transform = 'translate(-50%, -50%) rotate(45deg)';
-                frag.appendChild(curbTop);
-                // Alt kenar (güney kaldırım)
-                const curbBot = document.createElement('div');
-                curbBot.className = 'iso-curb';
-                curbBot.style.left = ix + 'px';
-                curbBot.style.top = (iy + TILE * 0.46) + 'px';
-                curbBot.style.width = TILE * 0.98 + 'px';
-                curbBot.style.height = '4px';
-                curbBot.style.background = 'linear-gradient(180deg, #6a6a72 0%, #4a4a52 100%)';
-                curbBot.style.transform = 'translate(-50%, -50%) rotate(45deg)';
-                frag.appendChild(curbBot);
-            }
-            if (isAveV && !isAveH) {
-                // Sol kenar
-                const curbL = document.createElement('div');
-                curbL.className = 'iso-curb';
-                curbL.style.left = (ix - TILE * 0.46) + 'px';
-                curbL.style.top = iy + 'px';
-                curbL.style.width = '4px';
-                curbL.style.height = TILE * 0.98 + 'px';
-                curbL.style.transform = 'translate(-50%, -50%) rotate(45deg)';
-                frag.appendChild(curbL);
-                // Sağ kenar
-                const curbR = document.createElement('div');
-                curbR.className = 'iso-curb';
-                curbR.style.left = (ix + TILE * 0.46) + 'px';
-                curbR.style.top = iy + 'px';
-                curbR.style.width = '4px';
-                curbR.style.height = TILE * 0.98 + 'px';
-                curbR.style.background = 'linear-gradient(180deg, #6a6a72 0%, #4a4a52 100%)';
-                curbR.style.transform = 'translate(-50%, -50%) rotate(45deg)';
-                frag.appendChild(curbR);
             }
         }
     }
@@ -1580,140 +1500,33 @@ function renderGroundTiles() {
 
 function addDecorativeProps() {
     if (!groundLayer) return;
-    const extent = 22;
-    // Park alanları / su: ayrıcalıklı dekorasyon
-    // YOL DIŞI KAROLAR: palmiyeler, ağaçlar, çeşme, havuz, çalı, çiçek
+    const extent = 8;
+    // YOL DIŞI PARSELLER (bina parseli): sadece nadir, kaliteli dekor
+    // Fotoğrafta parsellerin çoğunda bina var — biz sadece bazılarına küçük obje koy
     for (let gx = -extent; gx <= extent; gx++) {
         for (let gz = -extent; gz <= extent; gz++) {
-            const isAveH = (gx % 3 === 0), isAveV = (gz % 3 === 0);
-            if (isAveH || isAveV) continue; // yol
+            const isAveH = (gx % 2 === 0), isAveV = (gz % 2 === 0);
+            if (isAveH || isAveV) continue; // yol, atla
             const { ix, iy } = worldToIso(gx * 20, gz * 20);
-            const dist = Math.abs(gx) + Math.abs(gz);
-            // Su alanı: nilüfer / dalga detayı
-            if (gx >= 12 && gz >= 12 && (gx + gz) % 5 === 0) {
-                // nilüfer yaprakları
-                placeDeco(groundLayer, ix + (Math.random() - 0.5) * 30, iy + (Math.random() - 0.5) * 10, `
-                    <div style="position:relative;width:18px;height:14px;">
-                        <div style="position:absolute;left:0;top:0;width:18px;height:14px;background:radial-gradient(ellipse,#3a8a2a,#1a4a1a);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);"></div>
-                        <div style="position:absolute;left:6px;top:4px;width:3px;height:3px;border-radius:50%;background:#ffaaaa;"></div>
-                    </div>
-                `, { cls: 'fg-deco' });
-                continue;
-            }
-            // Parke plaza: çeşme veya bank veya süs
-            if (dist > 6 && (gx * 13 + gz * 7) % 17 === 0) {
-                const r = Math.random();
-                if (r < 0.4) addFountain(ix, iy);
-                else if (r < 0.6) addPool(ix, iy);
-                else if (r < 0.85) addPalmTree(ix + 15, iy - 5, 1.0);
-                else addDeciduousTree(ix, iy, 1.0);
-                continue;
-            }
-            // Genel çim alanı
             const r = Math.random();
-            if (r < 0.30) addPalmTree(ix, iy, 0.8 + Math.random() * 0.4);
-            else if (r < 0.50) addDeciduousTree(ix, iy, 0.7 + Math.random() * 0.4);
-            else if (r < 0.58) addFountain(ix, iy);
-            else if (r < 0.62) addPool(ix, iy);
-            else if (r < 0.78) addBush(ix, iy, 0.8 + Math.random() * 0.5);
-            else if (r < 0.84) {
-                // Çiçek yığını (küçük)
-                placeDeco(groundLayer, ix, iy, `
-                    <div style="position:relative;width:16px;height:10px;">
-                        <div style="position:absolute;left:0;bottom:0;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#ff6b8a,#aa1a4a);"></div>
-                        <div style="position:absolute;left:5px;bottom:2px;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#ffd700,#cc8800);"></div>
-                        <div style="position:absolute;left:10px;bottom:0;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#aa88ff,#5511aa);"></div>
-                    </div>
-                `, { cls: 'fg-deco' });
-            }
-            // arka arkaya 2-3 dekorasyon sıklıkla (kalabalık şehir)
-            if (r > 0.3 && Math.random() < 0.5) {
-                const ox = (Math.random() - 0.5) * 40, oy = (Math.random() - 0.5) * 20;
-                if (r < 0.5) addBush(ix + ox, iy + oy, 0.6 + Math.random() * 0.3);
-                else if (r < 0.65) addDeciduousTree(ix + ox, iy + oy, 0.5 + Math.random() * 0.3);
-            }
+            // Çok seyrek: sadece %20'sine dekor koy
+            if (r < 0.08) addPalmTree(ix, iy, 0.9);
+            else if (r < 0.14) addDeciduousTree(ix, iy, 0.85);
+            else if (r < 0.17) addFountain(ix, iy);
+            else if (r < 0.20) addBush(ix, iy, 0.9);
         }
     }
-    // YOL KAROLARI: arabalar, lambalar, banklar, NPC, trafik ışığı, çöp kutusu
+    // YOL BOYUNCA: ara sıra araba, nadir lamba
     for (let gx = -extent; gx <= extent; gx++) {
         for (let gz = -extent; gz <= extent; gz++) {
-            const isAveH = (gx % 3 === 0), isAveV = (gz % 3 === 0);
-            if (!isAveH && !isAveV) continue; // yol değil
+            const isAveH = (gx % 2 === 0), isAveV = (gz % 2 === 0);
+            if (!isAveH && !isAveV) continue; // parsel, atla
+            if (isAveH && isAveV) continue; // kavşak, atla
             const { ix, iy } = worldToIso(gx * 20, gz * 20);
-            // Araba: yolun kenarında (yarıya kadar)
-            if (Math.random() < 0.18) {
-                const colors = ['#4a4a52', '#6a2a1a', '#1a3a5a', '#5a5a62', '#3a3a3a', '#9a3a1a', '#2a4a3a', '#7a3a1a', '#3a3a5a', '#aa3333'];
-                const rot = Math.random() < 0.5 ? 0 : 90;
-                addCar(ix + (Math.random() - 0.5) * 30, iy - TILE * 0.38, colors[Math.floor(Math.random() * colors.length)], rot);
-            }
-            // Lamba: kaldırım köşeleri
-            if (Math.random() < 0.14) {
-                addLamp(ix + (Math.random() < 0.5 ? -TILE * 0.4 : TILE * 0.4), iy + (Math.random() < 0.5 ? -TILE * 0.4 : TILE * 0.4));
-            }
-            // Bank: kaldırım
-            if (Math.random() < 0.06) {
-                addBench(ix + (Math.random() - 0.5) * 40, iy - TILE * 0.35, Math.random() < 0.5 ? 0 : 90);
-            }
-            // Çöp kutusu
-            if (Math.random() < 0.05) {
-                placeDeco(groundLayer, ix + (Math.random() - 0.5) * 50, iy - TILE * 0.38, `
-                    <div style="position:relative;width:8px;height:10px;">
-                        <div style="position:absolute;left:0;bottom:0;width:8px;height:10px;background:linear-gradient(180deg,#3a4a2a,#1a2a1a);border:0.5px solid #0a1a0a;border-radius:1px 1px 2px 2px;"></div>
-                        <div style="position:absolute;left:1px;top:2px;width:6px;height:1px;background:#5a6a4a;"></div>
-                    </div>
-                `, { cls: 'fg-deco' });
-            }
-            // Trafik ışığı (sadece kavşaklarda)
-            if (isAveH && isAveV && Math.random() < 0.3) {
-                placeDeco(groundLayer, ix + TILE * 0.42, iy - TILE * 0.42, `
-                    <div style="position:relative;width:6px;height:22px;">
-                        <div style="position:absolute;left:2px;bottom:0;width:2px;height:18px;background:#1a1a1a;"></div>
-                        <div style="position:absolute;left:0;top:0;width:6px;height:14px;background:#1a1a1a;border-radius:2px;border:0.5px solid #333;display:flex;flex-direction:column;justify-content:space-around;align-items:center;padding:1px 0;">
-                            <div style="width:3px;height:3px;border-radius:50%;background:#ff3333;box-shadow:0 0 3px #ff3333;" class="neon-pulse"></div>
-                            <div style="width:3px;height:3px;border-radius:50%;background:#5a2a1a;"></div>
-                            <div style="width:3px;height:3px;border-radius:50%;background:#1a3a1a;"></div>
-                        </div>
-                    </div>
-                `, { cls: 'fg-deco' });
-            }
-            // Yol tabelası
-            if (Math.random() < 0.03) {
-                const names = ['GÜN.', 'CD.', 'AV.', 'ST.', 'BLV.', 'M.', 'PK.'];
-                const nm = names[Math.floor(Math.random() * names.length)];
-                placeDeco(groundLayer, ix + (Math.random() - 0.5) * 50, iy - TILE * 0.42, `
-                    <div style="position:relative;width:18px;height:20px;">
-                        <div style="position:absolute;left:8px;bottom:0;width:2px;height:12px;background:#3a3a3a;"></div>
-                        <div style="position:absolute;left:0;top:0;width:18px;height:10px;background:linear-gradient(180deg,#2a5a2a,#1a3a1a);border:0.5px solid #0a1a0a;border-radius:1px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:5px;font-weight:900;font-family:Arial;">${nm}</div>
-                    </div>
-                `, { cls: 'fg-deco' });
-            }
-            // Yürüyen NPC'ler
-            if (Math.random() < 0.12) {
-                const pTypes = ['worker', 'guard', 'thug', 'business'];
-                const pType = pTypes[Math.floor(Math.random() * pTypes.length)];
-                addPedestrian(ix + (Math.random() - 0.5) * 35, iy - TILE * 0.32 + (Math.random() - 0.5) * 12, pType, Math.floor(Math.random() * 4));
-            }
-            if (Math.random() < 0.05) {
-                addArmedPedestrian(ix + (Math.random() - 0.5) * 30, iy - TILE * 0.3);
-            }
-        }
-    }
-    // Yaprak gölgeleri: çim alanlara hafif karartma (zemin derinliği)
-    for (let gx = -extent; gx <= extent; gx += 2) {
-        for (let gz = -extent; gz <= extent; gz += 2) {
-            const isAveH = (gx % 3 === 0), isAveV = (gz % 3 === 0);
-            if (isAveH || isAveV) continue;
-            if (Math.random() < 0.3) {
-                const { ix, iy } = worldToIso(gx * 20, gz * 20);
-                const sh = document.createElement('div');
-                sh.className = 'iso-tile-shadow';
-                sh.style.left = (ix + (Math.random() - 0.5) * 30) + 'px';
-                sh.style.top = (iy + 5) + 'px';
-                sh.style.width = (30 + Math.random() * 20) + 'px';
-                sh.style.height = (10 + Math.random() * 6) + 'px';
-                sh.style.transform = 'translate(-50%, 0)';
-                sh.style.opacity = 0.5;
-                groundLayer.appendChild(sh);
+            if (Math.random() < 0.10) {
+                const colors = ['#4a4a52', '#6a2a1a', '#1a3a5a', '#9a3a1a', '#3a3a3a'];
+                const rot = isAveH ? 90 : 0;
+                addCar(ix, iy - TILE * 0.35, colors[Math.floor(Math.random() * colors.length)], rot);
             }
         }
     }
@@ -1754,20 +1567,18 @@ function reAddBuildings() {
     // Decorations around mansion
     const dx = currentPlayer.base.x, dz = currentPlayer.base.z;
     const layout = [
-        { kind: 'cargo', ox: 80, oz: 60, lv: 3 },
-        { kind: 'counterfeiter', ox: -80, oz: 60, lv: 3 },
-        { kind: 'invest', ox: 0, oz: 100, lv: 4 },
-        { kind: 'diner', ox: 0, oz: -100, lv: 4 },
-        { kind: 'ammu', ox: 100, oz: 0, lv: 3 },
-        { kind: 'smelter', ox: -100, oz: 0, lv: 3 },
-        { kind: 'cargo', ox: 160, oz: 100, lv: 2 },
-        { kind: 'counterfeiter', ox: -160, oz: 100, lv: 2 },
-        { kind: 'cargo', ox: 160, oz: -100, lv: 2 },
-        { kind: 'counterfeiter', ox: -160, oz: -100, lv: 2 },
-        { kind: 'hospital', ox: 200, oz: 0, lv: 2 },
-        { kind: 'diner', ox: -200, oz: 0, lv: 2 },
-        { kind: 'camp', ox: 0, oz: 200, lv: 1 },
-        { kind: 'vault', ox: 0, oz: -200, lv: 1 },
+        { kind: 'cargo', ox: 60, oz: 40, lv: 3 },
+        { kind: 'counterfeiter', ox: -60, oz: 40, lv: 3 },
+        { kind: 'invest', ox: 0, oz: 80, lv: 4 },
+        { kind: 'diner', ox: 0, oz: -80, lv: 4 },
+        { kind: 'ammu', ox: 80, oz: 0, lv: 3 },
+        { kind: 'smelter', ox: -80, oz: 0, lv: 3 },
+        { kind: 'cargo', ox: 120, oz: 60, lv: 2 },
+        { kind: 'counterfeiter', ox: -120, oz: 60, lv: 2 },
+        { kind: 'cargo', ox: 120, oz: -60, lv: 2 },
+        { kind: 'counterfeiter', ox: -120, oz: -60, lv: 2 },
+        { kind: 'hospital', ox: 140, oz: 0, lv: 2 },
+        { kind: 'diner', ox: -140, oz: 0, lv: 2 },
     ];
     layout.forEach(({kind, ox, oz, lv}) => {
         const b = buildResourceBuilding(kind, lv);
