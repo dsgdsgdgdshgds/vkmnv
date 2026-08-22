@@ -16,14 +16,25 @@
             --red: #ff3333;
             --green: #00cc44;
             --blue: #3399ff;
-            --grass-a: #5a8a3a;
-            --grass-b: #4a7a2a;
-            --grass-c: #6a9a4a;
-            --road: #4a4a52;
-            --road-line: #c9b890;
-            --curb: #6a6a72;
-            --water: #3399dd;
-            --water-light: #66ccff;
+            /* === MAFIA CITY GÖRSEL DNA === */
+            --grass-a: #6fa84a;
+            --grass-b: #5a9540;
+            --grass-c: #7fb85a;
+            --grass-d: #4a8030;
+            --road: #2a2a30;
+            --road-dark: #1a1a20;
+            --road-light: #3a3a44;
+            --road-line: #ffd84a;
+            --road-line-dim: #c9a030;
+            --curb: #5a5a64;
+            --curb-dark: #3a3a44;
+            --water: #1a4a6a;
+            --water-light: #2a6a8a;
+            --neon-green: #00ff66;
+            --neon-red: #ff2244;
+            --neon-purple: #b033ff;
+            --neon-orange: #ff8800;
+            --neon-blue: #33ccff;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -77,122 +88,114 @@
             will-change: transform;
         }
 
-        /* ===== ISOMETRIC TILE (Manhattan grid road) — ULTRA DETAY ===== */
+        /* ===== ISOMETRIC TILE — MAFIA CITY DNA: siyah ıslak asfalt + açık yeşil çim ===== */
         .iso-tile {
             position: absolute;
-            width: var(--tile-size, 96px); height: var(--tile-size, 96px);
+            width: var(--tile-size, 140px); height: var(--tile-size, 140px);
             transform: translate(-50%, -50%) rotate(45deg);
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
             overflow: hidden;
         }
-        /* Yatay yol (soldan sağa) — gerçek asfalt dokusu, gölge */
+        /* Yatay yol — siyah ıslak asfalt, orta açık gri, kenar ıslak parıltı */
         .iso-tile.t-road-h {
             background:
-                /* üst kaldırım (aydınlık) */
+                /* ıslak kaldırım yansıması (üst kenar açık) */
                 linear-gradient(180deg,
-                    #8a8a92 0%, #8a8a92 9%,
-                    transparent 9%, transparent 92%,
-                    #5a5a62 92%, #3a3a42 100%);
+                    rgba(80,80,90,0.5) 0%,
+                    rgba(20,20,28,0.0) 18%,
+                    rgba(20,20,28,0.0) 82%,
+                    rgba(0,0,0,0.6) 100%),
+                /* ana asfalt */
+                linear-gradient(180deg, var(--road-light) 0%, var(--road) 50%, var(--road-dark) 100%);
         }
-        /* Dikey yol (önden arkaya) */
+        /* Dikey yol */
         .iso-tile.t-road-v {
             background:
                 linear-gradient(90deg,
-                    #8a8a92 0%, #8a8a92 9%,
-                    transparent 9%, transparent 92%,
-                    #5a5a62 92%, #3a3a42 100%);
+                    rgba(80,80,90,0.5) 0%,
+                    rgba(20,20,28,0.0) 18%,
+                    rgba(20,20,28,0.0) 82%,
+                    rgba(0,0,0,0.6) 100%),
+                linear-gradient(90deg, var(--road-light) 0%, var(--road) 50%, var(--road-dark) 100%);
         }
-        /* Kavşak — koyu asfalt */
+        /* Kavşak — daha karanlık, parıltılı */
         .iso-tile.t-road-int {
             background:
-                radial-gradient(ellipse at center, #4a4a52 0%, #3a3a42 60%, #2a2a32 100%);
+                radial-gradient(ellipse at center, rgba(80,80,100,0.4) 0%, transparent 50%),
+                radial-gradient(ellipse at center, var(--road) 0%, var(--road-dark) 80%);
         }
-        /* Çim — gerçek yeşil doku, parçalı ton */
+        /* Çim — açık yeşil, parke taşı hissi (boş parsel = boş arsa) */
         .iso-tile.t-grass {
             background:
-                radial-gradient(ellipse at 25% 30%, #7aaa5a 0%, transparent 45%),
-                radial-gradient(ellipse at 70% 65%, #4a7a2a 0%, transparent 40%),
-                radial-gradient(ellipse at 50% 50%, #6a9a4a 0%, #5a8a3a 100%);
+                radial-gradient(ellipse at 30% 40%, var(--grass-c) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 60%, var(--grass-d) 0%, transparent 45%),
+                var(--grass-a);
         }
         .iso-tile.t-grass::before {
             content: ''; position: absolute; inset: 0;
             background:
-                /* küçük çim noktaları */
-                radial-gradient(circle at 12% 22%, #8aba6a 0.6px, transparent 1.2px),
-                radial-gradient(circle at 35% 18%, #3a6a1a 0.5px, transparent 1px),
-                radial-gradient(circle at 58% 32%, #6aaa4a 0.5px, transparent 1px),
-                radial-gradient(circle at 80% 25%, #3a6a1a 0.6px, transparent 1.2px),
-                radial-gradient(circle at 22% 60%, #4a7a2a 0.5px, transparent 1px),
-                radial-gradient(circle at 50% 75%, #6aaa4a 0.5px, transparent 1px),
-                radial-gradient(circle at 78% 70%, #3a6a1a 0.5px, transparent 1px),
-                radial-gradient(circle at 12% 85%, #4a7a2a 0.5px, transparent 1px),
-                radial-gradient(circle at 88% 88%, #2a5a10 0.4px, transparent 0.8px);
-            background-size: 100% 100%;
+                radial-gradient(circle at 15% 20%, #8aca6a 1px, transparent 2px),
+                radial-gradient(circle at 40% 30%, #4a8a28 0.8px, transparent 1.6px),
+                radial-gradient(circle at 65% 25%, #6aaa3a 0.8px, transparent 1.6px),
+                radial-gradient(circle at 85% 35%, #3a6a18 1px, transparent 2px),
+                radial-gradient(circle at 25% 60%, #5a9a30 0.8px, transparent 1.6px),
+                radial-gradient(circle at 55% 70%, #4a8a28 0.8px, transparent 1.6px),
+                radial-gradient(circle at 80% 80%, #3a6a18 1px, transparent 2px),
+                radial-gradient(circle at 10% 85%, #5a9a30 0.8px, transparent 1.6px);
         }
-        /* Parke taşı (yol kenarı kaldırımı / plaza) */
+        /* Parke plaza (özel alanlar) — altın/sıcak ton */
         .iso-tile.t-plaza {
             background:
-                /* parke taşı deseni */
-                linear-gradient(45deg, #c9b890 25%, transparent 25%) 0 0/16px 16px,
-                linear-gradient(-45deg, #b8a880 25%, transparent 25%) 0 8px/16px 16px,
-                linear-gradient(45deg, transparent 75%, #b8a880 75%) 8px -8px/16px 16px,
-                linear-gradient(-45deg, transparent 75%, #c9b890 75%) -8px 0/16px 16px,
-                #d8c8a8;
+                linear-gradient(45deg, #d4b870 25%, transparent 25%) 0 0/18px 18px,
+                linear-gradient(-45deg, #b89858 25%, transparent 25%) 0 9px/18px 18px,
+                #e0c890;
         }
-        /* Su — mavi parıltı, dalga efekti */
+        /* Su — koyu mavi, gölgeli, göl efekti */
         .iso-tile.t-water {
             background:
-                radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.25) 0%, transparent 35%),
-                radial-gradient(ellipse at 70% 70%, rgba(150,220,255,0.2) 0%, transparent 40%),
-                linear-gradient(135deg, #4ab2dd 0%, #2277aa 100%);
-            box-shadow: inset 0 0 12px rgba(0,0,0,0.4);
-            animation: waterWave 4s ease-in-out infinite;
+                radial-gradient(ellipse at 30% 30%, rgba(80,150,200,0.25) 0%, transparent 50%),
+                linear-gradient(135deg, var(--water-light) 0%, var(--water) 100%);
+            box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+            animation: waterWave 5s ease-in-out infinite;
         }
         @keyframes waterWave {
-            0%,100% { filter: brightness(1) hue-rotate(0deg); }
-            50% { filter: brightness(1.1) hue-rotate(-5deg); }
+            0%,100% { filter: brightness(1); }
+            50% { filter: brightness(1.15); }
         }
-        /* Yol gölgesi (yolun altında kalan karo için ekstra karanlık) */
-        .iso-tile.t-road-h::after, .iso-tile.t-road-v::after {
-            content: ''; position: absolute; inset: 0;
-            background:
-                /* asfalt çatlakları / parçalar */
-                radial-gradient(circle at 25% 30%, rgba(0,0,0,0.12) 0%, transparent 12%),
-                radial-gradient(circle at 75% 70%, rgba(0,0,0,0.12) 0%, transparent 12%),
-                /* orta çizgi parıltısı */
-                linear-gradient(180deg, transparent 45%, rgba(255,255,255,0.03) 50%, transparent 55%);
+        @keyframes radarSweep {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            100% { transform: translateX(-50%) rotate(360deg); }
         }
 
-        /* Road stripes (dashed center line) — sarı-beyaz çift çizgi */
+        /* Sarı kesik merkez çizgisi — sıcak, parıltılı */
         .iso-road-stripe {
             position: absolute;
             background: var(--road-line);
             transform-origin: center;
-            box-shadow: 0 0 1px rgba(0,0,0,0.4);
+            box-shadow: 0 0 2px rgba(255,216,74,0.4);
         }
         .iso-road-stripe.h {
-            width: 3px; height: 14px;
+            width: 4px; height: 16px;
             transform: translate(-50%, -50%) rotate(45deg);
             border-radius: 1px;
         }
         .iso-road-stripe.v {
-            width: 14px; height: 3px;
+            width: 16px; height: 4px;
             transform: translate(-50%, -50%) rotate(45deg);
             border-radius: 1px;
         }
 
-        /* Curb strip (kaldırım kenarı — kalın, gölgeli) */
+        /* Kaldırım şeridi (ince, gölgeli) */
         .iso-curb {
             position: absolute;
-            background: linear-gradient(180deg, #aaaab2 0%, #6a6a72 100%);
+            background: linear-gradient(180deg, #7a7a84 0%, var(--curb) 100%);
             transform-origin: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.6);
         }
 
-        /* Yaprak gölgesi (ağaç altı) */
+        /* Yaprak gölgesi */
         .iso-tile-shadow {
             position: absolute;
-            background: radial-gradient(ellipse, rgba(0,0,0,0.35) 0%, transparent 70%);
+            background: radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 70%);
             transform-origin: center;
             pointer-events: none;
         }
@@ -986,113 +989,128 @@ function buildRoadNetwork() {
     groundLayer.appendChild(frag);
 }
 
-/* ===== MANSION BİNA — ana üs, görkemli ===== */
+/* ===== MANSION BİNA — Art Deco, kubbeli, sıcak pencereli, altın trim ===== */
 function buildMansion(level) {
     const g = document.createElement('div');
     g.className = 'iso-obj';
     const flagColor = currentPlayer?.empireColor ? '#' + currentPlayer.empireColor.toString(16).padStart(6,'0') : '#ff6b00';
-    const w = 240 + level * 12; // toplam genişlik
-    const d = 120 + level * 6;  // derinlik (diamond yarım)
-    const h = 80 + level * 6;   // gövde yüksekliği
-    // Yard (parke taşı avlu) — geniş, dört köşede palmiye
-    let yardHTML = `<div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:${w}px;height:${d}px;background:linear-gradient(135deg,#c9b890,#a89878);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);box-shadow:inset 0 0 0 2px rgba(0,0,0,0.15);"></div>`;
-    // Parke taşı deseni — çapraz çizgiler
+    const w = 260 + level * 12;
+    const d = 130 + level * 6;
+    const h = 110 + level * 6;
+
+    // ============ AVLU (koyu parke, ıslak parıltı) ============
+    let yardHTML = `<div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:${w}px;height:${d}px;background:linear-gradient(135deg,#5a4a30,#3a2a18);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);box-shadow:inset 0 0 0 2px rgba(0,0,0,0.4);"></div>`;
+    // Islak parıltı (alt yarı)
+    yardHTML += `<div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:${w}px;height:${d}px;background:linear-gradient(180deg,transparent 30%,rgba(150,200,255,0.08) 50%,transparent 70%);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);pointer-events:none;"></div>`;
+    // Parke taşı deseni
     yardHTML += `<svg style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:${w}px;height:${d}px;pointer-events:none;" viewBox="0 0 100 100" preserveAspectRatio="none">`;
-    for (let i = 1; i < 8; i++) {
-        yardHTML += `<line x1="${i*12.5}" y1="0" x2="${i*12.5}" y2="100" stroke="rgba(0,0,0,0.08)" stroke-width="0.3"/>`;
-        yardHTML += `<line x1="0" y1="${i*12.5}" x2="100" y2="${i*12.5}" stroke="rgba(0,0,0,0.08)" stroke-width="0.3"/>`;
+    for (let i = 1; i < 10; i++) {
+        yardHTML += `<line x1="${i*10}" y1="0" x2="${i*10}" y2="100" stroke="rgba(0,0,0,0.25)" stroke-width="0.3"/>`;
+        yardHTML += `<line x1="0" y1="${i*10}" x2="100" y2="${i*10}" stroke="rgba(0,0,0,0.25)" stroke-width="0.3"/>`;
     }
     yardHTML += `</svg>`;
-    // Çeşme (ortada)
-    yardHTML += `<div style="position:absolute;left:50%;bottom:${d*0.18}px;transform:translateX(-50%);width:28px;height:22px;">
-        <div style="position:absolute;left:0;top:0;width:28px;height:14px;background:radial-gradient(ellipse,#888,#3a3a3a);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);"></div>
-        <div style="position:absolute;left:4px;top:2px;width:20px;height:8px;background:linear-gradient(180deg,#88ddff,#3399dd);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);" class="water-shimmer"></div>
-        <div style="position:absolute;left:50%;top:14px;transform:translateX(-50%);width:3px;height:8px;background:#666;"></div>
-        <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#aaddff,#3399dd);" class="water-shimmer"></div>
+    // Çeşme (ortada, altın)
+    yardHTML += `<div style="position:absolute;left:50%;bottom:${d*0.2}px;transform:translateX(-50%);width:34px;height:28px;">
+        <div style="position:absolute;left:0;top:0;width:34px;height:18px;background:radial-gradient(ellipse,#aa9858,#6a5828);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);"></div>
+        <div style="position:absolute;left:5px;top:3px;width:24px;height:10px;background:linear-gradient(180deg,#88ddff,#1a4a6a);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);" class="water-shimmer"></div>
+        <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);width:4px;height:10px;background:linear-gradient(180deg,#d4b870,#8a7030);"></div>
+        <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff8c0,#d4b870);box-shadow:0 0 6px rgba(255,216,100,0.7);" class="water-shimmer"></div>
     </div>`;
-    // Avlu palmiyeleri (4 köşe)
-    const palmPositions = [[0.15,0.15],[0.85,0.15],[0.15,0.85],[0.85,0.85]];
+    // 4 köşede palmiye (altın vurgulu, ıslak zemin hissi)
+    const palmPositions = [[0.15,0.18],[0.85,0.18],[0.15,0.85],[0.85,0.85]];
     palmPositions.forEach(([px, py]) => {
         yardHTML += `<svg style="position:absolute;left:${w*px-15}px;bottom:${d*py-15}px;width:30px;height:36px;pointer-events:none;" viewBox="0 0 30 36">
-            <path d="M 15 36 Q 16 24 15 14" stroke="#5a3818" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="15" cy="34" rx="10" ry="2" fill="rgba(0,0,0,0.4)"/>
+            <path d="M 15 36 Q ${15 + 1} 24 15 14" stroke="#4a2a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>
             <g transform="translate(15,14)">
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#3a7a28" transform="rotate(0)"/>
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#4a8a38" transform="rotate(60)"/>
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#3a7a28" transform="rotate(120)"/>
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#4a8a38" transform="rotate(180)"/>
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#2a6a18" transform="rotate(-60)"/>
-                <ellipse cx="0" cy="-3" rx="10" ry="4" fill="#2a6a18" transform="rotate(-120)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#2a5a18" transform="rotate(-10)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#3a7a28" transform="rotate(50)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#2a5a18" transform="rotate(110)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#3a7a28" transform="rotate(170)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#1a4a10" transform="rotate(-70)"/>
+                <ellipse cx="0" cy="-3" rx="11" ry="4.5" fill="#1a4a10" transform="rotate(-130)"/>
             </g>
         </svg>`;
     });
-    // Avlu bankları (2 adet, çeşme yanında)
-    yardHTML += `<div style="position:absolute;left:${w*0.3-6}px;bottom:${d*0.45}px;width:12px;height:6px;background:#6a3a1a;border:1px solid #3a2010;"></div>`;
-    yardHTML += `<div style="position:absolute;left:${w*0.7-6}px;bottom:${d*0.45}px;width:12px;height:6px;background:#6a3a1a;border:1px solid #3a2010;"></div>`;
 
-    // ANA GÖVDE — merkez büyük blok
-    const mainW = 100, mainD = 70, mainH = h;
+    // ============ ANA GÖVDE (koyu taş, altın trim) ============
+    const mainW = 120, mainH = h;
     const mainLeft = (w - mainW) / 2;
     let bodyHTML = '';
-    // Sol kanat
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 50}px;bottom:0;width:50px;height:${mainH - 10}px;clip-path:polygon(0 0,100% 40%,100% 60%,0 100%);background:linear-gradient(180deg,#d8c8a8 0%,#9a8a6a 100%);box-shadow:inset -2px 0 0 rgba(0,0,0,0.15);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 50}px;bottom:0;width:50px;height:${mainH - 10}px;clip-path:polygon(0 0,100% 40%,100% 60%,0 100%);background:linear-gradient(180deg,#e8d8b8 0%,#b8a888 100%);z-index:2;"></div>`;
-    // Sağ kanat
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW}px;bottom:0;width:50px;height:${mainH - 10}px;clip-path:polygon(0 0,100% 40%,100% 60%,0 100%);background:linear-gradient(180deg,#d8c8a8 0%,#9a8a6a 100%);box-shadow:inset -2px 0 0 rgba(0,0,0,0.15);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW}px;bottom:0;width:50px;height:${mainH - 10}px;clip-path:polygon(0 0,100% 40%,100% 60%,0 100%);background:linear-gradient(180deg,#e8d8b8 0%,#b8a888 100%);z-index:2;"></div>`;
-    // Ana merkez
-    bodyHTML += `<div style="position:absolute;left:${mainLeft}px;bottom:0;width:${mainW}px;height:${mainH}px;background:linear-gradient(180deg,#f0e0c0 0%,#c9b890 100%);box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2);"></div>`;
-
-    // ÇATI — 3 ayrı çatı (sol, merkez, sağ)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 50 - 25}px;bottom:${mainH - 10}px;width:50px;height:0;border-left:25px solid transparent;border-right:25px solid transparent;border-bottom:24px solid #5a5246;"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 25}px;bottom:${mainH - 10}px;width:50px;height:0;border-left:25px solid transparent;border-right:25px solid transparent;border-bottom:24px solid #5a5246;"></div>`;
-    // Merkez ana kubbe (mavi)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 30}px;bottom:${mainH + 6}px;width:60px;height:60px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf 0%,#1a3f78 100%);box-shadow:0 0 16px rgba(80,150,220,0.5);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 3}px;bottom:${mainH + 60}px;width:6px;height:18px;background:linear-gradient(180deg,#ffd700,#a88030);border-radius:2px;"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 6}px;bottom:${mainH + 78}px;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#fff8c0,#ffd700);box-shadow:0 0 8px rgba(255,215,0,0.9);"></div>`;
-    // İkincil kubbeler (sol + sağ kanat üzerinde)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 50 + 8}px;bottom:${mainH - 10 + 12}px;width:20px;height:20px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf,#2a5f98);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 50 + 14}px;bottom:${mainH - 10 + 32}px;width:3px;height:8px;background:linear-gradient(180deg,#ffd700,#a88030);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 50 - 28}px;bottom:${mainH - 10 + 12}px;width:20px;height:20px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf,#2a5f98);"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 50 - 22}px;bottom:${mainH - 10 + 32}px;width:3px;height:8px;background:linear-gradient(180deg,#ffd700,#a88030);"></div>`;
-
-    // PENCERELER — ana gövdede 2 kat, 4 pencere
-    for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 4; c++) {
-            bodyHTML += `<div class="bld-win" style="left:${mainLeft + 12 + c * 22}px;bottom:${mainH * 0.25 + r * 22}px;width:10px;height:14px;"></div>`;
-        }
-    }
-    // Yan kanatlarda pencereler
-    for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 2; c++) {
-            bodyHTML += `<div class="bld-win" style="left:${mainLeft - 50 + 12 + c * 22}px;bottom:${(mainH - 10) * 0.3 + r * 18}px;width:8px;height:11px;"></div>`;
-            bodyHTML += `<div class="bld-win" style="left:${mainLeft + mainW + 12 + c * 22}px;bottom:${(mainH - 10) * 0.3 + r * 18}px;width:8px;height:11px;"></div>`;
-        }
+    // Sol kanat (kule)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft - 30}px;bottom:0;width:30px;height:${mainH + 20}px;clip-path:polygon(0 0,100% 30%,100% 70%,0 100%);background:linear-gradient(180deg,#2a2a30 0%,#1a1a20 100%);box-shadow:inset -2px 0 0 rgba(255,215,0,0.4);"></div>`;
+    // Sağ kanat (kule)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW}px;bottom:0;width:30px;height:${mainH + 20}px;clip-path:polygon(0 0,100% 30%,100% 70%,0 100%);background:linear-gradient(180deg,#1a1a20 0%,#0a0a10 100%);box-shadow:inset -2px 0 0 rgba(255,215,0,0.3);"></div>`;
+    // Ana merkez (koyu taş)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft}px;bottom:0;width:${mainW}px;height:${mainH}px;background:linear-gradient(180deg,#3a3a42 0%,#1a1a20 60%,#0a0a10 100%);box-shadow:inset 0 0 0 1.5px rgba(255,215,0,0.3),inset 0 -8px 12px rgba(0,0,0,0.5);"></div>`;
+    // Altın vurgu şeritleri (yatay çizgiler — Art Deco)
+    for (let r = 0; r < 3; r++) {
+        bodyHTML += `<div style="position:absolute;left:${mainLeft}px;bottom:${mainH * 0.25 + r * mainH * 0.25}px;width:${mainW}px;height:1.5px;background:linear-gradient(90deg,transparent 5%,#d4b870 20%,#ffd700 50%,#d4b870 80%,transparent 95%);"></div>`;
     }
 
-    // SÜTUNLU GİRİŞ — ana gövdenin önünde, 4 sütun
-    const porticoY = mainH * 0.45;
+    // ============ KUBBE (mavi, parıltılı — mansion imzası) ============
+    const domeW = 80, domeH = 70;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - domeW/2}px;bottom:${mainH + 4}px;width:${domeW}px;height:${domeH}px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf 0%,#2a5f98 60%,#1a3f78 100%);box-shadow:0 0 20px rgba(80,150,220,0.7),inset 0 -8px 12px rgba(0,0,0,0.4);"></div>`;
+    // Kubbe altın şeritleri (dikey Art Deco çizgiler)
+    for (let i = 1; i < 4; i++) {
+        bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - domeW/2 + i * domeW/4}px;bottom:${mainH + 6}px;width:1px;height:${domeH - 4}px;background:linear-gradient(180deg,transparent 0%,#ffd700 30%,#d4b870 70%,transparent 100%);"></div>`;
+    }
+    // Kubbe tepesi — altın iğne
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 3}px;bottom:${mainH + domeH + 4}px;width:6px;height:24px;background:linear-gradient(180deg,#ffd700,#8a6020);border-radius:3px;"></div>`;
+    // Kubbe en tepesi — parlak yıldız/top
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 7}px;bottom:${mainH + domeH + 28}px;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff8c0,#ffd700 50%,#aa8030);box-shadow:0 0 12px rgba(255,215,0,0.9);" class="neon-pulse"></div>`;
+
+    // İkincil kubbeler (yan kuleler üzerinde)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft - 30 + 5}px;bottom:${mainH + 20 + 8}px;width:20px;height:20px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf,#2a5f98);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.3);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft - 30 + 13}px;bottom:${mainH + 20 + 28}px;width:4px;height:8px;background:linear-gradient(180deg,#ffd700,#8a6020);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 5}px;bottom:${mainH + 20 + 8}px;width:20px;height:20px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a9fdf,#2a5f98);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.3);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 13}px;bottom:${mainH + 20 + 28}px;width:4px;height:8px;background:linear-gradient(180deg,#ffd700,#8a6020);"></div>`;
+
+    // ============ SICAK SARI PENCERELER (Mansion'ın kalbi) ============
+    // Ana gövdede 3 kat, 5 pencere
+    for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 5; c++) {
+            const isCenter = (c === 2 && r === 1);
+            const winH = isCenter ? 16 : 12;
+            const winW = isCenter ? 10 : 8;
+            bodyHTML += `<div style="position:absolute;left:${mainLeft + 10 + c * 22}px;bottom:${mainH * 0.18 + r * 26 + 6}px;width:${winW}px;height:${winH}px;background:linear-gradient(180deg,#fff8c0 0%,#ffaa3a 60%,#ff6600 100%);box-shadow:0 0 8px rgba(255,180,60,0.8),inset 0 1px 0 rgba(255,255,255,0.5);border:0.5px solid #8a6020;"></div>`;
+        }
+    }
+    // Yan kulelerde pencereler (dikey)
+    for (let r = 0; r < 4; r++) {
+        bodyHTML += `<div style="position:absolute;left:${mainLeft - 30 + 11}px;bottom:${r * 22 + 12}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 6px rgba(255,180,60,0.6);"></div>`;
+        bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW + 11}px;bottom:${r * 22 + 12}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 6px rgba(255,180,60,0.6);"></div>`;
+    }
+
+    // ============ SÜTUNLU GİRİŞ (grand entrance) ============
+    const porticoY = mainH * 0.55;
+    // Basamaklar
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 20}px;bottom:0;width:80px;height:4px;background:linear-gradient(180deg,#aa9858,#6a5828);box-shadow:0 2px 3px rgba(0,0,0,0.5);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 24}px;bottom:4px;width:72px;height:3px;background:linear-gradient(180deg,#aa9858,#6a5828);"></div>`;
+    // 4 beyaz sütun
     for (let i = 0; i < 4; i++) {
-        const colX = mainLeft + 8 + i * 28;
-        bodyHTML += `<div style="position:absolute;left:${colX}px;bottom:8px;width:4px;height:${porticoY}px;background:linear-gradient(180deg,#fff8e0,#c9b890);box-shadow:0 0 2px rgba(0,0,0,0.3);"></div>`;
-        // Sütun başlığı
-        bodyHTML += `<div style="position:absolute;left:${colX - 1}px;bottom:${8 + porticoY}px;width:6px;height:3px;background:#c9b890;"></div>`;
+        const colX = mainLeft + 24 + i * 24;
+        bodyHTML += `<div style="position:absolute;left:${colX}px;bottom:7px;width:5px;height:${porticoY}px;background:linear-gradient(180deg,#fff8e0 0%,#d4b870 100%);box-shadow:0 0 3px rgba(0,0,0,0.5),inset 1px 0 0 rgba(255,255,255,0.3);"></div>`;
+        bodyHTML += `<div style="position:absolute;left:${colX - 1}px;bottom:${7 + porticoY}px;width:7px;height:3px;background:#ffd700;box-shadow:0 0 4px rgba(255,215,0,0.5);"></div>`;
     }
-    // Portico çatısı
-    bodyHTML += `<div style="position:absolute;left:${mainLeft - 2}px;bottom:${8 + porticoY + 3}px;width:${mainW + 4}px;height:6px;background:linear-gradient(180deg,#d8c8a8,#9a8a6a);box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`;
-    // Pediment (üçgen alınlık)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + 20}px;bottom:${8 + porticoY + 9}px;width:0;height:0;border-left:30px solid transparent;border-right:30px solid transparent;border-bottom:16px solid #d8c8a8;"></div>`;
-    // Kapı
-    bodyHTML += `<div class="bld-door" style="left:${mainLeft + 38}px;bottom:6px;width:24px;height:30px;border:2px solid #2a1a0a;background:linear-gradient(180deg,#5a3a1a 0%,#2a1a0a 100%);box-shadow:0 0 4px rgba(255,200,100,0.3);"></div>`;
-    // Kapı tokmağı
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + 58}px;bottom:20px;width:2px;height:2px;background:radial-gradient(circle,#ffd700,#a88030);border-radius:50%;"></div>`;
+    // Portico çatısı (altın)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 18}px;bottom:${7 + porticoY + 3}px;width:84px;height:6px;background:linear-gradient(180deg,#ffd700,#8a6020);box-shadow:0 2px 4px rgba(0,0,0,0.5);"></div>`;
+    // Pediment (üçgen alınlık — altın çerçeve)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 36}px;bottom:${7 + porticoY + 9}px;width:0;height:0;border-left:24px solid transparent;border-right:24px solid transparent;border-bottom:14px solid #1a1a20;border-top:1px solid #ffd700;"></div>`;
+    // Altın rozet
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 56}px;bottom:${7 + porticoY + 16}px;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#fff8c0,#ffd700);box-shadow:0 0 6px rgba(255,215,0,0.9);" class="neon-pulse"></div>`;
+    // Kapı (koyu, sıcak iç ışık)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 50}px;bottom:6px;width:20px;height:28px;background:linear-gradient(180deg,#1a0a00 0%,#3a1a08 70%,#ffaa44 100%);border:2px solid #8a6020;box-shadow:0 0 12px rgba(255,180,60,0.7),inset 0 -8px 12px rgba(255,180,60,0.5);"></div>`;
+    // Kapı tokmağı (altın)
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + 65}px;bottom:18px;width:2px;height:2px;background:radial-gradient(circle,#fff8c0,#ffd700);border-radius:50%;box-shadow:0 0 3px #ffd700;"></div>`;
 
-    // BAYRAK DİREĞİ (kubbe tepesinde)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 1}px;bottom:${mainH + 95}px;width:2px;height:30px;background:#1a1a1a;"></div>`;
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 + 1}px;bottom:${mainH + 100}px;width:24px;height:16px;background:${flagColor};border:1px solid #1a1a1a;box-shadow:0 1px 3px rgba(0,0,0,0.5);"></div>`;
-    // Bayrak simgesi (küçük logo)
-    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 + 6}px;bottom:${mainH + 105}px;font-size:8px;color:#000;font-weight:900;">${currentPlayer?.username ? currentPlayer.username.slice(0,1).toUpperCase() : '★'}</div>`;
+    // ============ BAYRAK DİREĞİ (kubbe tepesinde) ============
+    const flagPoleY = mainH + domeH + 42;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 - 1}px;bottom:${flagPoleY}px;width:2px;height:32px;background:linear-gradient(180deg,#aa8030,#5a3818);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 + 1}px;bottom:${flagPoleY + 4}px;width:28px;height:18px;background:${flagColor};border:1.5px solid #1a1a1a;box-shadow:0 2px 4px rgba(0,0,0,0.6);"></div>`;
+    bodyHTML += `<div style="position:absolute;left:${mainLeft + mainW/2 + 7}px;bottom:${flagPoleY + 9}px;font-size:9px;color:#000;font-weight:900;text-shadow:0 0 2px rgba(255,255,255,0.5);">${currentPlayer?.username ? currentPlayer.username.slice(0,1).toUpperCase() : '★'}</div>`;
 
-    // Glow ring (seçili vurgu)
+    // Glow ring
     const glowHTML = `<div class="bld-glow" style="width:${w}px;height:${d*0.4}px;"></div>`;
 
     g.innerHTML = `
@@ -1143,130 +1161,154 @@ function buildResourceBuilding(kind, level) {
     const label = tags[kind] || 'Building';
 
     if (kind === 'cargo') {
-        // Geniş depo, kahverengi, sandık
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#8a6840,#5a4820);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#a89060,#7a6020);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a4820,#3a2810);"></div>
-            <div class="bld-door" style="left:18px;bottom:4px;width:10px;height:14px;"></div>
-            <div class="bld-win" style="left:6px;bottom:${h*0.5}px;width:6px;height:8px;"></div>
-            <div class="bld-win" style="left:6px;bottom:${h*0.3}px;width:6px;height:8px;"></div>`;
+        // Cargo Hub — koyu taş, turuncu neon tabela, sıcak pencereler, kırmızı çatı
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#4a3a20,#2a1a10);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a1a10,#1a0a00);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a2a1a,#1a0a00);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.2);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#7a2a1a,#4a0a00);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ff8800;box-shadow:0 0 6px #ff8800;" class="neon-pulse"></div>
+            ${[0,1].map(r=>`<div style="position:absolute;left:6px;bottom:${h*0.55-r*22}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 5px rgba(255,180,60,0.7);"></div>`).join('')}
+            <div style="position:absolute;left:14px;bottom:4px;width:12px;height:16px;background:linear-gradient(180deg,#3a2010,#1a0a00);border:1px solid #8a6020;box-shadow:0 0 4px rgba(255,180,60,0.4);"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">📦</div>`;
     } else if (kind === 'counterfeiter') {
-        // Endüstriyel bina, yeşil neon tabela
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#c9b890,#9a8a6a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#e8d8b0,#c9b890);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a5246,#3a3226);"></div>
-            <div style="position:absolute;left:8px;top:4px;width:18px;height:6px;background:#00ff44;box-shadow:0 0 6px #00ff44;" class="neon-pulse"></div>
-            <div class="bld-door" style="left:18px;bottom:4px;width:10px;height:14px;"></div>
-            <div class="bld-win" style="left:6px;bottom:${h*0.55}px;width:8px;height:9px;"></div>`;
+        // Counterfeiter — yeşil neon tabela, sıcak pencereler, koyu taş
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#3a4a20,#1a2a10);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a2a10,#0a1a00);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a3a18,#1a2a08);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.2);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a4a1a,#3a2a08);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#00ff66;box-shadow:0 0 8px #00ff66;" class="neon-pulse"></div>
+            ${[0,1].map(r=>`<div style="position:absolute;left:6px;bottom:${h*0.55-r*22}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 5px rgba(255,180,60,0.7);"></div>`).join('')}
+            <div style="position:absolute;left:14px;bottom:4px;width:12px;height:16px;background:linear-gradient(180deg,#3a2010,#1a0a00);border:1px solid #8a6020;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">💵</div>`;
     } else if (kind === 'ammu') {
-        // Betonarme bunker, taret
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#5a5a62,#2a2a32);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#7a7a82,#4a4a52);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#3a3a42,#1a1a22);"></div>
-            <div style="position:absolute;left:50%;top:-12px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#3a3a42;border:2px solid #1a1a22;"></div>
-            <div style="position:absolute;left:60%;top:-8px;width:14px;height:4px;background:#1a1a22;transform:rotate(30deg);"></div>
-            <div class="bld-win" style="left:6px;bottom:${h*0.55}px;width:6px;height:8px;background:#ff3333;box-shadow:0 0 4px #ff3333;"></div>`;
+        // Ammu-Nation — kırmızı neon, savaşçı tarzı, koyu gri
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#3a2a2a,#1a0a0a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a2a2a,#0a0a0a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a3a3a,#1a1a1a);box-shadow:inset 0 0 0 1px rgba(255,68,68,0.3);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#1a0a0a,#000);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ff2244;box-shadow:0 0 8px #ff2244;" class="neon-pulse"></div>
+            <div style="position:absolute;left:50%;top:-16px;transform:translateX(-50%);width:16px;height:16px;border-radius:50%;background:#1a1a1a;border:2px solid #ff2244;box-shadow:0 0 6px #ff2244;"></div>
+            <div style="position:absolute;left:60%;top:-12px;width:16px;height:4px;background:#1a1a1a;transform:rotate(30deg);border:1px solid #ff2244;"></div>
+            <div style="position:absolute;left:6px;bottom:${h*0.55}px;width:8px;height:10px;background:#ff3333;box-shadow:0 0 6px #ff3333;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🔫</div>`;
     } else if (kind === 'smelter') {
-        // Yüksek baca, kırmızı ışık
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#5a4a3a,#3a2a1a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#7a6a5a,#4a3a2a);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#3a2a1a,#1a0a00);"></div>
-            <div style="position:absolute;left:60%;top:-26px;width:10px;height:30px;background:linear-gradient(180deg,#3a2a1a,#1a0a00);"></div>
-            <div class="smoke-puff" style="left:60%;top:-30px;width:18px;height:18px;"></div>
-            <div class="smoke-puff" style="left:62%;top:-40px;width:14px;height:14px;animation-delay:1s;"></div>
-            <div style="position:absolute;left:8px;bottom:8px;width:6px;height:6px;background:#ff6b00;box-shadow:0 0 8px #ff6b00;" class="neon-pulse"></div>`;
+        // Smelter — turuncu ateş, yüksek baca, koyu kahve
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#4a2a10,#2a0a00);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a1a0a,#1a0a00);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a2a1a,#1a0a00);box-shadow:inset 0 0 0 1px rgba(255,136,0,0.3);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a3a1a,#3a1a00);"></div>
+            <div style="position:absolute;left:60%;top:-30px;width:10px;height:34px;background:linear-gradient(180deg,#5a2a10,#2a0a00);box-shadow:inset 0 0 0 1px rgba(255,136,0,0.3);"></div>
+            <div style="position:absolute;left:60%;top:-34px;width:14px;height:6px;background:#1a0a00;"></div>
+            <div class="smoke-puff" style="left:60%;top:-38px;width:18px;height:18px;"></div>
+            <div class="smoke-puff" style="left:62%;top:-48px;width:14px;height:14px;animation-delay:1s;"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ff8800;box-shadow:0 0 8px #ff8800;" class="neon-pulse"></div>
+            <div style="position:absolute;left:8px;bottom:8px;width:8px;height:8px;background:radial-gradient(circle,#ffeb3b,#ff6b00);box-shadow:0 0 10px #ff6b00;" class="neon-pulse"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">⚙️</div>`;
     } else if (kind === 'invest') {
-        // Cam kule, mavi cam
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h+15}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a3a5a,#1a2a4a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h+15}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#4a6a9a,#2a4a7a);"></div>
+        // Investment Center — yüksek cam kule, mavi neon, altın
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#2a3a5a,#1a2a4a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h+20}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a2a4a,#0a1a3a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h+20}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a4a7a,#1a3a6a);box-shadow:inset 0 0 0 1px rgba(100,200,255,0.3);"></div>
             <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#1a2a4a,#0a1a3a);"></div>
-            ${[0,1,2].map(r=>`<div class="bld-win" style="left:4px;bottom:${(h+15)*0.3+r*16}px;width:6px;height:8px;background:#aad4ff;box-shadow:0 0 3px #66aaff;"></div>`).join('')}
-            ${[0,1,2].map(r=>`<div class="bld-win" style="left:18px;bottom:${(h+15)*0.3+r*16}px;width:6px;height:8px;background:#aad4ff;box-shadow:0 0 3px #66aaff;"></div>`).join('')}
-            <div style="position:absolute;left:6px;top:-2px;width:20px;height:4px;background:#ffd700;" class="neon-pulse"></div>`;
+            <div style="position:absolute;left:4px;top:-4px;width:24px;height:5px;background:#33ccff;box-shadow:0 0 8px #33ccff;" class="neon-pulse"></div>
+            ${[0,1,2,3].map(r=>`<div style="position:absolute;left:4px;bottom:${(h+20)*0.2+r*18}px;width:6px;height:9px;background:linear-gradient(180deg,#aad4ff,#4a8aff);box-shadow:0 0 4px #66aaff;"></div>`).join('')}
+            ${[0,1,2,3].map(r=>`<div style="position:absolute;left:14px;bottom:${(h+20)*0.2+r*18}px;width:6px;height:9px;background:linear-gradient(180deg,#aad4ff,#4a8aff);box-shadow:0 0 4px #66aaff;"></div>`).join('')}
+            <div style="position:absolute;left:50%;top:-8px;transform:translateX(-50%);width:2px;height:8px;background:#ffd700;"></div>
+            <div style="position:absolute;left:50%;top:-12px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:radial-gradient(circle,#fff8c0,#ffd700);box-shadow:0 0 4px #ffd700;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">💼</div>`;
     } else if (kind === 'diner') {
-        // Pembe neonlu dükkan
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#eedcb4,#c9b890);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#fff0d0,#eedcb4);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a2a4a,#3a1a2a);"></div>
-            <div style="position:absolute;left:6px;top:0;width:20px;height:5px;background:#ff2fb0;box-shadow:0 0 6px #ff2fb0;" class="neon-pulse"></div>
-            <div style="position:absolute;left:6px;bottom:18px;width:18px;height:6px;background:#ff2fb0;"></div>
-            <div class="bld-win" style="left:6px;bottom:6px;width:14px;height:8px;background:#ffd9a0;"></div>`;
+        // Diner — pembe-mor neon, eğlence mekanı
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#3a1a3a,#1a0a1a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a0a2a,#1a0a1a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a1a3a,#1a0a1a);box-shadow:inset 0 0 0 1px rgba(255,80,180,0.3);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a1a3a,#3a0a2a);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ff2fb0;box-shadow:0 0 8px #ff2fb0;" class="neon-pulse"></div>
+            ${[0,1].map(r=>`<div style="position:absolute;left:6px;bottom:${(h-10)*0.5-r*18}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 5px rgba(255,180,60,0.7);"></div>`).join('')}
+            <div style="position:absolute;left:14px;bottom:4px;width:12px;height:14px;background:linear-gradient(180deg,#3a2010,#1a0a00);border:1px solid #ff2fb0;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🍽️</div>`;
     } else if (kind === 'hospital') {
-        // Beyaz kırmızı haç
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#dadada,#a0a0a0);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#f0f0f0,#c8c8c8);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#a0a0a0,#606060);"></div>
-            <div style="position:absolute;left:8px;top:4px;width:14px;height:4px;background:#ff3333;box-shadow:0 0 4px #ff3333;"></div>
-            <div style="position:absolute;left:13px;top:-2px;width:4px;height:14px;background:#ff3333;box-shadow:0 0 4px #ff3333;"></div>
-            <div class="bld-win" style="left:6px;bottom:${h*0.5}px;width:8px;height:9px;"></div>`;
+        // Hospital — beyaz-kırmızı, haç işareti, temiz
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#dadada,#a0a0a0);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#a0a0a0,#606060);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#e8e8e8,#a0a0a0);box-shadow:inset 0 0 0 1px rgba(255,68,68,0.4);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#cc1a1a,#8a0a0a);"></div>
+            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:18px;height:18px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 6px rgba(255,68,68,0.6);">
+                <div style="position:absolute;width:12px;height:4px;background:#ff3333;"></div>
+                <div style="position:absolute;width:4px;height:12px;background:#ff3333;"></div>
+            </div>
+            ${[0,1].map(r=>`<div style="position:absolute;left:6px;bottom:${h*0.55-r*20}px;width:7px;height:9px;background:linear-gradient(180deg,#fff8c0,#aaccff);box-shadow:0 0 4px rgba(150,200,255,0.6);"></div>`).join('')}`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🏥</div>`;
     } else if (kind === 'camp') {
-        // Açık alan + baraka
-        body = `<div class="bld-yard" style="width:80px;height:50px;background:#6a5a3a;"></div>
-            <div class="bld-front" style="left:14px;bottom:6px;width:24px;height:${h*0.5}px;clip-path:polygon(0 0,100% 25%,100% 75%,0 100%);background:linear-gradient(180deg,#a8804a,#7a5a2a);"></div>
-            <div class="bld-roof" style="left:10px;top:${h*0.4}px;width:32px;height:18px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a3818,#3a2010);"></div>
-            <div style="position:absolute;left:2px;bottom:8px;font-size:0.7rem;">🥊</div>
-            <div style="position:absolute;right:2px;bottom:8px;font-size:0.7rem;">🏋️</div>`;
+        // Training Camp — baraka, eğitim alanı, sıcak ışık
+        body = `<div class="bld-yard" style="width:80px;height:50px;background:linear-gradient(135deg,#3a2a1a,#1a0a00);"></div>
+            <div style="position:absolute;left:14px;bottom:6px;width:24px;height:${h*0.5}px;clip-path:polygon(0 0,100% 25%,100% 75%,0 100%);background:linear-gradient(180deg,#5a3a18,#2a1a08);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.2);"></div>
+            <div style="position:absolute;left:10px;bottom:${h*0.5+6}px;width:32px;height:18px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#3a1a08,#1a0a00);"></div>
+            <div style="position:absolute;left:18px;bottom:${h*0.5+10}px;width:6px;height:8px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 4px rgba(255,180,60,0.7);"></div>
+            <div style="position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:18px;height:4px;background:#ff6b00;box-shadow:0 0 5px #ff6b00;" class="neon-pulse"></div>
+            <div style="position:absolute;left:2px;bottom:8px;font-size:0.7rem;filter:drop-shadow(0 0 2px rgba(255,107,0,0.6));">🥊</div>
+            <div style="position:absolute;right:2px;bottom:8px;font-size:0.7rem;filter:drop-shadow(0 0 2px rgba(255,107,0,0.6));">🏋️</div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🔨</div>`;
     } else if (kind === 'vault') {
-        // Gümüş metal kasa
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#7a7a82,#4a4a52);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#9a9aa2,#6a6a72);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a5a62,#3a3a42);"></div>
-            <div style="position:absolute;left:10px;bottom:6px;width:14px;height:18px;border-radius:50%;background:linear-gradient(135deg,#aaa,#666);border:2px solid #444;"></div>
-            <div style="position:absolute;left:15px;bottom:14px;width:4px;height:4px;border-radius:50%;background:#ffd700;"></div>`;
+        // Vault — gümüş kasa, altın kilit
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#5a5a64,#3a3a44);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a3a44,#1a1a22);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#5a5a64,#3a3a44);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.4);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#3a3a44,#1a1a22);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ffd700;box-shadow:0 0 6px #ffd700;" class="neon-pulse"></div>
+            <div style="position:absolute;left:8px;bottom:6px;width:16px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#d4d4d8,#6a6a72);border:2px solid #2a2a32;box-shadow:inset 0 2px 4px rgba(0,0,0,0.4);"></div>
+            <div style="position:absolute;left:14px;bottom:14px;width:4px;height:4px;border-radius:50%;background:radial-gradient(circle,#fff8c0,#ffd700);box-shadow:0 0 4px #ffd700;"></div>
+            <div style="position:absolute;left:14px;bottom:8px;width:4px;height:1px;background:#ffd700;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🛡️</div>`;
     } else if (kind === 'pawnbroker') {
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#6a4a2a,#4a2a1a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#8a6a4a,#6a4a2a);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#4a3a1a,#2a1a00);"></div>
-            ${[0,1,2].map(i=>`<div style="position:absolute;left:${4+i*7}px;top:-6px;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,#fff8c0,#ffd700);box-shadow:0 0 4px #ffd700;"></div>`).join('')}`;
+        // Pawnbroker — altın küreler, koyu sarı vurgu
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#3a2a1a,#1a0a00);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a1a0a,#1a0a00);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#4a2a1a,#2a1a0a);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.3);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a3a1a,#3a1a00);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ffd700;box-shadow:0 0 8px #ffd700;" class="neon-pulse"></div>
+            ${[0,1,2].map(i=>`<div style="position:absolute;left:${4+i*7}px;top:-8px;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff8c0,#ffd700 50%,#aa8030);box-shadow:0 0 4px #ffd700;"></div>`).join('')}
+            <div style="position:absolute;left:14px;bottom:6px;width:8px;height:12px;background:linear-gradient(180deg,#3a2010,#1a0a00);border:1px solid #ffd700;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🪙</div>`;
     } else if (kind === 'blackmarket') {
-        body = `<div class="bld-yard" style="width:80px;height:40px;background:#2a1a0a;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a1a0a,#1a0a00);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a2a1a,#1a0a00);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#1a0a00,#000);"></div>
-            <div style="position:absolute;left:6px;top:0;width:20px;height:4px;background:#9d00ff;box-shadow:0 0 4px #9d00ff;" class="neon-pulse"></div>
-            <div style="position:absolute;left:6px;bottom:6px;width:18px;height:6px;background:#3a2a1a;"></div>`;
+        // Black Market — mor neon, karanlık, gizemli
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#1a0a2a,#0a0010);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#0a0010,#000);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a0a20,#0a0008);box-shadow:inset 0 0 0 1px rgba(176,51,255,0.4);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#0a0010,#000);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#b033ff;box-shadow:0 0 8px #b033ff;" class="neon-pulse"></div>
+            <div style="position:absolute;left:6px;bottom:${h*0.5}px;width:8px;height:10px;background:linear-gradient(180deg,#b033ff,#5a1a8a);box-shadow:0 0 6px #b033ff;"></div>
+            <div style="position:absolute;left:14px;bottom:6px;width:12px;height:14px;background:linear-gradient(180deg,#1a0a20,#0a0008);border:1px solid #b033ff;box-shadow:0 0 4px #b033ff;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🃏</div>`;
     } else if (kind === 'radar') {
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2-5}px;height:${h*0.5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#4a4a52,#2a2a32);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2-5}px;height:${h*0.5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#6a6a72,#4a4a52);"></div>
-            <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:24px;height:24px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#c9b890,#8a8472);"></div>
-            <div style="position:absolute;left:50%;top:-32px;transform:translateX(-50%);width:2px;height:10px;background:#1a1a1a;"></div>
-            <div style="position:absolute;left:50%;top:-30px;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#ff0000;box-shadow:0 0 4px #ff0000;" class="neon-pulse"></div>`;
+        // Radar — kubbe, kırmızı uyarı ışığı
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#2a3a4a,#1a2a3a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2-5}px;height:${h*0.5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a2a3a,#0a1a2a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2-5}px;height:${h*0.5}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a3a4a,#1a2a3a);box-shadow:inset 0 0 0 1px rgba(100,200,255,0.3);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:4px;background:#33ccff;box-shadow:0 0 6px #33ccff;" class="neon-pulse"></div>
+            <div style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);width:28px;height:28px;border-radius:50% 50% 0 0;background:linear-gradient(180deg,#5a8a9a,#2a4a5a);box-shadow:inset 0 -3px 6px rgba(0,0,0,0.4);"></div>
+            <div style="position:absolute;left:50%;top:-38px;transform:translateX(-50%);width:2px;height:12px;background:#1a1a1a;"></div>
+            <div style="position:absolute;left:50%;top:-36px;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#ffeb3b,#ff2244);box-shadow:0 0 8px #ff2244;" class="neon-pulse"></div>
+            <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:1px;height:24px;background:rgba(100,200,255,0.4);transform-origin:bottom center;animation:radarSweep 3s linear infinite;"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">📡</div>`;
     } else if (kind === 'security') {
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a4a4a,#1a2a2a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#4a5a5a,#2a3a3a);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#1a2a2a,#0a1a1a);"></div>
-            <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:2px;height:20px;background:#1a1a1a;"></div>
-            <div style="position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#ff0000;" class="neon-pulse"></div>`;
+        // Security — kırmızı siren ışığı, koyu
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#2a2a3a,#1a1a2a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a1a2a,#0a0a1a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h-10}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#2a2a3a,#1a1a2a);box-shadow:inset 0 0 0 1px rgba(255,68,68,0.3);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#1a1a2a,#0a0a1a);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ff2244;box-shadow:0 0 8px #ff2244;" class="neon-pulse"></div>
+            <div style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);width:2px;height:22px;background:#1a1a1a;"></div>
+            <div style="position:absolute;left:50%;top:-24px;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#ffeb3b,#ff2244);box-shadow:0 0 10px #ff2244;" class="neon-pulse"></div>
+            <div style="position:absolute;left:6px;bottom:${(h-10)*0.5}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 4px rgba(255,180,60,0.6);"></div>`;
         details = `<div style="position:absolute;left:-12px;bottom:2px;font-size:0.8rem;">🚨</div>`;
     } else {
-        // Generic
-        body = `<div class="bld-yard" style="width:80px;height:40px;"></div>
-            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#9a8a6a,#5a4a2a);"></div>
-            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#c9b890,#9a8a6a);"></div>
-            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#6a5a3a,#4a3a2a);"></div>`;
+        // Generic (yedek) — sıcak pencereli koyu bina
+        body = `<div class="bld-yard" style="width:80px;height:40px;background:linear-gradient(135deg,#3a3a3a,#1a1a1a);"></div>
+            <div class="bld-side" style="left:50%;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#1a1a1a,#0a0a0a);"></div>
+            <div class="bld-front" style="left:0;bottom:0;width:${w/2}px;height:${h}px;clip-path:polygon(0 0,100% 35%,100% 65%,0 100%);background:linear-gradient(180deg,#3a3a3a,#1a1a1a);box-shadow:inset 0 0 0 1px rgba(255,215,0,0.2);"></div>
+            <div class="bld-roof" style="width:${w}px;height:${w/2}px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:linear-gradient(135deg,#5a2a1a,#3a0a00);"></div>
+            <div style="position:absolute;left:4px;top:0;width:24px;height:5px;background:#ffd700;box-shadow:0 0 6px #ffd700;" class="neon-pulse"></div>
+            ${[0,1].map(r=>`<div style="position:absolute;left:6px;bottom:${h*0.55-r*22}px;width:8px;height:10px;background:linear-gradient(180deg,#fff8c0,#ffaa3a);box-shadow:0 0 5px rgba(255,180,60,0.7);"></div>`).join('')}`;
     }
 
     g.innerHTML = `<div class="iso-bld">${body}${details}<div class="bld-glow" style="width:80px;height:30px;"></div></div><div class="iso-label">${label}${lvl>1?' • Lv '+lvl:''}</div>`;
@@ -1502,18 +1544,17 @@ function addDecorativeProps() {
     if (!groundLayer) return;
     const extent = 8;
     // YOL DIŞI PARSELLER (bina parseli): sadece nadir, kaliteli dekor
-    // Fotoğrafta parsellerin çoğunda bina var — biz sadece bazılarına küçük obje koy
     for (let gx = -extent; gx <= extent; gx++) {
         for (let gz = -extent; gz <= extent; gz++) {
             const isAveH = (gx % 2 === 0), isAveV = (gz % 2 === 0);
             if (isAveH || isAveV) continue; // yol, atla
             const { ix, iy } = worldToIso(gx * 20, gz * 20);
             const r = Math.random();
-            // Çok seyrek: sadece %20'sine dekor koy
-            if (r < 0.08) addPalmTree(ix, iy, 0.9);
-            else if (r < 0.14) addDeciduousTree(ix, iy, 0.85);
-            else if (r < 0.17) addFountain(ix, iy);
-            else if (r < 0.20) addBush(ix, iy, 0.9);
+            // Dekor: %35 oranında bir şey koy
+            if (r < 0.18) addPalmTree(ix, iy, 0.95);
+            else if (r < 0.28) addDeciduousTree(ix, iy, 0.9);
+            else if (r < 0.32) addFountain(ix, iy);
+            else if (r < 0.36) addBush(ix, iy, 0.95);
         }
     }
     // YOL BOYUNCA: ara sıra araba, nadir lamba
@@ -1523,8 +1564,8 @@ function addDecorativeProps() {
             if (!isAveH && !isAveV) continue; // parsel, atla
             if (isAveH && isAveV) continue; // kavşak, atla
             const { ix, iy } = worldToIso(gx * 20, gz * 20);
-            if (Math.random() < 0.10) {
-                const colors = ['#4a4a52', '#6a2a1a', '#1a3a5a', '#9a3a1a', '#3a3a3a'];
+            if (Math.random() < 0.18) {
+                const colors = ['#4a4a52', '#6a2a1a', '#1a3a5a', '#9a3a1a', '#3a3a3a', '#7a3030', '#2a4a3a'];
                 const rot = isAveH ? 90 : 0;
                 addCar(ix, iy - TILE * 0.35, colors[Math.floor(Math.random() * colors.length)], rot);
             }
