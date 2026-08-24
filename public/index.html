@@ -3,508 +3,113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mafia City</title>
+<title>AtlasWarfare</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Oswald:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-  :root {
-    --bg: #0a0a0f;
-    --fg: #e8e0d0;
-    --muted: #6b6358;
-    --accent: #d4a017;
-    --accent2: #b71c1c;
-    --card: rgba(8, 8, 14, 0.92);
-    --border: rgba(212, 160, 23, 0.35);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'Oswald', sans-serif;
-    background: var(--bg);
-    color: var(--fg);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Zemin canvas - tüm sayfayı kaplar */
-  #cityGround {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    z-index: 0;
-    image-rendering: pixelated;
-  }
-
-  /* Üstte karanlık gradient overlay */
-  .overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 1;
-    background:
-      radial-gradient(ellipse at center, transparent 20%, rgba(5,5,10,0.7) 70%, rgba(5,5,10,0.95) 100%),
-      linear-gradient(180deg, rgba(5,5,10,0.4) 0%, transparent 30%, transparent 60%, rgba(5,5,10,0.6) 100%);
-    pointer-events: none;
-  }
-
-  /* Ana içerik */
-  .main-wrapper {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 20px;
-  }
-
-  /* Logo bölümü */
-  .logo-section {
-    text-align: center;
-    margin-bottom: 30px;
-  }
-
-  .logo-icon {
-    font-size: 48px;
-    color: var(--accent);
-    text-shadow: 0 0 30px rgba(212,160,23,0.5), 0 0 60px rgba(212,160,23,0.2);
-    margin-bottom: 10px;
-    animation: logoPulse 3s ease-in-out infinite;
-  }
-
-  @keyframes logoPulse {
-    0%, 100% { text-shadow: 0 0 30px rgba(212,160,23,0.5), 0 0 60px rgba(212,160,23,0.2); }
-    50% { text-shadow: 0 0 50px rgba(212,160,23,0.8), 0 0 100px rgba(212,160,23,0.3); }
-  }
-
-  .logo-title {
-    font-family: 'Cinzel', serif;
-    font-weight: 900;
-    font-size: clamp(36px, 7vw, 72px);
-    color: var(--accent);
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    line-height: 1;
-    text-shadow:
-      0 2px 0 #8b6914,
-      0 4px 8px rgba(0,0,0,0.8),
-      0 0 40px rgba(212,160,23,0.3);
-  }
-
-  .logo-subtitle {
-    font-family: 'Oswald', sans-serif;
-    font-weight: 300;
-    font-size: clamp(12px, 2.5vw, 18px);
-    color: var(--muted);
-    letter-spacing: 12px;
-    text-transform: uppercase;
-    margin-top: 8px;
-  }
-
-  /* Panel */
-  .auth-panel {
-    width: 100%;
-    max-width: 420px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow:
-      0 0 0 1px rgba(212,160,23,0.1),
-      0 20px 60px rgba(0,0,0,0.7),
-      inset 0 1px 0 rgba(255,255,255,0.03);
-    overflow: hidden;
-  }
-
-  /* Panel üst dekoratif çizgi */
-  .auth-panel::before {
-    content: '';
-    display: block;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  }
-
-  /* Sekmeler */
-  .tabs {
-    display: flex;
-    border-bottom: 1px solid rgba(212,160,23,0.15);
-  }
-
-  .tab-btn {
-    flex: 1;
-    padding: 16px 0;
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-family: 'Oswald', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    cursor: pointer;
-    position: relative;
-    transition: color 0.3s;
-  }
-
-  .tab-btn:hover { color: var(--fg); }
-
-  .tab-btn.active {
-    color: var(--accent);
-  }
-
-  .tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 20%;
-    width: 60%;
-    height: 2px;
-    background: var(--accent);
-    box-shadow: 0 0 10px rgba(212,160,23,0.5);
-  }
-
-  /* Form */
-  .form-container {
-    padding: 30px 32px 32px;
-  }
-
-  .form-section { display: none; }
-  .form-section.active { display: block; }
-
-  .input-group {
-    margin-bottom: 18px;
-    position: relative;
-  }
-
-  .input-group i {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--muted);
-    font-size: 14px;
-    transition: color 0.3s;
-  }
-
-  .input-group input {
-    width: 100%;
-    padding: 14px 14px 14px 42px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 3px;
-    color: var(--fg);
-    font-family: 'Oswald', sans-serif;
-    font-size: 15px;
-    letter-spacing: 1px;
-    outline: none;
-    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
-  }
-
-  .input-group input::placeholder {
-    color: rgba(255,255,255,0.2);
-    font-weight: 300;
-  }
-
-  .input-group input:focus {
-    border-color: rgba(212,160,23,0.5);
-    background: rgba(255,255,255,0.05);
-    box-shadow: 0 0 0 3px rgba(212,160,23,0.08);
-  }
-
-  .input-group input:focus + i,
-  .input-group input:focus ~ i { color: var(--accent); }
-
-  /* Hatırla & forgot */
-  .form-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    font-size: 13px;
-  }
-
-  .remember-me {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    color: var(--muted);
-    transition: color 0.3s;
-  }
-
-  .remember-me:hover { color: var(--fg); }
-
-  .remember-me input[type="checkbox"] {
-    appearance: none;
-    width: 16px; height: 16px;
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 2px;
-    background: rgba(255,255,255,0.03);
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s;
-  }
-
-  .remember-me input[type="checkbox"]:checked {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .remember-me input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 11px;
-    color: #000;
-    font-weight: 700;
-  }
-
-  .forgot-link {
-    color: var(--accent);
-    text-decoration: none;
-    opacity: 0.7;
-    transition: opacity 0.3s;
-  }
-
-  .forgot-link:hover { opacity: 1; }
-
-  /* Buton */
-  .btn-primary {
-    width: 100%;
-    padding: 15px;
-    background: linear-gradient(135deg, #d4a017 0%, #a67c00 100%);
-    border: none;
-    border-radius: 3px;
-    color: #0a0a0f;
-    font-family: 'Oswald', sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.15s, box-shadow 0.3s;
-    box-shadow: 0 4px 20px rgba(212,160,23,0.3);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 30px rgba(212,160,23,0.5);
-  }
-
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-primary::after {
-    content: '';
-    position: absolute;
-    top: -50%; left: -50%;
-    width: 200%; height: 200%;
-    background: linear-gradient(transparent, rgba(255,255,255,0.15), transparent);
-    transform: rotate(45deg) translateY(-100%);
-    transition: transform 0.6s;
-  }
-
-  .btn-primary:hover::after {
-    transform: rotate(45deg) translateY(100%);
-  }
-
-  /* Sosyal girişler */
-  .social-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 24px 0 18px;
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  .social-divider::before,
-  .social-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(255,255,255,0.06);
-  }
-
-  .social-btns {
-    display: flex;
-    gap: 12px;
-  }
-
-  .social-btn {
-    flex: 1;
-    padding: 12px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 3px;
-    color: var(--muted);
-    font-size: 18px;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .social-btn:hover {
-    border-color: rgba(212,160,23,0.3);
-    color: var(--accent);
-    background: rgba(212,160,23,0.05);
-  }
-
-  /* Toast bildirimi */
-  .toast {
-    position: fixed;
-    top: 30px;
-    right: 30px;
-    z-index: 1000;
-    padding: 16px 24px;
-    border-radius: 4px;
-    font-family: 'Oswald', sans-serif;
-    font-size: 14px;
-    letter-spacing: 1px;
-    transform: translateX(120%);
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  }
-
-  .toast.show { transform: translateX(0); }
-
-  .toast.success {
-    background: linear-gradient(135deg, #1a3a1a, #0f260f);
-    border: 1px solid rgba(46,125,50,0.4);
-    color: #81c784;
-  }
-
-  .toast.error {
-    background: linear-gradient(135deg, #3a1a1a, #260f0f);
-    border: 1px solid rgba(183,28,28,0.4);
-    color: #ef9a9a;
-  }
-
-  .toast.info {
-    background: linear-gradient(135deg, #1a2a3a, #0f1a26);
-    border: 1px solid rgba(212,160,23,0.4);
-    color: var(--accent);
-  }
-
-  /* Şifre göster/gizle */
-  .toggle-pass {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 4px;
-    transition: color 0.3s;
-  }
-
-  .toggle-pass:hover { color: var(--accent); }
-
-  /* Footer */
-  .footer-text {
-    margin-top: 24px;
-    font-size: 11px;
-    color: rgba(255,255,255,0.15);
-    letter-spacing: 2px;
-    text-align: center;
-  }
-
-  /* Parola güç göstergesi */
-  .pass-strength {
-    height: 3px;
-    margin-top: 6px;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.05);
-    overflow: hidden;
-    transition: opacity 0.3s;
-    opacity: 0;
-  }
-
-  .pass-strength.visible { opacity: 1; }
-
-  .pass-strength-bar {
-    height: 100%;
-    width: 0;
-    border-radius: 2px;
-    transition: width 0.4s, background 0.4s;
-  }
-
-  /* Mobil uyum */
-  @media (max-width: 480px) {
-    .form-container { padding: 24px 20px 28px; }
-    .logo-title { letter-spacing: 3px; }
-    .logo-subtitle { letter-spacing: 6px; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
+:root {
+  --bg: #0a0a0f;
+  --fg: #e8e0d0;
+  --muted: #6b6358;
+  --accent: #d4a017;
+  --accent2: #b71c1c;
+  --card: rgba(8, 8, 14, 0.92);
+  --border: rgba(212, 160, 23, 0.35);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+#cityGround{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;image-rendering:pixelated}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;background:radial-gradient(ellipse at center,transparent 20%,rgba(5,5,10,0.7) 70%,rgba(5,5,10,0.95) 100%),linear-gradient(180deg,rgba(5,5,10,0.4) 0%,transparent 30%,transparent 60%,rgba(5,5,10,0.6) 100%);pointer-events:none}
+.main-wrapper{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.logo-section{text-align:center;margin-bottom:30px}
+.logo-icon{font-size:48px;color:var(--accent);text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);margin-bottom:10px;animation:logoPulse 3s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2)}50%{text-shadow:0 0 50px rgba(212,160,23,0.8),0 0 100px rgba(212,160,23,0.3)}}
+.logo-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(32px,6vw,64px);color:var(--accent);letter-spacing:6px;text-transform:uppercase;line-height:1;text-shadow:0 2px 0 #8b6914,0 4px 8px rgba(0,0,0,0.8),0 0 40px rgba(212,160,23,0.3)}
+.logo-subtitle{font-family:'Oswald',sans-serif;font-weight:300;font-size:clamp(12px,2.5vw,18px);color:var(--muted);letter-spacing:12px;text-transform:uppercase;margin-top:8px}
+.auth-panel{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:4px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 0 0 1px rgba(212,160,23,0.1),0 20px 60px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.03);overflow:hidden}
+.auth-panel::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.tabs{display:flex;border-bottom:1px solid rgba(212,160,23,0.15)}
+.tab-btn{flex:1;padding:16px 0;background:transparent;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:3px;text-transform:uppercase;cursor:pointer;position:relative;transition:color 0.3s}
+.tab-btn:hover{color:var(--fg)}
+.tab-btn.active{color:var(--accent)}
+.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:20%;width:60%;height:2px;background:var(--accent);box-shadow:0 0 10px rgba(212,160,23,0.5)}
+.form-container{padding:30px 32px 32px}
+.form-section{display:none}.form-section.active{display:block}
+.input-group{margin-bottom:18px;position:relative}
+.input-group i.field-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;transition:color 0.3s;pointer-events:none}
+.input-group input{width:100%;padding:14px 42px 14px 42px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:3px;color:var(--fg);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:1px;outline:none;transition:border-color 0.3s,box-shadow 0.3s,background 0.3s}
+.input-group input::placeholder{color:rgba(255,255,255,0.2);font-weight:300}
+.input-group input:focus{border-color:rgba(212,160,23,0.5);background:rgba(255,255,255,0.05);box-shadow:0 0 0 3px rgba(212,160,23,0.08)}
+.input-group input:focus~i.field-icon{color:var(--accent)}
+.form-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;font-size:13px}
+.remember-me{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);transition:color 0.3s}
+.remember-me:hover{color:var(--fg)}
+.remember-me input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1px solid rgba(255,255,255,0.15);border-radius:2px;background:rgba(255,255,255,0.03);cursor:pointer;position:relative;transition:all 0.2s;flex-shrink:0}
+.remember-me input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
+.remember-me input[type="checkbox"]:checked::after{content:'\2713';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;color:#000;font-weight:700}
+.forgot-link{color:var(--accent);text-decoration:none;opacity:0.7;transition:opacity 0.3s}
+.forgot-link:hover{opacity:1}
+.btn-primary{width:100%;padding:15px;background:linear-gradient(135deg,#d4a017 0%,#a67c00 100%);border:none;border-radius:3px;color:#0a0a0f;font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.15s,box-shadow 0.3s;box-shadow:0 4px 20px rgba(212,160,23,0.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 30px rgba(212,160,23,0.5)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(transparent,rgba(255,255,255,0.15),transparent);transform:rotate(45deg) translateY(-100%);transition:transform 0.6s}
+.btn-primary:hover::after{transform:rotate(45deg) translateY(100%)}
+.social-divider{display:flex;align-items:center;gap:12px;margin:24px 0 18px;font-size:12px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.social-divider::before,.social-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.06)}
+.social-btns{display:flex;gap:12px}
+.social-btn{flex:1;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:3px;color:var(--muted);font-size:18px;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center}
+.social-btn:hover{border-color:rgba(212,160,23,0.3);color:var(--accent);background:rgba(212,160,23,0.05)}
+.toast{position:fixed;top:30px;right:30px;z-index:1000;padding:16px 24px;border-radius:4px;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:1px;transform:translateX(120%);transition:transform 0.4s cubic-bezier(0.22,1,0.36,1);box-shadow:0 10px 40px rgba(0,0,0,0.5);max-width:380px}
+.toast.show{transform:translateX(0)}
+.toast.success{background:linear-gradient(135deg,#1a3a1a,#0f260f);border:1px solid rgba(46,125,50,0.4);color:#81c784}
+.toast.error{background:linear-gradient(135deg,#3a1a1a,#260f0f);border:1px solid rgba(183,28,28,0.4);color:#ef9a9a}
+.toast.info{background:linear-gradient(135deg,#1a2a3a,#0f1a26);border:1px solid rgba(212,160,23,0.4);color:var(--accent)}
+.toggle-pass{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px;transition:color 0.3s}
+.toggle-pass:hover{color:var(--accent)}
+.footer-text{margin-top:24px;font-size:11px;color:rgba(255,255,255,0.15);letter-spacing:2px;text-align:center}
+.pass-strength{height:3px;margin-top:6px;border-radius:2px;background:rgba(255,255,255,0.05);overflow:hidden;transition:opacity 0.3s;opacity:0}
+.pass-strength.visible{opacity:1}
+.pass-strength-bar{height:100%;width:0;border-radius:2px;transition:width 0.4s,background 0.4s}
+.input-error{border-color:rgba(183,28,28,0.6)!important;box-shadow:0 0 0 3px rgba(183,28,28,0.1)!important}
+@media(max-width:480px){.form-container{padding:24px 20px 28px}.logo-title{letter-spacing:3px}.logo-subtitle{letter-spacing:6px}.toast{right:16px;left:16px;max-width:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}
 </style>
 </head>
 <body>
 
-<!-- Procedural kent haritası zemini -->
 <canvas id="cityGround"></canvas>
-
-<!-- Karanlık overlay -->
 <div class="overlay"></div>
-
-<!-- Toast bildirim alanı -->
 <div class="toast" id="toast"></div>
 
-<!-- Ana içerik -->
 <main class="main-wrapper">
-
-  <!-- Logo -->
   <div class="logo-section">
-    <div class="logo-icon"><i class="fas fa-landmark"></i></div>
-    <h1 class="logo-title">Mafia City</h1>
+    <div class="logo-icon"><i class="fas fa-globe-americas"></i></div>
+    <h1 class="logo-title">AtlasWarfare</h1>
     <p class="logo-subtitle">Kendininkini Kur</p>
   </div>
 
-  <!-- Giriş/Kayıt Paneli -->
   <div class="auth-panel">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="login" aria-label="Giriş yap">Giris</button>
-      <button class="tab-btn" data-tab="register" aria-label="Kayıt ol">Kayit</button>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="login" role="tab" aria-selected="true" aria-label="Giriş yap">Giriş</button>
+      <button class="tab-btn" data-tab="register" role="tab" aria-selected="false" aria-label="Kayıt ol">Kayıt</button>
     </div>
-
     <div class="form-container">
 
-      <!-- GİRİŞ FORMU -->
-      <div class="form-section active" id="loginForm">
+      <div class="form-section active" id="loginForm" role="tabpanel">
         <div class="input-group">
-          <input type="text" id="loginUser" placeholder="Kullanici Adi" autocomplete="username" aria-label="Kullanıcı adı">
-          <i class="fas fa-user"></i>
+          <input type="text" id="loginUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
+          <i class="fas fa-user field-icon"></i>
         </div>
         <div class="input-group">
-          <input type="password" id="loginPass" placeholder="Sifre" autocomplete="current-password" aria-label="Şifre">
-          <i class="fas fa-lock"></i>
+          <input type="password" id="loginPass" placeholder="Şifre" autocomplete="current-password" aria-label="Şifre">
+          <i class="fas fa-lock field-icon"></i>
           <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
         </div>
         <div class="form-options">
-          <label class="remember-me">
-            <input type="checkbox" checked> Beni Hatirla
-          </label>
-          <a href="#" class="forgot-link" id="forgotLink">Sifremi Unuttum</a>
+          <label class="remember-me"><input type="checkbox" checked> Beni Hatırla</label>
+          <a href="#" class="forgot-link" id="forgotLink">Şifremi Unuttum</a>
         </div>
-        <button class="btn-primary" id="loginBtn">Giris Yap</button>
-
+        <button class="btn-primary" id="loginBtn">Giriş Yap</button>
         <div class="social-divider">Veya</div>
         <div class="social-btns">
           <button class="social-btn" aria-label="Facebook ile giriş"><i class="fab fa-facebook-f"></i></button>
@@ -513,32 +118,28 @@
         </div>
       </div>
 
-      <!-- KAYIT FORMU -->
-      <div class="form-section" id="registerForm">
+      <div class="form-section" id="registerForm" role="tabpanel">
         <div class="input-group">
-          <input type="text" id="regUser" placeholder="Kullanici Adi" autocomplete="username" aria-label="Kullanıcı adı">
-          <i class="fas fa-user"></i>
+          <input type="text" id="regUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
+          <i class="fas fa-user field-icon"></i>
         </div>
         <div class="input-group">
           <input type="email" id="regEmail" placeholder="E-Posta" autocomplete="email" aria-label="E-posta adresi">
-          <i class="fas fa-envelope"></i>
+          <i class="fas fa-envelope field-icon"></i>
         </div>
         <div class="input-group">
-          <input type="password" id="regPass" placeholder="Sifre" autocomplete="new-password" aria-label="Şifre">
-          <i class="fas fa-lock"></i>
+          <input type="password" id="regPass" placeholder="Şifre" autocomplete="new-password" aria-label="Şifre">
+          <i class="fas fa-lock field-icon"></i>
           <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
         </div>
-        <div class="pass-strength" id="passStrength">
-          <div class="pass-strength-bar" id="passStrengthBar"></div>
-        </div>
+        <div class="pass-strength" id="passStrength"><div class="pass-strength-bar" id="passStrengthBar"></div></div>
         <div class="input-group">
-          <input type="password" id="regPassConfirm" placeholder="Sifre Tekrar" autocomplete="new-password" aria-label="Şifre tekrar">
-          <i class="fas fa-lock"></i>
+          <input type="password" id="regPassConfirm" placeholder="Şifre Tekrar" autocomplete="new-password" aria-label="Şifre tekrar">
+          <i class="fas fa-lock field-icon"></i>
           <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
         </div>
-        <div style="height: 6px;"></div>
-        <button class="btn-primary" id="registerBtn">Hesap Olustur</button>
-
+        <div style="height:6px"></div>
+        <button class="btn-primary" id="registerBtn">Hesap Oluştur</button>
         <div class="social-divider">Veya</div>
         <div class="social-btns">
           <button class="social-btn" aria-label="Facebook ile kayıt"><i class="fab fa-facebook-f"></i></button>
@@ -549,76 +150,66 @@
 
     </div>
   </div>
-
-  <p class="footer-text">MAFIA CITY &copy; 2025 — TUM HAKLARI SAKLIDIR</p>
-
+  <p class="footer-text">ATLASWARFARE &copy; 2025 — TÜM HAKLARI SAKLIDIR</p>
 </main>
 
 <script>
-// ==========================================
-// PROCEDURAL KENT HARİTASI GÖRSELÜ ÜRETİMİ
-// Canvas ile piksel bazlı kentsel doku çizimi
-// ==========================================
+// =============================================
+// PROCEDURAL KENT HARİTASI — SÜREKLİ YENİLENEN
+// Belirli aralıklarla tohum değişip haritayı
+// yeniden çizer, sayfa yenilenmez, sadece zemin
+// değişir.
+// =============================================
 
-(function generateCityGround() {
-  const canvas = document.getElementById('cityGround');
-  const ctx = canvas.getContext('2d');
+const groundCanvas = document.getElementById('cityGround');
+const gCtx = groundCanvas.getContext('2d');
 
-  // Ekran boyutunu al (hiç boşluk kalmaması için)
+// Tohumlu rastgele sayı üretici
+function createRng(s) {
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function drawCity(seedVal) {
   const W = window.innerWidth;
   const H = window.innerHeight;
-  canvas.width = W;
-  canvas.height = H;
+  groundCanvas.width = W;
+  groundCanvas.height = H;
 
-  // Rastgele sayı üretici (tohumlu, tutarlı sonuç)
-  let seed = 42;
-  function rand() {
-    seed = (seed * 16807 + 0) % 2147483647;
-    return (seed - 1) / 2147483646;
-  }
-
-  // Blok boyutu — her blok bir sokak bloğu
+  const rand = createRng(seedVal);
   const BLOCK = 48;
   const ROAD_W = 6;
   const cols = Math.ceil(W / BLOCK) + 2;
   const rows = Math.ceil(H / BLOCK) + 2;
 
-  // Ana zemin rengi (koyu asfalt)
-  ctx.fillStyle = '#0d0d14';
-  ctx.fillRect(0, 0, W, H);
+  // Zemin
+  gCtx.fillStyle = '#0d0d14';
+  gCtx.fillRect(0, 0, W, H);
 
-  // Yolları çiz (grid yapısı)
-  ctx.fillStyle = '#15151f';
+  // Yollar
+  gCtx.fillStyle = '#15151f';
   for (let i = 0; i < cols; i++) {
-    const x = i * BLOCK;
-    ctx.fillRect(x - ROAD_W / 2, 0, ROAD_W, H);
+    gCtx.fillRect(i * BLOCK - ROAD_W / 2, 0, ROAD_W, H);
   }
   for (let j = 0; j < rows; j++) {
-    const y = j * BLOCK;
-    ctx.fillRect(0, y - ROAD_W / 2, W, ROAD_W);
+    gCtx.fillRect(0, j * BLOCK - ROAD_W / 2, W, ROAD_W);
   }
 
-  // Yol çizgileri (sarı merkez çizgiler)
-  ctx.strokeStyle = 'rgba(180, 150, 50, 0.08)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([8, 12]);
+  // Yol çizgileri
+  gCtx.strokeStyle = 'rgba(180,150,50,0.08)';
+  gCtx.lineWidth = 1;
+  gCtx.setLineDash([8, 12]);
   for (let i = 0; i < cols; i++) {
-    const x = i * BLOCK;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, H);
-    ctx.stroke();
+    gCtx.beginPath(); gCtx.moveTo(i * BLOCK, 0); gCtx.lineTo(i * BLOCK, H); gCtx.stroke();
   }
   for (let j = 0; j < rows; j++) {
-    const y = j * BLOCK;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y);
-    ctx.stroke();
+    gCtx.beginPath(); gCtx.moveTo(0, j * BLOCK); gCtx.lineTo(W, j * BLOCK); gCtx.stroke();
   }
-  ctx.setLineDash([]);
+  gCtx.setLineDash([]);
 
-  // Bina blokları çiz
+  // Bina blokları
   for (let i = 0; i < cols; i++) {
     for (let j = 0; j < rows; j++) {
       const bx = i * BLOCK + ROAD_W / 2 + 2;
@@ -626,424 +217,310 @@
       const bw = BLOCK - ROAD_W - 4;
       const bh = BLOCK - ROAD_W - 4;
 
-      // Bazı bloklar boş park alanı olabilir
-      const isPark = rand() < 0.06;
-      const isEmpty = rand() < 0.08;
-      const isWater = rand() < 0.02;
+      const r = rand();
+      const isPark = r < 0.06;
+      const isEmpty = r < 0.14 && !isPark;
+      const isWater = r < 0.02 && !isPark && !isEmpty;
 
       if (isWater) {
-        // Su kanalı
-        ctx.fillStyle = '#080e18';
-        ctx.fillRect(bx, by, bw, bh);
-        // Su dalgası efekti
-        ctx.strokeStyle = 'rgba(30, 60, 100, 0.15)';
-        ctx.lineWidth = 0.5;
+        gCtx.fillStyle = '#080e18';
+        gCtx.fillRect(bx, by, bw, bh);
+        gCtx.strokeStyle = 'rgba(30,60,100,0.15)';
+        gCtx.lineWidth = 0.5;
         for (let w = 0; w < 3; w++) {
           const wy = by + 6 + w * 10;
-          ctx.beginPath();
-          ctx.moveTo(bx, wy);
+          gCtx.beginPath(); gCtx.moveTo(bx, wy);
           for (let px = bx; px < bx + bw; px += 2) {
-            ctx.lineTo(px, wy + Math.sin((px + w * 20) * 0.3) * 2);
+            gCtx.lineTo(px, wy + Math.sin((px + w * 20) * 0.3) * 2);
           }
-          ctx.stroke();
+          gCtx.stroke();
         }
         continue;
       }
-
       if (isPark) {
-        // Park / yeşil alan
-        ctx.fillStyle = '#0a140a';
-        ctx.fillRect(bx, by, bw, bh);
-        // Ağaçlar
+        gCtx.fillStyle = '#0a140a';
+        gCtx.fillRect(bx, by, bw, bh);
         for (let t = 0; t < 4; t++) {
           const tx = bx + 5 + rand() * (bw - 10);
           const ty = by + 5 + rand() * (bh - 10);
           const tr = 2 + rand() * 3;
-          ctx.fillStyle = `rgba(${20 + rand()*30}, ${50 + rand()*40}, ${20 + rand()*20}, 0.6)`;
-          ctx.beginPath();
-          ctx.arc(tx, ty, tr, 0, Math.PI * 2);
-          ctx.fill();
+          gCtx.fillStyle = 'rgba(' + (20 + rand()*30|0) + ',' + (50 + rand()*40|0) + ',' + (20 + rand()*20|0) + ',0.6)';
+          gCtx.beginPath(); gCtx.arc(tx, ty, tr, 0, Math.PI * 2); gCtx.fill();
         }
         continue;
       }
+      if (isEmpty) continue;
 
-      if (isEmpty) continue; // Boş arazi
+      const brightness = 12 + (rand() * 14 | 0);
+      const rT = rand() < 0.3 ? (rand() * 8 | 0) : 0;
+      const bT = rand() < 0.2 ? (rand() * 6 | 0) : 0;
+      gCtx.fillStyle = 'rgb(' + (brightness + rT) + ',' + brightness + ',' + (brightness + bT) + ')';
+      gCtx.fillRect(bx, by, bw, bh);
 
-      // Bina rengi — farklı tonlar
-      const brightness = 12 + Math.floor(rand() * 14);
-      const rTint = rand() < 0.3 ? Math.floor(rand() * 8) : 0;
-      const bTint = rand() < 0.2 ? Math.floor(rand() * 6) : 0;
-      ctx.fillStyle = `rgb(${brightness + rTint}, ${brightness}, ${brightness + bTint})`;
-      ctx.fillRect(bx, by, bw, bh);
+      // Kenarlık
+      gCtx.fillStyle = 'rgba(255,255,255,0.02)';
+      gCtx.fillRect(bx, by, bw, 1); gCtx.fillRect(bx, by, 1, bh);
+      gCtx.fillStyle = 'rgba(0,0,0,0.3)';
+      gCtx.fillRect(bx, by + bh - 1, bw, 1); gCtx.fillRect(bx + bw - 1, by, 1, bh);
 
-      // Bina kenarlık (hafif 3D etkisi)
-      ctx.fillStyle = 'rgba(255,255,255,0.02)';
-      ctx.fillRect(bx, by, bw, 1);
-      ctx.fillRect(bx, by, 1, bh);
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(bx, by + bh - 1, bw, 1);
-      ctx.fillRect(bx + bw - 1, by, 1, bh);
-
-      // Bina iç bölme çizgileri (katlar)
+      // Kat çizgileri
       if (rand() < 0.6) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-        ctx.lineWidth = 0.5;
-        const floors = 2 + Math.floor(rand() * 3);
+        gCtx.strokeStyle = 'rgba(0,0,0,0.25)';
+        gCtx.lineWidth = 0.5;
+        const floors = 2 + (rand() * 3 | 0);
         for (let f = 1; f < floors; f++) {
           const fy = by + (bh / floors) * f;
-          ctx.beginPath();
-          ctx.moveTo(bx + 1, fy);
-          ctx.lineTo(bx + bw - 1, fy);
-          ctx.stroke();
+          gCtx.beginPath(); gCtx.moveTo(bx + 1, fy); gCtx.lineTo(bx + bw - 1, fy); gCtx.stroke();
         }
       }
 
-      // Pencereler — ışık yansımaları
-      const winSize = 2;
-      const winGap = 5;
-      for (let wx = bx + 4; wx < bx + bw - 4; wx += winGap) {
-        for (let wy = by + 4; wy < by + bh - 4; wy += winGap) {
+      // Pencereler
+      for (let wx = bx + 4; wx < bx + bw - 4; wx += 5) {
+        for (let wy = by + 4; wy < by + bh - 4; wy += 5) {
           if (rand() < 0.45) {
-            // Pencere ışığı rengi — sıcak tonlar
             const warm = rand();
             let wr, wg, wb;
-            if (warm < 0.5) {
-              // Sarımsı ışık
-              wr = 180 + Math.floor(rand() * 60);
-              wg = 140 + Math.floor(rand() * 50);
-              wb = 40 + Math.floor(rand() * 30);
-            } else if (warm < 0.8) {
-              // Beyazımsı ışık
-              wr = 160 + Math.floor(rand() * 60);
-              wg = 160 + Math.floor(rand() * 60);
-              wb = 150 + Math.floor(rand() * 60);
-            } else {
-              // Mavimsi TV ışığı
-              wr = 60 + Math.floor(rand() * 40);
-              wg = 80 + Math.floor(rand() * 50);
-              wb = 140 + Math.floor(rand() * 80);
-            }
+            if (warm < 0.5) { wr=180+(rand()*60|0); wg=140+(rand()*50|0); wb=40+(rand()*30|0); }
+            else if (warm < 0.8) { wr=160+(rand()*60|0); wg=160+(rand()*60|0); wb=150+(rand()*60|0); }
+            else { wr=60+(rand()*40|0); wg=80+(rand()*50|0); wb=140+(rand()*80|0); }
             const alpha = 0.15 + rand() * 0.4;
-            ctx.fillStyle = `rgba(${wr}, ${wg}, ${wb}, ${alpha})`;
-            ctx.fillRect(wx, wy, winSize, winSize);
-
-            // Pencere ışıği yayılımı (glow)
+            gCtx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + alpha.toFixed(2) + ')';
+            gCtx.fillRect(wx, wy, 2, 2);
             if (alpha > 0.35) {
-              ctx.fillStyle = `rgba(${wr}, ${wg}, ${wb}, ${alpha * 0.1})`;
-              ctx.fillRect(wx - 1, wy - 1, winSize + 2, winSize + 2);
+              gCtx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + (alpha * 0.1).toFixed(3) + ')';
+              gCtx.fillRect(wx - 1, wy - 1, 4, 4);
             }
           }
         }
       }
 
-      // Bazı binalara çatı detayı
+      // Çatı detayı
       if (rand() < 0.15 && bw > 20 && bh > 20) {
-        ctx.fillStyle = 'rgba(255,255,255,0.03)';
-        ctx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
+        gCtx.fillStyle = 'rgba(255,255,255,0.03)';
+        gCtx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
       }
 
-      // Bazı büyük binalara kırmızı neon işaret
+      // Neon işaret
       if (rand() < 0.05) {
-        const neonColors = [
-          'rgba(200, 30, 30, 0.3)',
-          'rgba(200, 30, 30, 0.2)',
-          'rgba(180, 50, 50, 0.25)'
-        ];
-        ctx.fillStyle = neonColors[Math.floor(rand() * neonColors.length)];
+        gCtx.fillStyle = 'rgba(200,30,30,0.3)';
         const nw = 6 + rand() * 12;
         const nh = 3 + rand() * 4;
-        ctx.fillRect(bx + (bw - nw) / 2, by + 2, nw, nh);
-        // Neon glow
-        ctx.fillStyle = 'rgba(200, 30, 30, 0.05)';
-        ctx.fillRect(bx + (bw - nw) / 2 - 2, by, nw + 4, nh + 4);
+        gCtx.fillRect(bx + (bw - nw) / 2, by + 2, nw, nh);
+        gCtx.fillStyle = 'rgba(200,30,30,0.05)';
+        gCtx.fillRect(bx + (bw - nw) / 2 - 2, by, nw + 4, nh + 4);
       }
     }
   }
 
-  // Ana caddeler (daha geniş yollar — rastgele birkaç tane)
-  ctx.fillStyle = '#12121c';
+  // Ana caddeler
+  gCtx.fillStyle = '#12121c';
   for (let a = 0; a < 3; a++) {
-    const isHorizontal = rand() < 0.5;
-    const pos = Math.floor(rand() * (isHorizontal ? rows : cols));
-    if (isHorizontal) {
-      const y = pos * BLOCK - 5;
-      ctx.fillRect(0, y, W, 14);
-      // Cadde çizgisi
-      ctx.strokeStyle = 'rgba(200, 170, 50, 0.12)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([16, 10]);
-      ctx.beginPath();
-      ctx.moveTo(0, y + 7);
-      ctx.lineTo(W, y + 7);
-      ctx.stroke();
-      ctx.setLineDash([]);
+    if (rand() < 0.5) {
+      const y = (rand() * rows | 0) * BLOCK - 5;
+      gCtx.fillRect(0, y, W, 14);
+      gCtx.strokeStyle = 'rgba(200,170,50,0.12)'; gCtx.lineWidth = 1.5; gCtx.setLineDash([16, 10]);
+      gCtx.beginPath(); gCtx.moveTo(0, y + 7); gCtx.lineTo(W, y + 7); gCtx.stroke(); gCtx.setLineDash([]);
     } else {
-      const x = pos * BLOCK - 5;
-      ctx.fillRect(x, 0, 14, H);
-      ctx.strokeStyle = 'rgba(200, 170, 50, 0.12)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([16, 10]);
-      ctx.beginPath();
-      ctx.moveTo(x + 7, 0);
-      ctx.lineTo(x + 7, H);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      const x = (rand() * cols | 0) * BLOCK - 5;
+      gCtx.fillRect(x, 0, 14, H);
+      gCtx.strokeStyle = 'rgba(200,170,50,0.12)'; gCtx.lineWidth = 1.5; gCtx.setLineDash([16, 10]);
+      gCtx.beginPath(); gCtx.moveTo(x + 7, 0); gCtx.lineTo(x + 7, H); gCtx.stroke(); gCtx.setLineDash([]);
     }
   }
 
-  // Sokak lambaları ışık yansımaları
+  // Sokak lambası ışıkları
   for (let i = 0; i < cols; i++) {
     for (let j = 0; j < rows; j++) {
       if (rand() < 0.25) {
         const lx = i * BLOCK + (rand() < 0.5 ? -ROAD_W / 2 : ROAD_W / 2);
         const ly = j * BLOCK + (rand() < 0.5 ? -ROAD_W / 2 : ROAD_W / 2);
-        const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, 18);
-        grad.addColorStop(0, 'rgba(220, 190, 100, 0.12)');
-        grad.addColorStop(1, 'rgba(220, 190, 100, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(lx, ly, 18, 0, Math.PI * 2);
-        ctx.fill();
+        const grad = gCtx.createRadialGradient(lx, ly, 0, lx, ly, 18);
+        grad.addColorStop(0, 'rgba(220,190,100,0.12)');
+        grad.addColorStop(1, 'rgba(220,190,100,0)');
+        gCtx.fillStyle = grad;
+        gCtx.beginPath(); gCtx.arc(lx, ly, 18, 0, Math.PI * 2); gCtx.fill();
       }
     }
   }
 
-  // Genel gürültü/doku katmanı (grain efekti)
-  const imgData = ctx.getImageData(0, 0, W, H);
-  const pixels = imgData.data;
-  for (let p = 0; p < pixels.length; p += 4) {
-    const noise = (rand() - 0.5) * 8;
-    pixels[p] = Math.max(0, Math.min(255, pixels[p] + noise));
-    pixels[p + 1] = Math.max(0, Math.min(255, pixels[p + 1] + noise));
-    pixels[p + 2] = Math.max(0, Math.min(255, pixels[p + 2] + noise));
+  // Gürültü katmanı
+  const imgData = gCtx.getImageData(0, 0, W, H);
+  const px = imgData.data;
+  for (let p = 0; p < px.length; p += 4) {
+    const n = (rand() - 0.5) * 8;
+    px[p] = Math.max(0, Math.min(255, px[p] + n));
+    px[p+1] = Math.max(0, Math.min(255, px[p+1] + n));
+    px[p+2] = Math.max(0, Math.min(255, px[p+2] + n));
   }
-  ctx.putImageData(imgData, 0, 0);
+  gCtx.putImageData(imgData, 0, 0);
 
-  // Sol üstten sağ alta hafif vignette (kenarlar daha karanlık)
-  const vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7);
-  vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-  vigGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
-  ctx.fillStyle = vigGrad;
-  ctx.fillRect(0, 0, W, H);
+  // Vignette
+  const vig = gCtx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.25, W/2, H/2, Math.max(W,H)*0.7);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.4)');
+  gCtx.fillStyle = vig;
+  gCtx.fillRect(0, 0, W, H);
+}
 
-})();
+// İlk çizim
+let currentSeed = Date.now();
+drawCity(currentSeed);
+
+// Her 8 saniyede yeni tohumla haritayı yeniden çiz
+// Sayfa yenilenmez, sadece canvas içeriği değişir
+setInterval(function() {
+  currentSeed = Date.now();
+  drawCity(currentSeed);
+}, 8000);
 
 
-// ==========================================
-// SAYFA İŞLEVSELLİĞİ — Giriş / Kayıt Sistemi
-// ==========================================
+// =============================================
+// SAYFA İŞLEVSELLİĞİ
+// =============================================
 
-// Kullanıcı veritabanı (localStorage)
 function getUsers() {
-  try {
-    return JSON.parse(localStorage.getItem('mafiaCityUsers')) || [];
-  } catch { return []; }
+  try { return JSON.parse(localStorage.getItem('atlasUsers')) || []; }
+  catch(e) { return []; }
+}
+function saveUsers(u) { localStorage.setItem('atlasUsers', JSON.stringify(u)); }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(t._to);
+  t._to = setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
-function saveUsers(users) {
-  localStorage.setItem('mafiaCityUsers', JSON.stringify(users));
-}
+// Input hata stilini temizle (odaklanınca)
+document.querySelectorAll('.input-group input').forEach(function(inp) {
+  inp.addEventListener('focus', function() { inp.classList.remove('input-error'); });
+});
 
-// Toast bildirim göster
-function showToast(message, type) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = 'toast ' + type + ' show';
-  clearTimeout(toast._timeout);
-  toast._timeout = setTimeout(() => {
-    toast.classList.remove('show');
-  }, 3000);
-}
-
-// Sekme geçişi
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
+// Sekmeler
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+    document.querySelectorAll('.form-section').forEach(function(f) { f.classList.remove('active'); });
     btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    document.getElementById(tab === 'login' ? 'loginForm' : 'registerForm').classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    document.getElementById(btn.dataset.tab === 'login' ? 'loginForm' : 'registerForm').classList.add('active');
   });
 });
 
 // Şifre göster/gizle
-document.querySelectorAll('.toggle-pass').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const input = btn.parentElement.querySelector('input');
-    const icon = btn.querySelector('i');
-    if (input.type === 'password') {
-      input.type = 'text';
-      icon.className = 'fas fa-eye-slash';
-    } else {
-      input.type = 'password';
-      icon.className = 'fas fa-eye';
-    }
+document.querySelectorAll('.toggle-pass').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var inp = btn.parentElement.querySelector('input');
+    var ico = btn.querySelector('i');
+    if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fas fa-eye-slash'; }
+    else { inp.type = 'password'; ico.className = 'fas fa-eye'; }
   });
 });
 
-// Parola güç göstergesi
-const regPassInput = document.getElementById('regPass');
-const passStrength = document.getElementById('passStrength');
-const passStrengthBar = document.getElementById('passStrengthBar');
-
-regPassInput.addEventListener('input', () => {
-  const val = regPassInput.value;
-  if (val.length === 0) {
-    passStrength.classList.remove('visible');
-    return;
-  }
-  passStrength.classList.add('visible');
-
-  let score = 0;
-  if (val.length >= 6) score++;
-  if (val.length >= 10) score++;
-  if (/[A-Z]/.test(val)) score++;
-  if (/[0-9]/.test(val)) score++;
-  if (/[^A-Za-z0-9]/.test(val)) score++;
-
-  const percent = (score / 5) * 100;
-  passStrengthBar.style.width = percent + '%';
-
-  if (score <= 1) {
-    passStrengthBar.style.background = '#c0392b';
-  } else if (score <= 3) {
-    passStrengthBar.style.background = '#d4a017';
-  } else {
-    passStrengthBar.style.background = '#27ae60';
-  }
+// Şifre güç göstergesi
+var regPass = document.getElementById('regPass');
+var pStr = document.getElementById('passStrength');
+var pBar = document.getElementById('passStrengthBar');
+regPass.addEventListener('input', function() {
+  var v = regPass.value;
+  if (!v.length) { pStr.classList.remove('visible'); return; }
+  pStr.classList.add('visible');
+  var s = 0;
+  if (v.length >= 6) s++;
+  if (v.length >= 10) s++;
+  if (/[A-Z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  pBar.style.width = (s / 5 * 100) + '%';
+  pBar.style.background = s <= 1 ? '#c0392b' : s <= 3 ? '#d4a017' : '#27ae60';
 });
 
-// Giriş yap
-document.getElementById('loginBtn').addEventListener('click', () => {
-  const username = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value;
-
-  if (!username || !password) {
-    showToast('Tum alanlari doldurun.', 'error');
-    return;
+// Giriş
+document.getElementById('loginBtn').addEventListener('click', function() {
+  var u = document.getElementById('loginUser').value.trim();
+  var p = document.getElementById('loginPass').value;
+  var err = false;
+  if (!u) { document.getElementById('loginUser').classList.add('input-error'); err = true; }
+  if (!p) { document.getElementById('loginPass').classList.add('input-error'); err = true; }
+  if (err) { showToast('Tüm alanları doldurun.', 'error'); return; }
+  var users = getUsers();
+  var user = null;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username.toLowerCase() === u.toLowerCase()) { user = users[i]; break; }
   }
-
-  const users = getUsers();
-  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-
-  if (!user) {
-    showToast('Bu kullanici adi kayitli degil.', 'error');
-    return;
-  }
-
-  if (user.password !== password) {
-    showToast('Sifre hatali.', 'error');
-    return;
-  }
-
-  showToast('Basariyla giris yaptiniz, ' + user.username + '.', 'success');
-  // Giriş başarılı — oturum kaydı
-  localStorage.setItem('mafiaCitySession', JSON.stringify({ username: user.username, loggedAt: Date.now() }));
+  if (!user) { showToast('Bu kullanıcı adı kayıtlı değil.', 'error'); return; }
+  if (user.password !== p) { showToast('Şifre hatalı.', 'error'); return; }
+  showToast('Başarıyla giriş yaptınız, ' + user.username + '.', 'success');
+  localStorage.setItem('atlasSession', JSON.stringify({ username: user.username, loggedAt: Date.now() }));
 });
 
-// Kayıt ol
-document.getElementById('registerBtn').addEventListener('click', () => {
-  const username = document.getElementById('regUser').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPass').value;
-  const passwordConfirm = document.getElementById('regPassConfirm').value;
-
-  if (!username || !email || !password || !passwordConfirm) {
-    showToast('Tum alanlari doldurun.', 'error');
-    return;
+// Kayıt
+document.getElementById('registerBtn').addEventListener('click', function() {
+  var u = document.getElementById('regUser').value.trim();
+  var e = document.getElementById('regEmail').value.trim();
+  var p = document.getElementById('regPass').value;
+  var pc = document.getElementById('regPassConfirm').value;
+  var err = false;
+  if (!u) { document.getElementById('regUser').classList.add('input-error'); err = true; }
+  if (!e) { document.getElementById('regEmail').classList.add('input-error'); err = true; }
+  if (!p) { document.getElementById('regPass').classList.add('input-error'); err = true; }
+  if (!pc) { document.getElementById('regPassConfirm').classList.add('input-error'); err = true; }
+  if (err) { showToast('Tüm alanları doldurun.', 'error'); return; }
+  if (u.length < 3) { showToast('Kullanıcı adı en az 3 karakter olmalı.', 'error'); document.getElementById('regUser').classList.add('input-error'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { showToast('Geçerli bir e-posta adresi girin.', 'error'); document.getElementById('regEmail').classList.add('input-error'); return; }
+  if (p.length < 6) { showToast('Şifre en az 6 karakter olmalı.', 'error'); document.getElementById('regPass').classList.add('input-error'); return; }
+  if (p !== pc) { showToast('Şifreler eşleşmiyor.', 'error'); document.getElementById('regPassConfirm').classList.add('input-error'); return; }
+  var users = getUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username.toLowerCase() === u.toLowerCase()) { showToast('Bu kullanıcı adı zaten alınmış.', 'error'); return; }
+    if (users[i].email.toLowerCase() === e.toLowerCase()) { showToast('Bu e-posta zaten kayıtlı.', 'error'); return; }
   }
-
-  if (username.length < 3) {
-    showToast('Kullanici adi en az 3 karakter olmali.', 'error');
-    return;
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showToast('Gecerli bir e-posta adresi girin.', 'error');
-    return;
-  }
-
-  if (password.length < 6) {
-    showToast('Sifre en az 6 karakter olmali.', 'error');
-    return;
-  }
-
-  if (password !== passwordConfirm) {
-    showToast('Sifreler eslesmiyor.', 'error');
-    return;
-  }
-
-  const users = getUsers();
-  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
-    showToast('Bu kullanici adi zaten alinmis.', 'error');
-    return;
-  }
-
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-    showToast('Bu e-posta zaten kayitli.', 'error');
-    return;
-  }
-
-  users.push({ username, email, password, createdAt: Date.now() });
+  users.push({ username: u, email: e, password: p, createdAt: Date.now() });
   saveUsers(users);
-
-  showToast('Hesap olusturuldu! Giris yapabilirsiniz.', 'success');
-
-  // Kayıt formunu temizle, giriş sekmesine geç
+  showToast('Hesap oluşturuldu! Giriş yapabilirsiniz.', 'success');
   document.getElementById('regUser').value = '';
   document.getElementById('regEmail').value = '';
   document.getElementById('regPass').value = '';
   document.getElementById('regPassConfirm').value = '';
-  passStrength.classList.remove('visible');
-  passStrengthBar.style.width = '0';
-
+  pStr.classList.remove('visible');
+  pBar.style.width = '0';
   document.querySelectorAll('.tab-btn')[0].click();
 });
 
 // Şifremi unuttum
-document.getElementById('forgotLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  const username = document.getElementById('loginUser').value.trim();
-  if (!username) {
-    showToast('Once kullanici adinizi girin.', 'info');
-    return;
-  }
-  const users = getUsers();
-  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-  if (user) {
-    showToast('Sifre sifirlama baglantisi e-posta adresinize gonderildi: ' + user.email, 'info');
-  } else {
-    showToast('Bu kullanici adi kayitli degil.', 'error');
-  }
+document.getElementById('forgotLink').addEventListener('click', function(ev) {
+  ev.preventDefault();
+  var u = document.getElementById('loginUser').value.trim();
+  if (!u) { showToast('Önce kullanıcı adınızı girin.', 'info'); return; }
+  var users = getUsers();
+  var user = null;
+  for (var i = 0; i < users.length; i++) { if (users[i].username.toLowerCase() === u.toLowerCase()) { user = users[i]; break; } }
+  if (user) { showToast('Şifre sıfırlama bağlantısı gönderildi: ' + user.email, 'info'); }
+  else { showToast('Bu kullanıcı adı kayıtlı değil.', 'error'); }
 });
 
-// Sosyal giriş butonları
-document.querySelectorAll('.social-btns').forEach(group => {
-  group.querySelectorAll('.social-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const platform = btn.querySelector('i').classList.contains('fa-facebook-f') ? 'Facebook'
-        : btn.querySelector('i').classList.contains('fa-google') ? 'Google' : 'Apple';
-      showToast(platform + ' ile giris yakinda aktif olacak.', 'info');
+// Sosyal butonlar
+document.querySelectorAll('.social-btns').forEach(function(group) {
+  group.querySelectorAll('.social-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var cls = btn.querySelector('i').classList;
+      var name = cls.contains('fa-facebook-f') ? 'Facebook' : cls.contains('fa-google') ? 'Google' : 'Apple';
+      showToast(name + ' ile giriş yakında aktif olacak.', 'info');
     });
   });
 });
 
-// Enter tuşu ile form gönderme
-document.getElementById('loginPass').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-document.getElementById('loginUser').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-document.getElementById('regPassConfirm').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('registerBtn').click();
-});
+// Enter tuşu
+document.getElementById('loginPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+document.getElementById('loginUser').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+document.getElementById('regPassConfirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('registerBtn').click(); });
 
-// Pencere boyutu değiştiğinde zemin görselini yeniden üret
-let resizeTimer;
-window.addEventListener('resize', () => {
+// Pencere boyutu değişince sadece zemini yeniden çiz, sayfa yenilenmez
+var resizeTimer;
+window.addEventListener('resize', function() {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => location.reload(), 300);
+  resizeTimer = setTimeout(function() { drawCity(Date.now()); }, 200);
 });
 </script>
 </body>
