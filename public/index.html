@@ -7,72 +7,110 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Oswald:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root {
-  --bg: #0a0a0f;
-  --fg: #e8e0d0;
-  --muted: #6b6358;
-  --accent: #d4a017;
-  --accent2: #b71c1c;
-  --card: rgba(8, 8, 14, 0.92);
-  --border: rgba(212, 160, 23, 0.35);
-}
+:root{--bg:#08080d;--fg:#e8e0d0;--muted:#7a7060;--accent:#d4a017;--accent2:#b71c1c;--card:rgba(10,10,16,0.93);--border:rgba(212,160,23,0.3);--input-bg:rgba(255,255,255,0.03);--input-border:rgba(255,255,255,0.08);--input-focus:rgba(212,160,23,0.5)}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
-#cityGround{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;image-rendering:pixelated}
-.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;background:radial-gradient(ellipse at center,transparent 20%,rgba(5,5,10,0.7) 70%,rgba(5,5,10,0.95) 100%),linear-gradient(180deg,rgba(5,5,10,0.4) 0%,transparent 30%,transparent 60%,rgba(5,5,10,0.6) 100%);pointer-events:none}
+
+/* === PROCEDURAL KENT HARİTASI ZEMİNİ === */
+#cityGround{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;background:radial-gradient(ellipse at 50% 40%,transparent 15%,rgba(5,5,10,0.6) 55%,rgba(5,5,10,0.92) 100%),linear-gradient(180deg,rgba(5,5,10,0.5) 0%,transparent 25%,transparent 70%,rgba(5,5,10,0.7) 100%);pointer-events:none}
+
 .main-wrapper{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-.logo-section{text-align:center;margin-bottom:30px}
-.logo-icon{font-size:48px;color:var(--accent);text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);margin-bottom:10px;animation:logoPulse 3s ease-in-out infinite}
-@keyframes logoPulse{0%,100%{text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2)}50%{text-shadow:0 0 50px rgba(212,160,23,0.8),0 0 100px rgba(212,160,23,0.3)}}
-.logo-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(32px,6vw,64px);color:var(--accent);letter-spacing:6px;text-transform:uppercase;line-height:1;text-shadow:0 2px 0 #8b6914,0 4px 8px rgba(0,0,0,0.8),0 0 40px rgba(212,160,23,0.3)}
-.logo-subtitle{font-family:'Oswald',sans-serif;font-weight:300;font-size:clamp(12px,2.5vw,18px);color:var(--muted);letter-spacing:12px;text-transform:uppercase;margin-top:8px}
-.auth-panel{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:4px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 0 0 1px rgba(212,160,23,0.1),0 20px 60px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.03);overflow:hidden}
-.auth-panel::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
-.tabs{display:flex;border-bottom:1px solid rgba(212,160,23,0.15)}
-.tab-btn{flex:1;padding:16px 0;background:transparent;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:3px;text-transform:uppercase;cursor:pointer;position:relative;transition:color 0.3s}
+
+.logo-section{text-align:center;margin-bottom:32px}
+.logo-icon{font-size:52px;color:var(--accent);text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);margin-bottom:12px;animation:logoPulse 3s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);filter:brightness(1)}50%{text-shadow:0 0 50px rgba(212,160,23,0.8),0 0 100px rgba(212,160,23,0.3);filter:brightness(1.15)}}
+.logo-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(34px,7vw,68px);color:var(--accent);letter-spacing:5px;text-transform:uppercase;line-height:1;text-shadow:0 2px 0 #8b6914,0 4px 10px rgba(0,0,0,0.9),0 0 40px rgba(212,160,23,0.25)}
+.logo-subtitle{font-family:'Oswald',sans-serif;font-weight:300;font-size:clamp(11px,2.2vw,16px);color:var(--muted);letter-spacing:10px;text-transform:uppercase;margin-top:10px}
+
+/* Panel */
+.auth-panel{width:100%;max-width:430px;background:var(--card);border:1px solid var(--border);border-radius:5px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 1px rgba(212,160,23,0.08),0 24px 80px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.03);overflow:hidden}
+.auth-panel::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent 5%,var(--accent) 50%,transparent 95%)}
+
+.tabs{display:flex;border-bottom:1px solid rgba(212,160,23,0.12)}
+.tab-btn{flex:1;padding:15px 0;background:transparent;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:3px;text-transform:uppercase;cursor:pointer;position:relative;transition:color .3s}
 .tab-btn:hover{color:var(--fg)}
 .tab-btn.active{color:var(--accent)}
-.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:20%;width:60%;height:2px;background:var(--accent);box-shadow:0 0 10px rgba(212,160,23,0.5)}
-.form-container{padding:30px 32px 32px}
+.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:20%;width:60%;height:2px;background:var(--accent);box-shadow:0 0 12px rgba(212,160,23,0.5)}
+
+.form-container{padding:28px 30px 30px}
 .form-section{display:none}.form-section.active{display:block}
-.input-group{margin-bottom:18px;position:relative}
-.input-group i.field-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;transition:color 0.3s;pointer-events:none}
-.input-group input{width:100%;padding:14px 42px 14px 42px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:3px;color:var(--fg);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:1px;outline:none;transition:border-color 0.3s,box-shadow 0.3s,background 0.3s}
-.input-group input::placeholder{color:rgba(255,255,255,0.2);font-weight:300}
-.input-group input:focus{border-color:rgba(212,160,23,0.5);background:rgba(255,255,255,0.05);box-shadow:0 0 0 3px rgba(212,160,23,0.08)}
-.input-group input:focus~i.field-icon{color:var(--accent)}
-.form-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;font-size:13px}
-.remember-me{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);transition:color 0.3s}
+
+.input-group{margin-bottom:16px;position:relative}
+.input-group i.fi{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;transition:color .3s;pointer-events:none}
+.input-group input{width:100%;padding:13px 42px 13px 42px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:3px;color:var(--fg);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.8px;outline:none;transition:border-color .3s,box-shadow .3s,background .3s}
+.input-group input::placeholder{color:rgba(255,255,255,0.18);font-weight:300}
+.input-group input:focus{border-color:var(--input-focus);background:rgba(255,255,255,0.05);box-shadow:0 0 0 3px rgba(212,160,23,0.07)}
+.input-group input:focus~i.fi{color:var(--accent)}
+.input-group input.input-error{border-color:rgba(183,28,28,0.6)!important;box-shadow:0 0 0 3px rgba(183,28,28,0.08)!important}
+
+.form-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;font-size:13px}
+.remember-me{display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--muted);transition:color .3s;user-select:none}
 .remember-me:hover{color:var(--fg)}
-.remember-me input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1px solid rgba(255,255,255,0.15);border-radius:2px;background:rgba(255,255,255,0.03);cursor:pointer;position:relative;transition:all 0.2s;flex-shrink:0}
+.remember-me input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:15px;height:15px;border:1px solid rgba(255,255,255,0.14);border-radius:2px;background:rgba(255,255,255,0.03);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
 .remember-me input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
-.remember-me input[type="checkbox"]:checked::after{content:'\2713';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;color:#000;font-weight:700}
-.forgot-link{color:var(--accent);text-decoration:none;opacity:0.7;transition:opacity 0.3s}
+.remember-me input[type="checkbox"]:checked::after{content:'\2713';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:#000;font-weight:700}
+.forgot-link{color:var(--accent);text-decoration:none;opacity:.65;transition:opacity .3s;font-size:12px}
 .forgot-link:hover{opacity:1}
-.btn-primary{width:100%;padding:15px;background:linear-gradient(135deg,#d4a017 0%,#a67c00 100%);border:none;border-radius:3px;color:#0a0a0f;font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.15s,box-shadow 0.3s;box-shadow:0 4px 20px rgba(212,160,23,0.3)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 30px rgba(212,160,23,0.5)}
+
+.btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,#d4a017 0%,#a67c00 100%);border:none;border-radius:3px;color:#0a0a0f;font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s,box-shadow .3s;box-shadow:0 4px 24px rgba(212,160,23,0.25)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 32px rgba(212,160,23,0.45)}
 .btn-primary:active{transform:translateY(0)}
-.btn-primary::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(transparent,rgba(255,255,255,0.15),transparent);transform:rotate(45deg) translateY(-100%);transition:transform 0.6s}
+.btn-primary::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(transparent,rgba(255,255,255,0.15),transparent);transform:rotate(45deg) translateY(-100%);transition:transform .6s}
 .btn-primary:hover::after{transform:rotate(45deg) translateY(100%)}
-.social-divider{display:flex;align-items:center;gap:12px;margin:24px 0 18px;font-size:12px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
-.social-divider::before,.social-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.06)}
-.social-btns{display:flex;gap:12px}
-.social-btn{flex:1;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:3px;color:var(--muted);font-size:18px;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center}
-.social-btn:hover{border-color:rgba(212,160,23,0.3);color:var(--accent);background:rgba(212,160,23,0.05)}
-.toast{position:fixed;top:30px;right:30px;z-index:1000;padding:16px 24px;border-radius:4px;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:1px;transform:translateX(120%);transition:transform 0.4s cubic-bezier(0.22,1,0.36,1);box-shadow:0 10px 40px rgba(0,0,0,0.5);max-width:380px}
+
+.social-divider{display:flex;align-items:center;gap:12px;margin:22px 0 16px;font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.social-divider::before,.social-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.05)}
+.social-btns{display:flex;gap:10px}
+.social-btn{flex:1;padding:11px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:3px;color:var(--muted);font-size:17px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center}
+.social-btn:hover{border-color:rgba(212,160,23,0.3);color:var(--accent);background:rgba(212,160,23,0.04)}
+
+.toggle-pass{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px;transition:color .3s}
+.toggle-pass:hover{color:var(--accent)}
+
+.pass-strength{height:3px;margin:-8px 0 12px;border-radius:2px;background:rgba(255,255,255,0.04);overflow:hidden;transition:opacity .3s;opacity:0}
+.pass-strength.visible{opacity:1}
+.pass-strength-bar{height:100%;width:0;border-radius:2px;transition:width .4s,background .4s}
+
+/* Modal (şifre sıfırlama) */
+.modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.open{display:flex}
+.modal-box{width:100%;max-width:400px;background:var(--card);border:1px solid var(--border);border-radius:5px;box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden}
+.modal-box::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.modal-header{padding:20px 24px 0;display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{font-family:'Cinzel',serif;font-size:18px;color:var(--accent);letter-spacing:2px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px;transition:color .3s}
+.modal-close:hover{color:var(--fg)}
+.modal-body{padding:20px 24px 24px}
+.modal-body p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.modal-body .btn-primary{margin-top:8px}
+
+/* Mail doğrulama ekranı */
+.verify-screen{display:none;text-align:center;padding:10px 0}
+.verify-screen.active{display:block}
+.verify-screen .v-icon{font-size:56px;color:var(--accent);margin-bottom:16px;animation:logoPulse 2.5s ease-in-out infinite}
+.verify-screen h3{font-family:'Cinzel',serif;font-size:20px;color:var(--accent);letter-spacing:2px;margin-bottom:10px}
+.verify-screen p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:6px}
+.verify-screen .email-addr{color:var(--fg);font-weight:600}
+.verify-code-inputs{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.verify-code-inputs input{width:44px;height:50px;text-align:center;font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:0;background:var(--input-bg);border:1px solid var(--input-border);border-radius:3px;color:var(--fg);outline:none;transition:border-color .3s,box-shadow .3s}
+.verify-code-inputs input:focus{border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(212,160,23,0.07)}
+.resend-row{font-size:12px;color:var(--muted);margin-top:4px}
+.resend-row span{color:var(--accent);cursor:pointer;transition:opacity .3s}
+.resend-row span:hover{opacity:.7}
+.resend-row span.disabled{color:var(--muted);cursor:default;pointer-events:none}
+
+/* Toast */
+.toast{position:fixed;top:28px;right:28px;z-index:1000;padding:14px 22px;border-radius:4px;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.8px;transform:translateX(130%);transition:transform .4s cubic-bezier(.22,1,.36,1);box-shadow:0 10px 40px rgba(0,0,0,0.5);max-width:370px}
 .toast.show{transform:translateX(0)}
 .toast.success{background:linear-gradient(135deg,#1a3a1a,#0f260f);border:1px solid rgba(46,125,50,0.4);color:#81c784}
 .toast.error{background:linear-gradient(135deg,#3a1a1a,#260f0f);border:1px solid rgba(183,28,28,0.4);color:#ef9a9a}
 .toast.info{background:linear-gradient(135deg,#1a2a3a,#0f1a26);border:1px solid rgba(212,160,23,0.4);color:var(--accent)}
-.toggle-pass{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px;transition:color 0.3s}
-.toggle-pass:hover{color:var(--accent)}
-.footer-text{margin-top:24px;font-size:11px;color:rgba(255,255,255,0.15);letter-spacing:2px;text-align:center}
-.pass-strength{height:3px;margin-top:6px;border-radius:2px;background:rgba(255,255,255,0.05);overflow:hidden;transition:opacity 0.3s;opacity:0}
-.pass-strength.visible{opacity:1}
-.pass-strength-bar{height:100%;width:0;border-radius:2px;transition:width 0.4s,background 0.4s}
-.input-error{border-color:rgba(183,28,28,0.6)!important;box-shadow:0 0 0 3px rgba(183,28,28,0.1)!important}
-@media(max-width:480px){.form-container{padding:24px 20px 28px}.logo-title{letter-spacing:3px}.logo-subtitle{letter-spacing:6px}.toast{right:16px;left:16px;max-width:none}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}
+
+.footer-text{margin-top:22px;font-size:10px;color:rgba(255,255,255,0.12);letter-spacing:3px;text-align:center;text-transform:uppercase}
+
+@media(max-width:480px){.form-container{padding:22px 18px 26px}.logo-title{letter-spacing:2px}.logo-subtitle{letter-spacing:5px}.toast{right:12px;left:12px;max-width:none}.verify-code-inputs input{width:38px;height:44px;font-size:19px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -80,6 +118,24 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-he
 <canvas id="cityGround"></canvas>
 <div class="overlay"></div>
 <div class="toast" id="toast"></div>
+
+<!-- Şifre Sıfırlama Modalı -->
+<div class="modal-backdrop" id="resetModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Şifre Sıfırla</h3>
+      <button class="modal-close" id="resetModalClose" aria-label="Kapat"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p>E-posta adresinize şifre sıfırlama bağlantısı gönderilecek.</p>
+      <div class="input-group">
+        <input type="email" id="resetEmail" placeholder="E-Posta Adresi" aria-label="E-posta adresi">
+        <i class="fas fa-envelope fi"></i>
+      </div>
+      <button class="btn-primary" id="resetSendBtn">Gönder</button>
+    </div>
+  </div>
+</div>
 
 <main class="main-wrapper">
   <div class="logo-section">
@@ -90,19 +146,20 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-he
 
   <div class="auth-panel">
     <div class="tabs" role="tablist">
-      <button class="tab-btn active" data-tab="login" role="tab" aria-selected="true" aria-label="Giriş yap">Giriş</button>
-      <button class="tab-btn" data-tab="register" role="tab" aria-selected="false" aria-label="Kayıt ol">Kayıt</button>
+      <button class="tab-btn active" data-tab="login" role="tab" aria-selected="true">Giriş</button>
+      <button class="tab-btn" data-tab="register" role="tab" aria-selected="false">Kayıt</button>
     </div>
     <div class="form-container">
 
+      <!-- GİRİŞ -->
       <div class="form-section active" id="loginForm" role="tabpanel">
         <div class="input-group">
           <input type="text" id="loginUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
-          <i class="fas fa-user field-icon"></i>
+          <i class="fas fa-user fi"></i>
         </div>
         <div class="input-group">
           <input type="password" id="loginPass" placeholder="Şifre" autocomplete="current-password" aria-label="Şifre">
-          <i class="fas fa-lock field-icon"></i>
+          <i class="fas fa-lock fi"></i>
           <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
         </div>
         <div class="form-options">
@@ -112,416 +169,327 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-he
         <button class="btn-primary" id="loginBtn">Giriş Yap</button>
         <div class="social-divider">Veya</div>
         <div class="social-btns">
-          <button class="social-btn" aria-label="Facebook ile giriş"><i class="fab fa-facebook-f"></i></button>
-          <button class="social-btn" aria-label="Google ile giriş"><i class="fab fa-google"></i></button>
-          <button class="social-btn" aria-label="Apple ile giriş"><i class="fab fa-apple"></i></button>
+          <button class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></button>
+          <button class="social-btn" aria-label="Google"><i class="fab fa-google"></i></button>
+          <button class="social-btn" aria-label="Apple"><i class="fab fa-apple"></i></button>
         </div>
       </div>
 
+      <!-- KAYIT -->
       <div class="form-section" id="registerForm" role="tabpanel">
-        <div class="input-group">
-          <input type="text" id="regUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
-          <i class="fas fa-user field-icon"></i>
+        <div id="registerFields">
+          <div class="input-group">
+            <input type="text" id="regUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
+            <i class="fas fa-user fi"></i>
+          </div>
+          <div class="input-group">
+            <input type="email" id="regEmail" placeholder="E-Posta" autocomplete="email" aria-label="E-posta">
+            <i class="fas fa-envelope fi"></i>
+          </div>
+          <div class="input-group">
+            <input type="password" id="regPass" placeholder="Şifre" autocomplete="new-password" aria-label="Şifre">
+            <i class="fas fa-lock fi"></i>
+            <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
+          </div>
+          <div class="pass-strength" id="passStrength"><div class="pass-strength-bar" id="passStrengthBar"></div></div>
+          <div class="input-group">
+            <input type="password" id="regPassConfirm" placeholder="Şifre Tekrar" autocomplete="new-password" aria-label="Şifre tekrar">
+            <i class="fas fa-lock fi"></i>
+            <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
+          </div>
+          <div style="height:4px"></div>
+          <button class="btn-primary" id="registerBtn">Hesap Oluştur</button>
+          <div class="social-divider">Veya</div>
+          <div class="social-btns">
+            <button class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></button>
+            <button class="social-btn" aria-label="Google"><i class="fab fa-google"></i></button>
+            <button class="social-btn" aria-label="Apple"><i class="fab fa-apple"></i></button>
+          </div>
         </div>
-        <div class="input-group">
-          <input type="email" id="regEmail" placeholder="E-Posta" autocomplete="email" aria-label="E-posta adresi">
-          <i class="fas fa-envelope field-icon"></i>
-        </div>
-        <div class="input-group">
-          <input type="password" id="regPass" placeholder="Şifre" autocomplete="new-password" aria-label="Şifre">
-          <i class="fas fa-lock field-icon"></i>
-          <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
-        </div>
-        <div class="pass-strength" id="passStrength"><div class="pass-strength-bar" id="passStrengthBar"></div></div>
-        <div class="input-group">
-          <input type="password" id="regPassConfirm" placeholder="Şifre Tekrar" autocomplete="new-password" aria-label="Şifre tekrar">
-          <i class="fas fa-lock field-icon"></i>
-          <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
-        </div>
-        <div style="height:6px"></div>
-        <button class="btn-primary" id="registerBtn">Hesap Oluştur</button>
-        <div class="social-divider">Veya</div>
-        <div class="social-btns">
-          <button class="social-btn" aria-label="Facebook ile kayıt"><i class="fab fa-facebook-f"></i></button>
-          <button class="social-btn" aria-label="Google ile kayıt"><i class="fab fa-google"></i></button>
-          <button class="social-btn" aria-label="Apple ile kayıt"><i class="fab fa-apple"></i></button>
+
+        <!-- Mail Doğrulama Ekranı -->
+        <div class="verify-screen" id="verifyScreen">
+          <div class="v-icon"><i class="fas fa-envelope-open-text"></i></div>
+          <h3>Doğrulama Kodu</h3>
+          <p><span class="email-addr" id="verifyEmail"></span> adresine 6 haneli kod gönderildi.</p>
+          <div class="verify-code-inputs" id="codeInputs">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 1">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 2">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 3">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 4">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 5">
+            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 6">
+          </div>
+          <div class="resend-row">Kod gelmedi mi? <span id="resendBtn">Tekrar Gönder</span></div>
+          <button class="btn-primary" id="verifyBtn" style="margin-top:18px">Doğrula</button>
         </div>
       </div>
 
     </div>
   </div>
-  <p class="footer-text">ATLASWARFARE &copy; 2025 — TÜM HAKLARI SAKLIDIR</p>
+  <p class="footer-text">AtlasWarfare &copy; 2025 &mdash; T&uuml;m Hakları Saklıdır</p>
 </main>
 
 <script>
-// =============================================
-// PROCEDURAL KENT HARİTASI — SÜREKLİ YENİLENEN
-// Belirli aralıklarla tohum değişip haritayı
-// yeniden çizer, sayfa yenilenmez, sadece zemin
-// değişir.
-// =============================================
-
-const groundCanvas = document.getElementById('cityGround');
-const gCtx = groundCanvas.getContext('2d');
-
-// Tohumlu rastgele sayı üretici
-function createRng(s) {
-  return function() {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-function drawCity(seedVal) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  groundCanvas.width = W;
-  groundCanvas.height = H;
-
-  const rand = createRng(seedVal);
-  const BLOCK = 48;
-  const ROAD_W = 6;
-  const cols = Math.ceil(W / BLOCK) + 2;
-  const rows = Math.ceil(H / BLOCK) + 2;
-
-  // Zemin
-  gCtx.fillStyle = '#0d0d14';
-  gCtx.fillRect(0, 0, W, H);
-
-  // Yollar
-  gCtx.fillStyle = '#15151f';
-  for (let i = 0; i < cols; i++) {
-    gCtx.fillRect(i * BLOCK - ROAD_W / 2, 0, ROAD_W, H);
-  }
-  for (let j = 0; j < rows; j++) {
-    gCtx.fillRect(0, j * BLOCK - ROAD_W / 2, W, ROAD_W);
-  }
-
-  // Yol çizgileri
-  gCtx.strokeStyle = 'rgba(180,150,50,0.08)';
-  gCtx.lineWidth = 1;
-  gCtx.setLineDash([8, 12]);
-  for (let i = 0; i < cols; i++) {
-    gCtx.beginPath(); gCtx.moveTo(i * BLOCK, 0); gCtx.lineTo(i * BLOCK, H); gCtx.stroke();
-  }
-  for (let j = 0; j < rows; j++) {
-    gCtx.beginPath(); gCtx.moveTo(0, j * BLOCK); gCtx.lineTo(W, j * BLOCK); gCtx.stroke();
-  }
-  gCtx.setLineDash([]);
-
-  // Bina blokları
-  for (let i = 0; i < cols; i++) {
-    for (let j = 0; j < rows; j++) {
-      const bx = i * BLOCK + ROAD_W / 2 + 2;
-      const by = j * BLOCK + ROAD_W / 2 + 2;
-      const bw = BLOCK - ROAD_W - 4;
-      const bh = BLOCK - ROAD_W - 4;
-
-      const r = rand();
-      const isPark = r < 0.06;
-      const isEmpty = r < 0.14 && !isPark;
-      const isWater = r < 0.02 && !isPark && !isEmpty;
-
-      if (isWater) {
-        gCtx.fillStyle = '#080e18';
-        gCtx.fillRect(bx, by, bw, bh);
-        gCtx.strokeStyle = 'rgba(30,60,100,0.15)';
-        gCtx.lineWidth = 0.5;
-        for (let w = 0; w < 3; w++) {
-          const wy = by + 6 + w * 10;
-          gCtx.beginPath(); gCtx.moveTo(bx, wy);
-          for (let px = bx; px < bx + bw; px += 2) {
-            gCtx.lineTo(px, wy + Math.sin((px + w * 20) * 0.3) * 2);
-          }
-          gCtx.stroke();
-        }
-        continue;
-      }
-      if (isPark) {
-        gCtx.fillStyle = '#0a140a';
-        gCtx.fillRect(bx, by, bw, bh);
-        for (let t = 0; t < 4; t++) {
-          const tx = bx + 5 + rand() * (bw - 10);
-          const ty = by + 5 + rand() * (bh - 10);
-          const tr = 2 + rand() * 3;
-          gCtx.fillStyle = 'rgba(' + (20 + rand()*30|0) + ',' + (50 + rand()*40|0) + ',' + (20 + rand()*20|0) + ',0.6)';
-          gCtx.beginPath(); gCtx.arc(tx, ty, tr, 0, Math.PI * 2); gCtx.fill();
-        }
-        continue;
-      }
-      if (isEmpty) continue;
-
-      const brightness = 12 + (rand() * 14 | 0);
-      const rT = rand() < 0.3 ? (rand() * 8 | 0) : 0;
-      const bT = rand() < 0.2 ? (rand() * 6 | 0) : 0;
-      gCtx.fillStyle = 'rgb(' + (brightness + rT) + ',' + brightness + ',' + (brightness + bT) + ')';
-      gCtx.fillRect(bx, by, bw, bh);
-
-      // Kenarlık
-      gCtx.fillStyle = 'rgba(255,255,255,0.02)';
-      gCtx.fillRect(bx, by, bw, 1); gCtx.fillRect(bx, by, 1, bh);
-      gCtx.fillStyle = 'rgba(0,0,0,0.3)';
-      gCtx.fillRect(bx, by + bh - 1, bw, 1); gCtx.fillRect(bx + bw - 1, by, 1, bh);
-
-      // Kat çizgileri
-      if (rand() < 0.6) {
-        gCtx.strokeStyle = 'rgba(0,0,0,0.25)';
-        gCtx.lineWidth = 0.5;
-        const floors = 2 + (rand() * 3 | 0);
-        for (let f = 1; f < floors; f++) {
-          const fy = by + (bh / floors) * f;
-          gCtx.beginPath(); gCtx.moveTo(bx + 1, fy); gCtx.lineTo(bx + bw - 1, fy); gCtx.stroke();
-        }
-      }
-
-      // Pencereler
-      for (let wx = bx + 4; wx < bx + bw - 4; wx += 5) {
-        for (let wy = by + 4; wy < by + bh - 4; wy += 5) {
-          if (rand() < 0.45) {
-            const warm = rand();
-            let wr, wg, wb;
-            if (warm < 0.5) { wr=180+(rand()*60|0); wg=140+(rand()*50|0); wb=40+(rand()*30|0); }
-            else if (warm < 0.8) { wr=160+(rand()*60|0); wg=160+(rand()*60|0); wb=150+(rand()*60|0); }
-            else { wr=60+(rand()*40|0); wg=80+(rand()*50|0); wb=140+(rand()*80|0); }
-            const alpha = 0.15 + rand() * 0.4;
-            gCtx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + alpha.toFixed(2) + ')';
-            gCtx.fillRect(wx, wy, 2, 2);
-            if (alpha > 0.35) {
-              gCtx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + (alpha * 0.1).toFixed(3) + ')';
-              gCtx.fillRect(wx - 1, wy - 1, 4, 4);
-            }
-          }
-        }
-      }
-
-      // Çatı detayı
-      if (rand() < 0.15 && bw > 20 && bh > 20) {
-        gCtx.fillStyle = 'rgba(255,255,255,0.03)';
-        gCtx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
-      }
-
-      // Neon işaret
-      if (rand() < 0.05) {
-        gCtx.fillStyle = 'rgba(200,30,30,0.3)';
-        const nw = 6 + rand() * 12;
-        const nh = 3 + rand() * 4;
-        gCtx.fillRect(bx + (bw - nw) / 2, by + 2, nw, nh);
-        gCtx.fillStyle = 'rgba(200,30,30,0.05)';
-        gCtx.fillRect(bx + (bw - nw) / 2 - 2, by, nw + 4, nh + 4);
-      }
+/* =============================================
+   PROCEDURAL KENT HARİTASI — Canvas ile üretilen
+   gerçek kentsel doku zemin, 8 saniyede bir
+   yeni tohumla yenilenir.
+   ============================================= */
+(function(){
+  var cv=document.getElementById('cityGround'),cx=cv.getContext('2d');
+  function rng(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646}}
+  function draw(seed){
+    var W=window.innerWidth,H=window.innerHeight;cv.width=W;cv.height=H;
+    var r=rng(seed),B=48,R=6,cols=Math.ceil(W/B)+2,rows=Math.ceil(H/B)+2;
+    cx.fillStyle='#0c0c15';cx.fillRect(0,0,W,H);
+    // Yollar
+    cx.fillStyle='#14141e';
+    for(var i=0;i<cols;i++)cx.fillRect(i*B-R/2,0,R,H);
+    for(var j=0;j<rows;j++)cx.fillRect(0,j*B-R/2,W,R);
+    // Yol çizgileri
+    cx.strokeStyle='rgba(180,150,50,0.07)';cx.lineWidth=1;cx.setLineDash([8,14]);
+    for(var i=0;i<cols;i++){cx.beginPath();cx.moveTo(i*B,0);cx.lineTo(i*B,H);cx.stroke()}
+    for(var j=0;j<rows;j++){cx.beginPath();cx.moveTo(0,j*B);cx.lineTo(W,j*B);cx.stroke()}
+    cx.setLineDash([]);
+    // Bloklar
+    for(var i=0;i<cols;i++)for(var j=0;j<rows;j++){
+      var bx=i*B+R/2+2,by=j*B+R/2+2,bw=B-R-4,bh=B-R-4,v=r();
+      if(v<0.02){cx.fillStyle='#080e18';cx.fillRect(bx,by,bw,bh);cx.strokeStyle='rgba(30,60,100,0.12)';cx.lineWidth=.5;for(var w=0;w<3;w++){var wy=by+6+w*10;cx.beginPath();cx.moveTo(bx,wy);for(var px=bx;px<bx+bw;px+=2)cx.lineTo(px,wy+Math.sin((px+w*20)*.3)*2);cx.stroke()}continue}
+      if(v<0.08){cx.fillStyle='#0a140a';cx.fillRect(bx,by,bw,bh);for(var t=0;t<4;t++){cx.fillStyle='rgba('+(20+r()*30|0)+','+(50+r()*40|0)+','+(20+r()*20|0)+',0.5)';cx.beginPath();cx.arc(bx+5+r()*(bw-10),by+5+r()*(bh-10),2+r()*3,0,6.28);cx.fill()}continue}
+      if(v<0.15)continue;
+      var br=11+(r()*15|0),rt=r()<.3?(r()*8|0):0,bt=r()<.2?(r()*6|0):0;
+      cx.fillStyle='rgb('+(br+rt)+','+br+','+(br+bt)+')';cx.fillRect(bx,by,bw,bh);
+      cx.fillStyle='rgba(255,255,255,0.015)';cx.fillRect(bx,by,bw,1);cx.fillRect(bx,by,1,bh);
+      cx.fillStyle='rgba(0,0,0,0.3)';cx.fillRect(bx,by+bh-1,bw,1);cx.fillRect(bx+bw-1,by,1,bh);
+      if(r()<.55){cx.strokeStyle='rgba(0,0,0,0.22)';cx.lineWidth=.5;var fl=2+(r()*3|0);for(var f=1;f<fl;f++){var fy=by+(bh/fl)*f;cx.beginPath();cx.moveTo(bx+1,fy);cx.lineTo(bx+bw-1,fy);cx.stroke()}}
+      for(var wx=bx+4;wx<bx+bw-4;wx+=5)for(var wy=by+4;wy<by+bh-4;wy+=5)if(r()<.42){var wm=r(),wr,wg,wb;if(wm<.5){wr=175+(r()*65|0);wg=135+(r()*55|0);wb=35+(r()*35|0)}else if(wm<.8){wr=155+(r()*65|0);wg=155+(r()*65|0);wb=145+(r()*65|0)}else{wr=55+(r()*45|0);wg=75+(r()*55|0);wb=135+(r()*85|0)}var al=.14+r()*.42;cx.fillStyle='rgba('+wr+','+wg+','+wb+','+al.toFixed(2)+')';cx.fillRect(wx,wy,2,2);if(al>.34){cx.fillStyle='rgba('+wr+','+wg+','+wb+','+(al*.08).toFixed(3)+')';cx.fillRect(wx-1,wy-1,4,4)}}
+      if(r()<.12&&bw>18&&bh>18){cx.fillStyle='rgba(255,255,255,0.025)';cx.fillRect(bx+4,by+4,bw-8,bh-8)}
+      if(r()<.04){cx.fillStyle='rgba(200,30,30,0.25)';var nw=6+r()*14,nh=3+r()*4;cx.fillRect(bx+(bw-nw)/2,by+2,nw,nh);cx.fillStyle='rgba(200,30,30,0.04)';cx.fillRect(bx+(bw-nw)/2-2,by,nw+4,nh+4)}
     }
+    // Ana caddeler
+    cx.fillStyle='#111119';
+    for(var a=0;a<3;a++){if(r()<.5){var y=(r()*rows|0)*B-5;cx.fillRect(0,y,W,14);cx.strokeStyle='rgba(200,170,50,0.1)';cx.lineWidth=1.5;cx.setLineDash([16,10]);cx.beginPath();cx.moveTo(0,y+7);cx.lineTo(W,y+7);cx.stroke();cx.setLineDash([]}else{var x=(r()*cols|0)*B-5;cx.fillRect(x,0,14,H);cx.strokeStyle='rgba(200,170,50,0.1)';cx.lineWidth=1.5;cx.setLineDash([16,10]);cx.beginPath();cx.moveTo(x+7,0);cx.lineTo(x+7,H);cx.stroke();cx.setLineDash([]}}
+    // Lambalar
+    for(var i=0;i<cols;i++)for(var j=0;j<rows;j++)if(r()<.22){var lx=i*B+(r()<.5?-R/2:R/2),ly=j*B+(r()<.5?-R/2:R/2),g=cx.createRadialGradient(lx,ly,0,lx,ly,20);g.addColorStop(0,'rgba(220,190,100,0.1)');g.addColorStop(1,'rgba(220,190,100,0)');cx.fillStyle=g;cx.beginPath();cx.arc(lx,ly,20,0,6.28);cx.fill()}
+    // Gürültü
+    var id=cx.getImageData(0,0,W,H),p=id.data;for(var k=0;k<p.length;k+=4){var n=(r()-.5)*7;p[k]=Math.max(0,Math.min(255,p[k]+n));p[k+1]=Math.max(0,Math.min(255,p[k+1]+n));p[k+2]=Math.max(0,Math.min(255,p[k+2]+n))}cx.putImageData(id,0,0);
+    // Vignette
+    var vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.22,W/2,H/2,Math.max(W,H)*.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.45)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
   }
-
-  // Ana caddeler
-  gCtx.fillStyle = '#12121c';
-  for (let a = 0; a < 3; a++) {
-    if (rand() < 0.5) {
-      const y = (rand() * rows | 0) * BLOCK - 5;
-      gCtx.fillRect(0, y, W, 14);
-      gCtx.strokeStyle = 'rgba(200,170,50,0.12)'; gCtx.lineWidth = 1.5; gCtx.setLineDash([16, 10]);
-      gCtx.beginPath(); gCtx.moveTo(0, y + 7); gCtx.lineTo(W, y + 7); gCtx.stroke(); gCtx.setLineDash([]);
-    } else {
-      const x = (rand() * cols | 0) * BLOCK - 5;
-      gCtx.fillRect(x, 0, 14, H);
-      gCtx.strokeStyle = 'rgba(200,170,50,0.12)'; gCtx.lineWidth = 1.5; gCtx.setLineDash([16, 10]);
-      gCtx.beginPath(); gCtx.moveTo(x + 7, 0); gCtx.lineTo(x + 7, H); gCtx.stroke(); gCtx.setLineDash([]);
-    }
-  }
-
-  // Sokak lambası ışıkları
-  for (let i = 0; i < cols; i++) {
-    for (let j = 0; j < rows; j++) {
-      if (rand() < 0.25) {
-        const lx = i * BLOCK + (rand() < 0.5 ? -ROAD_W / 2 : ROAD_W / 2);
-        const ly = j * BLOCK + (rand() < 0.5 ? -ROAD_W / 2 : ROAD_W / 2);
-        const grad = gCtx.createRadialGradient(lx, ly, 0, lx, ly, 18);
-        grad.addColorStop(0, 'rgba(220,190,100,0.12)');
-        grad.addColorStop(1, 'rgba(220,190,100,0)');
-        gCtx.fillStyle = grad;
-        gCtx.beginPath(); gCtx.arc(lx, ly, 18, 0, Math.PI * 2); gCtx.fill();
-      }
-    }
-  }
-
-  // Gürültü katmanı
-  const imgData = gCtx.getImageData(0, 0, W, H);
-  const px = imgData.data;
-  for (let p = 0; p < px.length; p += 4) {
-    const n = (rand() - 0.5) * 8;
-    px[p] = Math.max(0, Math.min(255, px[p] + n));
-    px[p+1] = Math.max(0, Math.min(255, px[p+1] + n));
-    px[p+2] = Math.max(0, Math.min(255, px[p+2] + n));
-  }
-  gCtx.putImageData(imgData, 0, 0);
-
-  // Vignette
-  const vig = gCtx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.25, W/2, H/2, Math.max(W,H)*0.7);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.4)');
-  gCtx.fillStyle = vig;
-  gCtx.fillRect(0, 0, W, H);
-}
-
-// İlk çizim
-let currentSeed = Date.now();
-drawCity(currentSeed);
-
-// Her 8 saniyede yeni tohumla haritayı yeniden çiz
-// Sayfa yenilenmez, sadece canvas içeriği değişir
-setInterval(function() {
-  currentSeed = Date.now();
-  drawCity(currentSeed);
-}, 8000);
+  draw(Date.now());
+  setInterval(function(){draw(Date.now())},8000);
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){draw(Date.now())},200)});
+})();
 
 
-// =============================================
-// SAYFA İŞLEVSELLİĞİ
-// =============================================
+/* =============================================
+   SİSTEM — Kullanıcı, Giriş, Kayıt, Mail Doğrulama,
+   Şifre Sıfırlama (localStorage tabanlı)
+   ============================================= */
 
-function getUsers() {
-  try { return JSON.parse(localStorage.getItem('atlasUsers')) || []; }
-  catch(e) { return []; }
-}
-function saveUsers(u) { localStorage.setItem('atlasUsers', JSON.stringify(u)); }
+// Veri katmanı
+function getDB(){try{return JSON.parse(localStorage.getItem('awDB'))||{users:[],sessions:[]}}catch(e){return{users:[],sessions:[]}}}
+function saveDB(db){localStorage.setItem('awDB',JSON.stringify(db))}
 
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast ' + type + ' show';
-  clearTimeout(t._to);
-  t._to = setTimeout(function() { t.classList.remove('show'); }, 3000);
-}
+// Toast
+function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},3200)}
 
-// Input hata stilini temizle (odaklanınca)
-document.querySelectorAll('.input-group input').forEach(function(inp) {
-  inp.addEventListener('focus', function() { inp.classList.remove('input-error'); });
-});
+// Hata stili temizle
+document.querySelectorAll('.input-group input').forEach(function(inp){inp.addEventListener('focus',function(){inp.classList.remove('input-error')})});
 
 // Sekmeler
-document.querySelectorAll('.tab-btn').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-    document.querySelectorAll('.form-section').forEach(function(f) { f.classList.remove('active'); });
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected','true');
-    document.getElementById(btn.dataset.tab === 'login' ? 'loginForm' : 'registerForm').classList.add('active');
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');b.setAttribute('aria-selected','false')});
+    document.querySelectorAll('.form-section').forEach(function(f){f.classList.remove('active')});
+    btn.classList.add('active');btn.setAttribute('aria-selected','true');
+    var target=btn.dataset.tab==='login'?'loginForm':'registerForm';
+    document.getElementById(target).classList.add('active');
+    // Kayıt sekmesine geçince doğrulama ekranını gizle, form alanlarını göster
+    if(btn.dataset.tab==='register'){
+      document.getElementById('registerFields').style.display='';
+      document.getElementById('verifyScreen').classList.remove('active');
+    }
   });
 });
 
 // Şifre göster/gizle
-document.querySelectorAll('.toggle-pass').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    var inp = btn.parentElement.querySelector('input');
-    var ico = btn.querySelector('i');
-    if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fas fa-eye-slash'; }
-    else { inp.type = 'password'; ico.className = 'fas fa-eye'; }
+document.querySelectorAll('.toggle-pass').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var inp=btn.parentElement.querySelector('input'),ico=btn.querySelector('i');
+    if(inp.type==='password'){inp.type='text';ico.className='fas fa-eye-slash'}else{inp.type='password';ico.className='fas fa-eye'}
   });
 });
 
-// Şifre güç göstergesi
-var regPass = document.getElementById('regPass');
-var pStr = document.getElementById('passStrength');
-var pBar = document.getElementById('passStrengthBar');
-regPass.addEventListener('input', function() {
-  var v = regPass.value;
-  if (!v.length) { pStr.classList.remove('visible'); return; }
-  pStr.classList.add('visible');
-  var s = 0;
-  if (v.length >= 6) s++;
-  if (v.length >= 10) s++;
-  if (/[A-Z]/.test(v)) s++;
-  if (/[0-9]/.test(v)) s++;
-  if (/[^A-Za-z0-9]/.test(v)) s++;
-  pBar.style.width = (s / 5 * 100) + '%';
-  pBar.style.background = s <= 1 ? '#c0392b' : s <= 3 ? '#d4a017' : '#27ae60';
+// Şifre güç barı
+var regPass=document.getElementById('regPass'),pStr=document.getElementById('passStrength'),pBar=document.getElementById('passStrengthBar');
+regPass.addEventListener('input',function(){
+  var v=regPass.value;if(!v.length){pStr.classList.remove('visible');return}
+  pStr.classList.add('visible');var s=0;
+  if(v.length>=6)s++;if(v.length>=10)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
+  pBar.style.width=(s/5*100)+'%';pBar.style.background=s<=1?'#c0392b':s<=3?'#d4a017':'#27ae60';
 });
 
-// Giriş
-document.getElementById('loginBtn').addEventListener('click', function() {
-  var u = document.getElementById('loginUser').value.trim();
-  var p = document.getElementById('loginPass').value;
-  var err = false;
-  if (!u) { document.getElementById('loginUser').classList.add('input-error'); err = true; }
-  if (!p) { document.getElementById('loginPass').classList.add('input-error'); err = true; }
-  if (err) { showToast('Tüm alanları doldurun.', 'error'); return; }
-  var users = getUsers();
-  var user = null;
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].username.toLowerCase() === u.toLowerCase()) { user = users[i]; break; }
-  }
-  if (!user) { showToast('Bu kullanıcı adı kayıtlı değil.', 'error'); return; }
-  if (user.password !== p) { showToast('Şifre hatalı.', 'error'); return; }
-  showToast('Başarıyla giriş yaptınız, ' + user.username + '.', 'success');
-  localStorage.setItem('atlasSession', JSON.stringify({ username: user.username, loggedAt: Date.now() }));
+// Doğrulama kodu inputları — otomatik ilerleme
+var codeInputs=document.querySelectorAll('#codeInputs input');
+codeInputs.forEach(function(inp,idx){
+  inp.addEventListener('input',function(){
+    if(inp.value.length===1&&idx<codeInputs.length-1)codeInputs[idx+1].focus();
+  });
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Backspace'&&!inp.value&&idx>0)codeInputs[idx-1].focus();
+  });
+  inp.addEventListener('paste',function(e){
+    e.preventDefault();var txt=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+    for(var i=0;i<txt.length&&i<codeInputs.length;i++)codeInputs[i].value=txt[i];
+    if(txt.length>0)codeInputs[Math.min(txt.length,codeInputs.length)-1].focus();
+  });
 });
 
-// Kayıt
-document.getElementById('registerBtn').addEventListener('click', function() {
-  var u = document.getElementById('regUser').value.trim();
-  var e = document.getElementById('regEmail').value.trim();
-  var p = document.getElementById('regPass').value;
-  var pc = document.getElementById('regPassConfirm').value;
-  var err = false;
-  if (!u) { document.getElementById('regUser').classList.add('input-error'); err = true; }
-  if (!e) { document.getElementById('regEmail').classList.add('input-error'); err = true; }
-  if (!p) { document.getElementById('regPass').classList.add('input-error'); err = true; }
-  if (!pc) { document.getElementById('regPassConfirm').classList.add('input-error'); err = true; }
-  if (err) { showToast('Tüm alanları doldurun.', 'error'); return; }
-  if (u.length < 3) { showToast('Kullanıcı adı en az 3 karakter olmalı.', 'error'); document.getElementById('regUser').classList.add('input-error'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { showToast('Geçerli bir e-posta adresi girin.', 'error'); document.getElementById('regEmail').classList.add('input-error'); return; }
-  if (p.length < 6) { showToast('Şifre en az 6 karakter olmalı.', 'error'); document.getElementById('regPass').classList.add('input-error'); return; }
-  if (p !== pc) { showToast('Şifreler eşleşmiyor.', 'error'); document.getElementById('regPassConfirm').classList.add('input-error'); return; }
-  var users = getUsers();
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].username.toLowerCase() === u.toLowerCase()) { showToast('Bu kullanıcı adı zaten alınmış.', 'error'); return; }
-    if (users[i].email.toLowerCase() === e.toLowerCase()) { showToast('Bu e-posta zaten kayıtlı.', 'error'); return; }
+// Doğrulama kodu oluştur (6 haneli)
+var pendingVerification=null;
+function generateCode(){return String(Math.floor(100000+Math.random()*900000))}
+
+// GİRİŞ YAP
+document.getElementById('loginBtn').addEventListener('click',function(){
+  var u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value,err=false;
+  if(!u){document.getElementById('loginUser').classList.add('input-error');err=true}
+  if(!p){document.getElementById('loginPass').classList.add('input-error');err=true}
+  if(err){showToast('Tüm alanları doldurun.','error');return}
+  var db=getDB(),found=null;
+  for(var i=0;i<db.users.length;i++){if(db.users[i].username.toLowerCase()===u.toLowerCase()){found=db.users[i];break}}
+  if(!found){showToast('Bu kullanıcı adı kayıtlı değil.','error');return}
+  if(!found.verified){showToast('E-posta adresinizi önce doğrulayın.','error');return}
+  if(found.password!==p){showToast('Şifre hatalı.','error');return}
+  // Giriş başarılı
+  db.sessions.push({username:found.username,loggedAt:Date.now()});
+  saveDB(db);
+  showToast('Başarıyla giriş yaptınız, '+found.username+'.','success');
+  document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';
+});
+
+// KAYIT OL
+document.getElementById('registerBtn').addEventListener('click',function(){
+  var u=document.getElementById('regUser').value.trim(),e=document.getElementById('regEmail').value.trim();
+  var p=document.getElementById('regPass').value,pc=document.getElementById('regPassConfirm').value,err=false;
+  if(!u){document.getElementById('regUser').classList.add('input-error');err=true}
+  if(!e){document.getElementById('regEmail').classList.add('input-error');err=true}
+  if(!p){document.getElementById('regPass').classList.add('input-error');err=true}
+  if(!pc){document.getElementById('regPassConfirm').classList.add('input-error');err=true}
+  if(err){showToast('Tüm alanları doldurun.','error');return}
+  if(u.length<3){showToast('Kullanıcı adı en az 3 karakter olmalı.','error');document.getElementById('regUser').classList.add('input-error');return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){showToast('Geçerli bir e-posta adresi girin.','error');document.getElementById('regEmail').classList.add('input-error');return}
+  if(p.length<6){showToast('Şifre en az 6 karakter olmalı.','error');document.getElementById('regPass').classList.add('input-error');return}
+  if(p!==pc){showToast('Şifreler eşleşmiyor.','error');document.getElementById('regPassConfirm').classList.add('input-error');return}
+  var db=getDB();
+  for(var i=0;i<db.users.length;i++){
+    if(db.users[i].username.toLowerCase()===u.toLowerCase()){showToast('Bu kullanıcı adı zaten alınmış.','error');return}
+    if(db.users[i].email.toLowerCase()===e.toLowerCase()){showToast('Bu e-posta zaten kayıtlı.','error');return}
   }
-  users.push({ username: u, email: e, password: p, createdAt: Date.now() });
-  saveUsers(users);
-  showToast('Hesap oluşturuldu! Giriş yapabilirsiniz.', 'success');
-  document.getElementById('regUser').value = '';
-  document.getElementById('regEmail').value = '';
-  document.getElementById('regPass').value = '';
-  document.getElementById('regPassConfirm').value = '';
-  pStr.classList.remove('visible');
-  pBar.style.width = '0';
+  // Doğrulama kodu oluştur ve doğrulama ekranına geç
+  var code=generateCode();
+  pendingVerification={username:u,email:e,password:p,code:code};
+  document.getElementById('verifyEmail').textContent=e;
+  document.getElementById('registerFields').style.display='none';
+  document.getElementById('verifyScreen').classList.add('active');
+  // Inputları temizle
+  codeInputs.forEach(function(inp){inp.value=''});
+  codeInputs[0].focus();
+  // Kodu console'a yaz (gerçek projede mail servisine gönderilir)
+  console.log('[AtlasWarfare] Doğrulama kodu for '+e+': '+code);
+  showToast('Doğrulama kodu gönderildi. (Konsolu kontrol edin)','info');
+  // Tekrar gönder butonunu sıfırla
+  startResendCooldown();
+});
+
+// Tekrar gönder sayaçı
+var resendCooldown=0;
+function startResendCooldown(){
+  resendCooldown=60;
+  var btn=document.getElementById('resendBtn');
+  btn.classList.add('disabled');btn.textContent='Tekrar Gönder ('+resendCooldown+'s)';
+  var iv=setInterval(function(){
+    resendCooldown--;
+    if(resendCooldown<=0){clearInterval(iv);btn.classList.remove('disabled');btn.textContent='Tekrar Gönder';return}
+    btn.textContent='Tekrar Gönder ('+resendCooldown+'s)';
+  },1000);
+}
+
+// Tekrar gönder
+document.getElementById('resendBtn').addEventListener('click',function(){
+  if(this.classList.contains('disabled'))return;
+  if(!pendingVerification)return;
+  pendingVerification.code=generateCode();
+  console.log('[AtlasWarfare] Yeni doğrulama kodu for '+pendingVerification.email+': '+pendingVerification.code);
+  showToast('Yeni kod gönderildi. (Konsolu kontrol edin)','info');
+  codeInputs.forEach(function(inp){inp.value=''});codeInputs[0].focus();
+  startResendCooldown();
+});
+
+// DOĞRULA
+document.getElementById('verifyBtn').addEventListener('click',function(){
+  if(!pendingVerification){showToast('Bekleyen bir doğrulama yok.','error');return}
+  var entered='';
+  codeInputs.forEach(function(inp){entered+=inp.value});
+  if(entered.length!==6){showToast('6 haneli kodu girin.','error');return}
+  if(entered!==pendingVerification.code){showToast('Doğrulama kodu hatalı.','error');codeInputs.forEach(function(inp){inp.classList.add('input-error')});setTimeout(function(){codeInputs.forEach(function(inp){inp.classList.remove('input-error')})},1500);return}
+  // Doğrulama başarılı — kullanıcıyı kaydet
+  var db=getDB();
+  db.users.push({username:pendingVerification.username,email:pendingVerification.email,password:pendingVerification.password,verified:true,createdAt:Date.now()});
+  saveDB(db);
+  showToast('Hesap oluşturuldu! Giriş yapabilirsiniz.','success');
+  pendingVerification=null;
+  // Formu sıfırla, giriş sekmesine geç
+  document.getElementById('regUser').value='';document.getElementById('regEmail').value='';
+  document.getElementById('regPass').value='';document.getElementById('regPassConfirm').value='';
+  pStr.classList.remove('visible');pBar.style.width='0';
   document.querySelectorAll('.tab-btn')[0].click();
 });
 
-// Şifremi unuttum
-document.getElementById('forgotLink').addEventListener('click', function(ev) {
-  ev.preventDefault();
-  var u = document.getElementById('loginUser').value.trim();
-  if (!u) { showToast('Önce kullanıcı adınızı girin.', 'info'); return; }
-  var users = getUsers();
-  var user = null;
-  for (var i = 0; i < users.length; i++) { if (users[i].username.toLowerCase() === u.toLowerCase()) { user = users[i]; break; } }
-  if (user) { showToast('Şifre sıfırlama bağlantısı gönderildi: ' + user.email, 'info'); }
-  else { showToast('Bu kullanıcı adı kayıtlı değil.', 'error'); }
+// ŞİFRE SIFIRLAMA MODALI
+document.getElementById('forgotLink').addEventListener('click',function(e){
+  e.preventDefault();document.getElementById('resetModal').classList.add('open');
+  document.getElementById('resetEmail').value='';document.getElementById('resetEmail').focus();
+});
+document.getElementById('resetModalClose').addEventListener('click',function(){
+  document.getElementById('resetModal').classList.remove('open');
+});
+document.getElementById('resetModal').addEventListener('click',function(e){
+  if(e.target===this)this.classList.remove('open');
+});
+document.getElementById('resetSendBtn').addEventListener('click',function(){
+  var e=document.getElementById('resetEmail').value.trim();
+  if(!e){document.getElementById('resetEmail').classList.add('input-error');showToast('E-posta adresi girin.','error');return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){document.getElementById('resetEmail').classList.add('input-error');showToast('Geçerli bir e-posta adresi girin.','error');return}
+  var db=getDB(),found=null;
+  for(var i=0;i<db.users.length;i++){if(db.users[i].email.toLowerCase()===e.toLowerCase()){found=db.users[i];break}}
+  if(!found){showToast('Bu e-posta ile kayıtlı hesap bulunamadı.','error');return}
+  // Yeni şifre oluştur ve kaydet
+  var newPass='AW'+Math.random().toString(36).slice(2,8)+'!';
+  found.password=newPass;saveDB(db);
+  console.log('[AtlasWarfare] Yeni şifre for '+e+': '+newPass);
+  document.getElementById('resetModal').classList.remove('open');
+  showToast('Yeni şifre e-posta adresinize gönderildi. (Konsolu kontrol edin)','success');
 });
 
 // Sosyal butonlar
-document.querySelectorAll('.social-btns').forEach(function(group) {
-  group.querySelectorAll('.social-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var cls = btn.querySelector('i').classList;
-      var name = cls.contains('fa-facebook-f') ? 'Facebook' : cls.contains('fa-google') ? 'Google' : 'Apple';
-      showToast(name + ' ile giriş yakında aktif olacak.', 'info');
+document.querySelectorAll('.social-btns').forEach(function(group){
+  group.querySelectorAll('.social-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var c=btn.querySelector('i').classList;
+      var n=c.contains('fa-facebook-f')?'Facebook':c.contains('fa-google')?'Google':'Apple';
+      showToast(n+' ile giriş yakında aktif olacak.','info');
     });
   });
 });
 
 // Enter tuşu
-document.getElementById('loginPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-document.getElementById('loginUser').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-document.getElementById('regPassConfirm').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('registerBtn').click(); });
-
-// Pencere boyutu değişince sadece zemini yeniden çiz, sayfa yenilenmez
-var resizeTimer;
-window.addEventListener('resize', function() {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function() { drawCity(Date.now()); }, 200);
-});
+document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click()});
+document.getElementById('loginUser').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click()});
+document.getElementById('regPassConfirm').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('registerBtn').click()});
+document.getElementById('resetEmail').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('resetSendBtn').click()});
+codeInputs[5].addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('verifyBtn').click()});
 </script>
 </body>
 </html>
