@@ -42,11 +42,10 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
 
-        /* ===== AUTH SCREEN ===== */
-        #auth-screen { display: none; justify-content: center; align-items: center; height: 100vh; width: 100vw; position: relative; z-index: 100; overflow: hidden; }
-        /* Procedural kent haritası zemini — Unsplash yerine */
+        #auth-screen { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; position: relative; z-index: 100; overflow: hidden; }
+        #auth-screen.hidden { display: none; }
         #auth-ground { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
-        .auth-overlay { position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at center, rgba(10,10,18,0.55) 0%, rgba(5,5,10,0.85) 60%, rgba(2,2,5,0.95) 100%); pointer-events: none; }
+        .auth-overlay { position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at center, rgba(10,10,18,0.5) 0%, rgba(5,5,10,0.82) 60%, rgba(2,2,5,0.95) 100%); pointer-events: none; }
         .auth-box { background: var(--panel); border: 2px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 2; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
         .game-title { font-family: 'Cinzel', serif; font-size: 2.8rem; font-weight: 900; background: linear-gradient(45deg, var(--primary), var(--gold), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(255, 107, 0, 0.5); margin-bottom: 5px; letter-spacing: 3px; }
         .game-subtitle { color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 4px; opacity: 0.8; }
@@ -62,8 +61,9 @@
         .auth-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
         .auth-tab { flex: 1; padding: 8px; background: rgba(0,0,0,0.4); border: 1px solid #333; color: #aaa; cursor: pointer; border-radius: 4px; font-family: 'Rajdhani'; font-weight: 600; }
         .auth-tab.active { background: rgba(255,107,0,0.2); border-color: var(--primary); color: white; }
+        .offline-warn { color: var(--red); font-size: 0.75rem; margin-top: 10px; opacity: 0.8; display: none; }
+        .offline-warn.show { display: block; }
 
-        /* ===== CHAR SELECT ===== */
         #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
         .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
         .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
@@ -76,10 +76,7 @@
         .color-swatch:hover { transform: scale(1.1); }
         .color-swatch.selected { border-color: white; box-shadow: 0 0 20px currentColor; }
 
-        /* ===== GAME SCREEN ===== */
         #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; overflow: hidden; }
-
-        /* ===== 2.5D ISOMETRIC MAP CONTAINER ===== */
         #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: #1a2a1a; cursor: grab; touch-action: none; }
         #map-container.grabbing { cursor: grabbing; }
         #iso-world { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
@@ -98,37 +95,22 @@
         .iso-road-stripe { position: absolute; background: var(--road-line); transform-origin: center; box-shadow: 0 0 2px rgba(255,216,74,0.4); }
         .iso-road-stripe.h { width: 4px; height: 16px; transform: translate(-50%, -50%) rotate(45deg); border-radius: 1px; }
         .iso-road-stripe.v { width: 16px; height: 4px; transform: translate(-50%, -50%) rotate(45deg); border-radius: 1px; }
-        .iso-curb { position: absolute; background: linear-gradient(180deg, #7a7a84 0%, var(--curb) 100%); transform-origin: center; box-shadow: 0 1px 2px rgba(0,0,0,0.6); }
 
         .iso-obj { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); cursor: pointer; }
         .iso-obj:hover { z-index: 99999 !important; filter: brightness(1.1); }
         .iso-obj:hover .iso-label { border-color: var(--gold); transform: scale(1.05); }
         .iso-bld { position: relative; filter: drop-shadow(0 6px 6px rgba(0,0,0,0.5)); transition: filter 0.2s; }
         .iso-obj:hover .iso-bld { filter: drop-shadow(0 8px 14px rgba(255,180,60,0.5)); }
-        .bld-yard { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); background: var(--grass-b); clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
         .bld-front { position: absolute; bottom: 0; left: 0; background: linear-gradient(180deg, var(--wall-fill, #c9b890) 0%, var(--wall-fill-dark, #9a8a6a) 100%); }
         .bld-side { position: absolute; bottom: 0; left: 50%; background: linear-gradient(180deg, var(--wall-fill-dark, #7a6a4a) 0%, #4a3a2a 100%); }
         .bld-roof { position: absolute; top: 0; left: 0; background: linear-gradient(135deg, var(--roof-fill, #8a4a2a) 0%, var(--roof-fill-dark, #5a2a1a) 100%); }
         .bld-win { position: absolute; background: linear-gradient(180deg, #ffe0a0 0%, #ff9a3a 100%); box-shadow: 0 0 4px rgba(255,180,80,0.6); }
-        .bld-door { position: absolute; background: linear-gradient(180deg, #5a3a1a 0%, #3a1a0a 100%); border: 1px solid #2a1a0a; }
         .iso-label { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); background: rgba(20, 14, 8, 0.92); padding: 3px 10px; border-radius: 5px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; border: 1.5px solid var(--gold); color: #fff; text-shadow: 1px 1px 0 #000; font-family: 'Cinzel', serif; letter-spacing: 0.5px; transition: transform 0.2s; }
         .iso-badge { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 1.6rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); animation: floatBadge 2.5s ease-in-out infinite; }
         @keyframes floatBadge { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-4px)} }
         .bld-glow { position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(255,215,0,0.5) 0%, transparent 70%); border-radius: 50%; pointer-events: none; animation: pulseGlow 2s ease-in-out infinite; }
         @keyframes pulseGlow { 0%,100%{opacity:0.5;transform:translateX(-50%) scale(1)} 50%{opacity:1;transform:translateX(-50%) scale(1.15)} }
-        .neon-pulse { animation: neonGlow 1.5s ease-in-out infinite; }
-        @keyframes neonGlow { 0%,100% { opacity: 0.7; filter: drop-shadow(0 0 3px currentColor); } 50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); } }
-        .smoke-puff { position: absolute; background: radial-gradient(circle, rgba(180,180,180,0.5) 0%, transparent 70%); border-radius: 50%; animation: smokeRise 3s ease-in-out infinite; }
-        @keyframes smokeRise { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.5); } 30% { opacity: 0.7; transform: translate(-50%, -15px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -40px) scale(1.5); } }
-        .water-shimmer { animation: shimmer 2s ease-in-out infinite; }
-        @keyframes shimmer { 0%,100% { opacity: 0.7; } 50% { opacity: 1; filter: brightness(1.3); } }
 
-        .iso-deco { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.5)); }
-        .iso-deco.decorative { opacity: 0.92; }
-        .iso-deco.bg-deco { opacity: 0.4; filter: grayscale(0.4) brightness(0.7) blur(0.3px); }
-        .iso-deco.fg-deco { opacity: 1; z-index: 5000; }
-
-        /* ===== HUD ===== */
         .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 20; background: linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 70%, transparent 100%); padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
         .player-info { display: flex; gap: 6px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
         .res-bar { background: linear-gradient(180deg, rgba(20,14,8,0.95), rgba(10,8,4,0.95)); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--gold); display: flex; align-items: center; gap: 5px; font-size: 0.78rem; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
@@ -206,8 +188,6 @@
         #lang-switch button { background: rgba(0,0,0,0.7); border: 1px solid var(--gold); color: var(--gold); padding: 3px 8px; font-size: 0.65rem; cursor: pointer; border-radius: 3px; font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         #lang-switch button.active { background: var(--gold); color: #000; }
 
-        .float-chip { position: absolute; background: rgba(0,0,0,0.78); border: 1px solid var(--gold); border-radius: 6px; padding: 6px 10px; color: white; font-size: 0.78rem; font-weight: 600; z-index: 18; pointer-events: none; box-shadow: 0 3px 8px rgba(0,0,0,0.5); }
-
         #golden-hour-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 8; background: radial-gradient(ellipse at 20% 10%, rgba(255,180,90,0.18) 0%, transparent 40%), linear-gradient(160deg, rgba(255,160,80,0.06) 0%, transparent 40%, rgba(20,10,30,0.18) 100%); mix-blend-mode: overlay; }
 
         @media (max-width: 720px) {
@@ -230,8 +210,7 @@
 </head>
 <body>
 
-<!-- ===== AUTH ===== -->
-<div id="auth-screen" style="display:none;">
+<div id="auth-screen">
     <canvas id="auth-ground"></canvas>
     <div class="auth-overlay"></div>
     <div class="auth-box">
@@ -273,10 +252,10 @@
             </div>
             <div class="error-msg" id="forgot-error"></div>
         </div>
+        <div class="offline-warn" id="offline-warn">Sunucuya bağlanılamıyor. Bağlantı kurulduğunda otomatik giriş denenecek.</div>
     </div>
 </div>
 
-<!-- ===== CHAR SELECT ===== -->
 <div id="char-select-screen">
     <div style="text-align:center; max-width:900px; width:100%;">
         <div class="game-title" style="font-size:2.2rem; margin-bottom:5px;" data-i18n="chooseChar">Karakterini Seç</div>
@@ -290,11 +269,8 @@
     </div>
 </div>
 
-<!-- ===== GAME ===== -->
 <div id="game-screen">
-    <div id="map-container">
-        <div id="iso-world"></div>
-    </div>
+    <div id="map-container"><div id="iso-world"></div></div>
     <div id="golden-hour-overlay"></div>
     <div id="lang-switch">
         <button id="lang-en" onclick="setLang('en')">EN</button>
@@ -359,14 +335,38 @@
     <div id="radial-menu"></div>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
+<!-- Socket.IO: yüklenemezse sayfa çökmesin -->
+<script>
+var socket = null;
+var socketConnected = false;
+</script>
+<script src="/socket.io/socket.io.js" onerror="window._socketIOFailed=true"></script>
 <script>
 /* ============================================================
-   ATLAS WARFARE — Orijinal sistemler KORUNDU
-   Sadece auth ekranına procedural kent haritası zemin eklendi.
+   ATLAS WARFARE — Tüm sistemler korundu.
+   Socket.IO yüklenemezse sayfa çökmez, auth ekranı açılır.
    ============================================================ */
 
-const socket = io();
+// Socket.IO güvenli bağlantı
+if (window._socketIOFailed || typeof io === 'undefined') {
+    // Sunucu çevrimdışı — sayfa yine de açılsın
+    socket = {
+        emit: function() {},
+        on: function() {},
+        off: function() {}
+    };
+    document.getElementById('offline-warn').classList.add('show');
+} else {
+    try {
+        socket = io();
+        socket.on('connect', function() { socketConnected = true; });
+        socket.on('disconnect', function() { socketConnected = false; });
+    } catch(e) {
+        socket = { emit: function(){}, on: function(){}, off: function(){} };
+        document.getElementById('offline-warn').classList.add('show');
+    }
+}
+
 let currentPlayer = null, worldData = null, charactersData = null, clansData = {};
 let selectedCharacter = null, selectedColor = null;
 let basePlacementMode = false;
@@ -384,56 +384,66 @@ function playSound(type) {
 document.addEventListener('click', () => initAudio(), { once: true });
 document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON' || e.target.closest('.action-btn') || e.target.closest('.zoom-btn')) playSound('click'); });
 
-/* ===== PROCEDURAL KENT HARİTASI — Auth ekranı zemini ===== */
-(function(){
-    var cv=document.getElementById('auth-ground'), cx=cv.getContext('2d');
-    function rng(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646}}
-    function draw(seed){
-        var W=cv.parentElement.clientWidth, H=cv.parentElement.clientHeight;
-        cv.width=W; cv.height=H;
-        var r=rng(seed), B=44, R=5, cols=Math.ceil(W/B)+2, rows=Math.ceil(H/B)+2;
-        cx.fillStyle='#0c0c15'; cx.fillRect(0,0,W,H);
-        cx.fillStyle='#14141e';
-        for(var i=0;i<cols;i++) cx.fillRect(i*B-R/2,0,R,H);
-        for(var j=0;j<rows;j++) cx.fillRect(0,j*B-R/2,W,R);
-        cx.strokeStyle='rgba(180,150,50,0.06)'; cx.lineWidth=1; cx.setLineDash([7,12]);
-        for(var i=0;i<cols;i++){cx.beginPath();cx.moveTo(i*B,0);cx.lineTo(i*B,H);cx.stroke()}
-        for(var j=0;j<rows;j++){cx.beginPath();cx.moveTo(0,j*B);cx.lineTo(W,j*B);cx.stroke()}
-        cx.setLineDash([]);
-        for(var i=0;i<cols;i++) for(var j=0;j<rows;j++){
-            var bx=i*B+R/2+2,by=j*B+R/2+2,bw=B-R-4,bh=B-R-4,v=r();
-            if(v<0.02){cx.fillStyle='#080e18';cx.fillRect(bx,by,bw,bh);cx.strokeStyle='rgba(30,60,100,0.1)';cx.lineWidth=.5;for(var w=0;w<3;w++){var wy=by+5+w*9;cx.beginPath();cx.moveTo(bx,wy);for(var px=bx;px<bx+bw;px+=2)cx.lineTo(px,wy+Math.sin((px+w*20)*.3)*2);cx.stroke()}continue}
-            if(v<0.08){cx.fillStyle='#0a140a';cx.fillRect(bx,by,bw,bh);for(var t=0;t<4;t++){cx.fillStyle='rgba('+(20+r()*30|0)+','+(50+r()*40|0)+','+(20+r()*20|0)+',0.45)';cx.beginPath();cx.arc(bx+4+r()*(bw-8),by+4+r()*(bh-8),2+r()*3,0,6.28);cx.fill()}continue}
-            if(v<0.15) continue;
-            var br=10+(r()*14|0),rt=r()<.3?(r()*8|0):0,bt=r()<.2?(r()*6|0):0;
-            cx.fillStyle='rgb('+(br+rt)+','+br+','+(br+bt)+')'; cx.fillRect(bx,by,bw,bh);
-            cx.fillStyle='rgba(255,255,255,0.012)'; cx.fillRect(bx,by,bw,1); cx.fillRect(bx,by,1,bh);
-            cx.fillStyle='rgba(0,0,0,0.3)'; cx.fillRect(bx,by+bh-1,bw,1); cx.fillRect(bx+bw-1,by,1,bh);
-            if(r()<.5){cx.strokeStyle='rgba(0,0,0,0.2)';cx.lineWidth=.5;var fl=2+(r()*3|0);for(var f=1;f<fl;f++){var fy=by+(bh/fl)*f;cx.beginPath();cx.moveTo(bx+1,fy);cx.lineTo(bx+bw-1,fy);cx.stroke()}}
-            for(var wx=bx+3;wx<bx+bw-3;wx+=4) for(var wy=by+3;wy<by+bh-3;wy+=4) if(r()<.4){
-                var wm=r(),wr,wg,wb;
-                if(wm<.5){wr=175+(r()*65|0);wg=135+(r()*55|0);wb=35+(r()*35|0)}
-                else if(wm<.8){wr=155+(r()*65|0);wg=155+(r()*65|0);wb=145+(r()*65|0)}
-                else{wr=55+(r()*45|0);wg=75+(r()*55|0);wb=135+(r()*85|0)}
-                var al=.12+r()*.4;
-                cx.fillStyle='rgba('+wr+','+wg+','+wb+','+al.toFixed(2)+')'; cx.fillRect(wx,wy,2,2);
-                if(al>.32){cx.fillStyle='rgba('+wr+','+wg+','+wb+','+(al*.07).toFixed(3)+')';cx.fillRect(wx-1,wy-1,4,4)}
-            }
-            if(r()<.12&&bw>16&&bh>16){cx.fillStyle='rgba(255,255,255,0.02)';cx.fillRect(bx+3,by+3,bw-6,bh-6)}
-            if(r()<.04){cx.fillStyle='rgba(200,30,30,0.22)';var nw=5+r()*12,nh=2+r()*3;cx.fillRect(bx+(bw-nw)/2,by+2,nw,nh)}
+/* ===== PROCEDURAL KENT HARİTASI — Auth zemin ===== */
+var authGroundDrawn = false;
+function drawAuthGround() {
+    var cv = document.getElementById('auth-ground');
+    if (!cv || cv.parentElement.offsetParent === null) return; // gizliyse çizme
+    var W = cv.parentElement.clientWidth, H = cv.parentElement.clientHeight;
+    if (W < 10 || H < 10) return;
+    cv.width = W; cv.height = H;
+    var cx = cv.getContext('2d');
+    function rng(s) { return function() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
+    var r = rng(Date.now()), B = 44, R = 5, cols = Math.ceil(W / B) + 2, rows = Math.ceil(H / B) + 2;
+    cx.fillStyle = '#0c0c15'; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = '#14141e';
+    for (var i = 0; i < cols; i++) cx.fillRect(i * B - R / 2, 0, R, H);
+    for (var j = 0; j < rows; j++) cx.fillRect(0, j * B - R / 2, W, R);
+    cx.strokeStyle = 'rgba(180,150,50,0.06)'; cx.lineWidth = 1; cx.setLineDash([7, 12]);
+    for (var i = 0; i < cols; i++) { cx.beginPath(); cx.moveTo(i * B, 0); cx.lineTo(i * B, H); cx.stroke(); }
+    for (var j = 0; j < rows; j++) { cx.beginPath(); cx.moveTo(0, j * B); cx.lineTo(W, j * B); cx.stroke(); }
+    cx.setLineDash([]);
+    for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) {
+        var bx = i * B + R / 2 + 2, by = j * B + R / 2 + 2, bw = B - R - 4, bh = B - R - 4, v = r();
+        if (v < 0.02) { cx.fillStyle = '#080e18'; cx.fillRect(bx, by, bw, bh); cx.strokeStyle = 'rgba(30,60,100,0.1)'; cx.lineWidth = .5; for (var w = 0; w < 3; w++) { var wy = by + 5 + w * 9; cx.beginPath(); cx.moveTo(bx, wy); for (var px = bx; px < bx + bw; px += 2) cx.lineTo(px, wy + Math.sin((px + w * 20) * .3) * 2); cx.stroke(); } continue; }
+        if (v < 0.08) { cx.fillStyle = '#0a140a'; cx.fillRect(bx, by, bw, bh); for (var t = 0; t < 4; t++) { cx.fillStyle = 'rgba(' + (20 + r() * 30 | 0) + ',' + (50 + r() * 40 | 0) + ',' + (20 + r() * 20 | 0) + ',0.45)'; cx.beginPath(); cx.arc(bx + 4 + r() * (bw - 8), by + 4 + r() * (bh - 8), 2 + r() * 3, 0, 6.28); cx.fill(); } continue; }
+        if (v < 0.15) continue;
+        var br = 10 + (r() * 14 | 0), rt = r() < .3 ? (r() * 8 | 0) : 0, bt = r() < .2 ? (r() * 6 | 0) : 0;
+        cx.fillStyle = 'rgb(' + (br + rt) + ',' + br + ',' + (br + bt) + ')'; cx.fillRect(bx, by, bw, bh);
+        cx.fillStyle = 'rgba(255,255,255,0.012)'; cx.fillRect(bx, by, bw, 1); cx.fillRect(bx, by, 1, bh);
+        cx.fillStyle = 'rgba(0,0,0,0.3)'; cx.fillRect(bx, by + bh - 1, bw, 1); cx.fillRect(bx + bw - 1, by, 1, bh);
+        if (r() < .5) { cx.strokeStyle = 'rgba(0,0,0,0.2)'; cx.lineWidth = .5; var fl = 2 + (r() * 3 | 0); for (var f = 1; f < fl; f++) { var fy = by + (bh / fl) * f; cx.beginPath(); cx.moveTo(bx + 1, fy); cx.lineTo(bx + bw - 1, fy); cx.stroke(); } }
+        for (var wx = bx + 3; wx < bx + bw - 3; wx += 4) for (var wy = by + 3; wy < by + bh - 3; wy += 4) if (r() < .4) {
+            var wm = r(), wr, wg, wb;
+            if (wm < .5) { wr = 175 + (r() * 65 | 0); wg = 135 + (r() * 55 | 0); wb = 35 + (r() * 35 | 0); }
+            else if (wm < .8) { wr = 155 + (r() * 65 | 0); wg = 155 + (r() * 65 | 0); wb = 145 + (r() * 65 | 0); }
+            else { wr = 55 + (r() * 45 | 0); wg = 75 + (r() * 55 | 0); wb = 135 + (r() * 85 | 0); }
+            var al = .12 + r() * .4;
+            cx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + al.toFixed(2) + ')'; cx.fillRect(wx, wy, 2, 2);
+            if (al > .32) { cx.fillStyle = 'rgba(' + wr + ',' + wg + ',' + wb + ',' + (al * .07).toFixed(3) + ')'; cx.fillRect(wx - 1, wy - 1, 4, 4); }
         }
-        cx.fillStyle='#111119';
-        for(var a=0;a<3;a++){if(r()<.5){var y=(r()*rows|0)*B-4;cx.fillRect(0,y,W,12);cx.strokeStyle='rgba(200,170,50,0.08)';cx.lineWidth=1.5;cx.setLineDash([14,10]);cx.beginPath();cx.moveTo(0,y+6);cx.lineTo(W,y+6);cx.stroke();cx.setLineDash([])}else{var x=(r()*cols|0)*B-4;cx.fillRect(x,0,12,H);cx.strokeStyle='rgba(200,170,50,0.08)';cx.lineWidth=1.5;cx.setLineDash([14,10]);cx.beginPath();cx.moveTo(x+6,0);cx.lineTo(x+6,H);cx.stroke();cx.setLineDash([])}}
-        for(var i=0;i<cols;i++) for(var j=0;j<rows;j++) if(r()<.2){var lx=i*B+(r()<.5?-R/2:R/2),ly=j*B+(r()<.5?-R/2:R/2),g=cx.createRadialGradient(lx,ly,0,lx,ly,16);g.addColorStop(0,'rgba(220,190,100,0.08)');g.addColorStop(1,'rgba(220,190,100,0)');cx.fillStyle=g;cx.beginPath();cx.arc(lx,ly,16,0,6.28);cx.fill()}
-        var id=cx.getImageData(0,0,W,H),p=id.data;for(var k=0;k<p.length;k+=4){var n=(r()-.5)*6;p[k]=Math.max(0,Math.min(255,p[k]+n));p[k+1]=Math.max(0,Math.min(255,p[k+1]+n));p[k+2]=Math.max(0,Math.min(255,p[k+2]+n))}cx.putImageData(id,0,0);
-        var vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.2,W/2,H/2,Math.max(W,H)*.7);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.5)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+        if (r() < .12 && bw > 16 && bh > 16) { cx.fillStyle = 'rgba(255,255,255,0.02)'; cx.fillRect(bx + 3, by + 3, bw - 6, bh - 6); }
+        if (r() < .04) { cx.fillStyle = 'rgba(200,30,30,0.22)'; var nw = 5 + r() * 12, nh = 2 + r() * 3; cx.fillRect(bx + (bw - nw) / 2, by + 2, nw, nh); }
     }
-    draw(Date.now());
-    setInterval(function(){draw(Date.now())},10000);
-    window.addEventListener('resize',function(){draw(Date.now())});
-})();
+    cx.fillStyle = '#111119';
+    for (var a = 0; a < 3; a++) { if (r() < .5) { var y = (r() * rows | 0) * B - 4; cx.fillRect(0, y, W, 12); } else { var x = (r() * cols | 0) * B - 4; cx.fillRect(x, 0, 12, H); } }
+    for (var i = 0; i < cols; i++) for (var j = 0; j < rows; j++) if (r() < .2) {
+        var lx = i * B + (r() < .5 ? -R / 2 : R / 2), ly = j * B + (r() < .5 ? -R / 2 : R / 2), g = cx.createRadialGradient(lx, ly, 0, lx, ly, 16);
+        g.addColorStop(0, 'rgba(220,190,100,0.08)'); g.addColorStop(1, 'rgba(220,190,100,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(lx, ly, 16, 0, 6.28); cx.fill();
+    }
+    var id = cx.getImageData(0, 0, W, H), p = id.data;
+    for (var k = 0; k < p.length; k += 4) { var n = (r() - .5) * 6; p[k] = Math.max(0, Math.min(255, p[k] + n)); p[k + 1] = Math.max(0, Math.min(255, p[k + 1] + n)); p[k + 2] = Math.max(0, Math.min(255, p[k + 2] + n)); }
+    cx.putImageData(id, 0, 0);
+    var vg = cx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .2, W / 2, H / 2, Math.max(W, H) * .7);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)'); cx.fillStyle = vg; cx.fillRect(0, 0, W, H);
+    authGroundDrawn = true;
+}
+// Auth ekranı görünür olduğunda çiz
+drawAuthGround();
+setInterval(function() { if (document.getElementById('auth-screen').offsetParent !== null) drawAuthGround(); }, 10000);
+window.addEventListener('resize', function() { if (document.getElementById('auth-screen').offsetParent !== null) drawAuthGround(); });
 
-/* ===== i18n ===== */
+/* ===== i18n (KORUNDU) ===== */
 const I18N = {
     en: { subtitle:'Conquer the World', login:'Login', register:'Register', forgot:'Forgot', username:'Username', password:'Password', email:'Email', passwordConfirm:'Confirm Password', code:'Code', newPassword:'New Password', enter:'Enter', create:'Create Account', verify:'Verify', verifySent:'Enter the code sent to your email:', resend:'Resend', sendCode:'Send Code', resetPassword:'Reset Password', chooseChar:'Choose Your Character', chooseCharSub:'Build your empire', chooseColor:'Pick your empire color', enterWorld:'Enter the World', base:'Base', train:'Train', hospital:'Hospital', invest:'Invest', diner:'Diner', clan:'Clan', heroes:'Heroes', placeBuild:'Click on an empty plot on the map', worldMap:'World Map', tut1_title:'Welcome, Boss', tut1_body:'Your mansion is the heart of your empire. Tap it to view details and upgrade it.', tut2_title:'Raise the Wall', tut2_body:'Your wall must match the mansion level. Build walls around your mansion to protect it.', tut3_title:'Build Resource Hubs', tut3_body:'Construct Cargo Hubs and Counterfeiters to produce Cash and Cargo.', tut4_title:'Train Crew', tut4_body:'Train your crew at the Training Camp. Open Train from the bottom toolbar.', tut5_title:'Investments', tut5_body:'Visit the Investment Center to research economic, military, and resource bonuses.', tut6_title:'World Map', tut6_body:'Open the World Map to attack other players, rob resources, and join Turf Wars.', next:'Next', skip:'Skip', done:'Done' },
     tr: { subtitle:'Dünyayı Fethet', login:'Giriş', register:'Kayıt', forgot:'Şifremi Unuttum', username:'Kullanıcı Adı', password:'Şifre', email:'E-posta', passwordConfirm:'Şifre (Tekrar)', code:'Kod', newPassword:'Yeni Şifre', enter:'Giriş Yap', create:'Hesap Oluştur', verify:'Doğrula', verifySent:'E-postana gönderilen kodu gir:', resend:'Yeniden Gönder', sendCode:'Kod Gönder', resetPassword:'Şifreyi Sıfırla', chooseChar:'Karakterini Seç', chooseCharSub:'İmparatorluğunu kur', chooseColor:'İmparatorluk Rengini Seç', enterWorld:'Dünyaya Adım At', base:'Üs', train:'Eğit', hospital:'Hastane', invest:'Yatırım', diner:'Lokanta', clan:'Klan', heroes:'Kahraman', placeBuild:'Haritada boş bir alana tıkla', worldMap:'Dünya Haritası', tut1_title:'Hoş geldin, Patron', tut1_body:'Mansion imparatorluğunun kalbidir. Detayları görmek ve yükseltmek için üzerine tıkla.', tut2_title:'Duvarı Yükselt', tut2_body:'Mansion seviyesini geçmek için duvarın da aynı seviyede olmalı. Etrafına duvar inşa et.', tut3_title:'Kaynak Binaları', tut3_body:'Cash ve Cargo üretmek için Cargo Hub ve Counterfeiter inşa et.', tut4_title:'Asker Eğit', tut4_body:'Eğitim Kampları\'nda crew\'unu eğit. Alttaki Eğit butonunu kullan.', tut5_title:'Yatırımlar', tut5_body:'Yatırım Merkezi\'nde ekonomi, askeri ve kaynak bonuslarını araştır.', tut6_title:'Dünya Haritası', tut6_body:'Sağ üstteki Dünya Haritası\'nı aç, diğer oyunculara saldır, kaynak yağmala ve Turf Savaşları\'na katıl.', next:'İleri', skip:'Atla', done:'Tamam' }
@@ -448,12 +458,12 @@ function setLang(l) {
     document.querySelectorAll('[data-i18n-ph]').forEach(el => { const k = el.getAttribute('data-i18n-ph'); if (I18N[l][k]) el.setAttribute('placeholder', I18N[l][k]); });
 }
 
-/* ===== AUTH (KORUNDU — socket.emit/on aynı) ===== */
+/* ===== AUTH (KORUNDU — aynen aynı socket.emit/on) ===== */
 function toggleAuth(t) {
-    ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none');
+    ['login-form', 'register-form', 'verify-form', 'forgot-form'].forEach(id => document.getElementById(id).style.display = 'none');
     document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block';
-    ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none');
-    document.querySelectorAll('.auth-tab').forEach((el,i) => el.classList.toggle('active', (t==='login'&&i===0)||(t==='register'&&i===1)||(t==='forgot'&&i===2)));
+    ['login-error', 'reg-error', 'verify-error', 'forgot-error'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('.auth-tab').forEach((el, i) => el.classList.toggle('active', (t === 'login' && i === 0) || (t === 'register' && i === 1) || (t === 'forgot' && i === 2)));
 }
 function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
 function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, passwordConfirm: document.getElementById('reg-password-confirm').value }); }
@@ -462,7 +472,7 @@ function resendCode() { socket.emit('resendVerifyCode', { username: currentRegUs
 function forgotPassword() { socket.emit('forgotPassword', { email: document.getElementById('forgot-email').value }); }
 function resetPassword() { socket.emit('resetPassword', { email: document.getElementById('forgot-email').value, code: document.getElementById('forgot-code').value, newPassword: document.getElementById('forgot-newpass').value }); }
 let currentRegUsername = '';
-socket.on('loginError', (msg) => { ['login-error','reg-error','verify-error','forgot-error'].forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
+socket.on('loginError', (msg) => { ['login-error', 'reg-error', 'verify-error', 'forgot-error'].forEach(id => { const el = document.getElementById(id); if (el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
 socket.on('registerSuccess', (d) => { currentRegUsername = d.username; toggleAuth('verify'); });
 socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; });
 socket.on('resetPasswordSuccess', () => { toggleAuth('login'); });
@@ -471,7 +481,7 @@ socket.on('loginSuccess', (d) => onLoginSuccess(d));
 function onLoginSuccess(d) {
     localStorage.setItem('atlas_token', d.token);
     currentPlayer = d;
-    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('auth-screen').classList.add('hidden');
     if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d);
 }
 
@@ -480,7 +490,7 @@ function showCharSelect() { document.getElementById('char-select-screen').style.
 function renderCharGrid() {
     if (!charactersData) return;
     const grid = document.getElementById('char-grid'); grid.innerHTML = '';
-    const elemColors = { fire:'#ff4400', water:'#00aaff', lightning:'#ffff00', wind:'#00ff88', earth:'#8B4513' };
+    const elemColors = { fire: '#ff4400', water: '#00aaff', lightning: '#ffff00', wind: '#00ff88', earth: '#8B4513' };
     charactersData.forEach(c => {
         const card = document.createElement('div'); card.className = 'char-card';
         card.onclick = () => {
@@ -496,13 +506,9 @@ function renderCharGrid() {
 }
 function renderColorGrid() {
     const grid = document.getElementById('color-grid'); grid.innerHTML = '';
-    ['#ff3333','#ff6600','#ffcc00','#33cc33','#3399ff','#9933ff','#ff33cc','#ffffff','#cccccc','#666666'].forEach(c => {
+    ['#ff3333', '#ff6600', '#ffcc00', '#33cc33', '#3399ff', '#9933ff', '#ff33cc', '#ffffff', '#cccccc', '#666666'].forEach(c => {
         const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = c; sw.style.color = c;
-        sw.onclick = () => {
-            document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
-            sw.classList.add('selected');
-            selectedColor = c;
-        };
+        sw.onclick = () => { document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected')); sw.classList.add('selected'); selectedColor = c; };
         grid.appendChild(sw);
     });
 }
@@ -526,6 +532,7 @@ function enterGame(d) {
 /* ===== MAP CONTROLS (KORUNDU) ===== */
 let mapOffsetX = 0, mapOffsetY = 0, mapZoom = 1, isDragging = false, dragStartX = 0, dragStartY = 0, dragOffsetX = 0, dragOffsetY = 0;
 function initMapControls() {
+    if (window._mapInitDone) return; window._mapInitDone = true;
     const container = document.getElementById('map-container');
     container.addEventListener('pointerdown', (e) => { if (e.target.closest('.iso-obj')) return; isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY; dragOffsetX = mapOffsetX; dragOffsetY = mapOffsetY; container.classList.add('grabbing'); container.setPointerCapture(e.pointerId); });
     container.addEventListener('pointermove', (e) => { if (!isDragging) return; mapOffsetX = dragOffsetX + (e.clientX - dragStartX); mapOffsetY = dragOffsetY + (e.clientY - dragStartY); updateMapTransform(); updateCoordBadge(); });
@@ -536,33 +543,22 @@ function initMapControls() {
     container.addEventListener('wheel', (e) => { e.preventDefault(); mapZoom = Math.max(0.4, Math.min(2.5, mapZoom + (e.deltaY > 0 ? -0.1 : 0.1))); updateMapTransform(); }, { passive: false });
     updateMapTransform();
 }
-function updateMapTransform() {
-    const world = document.getElementById('iso-world');
-    world.style.transform = 'translate(' + mapOffsetX + 'px,' + mapOffsetY + 'px) scale(' + mapZoom + ')';
-}
-function updateCoordBadge() {
-    const ts = 140 * mapZoom;
-    document.getElementById('coord-x').textContent = Math.round(-mapOffsetX / ts);
-    document.getElementById('coord-y').textContent = Math.round(-mapOffsetY / ts);
-}
+function updateMapTransform() { document.getElementById('iso-world').style.transform = 'translate(' + mapOffsetX + 'px,' + mapOffsetY + 'px) scale(' + mapZoom + ')'; }
+function updateCoordBadge() { var ts = 140 * mapZoom; document.getElementById('coord-x').textContent = Math.round(-mapOffsetX / ts); document.getElementById('coord-y').textContent = Math.round(-mapOffsetY / ts); }
 
-/* ===== WORLD DATA + MAP RENDER (KORUNDU) ===== */
-socket.on('worldData', (data) => {
-    worldData = data;
-    renderIsometricMap(data);
-    updateResourceUI(data);
-});
+/* ===== SOCKET EVENT HANDLERS (KORUNDU) ===== */
+socket.on('worldData', (data) => { worldData = data; renderIsometricMap(data); updateResourceUI(data); });
 socket.on('charactersData', (data) => { charactersData = data; });
 socket.on('resourceUpdate', (data) => { if (currentPlayer) { Object.assign(currentPlayer, data); updateResourceUI(data); } });
 socket.on('buildingUpdate', (data) => { if (worldData) { worldData.buildings = data; renderIsometricMap(worldData); } });
 socket.on('clansData', (data) => { clansData = data; });
-socket.on('mailCount', (n) => { const b = document.getElementById('badge-mail'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
-socket.on('questCount', (n) => { const b = document.getElementById('badge-quests'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
+socket.on('mailCount', (n) => { var b = document.getElementById('badge-mail'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
+socket.on('questCount', (n) => { var b = document.getElementById('badge-quests'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
 socket.on('attackResult', (d) => { showToast(d.win ? 'Zafer!' : 'Mağlubiyet!', d.win ? 'victory' : 'defeat'); playSound(d.win ? 'success' : 'explosion'); });
 
 function updateResourceUI(d) {
     if (!d) return;
-    const fmt = (n) => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : String(n||0);
+    var fmt = function(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n || 0); };
     document.getElementById('ui-cash').textContent = fmt(d.cash);
     document.getElementById('ui-cargo').textContent = fmt(d.cargo);
     document.getElementById('ui-arms').textContent = fmt(d.arms);
@@ -573,14 +569,12 @@ function updateResourceUI(d) {
 }
 
 function renderIsometricMap(data) {
-    const world = document.getElementById('iso-world');
-    world.innerHTML = '';
+    var world = document.getElementById('iso-world'); world.innerHTML = '';
     if (!data || !data.tiles) return;
-    const ts = 140, half = ts / 2;
-    data.tiles.forEach((row, gy) => {
-        row.forEach((tile, gx) => {
-            const el = document.createElement('div');
-            el.className = 'iso-tile';
+    var ts = 140, half = ts / 2;
+    data.tiles.forEach(function(row, gy) {
+        row.forEach(function(tile, gx) {
+            var el = document.createElement('div'); el.className = 'iso-tile';
             el.style.cssText = '--tile-size:' + ts + 'px;left:' + (gx * half) + 'px;top:' + (gy * half) + 'px;z-index:' + (gx + gy);
             if (tile.type === 'road_h') el.classList.add('t-road-h');
             else if (tile.type === 'road_v') el.classList.add('t-road-v');
@@ -590,62 +584,29 @@ function renderIsometricMap(data) {
             else if (tile.type === 'plaza') el.classList.add('t-plaza');
             else if (tile.type === 'water') el.classList.add('t-water');
             else el.classList.add('t-grass');
-            // Yol çizgileri
-            if (tile.type === 'road_h' || tile.type === 'road_int') {
-                for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe h'; stripe.style.left = (30 + s * 35) + 'px'; stripe.style.top = '50%'; el.appendChild(stripe); }
-            }
-            if (tile.type === 'road_v' || tile.type === 'road_int') {
-                for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe v'; stripe.style.left = '50%'; stripe.style.top = (30 + s * 35) + 'px'; el.appendChild(stripe); }
-            }
+            if (tile.type === 'road_h' || tile.type === 'road_int') { for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe h'; stripe.style.left = (30 + s * 35) + 'px'; stripe.style.top = '50%'; el.appendChild(stripe); } }
+            if (tile.type === 'road_v' || tile.type === 'road_int') { for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe v'; stripe.style.left = '50%'; stripe.style.top = (30 + s * 35) + 'px'; el.appendChild(stripe); } }
             world.appendChild(el);
         });
     });
-    // Binaları çiz
     if (data.buildings) {
-        data.buildings.forEach((b, idx) => {
-            const obj = document.createElement('div');
-            obj.className = 'iso-obj';
-            obj.style.left = (b.x * half) + 'px';
-            obj.style.top = (b.y * half) + 'px';
-            obj.style.zIndex = (b.x + b.y) * 10 + idx;
-            obj.onclick = (e) => { e.stopPropagation(); showRadialMenu(e, b); playSound('click'); };
-            const bw = b.width || 60, bh = b.height || 80, bd = b.depth || 30;
-            const sprite = document.createElement('div'); sprite.className = 'iso-bld';
-            sprite.style.width = bw + 'px'; sprite.style.height = (bh + bd) + 'px';
-            // Ön yüz
-            const front = document.createElement('div'); front.className = 'bld-front';
-            front.style.width = bw + 'px'; front.style.height = bh + 'px';
-            front.style.setProperty('--wall-fill', b.wallColor || '#c9b890');
-            front.style.setProperty('--wall-fill-dark', b.wallColorDark || '#9a8a6a');
+        data.buildings.forEach(function(b, idx) {
+            var obj = document.createElement('div'); obj.className = 'iso-obj';
+            obj.style.left = (b.x * half) + 'px'; obj.style.top = (b.y * half) + 'px'; obj.style.zIndex = (b.x + b.y) * 10 + idx;
+            obj.onclick = function(e) { e.stopPropagation(); showRadialMenu(e, b); playSound('click'); };
+            var bw = b.width || 60, bh = b.height || 80, bd = b.depth || 30;
+            var sprite = document.createElement('div'); sprite.className = 'iso-bld'; sprite.style.width = bw + 'px'; sprite.style.height = (bh + bd) + 'px';
+            var front = document.createElement('div'); front.className = 'bld-front'; front.style.width = bw + 'px'; front.style.height = bh + 'px'; front.style.setProperty('--wall-fill', b.wallColor || '#c9b890'); front.style.setProperty('--wall-fill-dark', b.wallColorDark || '#9a8a6a');
             sprite.appendChild(front);
-            // Yan yüz
-            const side = document.createElement('div'); side.className = 'bld-side';
-            side.style.width = bd + 'px'; side.style.height = bh + 'px';
-            side.style.setProperty('--wall-fill-dark', b.wallColorDark || '#7a6a4a');
+            var side = document.createElement('div'); side.className = 'bld-side'; side.style.width = bd + 'px'; side.style.height = bh + 'px'; side.style.setProperty('--wall-fill-dark', b.wallColorDark || '#7a6a4a');
             sprite.appendChild(side);
-            // Çatı
-            const roof = document.createElement('div'); roof.className = 'bld-roof';
-            roof.style.width = (bw + bd) + 'px'; roof.style.height = bd + 'px';
-            roof.style.clipPath = 'polygon(0 100%, 100% 100%, ' + (100 - (bd/(bw+bd)*100)) + '% 0)'; 
-            roof.style.setProperty('--roof-fill', b.roofColor || '#8a4a2a');
-            roof.style.setProperty('--roof-fill-dark', b.roofColorDark || '#5a2a1a');
+            var roof = document.createElement('div'); roof.className = 'bld-roof'; roof.style.width = (bw + bd) + 'px'; roof.style.height = bd + 'px'; roof.style.clipPath = 'polygon(0 100%, 100% 100%, ' + (100 - (bd / (bw + bd) * 100)) + '% 0)'; roof.style.setProperty('--roof-fill', b.roofColor || '#8a4a2a'); roof.style.setProperty('--roof-fill-dark', b.roofColorDark || '#5a2a1a');
             sprite.appendChild(roof);
-            // Pencereler
-            if (b.windows) {
-                b.windows.forEach(w => {
-                    const win = document.createElement('div'); win.className = 'bld-win';
-                    win.style.left = w.x + 'px'; win.style.top = w.y + 'px'; win.style.width = (w.w || 8) + 'px'; win.style.height = (w.h || 10) + 'px';
-                    front.appendChild(win);
-                });
-            }
+            if (b.windows) { b.windows.forEach(function(w) { var win = document.createElement('div'); win.className = 'bld-win'; win.style.left = w.x + 'px'; win.style.top = w.y + 'px'; win.style.width = (w.w || 8) + 'px'; win.style.height = (w.h || 10) + 'px'; front.appendChild(win); }); }
             obj.appendChild(sprite);
-            // Etiket
-            const label = document.createElement('div'); label.className = 'iso-label'; label.textContent = b.name || 'Bina';
-            obj.appendChild(label);
-            // Badge
-            if (b.badge) { const badge = document.createElement('div'); badge.className = 'iso-badge'; badge.textContent = b.badge; obj.appendChild(badge); }
-            // Seçim glow
-            if (b.selected) { const glow = document.createElement('div'); glow.className = 'bld-glow'; glow.style.width = (bw + 40) + 'px'; glow.style.height = '30px'; obj.appendChild(glow); }
+            var label = document.createElement('div'); label.className = 'iso-label'; label.textContent = b.name || 'Bina'; obj.appendChild(label);
+            if (b.badge) { var badge = document.createElement('div'); badge.className = 'iso-badge'; badge.textContent = b.badge; obj.appendChild(badge); }
+            if (b.selected) { var glow = document.createElement('div'); glow.className = 'bld-glow'; glow.style.width = (bw + 40) + 'px'; glow.style.height = '30px'; obj.appendChild(glow); }
             world.appendChild(obj);
         });
     }
@@ -653,118 +614,68 @@ function renderIsometricMap(data) {
 
 /* ===== RADIAL MENU (KORUNDU) ===== */
 function showRadialMenu(e, building) {
-    const menu = document.getElementById('radial-menu');
-    menu.innerHTML = '';
-    const items = [
-        { icon: '🔍', label: 'Detay', action: () => openBaseModal() },
-        { icon: '⬆️', label: 'Yükselt', action: () => { socket.emit('upgradeBuilding', { id: building.id }); showToast('Yükseltme başladı', 'info'); } },
-        { icon: '👥', label: 'Topla', action: () => { socket.emit('collectResources', { id: building.id }); playSound('success'); } },
-        { icon: '⚡', label: 'Hızlandır', action: () => { socket.emit('speedUp', { id: building.id }); showToast('Hızlandırıldı!', 'success'); } }
+    var menu = document.getElementById('radial-menu'); menu.innerHTML = '';
+    var items = [
+        { icon: '🔍', label: 'Detay', action: function() { openBaseModal(); } },
+        { icon: '⬆️', label: 'Yükselt', action: function() { socket.emit('upgradeBuilding', { id: building.id }); showToast('Yükseltme başladı', 'info'); } },
+        { icon: '👥', label: 'Topla', action: function() { socket.emit('collectResources', { id: building.id }); playSound('success'); } },
+        { icon: '⚡', label: 'Hızlandır', action: function() { socket.emit('speedUp', { id: building.id }); showToast('Hızlandırıldı!', 'success'); } }
     ];
-    items.forEach((item, i) => {
-        const angle = (i / items.length) * Math.PI * 2 - Math.PI / 2;
-        const dist = 60;
-        const btn = document.createElement('div'); btn.className = 'radial-btn';
+    items.forEach(function(item, i) {
+        var angle = (i / items.length) * Math.PI * 2 - Math.PI / 2, dist = 60;
+        var btn = document.createElement('div'); btn.className = 'radial-btn';
         btn.style.left = e.clientX + 'px'; btn.style.top = e.clientY + 'px';
-        btn.style.transform = 'translate(-50%,-50%) scale(0)';
-        btn.style.transitionDelay = (i * 0.04) + 's';
+        btn.style.transform = 'translate(-50%,-50%) scale(0)'; btn.style.transitionDelay = (i * 0.04) + 's';
         btn.innerHTML = item.icon + '<span class="radial-btn-label">' + item.label + '</span>';
-        btn.onclick = () => { hideRadialMenu(); item.action(); };
+        btn.onclick = function() { hideRadialMenu(); item.action(); };
         menu.appendChild(btn);
-        requestAnimationFrame(() => { btn.style.left = (e.clientX + Math.cos(angle) * dist) + 'px'; btn.style.top = (e.clientY + Math.sin(angle) * dist) + 'px'; });
+        requestAnimationFrame(function() { btn.style.left = (e.clientX + Math.cos(angle) * dist) + 'px'; btn.style.top = (e.clientY + Math.sin(angle) * dist) + 'px'; });
     });
     menu.classList.add('active');
-    setTimeout(() => { document.addEventListener('click', hideRadialMenu, { once: true }); }, 50);
+    setTimeout(function() { document.addEventListener('click', hideRadialMenu, { once: true }); }, 50);
 }
 function hideRadialMenu() { document.getElementById('radial-menu').classList.remove('active'); }
 
 /* ===== MODALS (KORUNDU) ===== */
 function openModal(type) {
-    const box = document.getElementById('modal-box');
-    let html = '<h2>';
-    if (type === 'profile') html += 'Profil & Görevler';
-    else if (type === 'mail') html += 'Posta Kutusu';
-    else if (type === 'leaderboard') html += 'Sıralama';
-    else if (type === 'train') html += 'Eğitim Kampı';
-    else if (type === 'hospital') html += 'Hastane';
-    else if (type === 'clan') html += 'Klan';
-    else html += type;
+    var box = document.getElementById('modal-box'); var html = '<h2>';
+    if (type === 'profile') html += 'Profil & Görevler'; else if (type === 'mail') html += 'Posta Kutusu'; else if (type === 'leaderboard') html += 'Sıralama'; else if (type === 'train') html += 'Eğitim Kampı'; else if (type === 'hospital') html += 'Hastane'; else if (type === 'clan') html += 'Klan'; else html += type;
     html += '</h2>';
-    if (type === 'train') {
-        html += '<div class="info-row"><span>Piyade</span><span>💰 500 💎 100</span></div>';
-        html += '<div class="info-row"><span>Müzisyen</span><span>💰 1200 💎 300</span></div>';
-        html += '<div class="info-row"><span>Keskin Nişancı</span><span>💰 3000 💎 800</span></div>';
-        html += '<div class="info-row"><span>Zırhlı Araç</span><span>💰 8000 💎 2000</span></div>';
-        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'trainCrew\',{type:\'infantry\',count:10});closeModal();showToast(\'Eğitim başladı!\',\'success\')">10 Piyade Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    } else if (type === 'hospital') {
-        html += '<div class="info-row"><span>Mevcut Yaralı</span><span style="color:var(--red);">' + (currentPlayer?.wounded || 0) + '</span></div>';
-        html += '<div class="info-row"><span>İyileştirme Maliyeti</span><span>💰 ' + ((currentPlayer?.wounded || 0) * 50) + '</span></div>';
-        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'healAll\');closeModal();showToast(\'İyileştirme başladı!\',\'success\')">Tümünü İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    } else if (type === 'clan') {
-        html += '<div class="input-group"><label>Klan Adı Ara</label><input placeholder="Klan adı..." id="clan-search"></div>';
-        html += '<div id="clan-list" style="margin-top:10px;"></div>';
-        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'searchClan\',{name:document.getElementById(\'clan-search\').value});">Ara</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    } else if (type === 'leaderboard') {
-        html += '<div class="info-row"><span>1. PatronX</span><span>⚡ 1.2M</span></div><div class="info-row"><span>2. ShadowKing</span><span>⚡ 980K</span></div><div class="info-row"><span>3. DarkLord</span><span>⚡ 750K</span></div><div class="info-row"><span>4. IronFist</span><span>⚡ 620K</span></div><div class="info-row"><span>5. GhostRider</span><span>⚡ 510K</span></div>';
-        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    } else if (type === 'mail') {
-        html += '<div style="color:#aaa;text-align:center;padding:20px;">Posta kutusu boş</div>';
-        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    } else if (type === 'profile') {
-        html += '<div class="info-row"><span>Kullanıcı</span><span>' + (currentPlayer?.username || '-') + '</span></div>';
-        html += '<div class="info-row"><span>Seviye</span><span>' + (currentPlayer?.level || 1) + '</span></div>';
-        html += '<div class="info-row"><span>Güç</span><span>⚡ ' + (currentPlayer?.power || 0) + '</span></div>';
-        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    }
-    box.innerHTML = html;
-    document.getElementById('modal-overlay').style.display = 'flex';
+    if (type === 'train') { html += '<div class="info-row"><span>Piyade</span><span>💰 500 💎 100</span></div><div class="info-row"><span>Müzisyen</span><span>💰 1200 💎 300</span></div><div class="info-row"><span>Keskin Nişancı</span><span>💰 3000 💎 800</span></div><div class="info-row"><span>Zırhlı Araç</span><span>💰 8000 💎 2000</span></div><div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'trainCrew\',{type:\'infantry\',count:10});closeModal();showToast(\'Eğitim başladı!\',\'success\')">10 Piyade Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    else if (type === 'hospital') { html += '<div class="info-row"><span>Mevcut Yaralı</span><span style="color:var(--red);">' + (currentPlayer ? currentPlayer.wounded || 0 : 0) + '</span></div><div class="info-row"><span>İyileştirme Maliyeti</span><span>💰 ' + ((currentPlayer ? currentPlayer.wounded || 0 : 0) * 50) + '</span></div><div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'healAll\');closeModal();showToast(\'İyileştirme başladı!\',\'success\')">Tümünü İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    else if (type === 'clan') { html += '<div class="input-group"><label>Klan Adı Ara</label><input placeholder="Klan adı..." id="clan-search"></div><div id="clan-list" style="margin-top:10px;"></div><div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'searchClan\',{name:document.getElementById(\'clan-search\').value});">Ara</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    else if (type === 'leaderboard') { html += '<div class="info-row"><span>1. PatronX</span><span>⚡ 1.2M</span></div><div class="info-row"><span>2. ShadowKing</span><span>⚡ 980K</span></div><div class="info-row"><span>3. DarkLord</span><span>⚡ 750K</span></div><div class="info-row"><span>4. IronFist</span><span>⚡ 620K</span></div><div class="info-row"><span>5. GhostRider</span><span>⚡ 510K</span></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    else if (type === 'mail') { html += '<div style="color:#aaa;text-align:center;padding:20px;">Posta kutusu boş</div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    else if (type === 'profile') { html += '<div class="info-row"><span>Kullanıcı</span><span>' + (currentPlayer ? currentPlayer.username || '-' : '-') + '</span></div><div class="info-row"><span>Seviye</span><span>' + (currentPlayer ? currentPlayer.level || 1 : 1) + '</span></div><div class="info-row"><span>Güç</span><span>⚡ ' + (currentPlayer ? currentPlayer.power || 0 : 0) + '</span></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>'; }
+    box.innerHTML = html; document.getElementById('modal-overlay').style.display = 'flex';
 }
 function openBaseModal() {
     if (!worldData || !worldData.buildings) return;
-    const base = worldData.buildings.find(b => b.type === 'mansion');
-    if (!base) return;
-    const box = document.getElementById('modal-box');
-    let html = '<h2>' + (base.name || 'Mansion') + ' — Seviye ' + (base.level || 1) + '</h2>';
+    var base = worldData.buildings.find(function(b) { return b.type === 'mansion'; }); if (!base) return;
+    var box = document.getElementById('modal-box');
+    var html = '<h2>' + (base.name || 'Mansion') + ' — Seviye ' + (base.level || 1) + '</h2>';
     html += '<div class="res-bar-mini"><span class="name">HP</span><div class="progress"><div class="progress-fill" style="width:' + ((base.hp || 100) / (base.maxHp || 100) * 100) + '%"></div></div><span class="value">' + (base.hp || 100) + '/' + (base.maxHp || 100) + '</span></div>';
     html += '<div class="res-bar-mini"><span class="name">Üretim</span><div class="progress"><div class="progress-fill" style="width:' + (base.prodPct || 0) + '%"></div></div><span class="value">' + (base.prodPct || 0) + '%</span></div>';
     html += '<div class="info-row"><span>Yükseltme Maliyeti</span><span>💰 ' + (base.upgradeCost || '?') + '</span></div>';
     html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'upgradeBuilding\',{id:\'' + base.id + '\'});closeModal();showToast(\'Yükseltme başladı!\',\'success\')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    box.innerHTML = html;
-    document.getElementById('modal-overlay').style.display = 'flex';
+    box.innerHTML = html; document.getElementById('modal-overlay').style.display = 'flex';
 }
 function openInvestCenter() {
-    const box = document.getElementById('modal-box');
-    let html = '<h2>Yatırım Merkezi</h2>';
-    html += '<div class="info-row"><span>Ekonomi Bonusu</span><span>Seviye ' + (currentPlayer?.investEcon || 0) + '</span></div>';
-    html += '<div class="info-row"><span>Askeri Bonusu</span><span>Seviye ' + (currentPlayer?.investMilitary || 0) + '</span></div>';
-    html += '<div class="info-row"><span>Kaynak Bonusu</span><span>Seviye ' + (currentPlayer?.investResource || 0) + '</span></div>';
-    html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'invest\',{type:\'econ\'});closeModal();showToast(\'Yatırım yapıldı!\',\'success\')">Ekonomi Yatır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    box.innerHTML = html;
+    var box = document.getElementById('modal-box');
+    box.innerHTML = '<h2>Yatırım Merkezi</h2><div class="info-row"><span>Ekonomi Bonusu</span><span>Seviye ' + (currentPlayer ? currentPlayer.investEcon || 0 : 0) + '</span></div><div class="info-row"><span>Askeri Bonusu</span><span>Seviye ' + (currentPlayer ? currentPlayer.investMilitary || 0 : 0) + '</span></div><div class="info-row"><span>Kaynak Bonusu</span><span>Seviye ' + (currentPlayer ? currentPlayer.investResource || 0 : 0) + '</span></div><div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'invest\',{type:\'econ\'});closeModal();showToast(\'Yatırım yapıldı!\',\'success\')">Ekonomi Yatır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
     document.getElementById('modal-overlay').style.display = 'flex';
 }
 function openDiner() {
-    const box = document.getElementById('modal-box');
-    let html = '<h2>Lokanta</h2>';
-    html += '<div class="info-row"><span>Kahve</span><span>⚡ +50 — 💰 200</span></div>';
-    html += '<div class="info-row"><span>Steak</span><span>⚡ +150 — 💰 500</span></div>';
-    html += '<div class="info-row"><span>Şampanya</span><span>⚡ +500 — 💰 2000</span></div>';
-    html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'dinerBuy\',{item:\'coffee\'});closeModal();showToast(\'Kahve alındı!\',\'success\')">Kahve Al</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    box.innerHTML = html;
+    var box = document.getElementById('modal-box');
+    box.innerHTML = '<h2>Lokanta</h2><div class="info-row"><span>Kahve</span><span>⚡ +50 — 💰 200</span></div><div class="info-row"><span>Steak</span><span>⚡ +150 — 💰 500</span></div><div class="info-row"><span>Şampanya</span><span>⚡ +500 — 💰 2000</span></div><div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'dinerBuy\',{item:\'coffee\'});closeModal();showToast(\'Kahve alındı!\',\'success\')">Kahve Al</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
     document.getElementById('modal-overlay').style.display = 'flex';
 }
 function openHeroes() {
-    const box = document.getElementById('modal-box');
-    let html = '<h2>Kahramanlar</h2>';
-    if (currentPlayer?.heroes && currentPlayer.heroes.length) {
-        currentPlayer.heroes.forEach(h => {
-            html += '<div class="info-row"><span>' + (icons[h.id] || '🧑') + ' ' + h.name + '</span><span>Seviye ' + h.level + '</span></div>';
-        });
-    } else {
-        html += '<div style="color:#aaa;text-align:center;padding:20px;">Henüz kahraman yok</div>';
-    }
+    var box = document.getElementById('modal-box'); var html = '<h2>Kahramanlar</h2>';
+    if (currentPlayer && currentPlayer.heroes && currentPlayer.heroes.length) { currentPlayer.heroes.forEach(function(h) { html += '<div class="info-row"><span>' + (icons[h.id] || '🧑') + ' ' + h.name + '</span><span>Seviye ' + h.level + '</span></div>'; }); }
+    else { html += '<div style="color:#aaa;text-align:center;padding:20px;">Henüz kahraman yok</div>'; }
     html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
-    box.innerHTML = html;
-    document.getElementById('modal-overlay').style.display = 'flex';
+    box.innerHTML = html; document.getElementById('modal-overlay').style.display = 'flex';
 }
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
@@ -772,72 +683,51 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 /* ===== WORLD MAP (KORUNDU) ===== */
 function openWorldMap() {
     document.getElementById('world-map-overlay').classList.add('active');
-    const cv = document.getElementById('world-map-canvas');
-    const cx = cv.getContext('2d');
+    var cv = document.getElementById('world-map-canvas'), cx = cv.getContext('2d');
     cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight;
-    const W = cv.width, H = cv.height;
-    cx.fillStyle = '#0a1218'; cx.fillRect(0, 0, W, H);
-    // Kıta şekilleri
-    cx.fillStyle = '#1a3020';
-    cx.beginPath(); cx.ellipse(W*0.3, H*0.35, W*0.15, H*0.2, 0.3, 0, Math.PI*2); cx.fill();
-    cx.beginPath(); cx.ellipse(W*0.65, H*0.5, W*0.18, H*0.22, -0.2, 0, Math.PI*2); cx.fill();
-    cx.beginPath(); cx.ellipse(W*0.5, H*0.75, W*0.12, H*0.15, 0.1, 0, Math.PI*2); cx.fill();
-    // Oyuncu noktaları
-    if (worldData && worldData.players) {
-        worldData.players.forEach(p => {
-            const px = W * 0.1 + (p.x || 0) * (W * 0.8 / 100);
-            const py = H * 0.1 + (p.y || 0) * (H * 0.8 / 100);
-            cx.fillStyle = p.color || '#ff6b00';
-            cx.beginPath(); cx.arc(px, py, 5, 0, Math.PI*2); cx.fill();
-            cx.fillStyle = 'rgba(255,255,255,0.7)'; cx.font = '10px Rajdhani'; cx.fillText(p.name || '?', px + 8, py + 4);
-        });
-    }
-    // Kendi konum
-    if (currentPlayer && currentPlayer.x != null) {
-        const mx = W * 0.1 + currentPlayer.x * (W * 0.8 / 100);
-        const my = H * 0.1 + currentPlayer.y * (H * 0.8 / 100);
-        cx.fillStyle = '#ffd700'; cx.beginPath(); cx.arc(mx, my, 7, 0, Math.PI*2); cx.fill();
-        cx.strokeStyle = '#ffd700'; cx.lineWidth = 2; cx.beginPath(); cx.arc(mx, my, 12, 0, Math.PI*2); cx.stroke();
-    }
+    var W = cv.width, H = cv.height; cx.fillStyle = '#0a1218'; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = '#1a3020'; cx.beginPath(); cx.ellipse(W * 0.3, H * 0.35, W * 0.15, H * 0.2, 0.3, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.ellipse(W * 0.65, H * 0.5, W * 0.18, H * 0.22, -0.2, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.ellipse(W * 0.5, H * 0.75, W * 0.12, H * 0.15, 0.1, 0, Math.PI * 2); cx.fill();
+    if (worldData && worldData.players) { worldData.players.forEach(function(p) { var px = W * 0.1 + (p.x || 0) * (W * 0.8 / 100), py = H * 0.1 + (p.y || 0) * (H * 0.8 / 100); cx.fillStyle = p.color || '#ff6b00'; cx.beginPath(); cx.arc(px, py, 5, 0, Math.PI * 2); cx.fill(); cx.fillStyle = 'rgba(255,255,255,0.7)'; cx.font = '10px Rajdhani'; cx.fillText(p.name || '?', px + 8, py + 4); }); }
+    if (currentPlayer && currentPlayer.x != null) { var mx = W * 0.1 + currentPlayer.x * (W * 0.8 / 100), my = H * 0.1 + currentPlayer.y * (H * 0.8 / 100); cx.fillStyle = '#ffd700'; cx.beginPath(); cx.arc(mx, my, 7, 0, Math.PI * 2); cx.fill(); cx.strokeStyle = '#ffd700'; cx.lineWidth = 2; cx.beginPath(); cx.arc(mx, my, 12, 0, Math.PI * 2); cx.stroke(); }
     playSound('click');
 }
 function closeWorldMap() { document.getElementById('world-map-overlay').classList.remove('active'); }
 
 /* ===== TOAST (KORUNDU) ===== */
 function showToast(msg, type) {
-    const c = document.getElementById('toast-container');
-    const t = document.createElement('div'); t.className = 'toast ' + (type || 'info'); t.textContent = msg;
-    c.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; t.style.transition = '0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+    var c = document.getElementById('toast-container'), t = document.createElement('div'); t.className = 'toast ' + (type || 'info'); t.textContent = msg;
+    c.appendChild(t); setTimeout(function() { t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; t.style.transition = '0.3s'; setTimeout(function() { t.remove(); }, 300); }, 3000);
 }
 
 /* ===== TUTORIAL (KORUNDU) ===== */
-let tutorialStep = 0;
-const tutorialSteps = ['tut1_title', 'tut2_title', 'tut3_title', 'tut4_title', 'tut5_title', 'tut6_title'];
-function startTutorial() {
-    if (localStorage.getItem('atlas_tutorial_done')) return;
-    tutorialStep = 0; showTutorialStep();
-}
-function showTutorialStep() {
-    if (tutorialStep >= tutorialSteps.length) { skipTutorial(); return; }
-    const key = tutorialSteps[tutorialStep];
-    document.getElementById('tut-title').textContent = I18N[currentLang][key] || key;
-    document.getElementById('tut-body').textContent = I18N[currentLang][key.replace('_title', '_body')] || '';
-    document.getElementById('tut-next').textContent = I18N[currentLang].next;
-    document.getElementById('tutorial-overlay').classList.add('active');
-}
+var tutorialStep = 0;
+var tutorialSteps = ['tut1_title', 'tut2_title', 'tut3_title', 'tut4_title', 'tut5_title', 'tut6_title'];
+function startTutorial() { if (localStorage.getItem('atlas_tutorial_done')) return; tutorialStep = 0; showTutorialStep(); }
+function showTutorialStep() { if (tutorialStep >= tutorialSteps.length) { skipTutorial(); return; } var key = tutorialSteps[tutorialStep]; document.getElementById('tut-title').textContent = I18N[currentLang][key] || key; document.getElementById('tut-body').textContent = I18N[currentLang][key.replace('_title', '_body')] || ''; document.getElementById('tut-next').textContent = I18N[currentLang].next; document.getElementById('tutorial-overlay').classList.add('active'); }
 function nextTutorial() { tutorialStep++; showTutorialStep(); playSound('click'); }
 function skipTutorial() { document.getElementById('tutorial-overlay').classList.remove('active'); localStorage.setItem('atlas_tutorial_done', '1'); }
 
-/* ===== AUTO-LOGIN CHECK (KORUNDU) ===== */
-socket.on('connect', () => {
-    const token = localStorage.getItem('atlas_token');
-    if (token) socket.emit('autoLogin', { token });
-    else document.getElementById('auth-screen').style.display = 'flex';
+/* ===== BAĞLANTI — Auth ekranı her durumda açılır ===== */
+socket.on('connect', function() {
+    document.getElementById('offline-warn').classList.remove('show');
+    var token = localStorage.getItem('atlas_token');
+    if (token) socket.emit('autoLogin', { token: token });
+    // Token yoksa auth zaten açık (display:none değil artık)
 });
-socket.on('autoLoginFailed', () => { document.getElementById('auth-screen').style.display = 'flex'; });
-socket.on('disconnect', () => { showToast('Bağlantı kesildi', 'error'); });
-socket.on('error', (msg) => { showToast(msg || 'Hata oluştu', 'error'); playSound('error'); });
+socket.on('autoLoginFailed', function() {
+    // Auth zaten görünür, bir şey yapmaya gerek yok
+});
+socket.on('disconnect', function() { showToast('Bağlantı kesildi', 'error'); });
+socket.on('error', function(msg) { showToast(msg || 'Hata oluştu', 'error'); playSound('error'); });
+
+// Socket.IO yüklenemediyse veya 3 saniye içinde bağlanmadıysa, offline uyarı göster
+setTimeout(function() {
+    if (!socketConnected) {
+        document.getElementById('offline-warn').classList.add('show');
+    }
+}, 3000);
 
 /* ===== INIT ===== */
 setLang(currentLang);
