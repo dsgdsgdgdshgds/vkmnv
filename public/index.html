@@ -1,495 +1,846 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AtlasWarfare</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Oswald:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-:root{--bg:#08080d;--fg:#e8e0d0;--muted:#7a7060;--accent:#d4a017;--accent2:#b71c1c;--card:rgba(10,10,16,0.93);--border:rgba(212,160,23,0.3);--input-bg:rgba(255,255,255,0.03);--input-border:rgba(255,255,255,0.08);--input-focus:rgba(212,160,23,0.5)}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AtlasWarfare - Dünyayı Fethet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff6b00;
+            --secondary: #00d4ff;
+            --dark: #0a0a0a;
+            --panel: rgba(15, 15, 20, 0.95);
+            --panel-border: rgba(255, 107, 0, 0.3);
+            --gold: #ffd700;
+            --red: #ff3333;
+            --green: #00cc44;
+            --blue: #3399ff;
+            --grass-a: #6fa84a;
+            --grass-b: #5a9540;
+            --grass-c: #a0d050;
+            --grass-d: #6a9a28;
+            --road: #2a2a30;
+            --road-dark: #1a1a20;
+            --road-light: #3a3a44;
+            --road-line: #ffd84a;
+            --road-line-dim: #c9a030;
+            --curb: #5a5a64;
+            --curb-dark: #3a3a44;
+            --water: #1a4a6a;
+            --water-light: #2a6a8a;
+            --neon-green: #00ff66;
+            --neon-red: #ff2244;
+            --neon-purple: #b033ff;
+            --neon-orange: #ff8800;
+            --neon-blue: #33ccff;
+            --grass-outline: #2a5a18;
+            --road-outline: rgba(0,0,0,0.4);
+            --void-fill: #07080a;
+            --void-fill-dark: #020203;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Rajdhani', sans-serif; background: #0c0e0a; color: white; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
 
-/* === PROCEDURAL KENT HARİTASI ZEMİNİ === */
-#cityGround{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
-.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;background:radial-gradient(ellipse at 50% 40%,transparent 15%,rgba(5,5,10,0.6) 55%,rgba(5,5,10,0.92) 100%),linear-gradient(180deg,rgba(5,5,10,0.5) 0%,transparent 25%,transparent 70%,rgba(5,5,10,0.7) 100%);pointer-events:none}
+        /* ===== AUTH SCREEN ===== */
+        #auth-screen { display: none; justify-content: center; align-items: center; height: 100vh; width: 100vw; position: relative; z-index: 100; overflow: hidden; }
+        /* Procedural kent haritası zemini — Unsplash yerine */
+        #auth-ground { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        .auth-overlay { position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at center, rgba(10,10,18,0.55) 0%, rgba(5,5,10,0.85) 60%, rgba(2,2,5,0.95) 100%); pointer-events: none; }
+        .auth-box { background: var(--panel); border: 2px solid var(--panel-border); border-radius: 12px; padding: 40px; width: 420px; box-shadow: 0 0 50px rgba(255, 107, 0, 0.2); text-align: center; position: relative; z-index: 2; backdrop-filter: blur(15px); animation: scaleIn 0.5s; }
+        .game-title { font-family: 'Cinzel', serif; font-size: 2.8rem; font-weight: 900; background: linear-gradient(45deg, var(--primary), var(--gold), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(255, 107, 0, 0.5); margin-bottom: 5px; letter-spacing: 3px; }
+        .game-subtitle { color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 4px; opacity: 0.8; }
+        .auth-input { width: 100%; padding: 12px 15px; margin: 8px 0; background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 6px; color: white; font-family: 'Rajdhani'; font-size: 1.05rem; outline: none; transition: 0.3s; }
+        .auth-input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(255,107,0,0.3); }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; color: white; font-weight: 700; font-size: 1.05rem; cursor: pointer; margin-top: 8px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-family: 'Rajdhani'; }
+        .btn-primary { background: linear-gradient(45deg, var(--primary), #cc5500); border: 1px solid var(--gold); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(255,107,0,0.4); }
+        .btn-secondary { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
+        .btn-secondary:hover { background: rgba(0,212,255,0.1); }
+        .error-msg { color: var(--red); margin-top: 8px; font-weight: 600; display: none; }
+        .success-msg { color: var(--green); margin-top: 8px; font-weight: 600; display: none; }
+        .auth-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .auth-tab { flex: 1; padding: 8px; background: rgba(0,0,0,0.4); border: 1px solid #333; color: #aaa; cursor: pointer; border-radius: 4px; font-family: 'Rajdhani'; font-weight: 600; }
+        .auth-tab.active { background: rgba(255,107,0,0.2); border-color: var(--primary); color: white; }
 
-.main-wrapper{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+        /* ===== CHAR SELECT ===== */
+        #char-select-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, #1a1a2e, #000); z-index: 80; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
+        .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 900px; }
+        .char-card { background: var(--panel); border: 2px solid #333; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.3s; text-align: center; }
+        .char-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,107,0,0.3); }
+        .char-card.selected { border-color: var(--gold); background: rgba(255,215,0,0.1); box-shadow: 0 0 20px var(--gold); }
+        .char-icon { font-size: 3rem; margin-bottom: 8px; }
+        .char-name { font-family: 'Cinzel'; font-size: 0.95rem; color: var(--primary); margin-bottom: 5px; }
+        .color-grid { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+        .color-swatch { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: 0.3s; }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.selected { border-color: white; box-shadow: 0 0 20px currentColor; }
 
-.logo-section{text-align:center;margin-bottom:32px}
-.logo-icon{font-size:52px;color:var(--accent);text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);margin-bottom:12px;animation:logoPulse 3s ease-in-out infinite}
-@keyframes logoPulse{0%,100%{text-shadow:0 0 30px rgba(212,160,23,0.5),0 0 60px rgba(212,160,23,0.2);filter:brightness(1)}50%{text-shadow:0 0 50px rgba(212,160,23,0.8),0 0 100px rgba(212,160,23,0.3);filter:brightness(1.15)}}
-.logo-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(34px,7vw,68px);color:var(--accent);letter-spacing:5px;text-transform:uppercase;line-height:1;text-shadow:0 2px 0 #8b6914,0 4px 10px rgba(0,0,0,0.9),0 0 40px rgba(212,160,23,0.25)}
-.logo-subtitle{font-family:'Oswald',sans-serif;font-weight:300;font-size:clamp(11px,2.2vw,16px);color:var(--muted);letter-spacing:10px;text-transform:uppercase;margin-top:10px}
+        /* ===== GAME SCREEN ===== */
+        #game-screen { display: none; height: 100vh; width: 100vw; position: relative; background: #111; overflow: hidden; }
 
-/* Panel */
-.auth-panel{width:100%;max-width:430px;background:var(--card);border:1px solid var(--border);border-radius:5px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 1px rgba(212,160,23,0.08),0 24px 80px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.03);overflow:hidden}
-.auth-panel::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent 5%,var(--accent) 50%,transparent 95%)}
+        /* ===== 2.5D ISOMETRIC MAP CONTAINER ===== */
+        #map-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: #1a2a1a; cursor: grab; touch-action: none; }
+        #map-container.grabbing { cursor: grabbing; }
+        #iso-world { position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
 
-.tabs{display:flex;border-bottom:1px solid rgba(212,160,23,0.12)}
-.tab-btn{flex:1;padding:15px 0;background:transparent;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:3px;text-transform:uppercase;cursor:pointer;position:relative;transition:color .3s}
-.tab-btn:hover{color:var(--fg)}
-.tab-btn.active{color:var(--accent)}
-.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:20%;width:60%;height:2px;background:var(--accent);box-shadow:0 0 12px rgba(212,160,23,0.5)}
+        .iso-tile { position: absolute; width: var(--tile-size, 140px); height: var(--tile-size, 140px); transform: translate(-50%, -50%) rotate(45deg); overflow: hidden; }
+        .iso-tile.t-road-h { background: linear-gradient(180deg, rgba(80,80,90,0.5) 0%, rgba(20,20,28,0.0) 18%, rgba(20,20,28,0.0) 82%, rgba(0,0,0,0.6) 100%), linear-gradient(180deg, var(--road-light) 0%, var(--road) 50%, var(--road-dark) 100%); box-shadow: inset 0 0 0 2px var(--road-outline); }
+        .iso-tile.t-road-v { background: linear-gradient(90deg, rgba(80,80,90,0.5) 0%, rgba(20,20,28,0.0) 18%, rgba(20,20,28,0.0) 82%, rgba(0,0,0,0.6) 100%), linear-gradient(90deg, var(--road-light) 0%, var(--road) 50%, var(--road-dark) 100%); box-shadow: inset 0 0 0 2px var(--road-outline); }
+        .iso-tile.t-road-int { background: radial-gradient(ellipse at center, rgba(80,80,100,0.4) 0%, transparent 50%), radial-gradient(ellipse at center, var(--road) 0%, var(--road-dark) 80%); box-shadow: inset 0 0 0 2px var(--road-outline); }
+        .iso-tile.t-grass { background: radial-gradient(ellipse at 30% 40%, var(--grass-c) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, var(--grass-d) 0%, transparent 45%), var(--grass-a); box-shadow: inset 0 0 0 3px var(--grass-outline), 0 2px 3px rgba(0,0,0,0.3); }
+        .iso-tile.t-grass::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 15% 20%, #8aca6a 1px, transparent 2px), radial-gradient(circle at 40% 30%, #4a8a28 0.8px, transparent 1.6px), radial-gradient(circle at 65% 25%, #6aaa3a 0.8px, transparent 1.6px), radial-gradient(circle at 85% 35%, #3a6a18 1px, transparent 2px), radial-gradient(circle at 25% 60%, #5a9a30 0.8px, transparent 1.6px), radial-gradient(circle at 55% 70%, #4a8a28 0.8px, transparent 1.6px), radial-gradient(circle at 80% 80%, #3a6a18 1px, transparent 2px), radial-gradient(circle at 10% 85%, #5a9a30 0.8px, transparent 1.6px); }
+        .iso-tile.t-void { background: radial-gradient(ellipse at 35% 30%, rgba(20,22,26,0.55) 0%, transparent 55%), linear-gradient(180deg, var(--void-fill) 0%, var(--void-fill-dark) 100%); box-shadow: inset 0 0 0 2px rgba(0,0,0,0.6); }
+        .iso-tile.t-plaza { background: linear-gradient(45deg, #d4b870 25%, transparent 25%) 0 0/18px 18px, linear-gradient(-45deg, #b89858 25%, transparent 25%) 0 9px/18px 18px, #e0c890; }
+        .iso-tile.t-water { background: radial-gradient(ellipse at 30% 30%, rgba(80,150,200,0.25) 0%, transparent 50%), linear-gradient(135deg, var(--water-light) 0%, var(--water) 100%); box-shadow: inset 0 0 16px rgba(0,0,0,0.5); animation: waterWave 5s ease-in-out infinite; }
+        @keyframes waterWave { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.15); } }
 
-.form-container{padding:28px 30px 30px}
-.form-section{display:none}.form-section.active{display:block}
+        .iso-road-stripe { position: absolute; background: var(--road-line); transform-origin: center; box-shadow: 0 0 2px rgba(255,216,74,0.4); }
+        .iso-road-stripe.h { width: 4px; height: 16px; transform: translate(-50%, -50%) rotate(45deg); border-radius: 1px; }
+        .iso-road-stripe.v { width: 16px; height: 4px; transform: translate(-50%, -50%) rotate(45deg); border-radius: 1px; }
+        .iso-curb { position: absolute; background: linear-gradient(180deg, #7a7a84 0%, var(--curb) 100%); transform-origin: center; box-shadow: 0 1px 2px rgba(0,0,0,0.6); }
 
-.input-group{margin-bottom:16px;position:relative}
-.input-group i.fi{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;transition:color .3s;pointer-events:none}
-.input-group input{width:100%;padding:13px 42px 13px 42px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:3px;color:var(--fg);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.8px;outline:none;transition:border-color .3s,box-shadow .3s,background .3s}
-.input-group input::placeholder{color:rgba(255,255,255,0.18);font-weight:300}
-.input-group input:focus{border-color:var(--input-focus);background:rgba(255,255,255,0.05);box-shadow:0 0 0 3px rgba(212,160,23,0.07)}
-.input-group input:focus~i.fi{color:var(--accent)}
-.input-group input.input-error{border-color:rgba(183,28,28,0.6)!important;box-shadow:0 0 0 3px rgba(183,28,28,0.08)!important}
+        .iso-obj { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); cursor: pointer; }
+        .iso-obj:hover { z-index: 99999 !important; filter: brightness(1.1); }
+        .iso-obj:hover .iso-label { border-color: var(--gold); transform: scale(1.05); }
+        .iso-bld { position: relative; filter: drop-shadow(0 6px 6px rgba(0,0,0,0.5)); transition: filter 0.2s; }
+        .iso-obj:hover .iso-bld { filter: drop-shadow(0 8px 14px rgba(255,180,60,0.5)); }
+        .bld-yard { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); background: var(--grass-b); clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+        .bld-front { position: absolute; bottom: 0; left: 0; background: linear-gradient(180deg, var(--wall-fill, #c9b890) 0%, var(--wall-fill-dark, #9a8a6a) 100%); }
+        .bld-side { position: absolute; bottom: 0; left: 50%; background: linear-gradient(180deg, var(--wall-fill-dark, #7a6a4a) 0%, #4a3a2a 100%); }
+        .bld-roof { position: absolute; top: 0; left: 0; background: linear-gradient(135deg, var(--roof-fill, #8a4a2a) 0%, var(--roof-fill-dark, #5a2a1a) 100%); }
+        .bld-win { position: absolute; background: linear-gradient(180deg, #ffe0a0 0%, #ff9a3a 100%); box-shadow: 0 0 4px rgba(255,180,80,0.6); }
+        .bld-door { position: absolute; background: linear-gradient(180deg, #5a3a1a 0%, #3a1a0a 100%); border: 1px solid #2a1a0a; }
+        .iso-label { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); background: rgba(20, 14, 8, 0.92); padding: 3px 10px; border-radius: 5px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; border: 1.5px solid var(--gold); color: #fff; text-shadow: 1px 1px 0 #000; font-family: 'Cinzel', serif; letter-spacing: 0.5px; transition: transform 0.2s; }
+        .iso-badge { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 1.6rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); animation: floatBadge 2.5s ease-in-out infinite; }
+        @keyframes floatBadge { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-4px)} }
+        .bld-glow { position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(255,215,0,0.5) 0%, transparent 70%); border-radius: 50%; pointer-events: none; animation: pulseGlow 2s ease-in-out infinite; }
+        @keyframes pulseGlow { 0%,100%{opacity:0.5;transform:translateX(-50%) scale(1)} 50%{opacity:1;transform:translateX(-50%) scale(1.15)} }
+        .neon-pulse { animation: neonGlow 1.5s ease-in-out infinite; }
+        @keyframes neonGlow { 0%,100% { opacity: 0.7; filter: drop-shadow(0 0 3px currentColor); } 50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); } }
+        .smoke-puff { position: absolute; background: radial-gradient(circle, rgba(180,180,180,0.5) 0%, transparent 70%); border-radius: 50%; animation: smokeRise 3s ease-in-out infinite; }
+        @keyframes smokeRise { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.5); } 30% { opacity: 0.7; transform: translate(-50%, -15px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -40px) scale(1.5); } }
+        .water-shimmer { animation: shimmer 2s ease-in-out infinite; }
+        @keyframes shimmer { 0%,100% { opacity: 0.7; } 50% { opacity: 1; filter: brightness(1.3); } }
 
-.form-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;font-size:13px}
-.remember-me{display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--muted);transition:color .3s;user-select:none}
-.remember-me:hover{color:var(--fg)}
-.remember-me input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:15px;height:15px;border:1px solid rgba(255,255,255,0.14);border-radius:2px;background:rgba(255,255,255,0.03);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
-.remember-me input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
-.remember-me input[type="checkbox"]:checked::after{content:'\2713';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:#000;font-weight:700}
-.forgot-link{color:var(--accent);text-decoration:none;opacity:.65;transition:opacity .3s;font-size:12px}
-.forgot-link:hover{opacity:1}
+        .iso-deco { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.5)); }
+        .iso-deco.decorative { opacity: 0.92; }
+        .iso-deco.bg-deco { opacity: 0.4; filter: grayscale(0.4) brightness(0.7) blur(0.3px); }
+        .iso-deco.fg-deco { opacity: 1; z-index: 5000; }
 
-.btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,#d4a017 0%,#a67c00 100%);border:none;border-radius:3px;color:#0a0a0f;font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s,box-shadow .3s;box-shadow:0 4px 24px rgba(212,160,23,0.25)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 32px rgba(212,160,23,0.45)}
-.btn-primary:active{transform:translateY(0)}
-.btn-primary::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(transparent,rgba(255,255,255,0.15),transparent);transform:rotate(45deg) translateY(-100%);transition:transform .6s}
-.btn-primary:hover::after{transform:rotate(45deg) translateY(100%)}
+        /* ===== HUD ===== */
+        .top-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 20; background: linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 70%, transparent 100%); padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+        .player-info { display: flex; gap: 6px; align-items: center; pointer-events: auto; flex-wrap: wrap; }
+        .res-bar { background: linear-gradient(180deg, rgba(20,14,8,0.95), rgba(10,8,4,0.95)); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--gold); display: flex; align-items: center; gap: 5px; font-size: 0.78rem; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+        .res-bar .icon { font-size: 1rem; }
+        .res-bar .value { color: var(--gold); font-weight: 700; font-size: 0.95rem; }
+        .avatar { width: 44px; height: 44px; border-radius: 6px; border: 2px solid var(--gold); display: flex; justify-content: center; align-items: center; font-size: 1.7rem; background: linear-gradient(180deg,#2a2a30,#141418); box-shadow: 0 0 10px rgba(255,107,0,0.5); }
+        .clan-tag { font-size: 0.7rem; color: var(--gold); font-weight: 700; background: rgba(0,0,0,0.7); padding: 3px 8px; border-radius: 4px; border: 1px solid #444; }
+        .vip-badge { background: linear-gradient(45deg, #c9a050, #ffd700, #c9a050); color: #1a0a00; font-weight: 900; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; letter-spacing: 1px; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+        .right-actions { position: absolute; top: 70px; right: 8px; z-index: 21; display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
+        .action-btn { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(180deg, rgba(40,30,18,0.95), rgba(20,14,8,0.95)); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.7); position: relative; }
+        .action-btn:active { transform: scale(0.92); }
+        .action-btn .badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: white; font-size: 0.6rem; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-weight: 700; }
+        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 60%, transparent 100%); display: flex; justify-content: center; align-items: flex-end; padding-bottom: 8px; z-index: 20; pointer-events: none; }
+        .toolbar { display: flex; gap: 4px; pointer-events: auto; background: linear-gradient(180deg, rgba(46,34,20,0.97), rgba(20,14,8,0.97)); padding: 6px 8px; border-radius: 12px; border: 1px solid var(--gold); box-shadow: 0 -4px 16px rgba(0,0,0,0.8); max-width: 96vw; overflow-x: auto; }
+        .tool-btn { display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 4px 6px; border-radius: 8px; transition: 0.2s; min-width: 58px; }
+        .tool-btn:hover { background: rgba(255,107,0,0.2); transform: translateY(-2px); }
+        .tool-btn:active { transform: scale(0.95); }
+        .tool-icon { font-size: 1.5rem; margin-bottom: 1px; filter: drop-shadow(0 0 2px var(--primary)); }
+        .tool-text { font-size: 0.62rem; color: #d8c9a8; text-transform: uppercase; font-weight: 600; white-space: nowrap; letter-spacing: 0.5px; }
+        #zoom-controls { position: absolute; right: 10px; bottom: 100px; z-index: 21; display: flex; flex-direction: column; gap: 6px; }
+        .zoom-btn { width: 38px; height: 38px; border-radius: 8px; background: linear-gradient(180deg, rgba(30,30,26,0.95), rgba(15,15,12,0.95)); border: 1px solid var(--gold); color: var(--gold); font-size: 1.2rem; font-weight: 900; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+        .zoom-btn:active { transform: scale(0.9); }
+        #coord-badge { position: absolute; bottom: 92px; left: 50%; transform: translateX(-50%); background: rgba(10,10,8,0.85); border: 1px solid var(--gold); border-radius: 6px; padding: 4px 14px; font-size: 0.78rem; color: var(--gold); font-weight: 700; letter-spacing: 1px; z-index: 18; pointer-events: none; }
 
-.social-divider{display:flex;align-items:center;gap:12px;margin:22px 0 16px;font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
-.social-divider::before,.social-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.05)}
-.social-btns{display:flex;gap:10px}
-.social-btn{flex:1;padding:11px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:3px;color:var(--muted);font-size:17px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center}
-.social-btn:hover{border-color:rgba(212,160,23,0.3);color:var(--accent);background:rgba(212,160,23,0.04)}
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 90; display: none; justify-content: center; align-items: center; padding: 16px; }
+        .modal-box { background: linear-gradient(180deg, #2a1d10, #15100a); border: 2px solid var(--gold); border-radius: 10px; padding: 20px 22px 16px; max-width: 480px; width: 100%; max-height: 82vh; overflow-y: auto; box-shadow: 0 0 60px rgba(0,0,0,0.8); position: relative; }
+        .modal-box::before, .modal-box::after { content: ''; position: absolute; width: 20px; height: 20px; border: 2px solid var(--gold); }
+        .modal-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .modal-box::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+        .modal-box h2 { font-family: 'Cinzel', serif; color: var(--gold); text-align: center; margin-bottom: 12px; font-size: 1.3rem; letter-spacing: 1.5px; text-shadow: 0 0 12px rgba(255,215,0,0.4); }
+        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid rgba(255,215,0,0.1); font-size: 0.9rem; }
+        .input-group { margin: 6px 0; }
+        .input-group label { display: block; font-size: 0.8rem; color: #c9b890; margin-bottom: 3px; }
+        .input-group input, .input-group select { width: 100%; padding: 9px; background: rgba(0,0,0,0.5); border: 1px solid #444; color: white; border-radius: 4px; font-family: 'Rajdhani'; font-size: 0.95rem; }
+        .modal-actions { display: flex; gap: 6px; margin-top: 12px; }
+        .modal-actions .btn { margin: 0; }
+        .res-bar-mini { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+        .res-bar-mini .name { flex: 0 0 80px; color: #c9b890; font-size: 0.85rem; }
+        .res-bar-mini .progress { flex: 1; height: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+        .res-bar-mini .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--gold)); }
+        .res-bar-mini .value { color: var(--gold); font-weight: 700; min-width: 70px; text-align: right; font-size: 0.85rem; }
 
-.toggle-pass{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px;transition:color .3s}
-.toggle-pass:hover{color:var(--accent)}
+        #toast-container { position: fixed; top: 70px; right: 10px; z-index: 100; display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
+        .toast { background: var(--panel); border: 1px solid var(--gold); color: white; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; box-shadow: 0 3px 12px rgba(0,0,0,0.6); min-width: 180px; animation: toastIn 0.3s; font-weight: 600; }
+        .toast.success { border-color: var(--green); }
+        .toast.error, .toast.defeat { border-color: var(--red); }
+        .toast.info, .toast.victory { border-color: var(--secondary); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
-.pass-strength{height:3px;margin:-8px 0 12px;border-radius:2px;background:rgba(255,255,255,0.04);overflow:hidden;transition:opacity .3s;opacity:0}
-.pass-strength.visible{opacity:1}
-.pass-strength-bar{height:100%;width:0;border-radius:2px;transition:width .4s,background .4s}
+        #tutorial-overlay { position: fixed; inset: 0; z-index: 85; pointer-events: none; display: none; }
+        #tutorial-overlay.active { display: block; pointer-events: auto; }
+        #tutorial-card { position: absolute; right: 16px; bottom: 110px; background: var(--panel); border: 2px solid var(--gold); border-radius: 10px; padding: 14px 16px; max-width: 300px; width: calc(100vw - 32px); box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        #tutorial-card h3 { color: var(--gold); font-family: 'Cinzel'; margin-bottom: 8px; font-size: 1.05rem; }
+        #tutorial-card p { color: #ddd; line-height: 1.4; font-size: 0.85rem; }
+        #tutorial-card .actions { display: flex; gap: 6px; margin-top: 12px; }
+        #tutorial-card .btn { padding: 8px; font-size: 0.8rem; margin: 0; }
 
-/* Modal (şifre sıfırlama) */
-.modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
-.modal-backdrop.open{display:flex}
-.modal-box{width:100%;max-width:400px;background:var(--card);border:1px solid var(--border);border-radius:5px;box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden}
-.modal-box::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
-.modal-header{padding:20px 24px 0;display:flex;justify-content:space-between;align-items:center}
-.modal-header h3{font-family:'Cinzel',serif;font-size:18px;color:var(--accent);letter-spacing:2px;font-weight:700}
-.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px;transition:color .3s}
-.modal-close:hover{color:var(--fg)}
-.modal-body{padding:20px 24px 24px}
-.modal-body p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
-.modal-body .btn-primary{margin-top:8px}
+        #world-map-overlay { position: absolute; inset: 0; z-index: 50; background: #0a0a0a; display: none; }
+        #world-map-overlay.active { display: block; }
+        #world-map-canvas { width: 100%; height: 100%; display: block; }
+        #world-map-close { position: absolute; top: 10px; right: 10px; z-index: 51; background: var(--panel); border: 1px solid var(--gold); color: var(--gold); width: 38px; height: 38px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; }
+        #world-map-title { position: absolute; top: 10px; left: 10px; z-index: 51; background: var(--panel); border: 1px solid var(--gold); border-radius: 8px; padding: 6px 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.9rem; letter-spacing: 1.5px; }
 
-/* Mail doğrulama ekranı */
-.verify-screen{display:none;text-align:center;padding:10px 0}
-.verify-screen.active{display:block}
-.verify-screen .v-icon{font-size:56px;color:var(--accent);margin-bottom:16px;animation:logoPulse 2.5s ease-in-out infinite}
-.verify-screen h3{font-family:'Cinzel',serif;font-size:20px;color:var(--accent);letter-spacing:2px;margin-bottom:10px}
-.verify-screen p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:6px}
-.verify-screen .email-addr{color:var(--fg);font-weight:600}
-.verify-code-inputs{display:flex;gap:8px;justify-content:center;margin:20px 0}
-.verify-code-inputs input{width:44px;height:50px;text-align:center;font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:0;background:var(--input-bg);border:1px solid var(--input-border);border-radius:3px;color:var(--fg);outline:none;transition:border-color .3s,box-shadow .3s}
-.verify-code-inputs input:focus{border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(212,160,23,0.07)}
-.resend-row{font-size:12px;color:var(--muted);margin-top:4px}
-.resend-row span{color:var(--accent);cursor:pointer;transition:opacity .3s}
-.resend-row span:hover{opacity:.7}
-.resend-row span.disabled{color:var(--muted);cursor:default;pointer-events:none}
+        #radial-menu { position: fixed; left: 0; top: 0; z-index: 60; display: none; pointer-events: none; }
+        #radial-menu.active { display: block; pointer-events: auto; }
+        .radial-btn { position: absolute; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(180deg, rgba(42,32,18,0.97), rgba(15,12,8,0.97)); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; box-shadow: 0 3px 12px rgba(0,0,0,0.7); cursor: pointer; transform: translate(-50%, -50%) scale(0); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        #radial-menu.active .radial-btn { transform: translate(-50%, -50%) scale(1); }
+        .radial-btn:active { transform: translate(-50%, -50%) scale(0.85) !important; }
+        .radial-btn-label { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: var(--gold); white-space: nowrap; font-weight: 700; text-shadow: 1px 1px 0 #000; }
 
-/* Toast */
-.toast{position:fixed;top:28px;right:28px;z-index:1000;padding:14px 22px;border-radius:4px;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.8px;transform:translateX(130%);transition:transform .4s cubic-bezier(.22,1,.36,1);box-shadow:0 10px 40px rgba(0,0,0,0.5);max-width:370px}
-.toast.show{transform:translateX(0)}
-.toast.success{background:linear-gradient(135deg,#1a3a1a,#0f260f);border:1px solid rgba(46,125,50,0.4);color:#81c784}
-.toast.error{background:linear-gradient(135deg,#3a1a1a,#260f0f);border:1px solid rgba(183,28,28,0.4);color:#ef9a9a}
-.toast.info{background:linear-gradient(135deg,#1a2a3a,#0f1a26);border:1px solid rgba(212,160,23,0.4);color:var(--accent)}
+        #build-ghost-info { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); border: 1px solid var(--gold); border-radius: 6px; padding: 6px 14px; color: var(--gold); font-size: 0.85rem; z-index: 22; display: none; animation: pulseGlow 1.5s infinite; }
+        #build-ghost-info.active { display: block; }
 
-.footer-text{margin-top:22px;font-size:10px;color:rgba(255,255,255,0.12);letter-spacing:3px;text-align:center;text-transform:uppercase}
+        #lang-switch { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 22; pointer-events: auto; display: flex; gap: 3px; }
+        #lang-switch button { background: rgba(0,0,0,0.7); border: 1px solid var(--gold); color: var(--gold); padding: 3px 8px; font-size: 0.65rem; cursor: pointer; border-radius: 3px; font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        #lang-switch button.active { background: var(--gold); color: #000; }
 
-@media(max-width:480px){.form-container{padding:22px 18px 26px}.logo-title{letter-spacing:2px}.logo-subtitle{letter-spacing:5px}.toast{right:12px;left:12px;max-width:none}.verify-code-inputs input{width:38px;height:44px;font-size:19px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-</style>
+        .float-chip { position: absolute; background: rgba(0,0,0,0.78); border: 1px solid var(--gold); border-radius: 6px; padding: 6px 10px; color: white; font-size: 0.78rem; font-weight: 600; z-index: 18; pointer-events: none; box-shadow: 0 3px 8px rgba(0,0,0,0.5); }
+
+        #golden-hour-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 8; background: radial-gradient(ellipse at 20% 10%, rgba(255,180,90,0.18) 0%, transparent 40%), linear-gradient(160deg, rgba(255,160,80,0.06) 0%, transparent 40%, rgba(20,10,30,0.18) 100%); mix-blend-mode: overlay; }
+
+        @media (max-width: 720px) {
+            .toolbar { padding: 4px 6px; gap: 2px; }
+            .tool-btn { min-width: 50px; padding: 3px 2px; }
+            .tool-icon { font-size: 1.3rem; }
+            .tool-text { font-size: 0.55rem; }
+            .right-actions { top: 64px; right: 6px; gap: 4px; }
+            .action-btn { width: 40px; height: 40px; font-size: 1.1rem; }
+            #zoom-controls { right: 6px; bottom: 96px; }
+            .res-bar { padding: 3px 6px; font-size: 0.7rem; }
+            .res-bar .value { font-size: 0.85rem; }
+            .avatar { width: 38px; height: 38px; font-size: 1.4rem; }
+            .vip-badge { font-size: 0.6rem; padding: 2px 5px; }
+            .auth-box { width: 95vw; padding: 28px 20px; }
+            .game-title { font-size: 2rem; }
+        }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+    </style>
 </head>
 <body>
 
-<canvas id="cityGround"></canvas>
-<div class="overlay"></div>
-<div class="toast" id="toast"></div>
-
-<!-- Şifre Sıfırlama Modalı -->
-<div class="modal-backdrop" id="resetModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3>Şifre Sıfırla</h3>
-      <button class="modal-close" id="resetModalClose" aria-label="Kapat"><i class="fas fa-times"></i></button>
+<!-- ===== AUTH ===== -->
+<div id="auth-screen" style="display:none;">
+    <canvas id="auth-ground"></canvas>
+    <div class="auth-overlay"></div>
+    <div class="auth-box">
+        <div class="game-title">ATLAS WARFARE</div>
+        <div class="game-subtitle" data-i18n="subtitle">Dünyayı Fethet</div>
+        <div class="auth-tabs">
+            <div class="auth-tab active" onclick="toggleAuth('login')" data-i18n="login">Giriş</div>
+            <div class="auth-tab" onclick="toggleAuth('register')" data-i18n="register">Kayıt</div>
+            <div class="auth-tab" onclick="toggleAuth('forgot')" data-i18n="forgot">Şifremi Unuttum</div>
+        </div>
+        <div id="login-form">
+            <input class="auth-input" id="login-username" data-i18n-ph="username" placeholder="Kullanıcı Adı">
+            <input class="auth-input" id="login-password" type="password" data-i18n-ph="password" placeholder="Şifre">
+            <button class="btn btn-primary" onclick="login()" data-i18n="enter">Giriş Yap</button>
+            <div class="error-msg" id="login-error"></div>
+        </div>
+        <div id="register-form" style="display:none;">
+            <input class="auth-input" id="reg-username" data-i18n-ph="username" placeholder="Kullanıcı Adı">
+            <input class="auth-input" id="reg-email" type="email" data-i18n-ph="email" placeholder="E-posta">
+            <input class="auth-input" id="reg-password" type="password" data-i18n-ph="password" placeholder="Şifre">
+            <input class="auth-input" id="reg-password-confirm" type="password" data-i18n-ph="passwordConfirm" placeholder="Şifre (Tekrar)">
+            <button class="btn btn-primary" onclick="register()" data-i18n="create">Hesap Oluştur</button>
+            <div class="error-msg" id="reg-error"></div>
+        </div>
+        <div id="verify-form" style="display:none;">
+            <p style="color:#c9b890;margin-bottom:8px;font-size:0.85rem;" data-i18n="verifySent">E-postana gönderilen kodu gir:</p>
+            <input class="auth-input" id="verify-code" data-i18n-ph="code" placeholder="Doğrulama Kodu">
+            <button class="btn btn-primary" onclick="verifyEmail()" data-i18n="verify">Doğrula</button>
+            <button class="btn btn-secondary" onclick="resendCode()" data-i18n="resend">Yeniden Gönder</button>
+            <div class="error-msg" id="verify-error"></div>
+        </div>
+        <div id="forgot-form" style="display:none;">
+            <input class="auth-input" id="forgot-email" type="email" data-i18n-ph="email" placeholder="E-posta">
+            <button class="btn btn-primary" onclick="forgotPassword()" data-i18n="sendCode">Kod Gönder</button>
+            <div id="forgot-code-area" style="display:none;margin-top:12px;">
+                <input class="auth-input" id="forgot-code" data-i18n-ph="code" placeholder="Kod">
+                <input class="auth-input" id="forgot-newpass" type="password" data-i18n-ph="newPassword" placeholder="Yeni Şifre">
+                <button class="btn btn-primary" onclick="resetPassword()" data-i18n="resetPassword">Şifreyi Sıfırla</button>
+            </div>
+            <div class="error-msg" id="forgot-error"></div>
+        </div>
     </div>
-    <div class="modal-body">
-      <p>E-posta adresinize şifre sıfırlama bağlantısı gönderilecek.</p>
-      <div class="input-group">
-        <input type="email" id="resetEmail" placeholder="E-Posta Adresi" aria-label="E-posta adresi">
-        <i class="fas fa-envelope fi"></i>
-      </div>
-      <button class="btn-primary" id="resetSendBtn">Gönder</button>
-    </div>
-  </div>
 </div>
 
-<main class="main-wrapper">
-  <div class="logo-section">
-    <div class="logo-icon"><i class="fas fa-globe-americas"></i></div>
-    <h1 class="logo-title">AtlasWarfare</h1>
-    <p class="logo-subtitle">Kendininkini Kur</p>
-  </div>
-
-  <div class="auth-panel">
-    <div class="tabs" role="tablist">
-      <button class="tab-btn active" data-tab="login" role="tab" aria-selected="true">Giriş</button>
-      <button class="tab-btn" data-tab="register" role="tab" aria-selected="false">Kayıt</button>
+<!-- ===== CHAR SELECT ===== -->
+<div id="char-select-screen">
+    <div style="text-align:center; max-width:900px; width:100%;">
+        <div class="game-title" style="font-size:2.2rem; margin-bottom:5px;" data-i18n="chooseChar">Karakterini Seç</div>
+        <div class="game-subtitle" data-i18n="chooseCharSub">İmparatorluğunu kur</div>
+        <div class="char-grid" id="char-grid"></div>
+        <div id="empire-color-section" style="display:none; margin-top:20px;">
+            <div class="game-subtitle" data-i18n="chooseColor">İmparatorluk Rengini Seç</div>
+            <div class="color-grid" id="color-grid"></div>
+            <button class="btn btn-primary" onclick="startGame()" data-i18n="enterWorld">Dünyaya Adım At</button>
+        </div>
     </div>
-    <div class="form-container">
+</div>
 
-      <!-- GİRİŞ -->
-      <div class="form-section active" id="loginForm" role="tabpanel">
-        <div class="input-group">
-          <input type="text" id="loginUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
-          <i class="fas fa-user fi"></i>
-        </div>
-        <div class="input-group">
-          <input type="password" id="loginPass" placeholder="Şifre" autocomplete="current-password" aria-label="Şifre">
-          <i class="fas fa-lock fi"></i>
-          <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
-        </div>
-        <div class="form-options">
-          <label class="remember-me"><input type="checkbox" checked> Beni Hatırla</label>
-          <a href="#" class="forgot-link" id="forgotLink">Şifremi Unuttum</a>
-        </div>
-        <button class="btn-primary" id="loginBtn">Giriş Yap</button>
-        <div class="social-divider">Veya</div>
-        <div class="social-btns">
-          <button class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></button>
-          <button class="social-btn" aria-label="Google"><i class="fab fa-google"></i></button>
-          <button class="social-btn" aria-label="Apple"><i class="fab fa-apple"></i></button>
-        </div>
-      </div>
-
-      <!-- KAYIT -->
-      <div class="form-section" id="registerForm" role="tabpanel">
-        <div id="registerFields">
-          <div class="input-group">
-            <input type="text" id="regUser" placeholder="Kullanıcı Adı" autocomplete="username" aria-label="Kullanıcı adı">
-            <i class="fas fa-user fi"></i>
-          </div>
-          <div class="input-group">
-            <input type="email" id="regEmail" placeholder="E-Posta" autocomplete="email" aria-label="E-posta">
-            <i class="fas fa-envelope fi"></i>
-          </div>
-          <div class="input-group">
-            <input type="password" id="regPass" placeholder="Şifre" autocomplete="new-password" aria-label="Şifre">
-            <i class="fas fa-lock fi"></i>
-            <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
-          </div>
-          <div class="pass-strength" id="passStrength"><div class="pass-strength-bar" id="passStrengthBar"></div></div>
-          <div class="input-group">
-            <input type="password" id="regPassConfirm" placeholder="Şifre Tekrar" autocomplete="new-password" aria-label="Şifre tekrar">
-            <i class="fas fa-lock fi"></i>
-            <button class="toggle-pass" type="button" aria-label="Şifreyi göster"><i class="fas fa-eye"></i></button>
-          </div>
-          <div style="height:4px"></div>
-          <button class="btn-primary" id="registerBtn">Hesap Oluştur</button>
-          <div class="social-divider">Veya</div>
-          <div class="social-btns">
-            <button class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></button>
-            <button class="social-btn" aria-label="Google"><i class="fab fa-google"></i></button>
-            <button class="social-btn" aria-label="Apple"><i class="fab fa-apple"></i></button>
-          </div>
-        </div>
-
-        <!-- Mail Doğrulama Ekranı -->
-        <div class="verify-screen" id="verifyScreen">
-          <div class="v-icon"><i class="fas fa-envelope-open-text"></i></div>
-          <h3>Doğrulama Kodu</h3>
-          <p><span class="email-addr" id="verifyEmail"></span> adresine 6 haneli kod gönderildi.</p>
-          <div class="verify-code-inputs" id="codeInputs">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 1">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 2">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 3">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 4">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 5">
-            <input type="text" maxlength="1" inputmode="numeric" aria-label="Kod 6">
-          </div>
-          <div class="resend-row">Kod gelmedi mi? <span id="resendBtn">Tekrar Gönder</span></div>
-          <button class="btn-primary" id="verifyBtn" style="margin-top:18px">Doğrula</button>
-        </div>
-      </div>
-
+<!-- ===== GAME ===== -->
+<div id="game-screen">
+    <div id="map-container">
+        <div id="iso-world"></div>
     </div>
-  </div>
-  <p class="footer-text">AtlasWarfare &copy; 2025 &mdash; T&uuml;m Hakları Saklıdır</p>
-</main>
+    <div id="golden-hour-overlay"></div>
+    <div id="lang-switch">
+        <button id="lang-en" onclick="setLang('en')">EN</button>
+        <button id="lang-tr" onclick="setLang('tr')" class="active">TR</button>
+    </div>
+    <div class="top-bar">
+        <div class="player-info">
+            <div class="avatar" id="ui-avatar">🦊</div>
+            <div>
+                <div class="clan-tag" id="ui-clan-row">🐉 <span id="ui-clan">Klan</span></div>
+                <div class="vip-badge">VIP <span id="ui-vip">8</span></div>
+            </div>
+            <div class="res-bar" title="Cash"><span class="icon">💵</span><span class="value" id="ui-cash">0</span></div>
+            <div class="res-bar" title="Cargo"><span class="icon">📦</span><span class="value" id="ui-cargo">0</span></div>
+            <div class="res-bar" title="Arms"><span class="icon">🔫</span><span class="value" id="ui-arms">0</span></div>
+            <div class="res-bar" title="Metal"><span class="icon">⚙️</span><span class="value" id="ui-metal">0</span></div>
+            <div class="res-bar" title="Crew"><span class="icon">👥</span><span class="value" id="ui-crew">0</span></div>
+            <div class="res-bar" title="Power"><span class="icon">⚡</span><span class="value" id="ui-power">0</span></div>
+        </div>
+    </div>
+    <div class="right-actions">
+        <div class="action-btn" onclick="openModal('profile')" title="Görevler"><span>📜</span><span class="badge" id="badge-quests" style="display:none;">!</span></div>
+        <div class="action-btn" onclick="openModal('mail')" title="Posta"><span>✉️</span><span class="badge" id="badge-mail" style="display:none;">!</span></div>
+        <div class="action-btn" onclick="openModal('leaderboard')" title="Sıralama"><span>🏆</span></div>
+        <div class="action-btn" onclick="openWorldMap()" title="Dünya Haritası"><span>🗺️</span></div>
+    </div>
+    <div id="coord-badge">🔍 X: <span id="coord-x">0</span>  Y: <span id="coord-y">0</span></div>
+    <div id="build-ghost-info">📍 <span data-i18n="placeBuild">Haritada boş bir alana tıkla</span></div>
+    <div id="zoom-controls">
+        <button class="zoom-btn" id="zoom-in">+</button>
+        <button class="zoom-btn" id="zoom-out">−</button>
+        <button class="zoom-btn" id="zoom-home" style="font-size:0.9rem;">🏠</button>
+    </div>
+    <div class="bottom-bar">
+        <div class="toolbar">
+            <div class="tool-btn" onclick="openBaseModal()"><div class="tool-icon">🏰</div><div class="tool-text" data-i18n="base">Üs</div></div>
+            <div class="tool-btn" onclick="openModal('train')"><div class="tool-icon">🔨</div><div class="tool-text" data-i18n="train">Eğit</div></div>
+            <div class="tool-btn" onclick="openModal('hospital')"><div class="tool-icon">🏥</div><div class="tool-text" data-i18n="hospital">Hastane</div></div>
+            <div class="tool-btn" onclick="openInvestCenter()"><div class="tool-icon">💼</div><div class="tool-text" data-i18n="invest">Yatırım</div></div>
+            <div class="tool-btn" onclick="openDiner()"><div class="tool-icon">🍽️</div><div class="tool-text" data-i18n="diner">Lokanta</div></div>
+            <div class="tool-btn" onclick="openModal('clan')"><div class="tool-icon">🐉</div><div class="tool-text" data-i18n="clan">Klan</div></div>
+            <div class="tool-btn" onclick="openHeroes()"><div class="tool-icon">🦸</div><div class="tool-text" data-i18n="heroes">Kahraman</div></div>
+        </div>
+    </div>
+    <div id="world-map-overlay">
+        <canvas id="world-map-canvas"></canvas>
+        <div id="world-map-title" data-i18n="worldMap">Dünya Haritası</div>
+        <button id="world-map-close" onclick="closeWorldMap()">✕</button>
+    </div>
+    <div id="tutorial-overlay">
+        <div id="tutorial-card">
+            <h3 id="tut-title">Hoş geldin</h3>
+            <p id="tut-body">Yükleniyor...</p>
+            <div class="actions">
+                <button class="btn btn-primary" id="tut-next" onclick="nextTutorial()">İleri</button>
+                <button class="btn btn-secondary" onclick="skipTutorial()">Atla</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="modal-overlay"><div class="modal-box" id="modal-box"></div></div>
+    <div id="toast-container"></div>
+    <div id="radial-menu"></div>
+</div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
-/* =============================================
-   PROCEDURAL KENT HARİTASI — Canvas ile üretilen
-   gerçek kentsel doku zemin, 8 saniyede bir
-   yeni tohumla yenilenir.
-   ============================================= */
+/* ============================================================
+   ATLAS WARFARE — Orijinal sistemler KORUNDU
+   Sadece auth ekranına procedural kent haritası zemin eklendi.
+   ============================================================ */
+
+const socket = io();
+let currentPlayer = null, worldData = null, charactersData = null, clansData = {};
+let selectedCharacter = null, selectedColor = null;
+let basePlacementMode = false;
+const icons = { kyuubi:'🦊', alchemist:'⚒️', mistsword:'🌫️', raikage:'⚡', soulreaper:'⚔️', titan:'🗡️', rubber:'👊', icequeen:'❄️' };
+
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playSound(type) {
+    if (!audioCtx) return; const now = audioCtx.currentTime;
+    if (type === 'click') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.05); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.05); o.start(now); o.stop(now+0.05); }
+    else if (type === 'success') { [523.25,659.25,783.99].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(f,now+i*0.1);g.gain.setValueAtTime(0.1,now+i*0.1);g.gain.exponentialRampToValueAtTime(0.01,now+i*0.1+0.2);o.start(now+i*0.1);o.stop(now+i*0.1+0.2);}); }
+    else if (type === 'error') { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.2); o.start(now); o.stop(now+0.2); }
+    else if (type === 'explosion') { const bs=audioCtx.sampleRate*0.3,b=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=b.getChannelData(0); for(let i=0;i<bs;i++)d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(); n.buffer=b; const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.setValueAtTime(1000,now); nf.frequency.exponentialRampToValueAtTime(100,now+0.3); const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.3,now); ng.gain.exponentialRampToValueAtTime(0.01,now+0.3); n.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); n.start(now); n.stop(now+0.3); }
+}
+document.addEventListener('click', () => initAudio(), { once: true });
+document.body.addEventListener('click', (e) => { if (e.target.closest('.tool-btn') || e.target.tagName === 'BUTTON' || e.target.closest('.action-btn') || e.target.closest('.zoom-btn')) playSound('click'); });
+
+/* ===== PROCEDURAL KENT HARİTASI — Auth ekranı zemini ===== */
 (function(){
-  var cv=document.getElementById('cityGround'),cx=cv.getContext('2d');
-  function rng(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646}}
-  function draw(seed){
-    var W=window.innerWidth,H=window.innerHeight;cv.width=W;cv.height=H;
-    var r=rng(seed),B=48,R=6,cols=Math.ceil(W/B)+2,rows=Math.ceil(H/B)+2;
-    cx.fillStyle='#0c0c15';cx.fillRect(0,0,W,H);
-    // Yollar
-    cx.fillStyle='#14141e';
-    for(var i=0;i<cols;i++)cx.fillRect(i*B-R/2,0,R,H);
-    for(var j=0;j<rows;j++)cx.fillRect(0,j*B-R/2,W,R);
-    // Yol çizgileri
-    cx.strokeStyle='rgba(180,150,50,0.07)';cx.lineWidth=1;cx.setLineDash([8,14]);
-    for(var i=0;i<cols;i++){cx.beginPath();cx.moveTo(i*B,0);cx.lineTo(i*B,H);cx.stroke()}
-    for(var j=0;j<rows;j++){cx.beginPath();cx.moveTo(0,j*B);cx.lineTo(W,j*B);cx.stroke()}
-    cx.setLineDash([]);
-    // Bloklar
-    for(var i=0;i<cols;i++)for(var j=0;j<rows;j++){
-      var bx=i*B+R/2+2,by=j*B+R/2+2,bw=B-R-4,bh=B-R-4,v=r();
-      if(v<0.02){cx.fillStyle='#080e18';cx.fillRect(bx,by,bw,bh);cx.strokeStyle='rgba(30,60,100,0.12)';cx.lineWidth=.5;for(var w=0;w<3;w++){var wy=by+6+w*10;cx.beginPath();cx.moveTo(bx,wy);for(var px=bx;px<bx+bw;px+=2)cx.lineTo(px,wy+Math.sin((px+w*20)*.3)*2);cx.stroke()}continue}
-      if(v<0.08){cx.fillStyle='#0a140a';cx.fillRect(bx,by,bw,bh);for(var t=0;t<4;t++){cx.fillStyle='rgba('+(20+r()*30|0)+','+(50+r()*40|0)+','+(20+r()*20|0)+',0.5)';cx.beginPath();cx.arc(bx+5+r()*(bw-10),by+5+r()*(bh-10),2+r()*3,0,6.28);cx.fill()}continue}
-      if(v<0.15)continue;
-      var br=11+(r()*15|0),rt=r()<.3?(r()*8|0):0,bt=r()<.2?(r()*6|0):0;
-      cx.fillStyle='rgb('+(br+rt)+','+br+','+(br+bt)+')';cx.fillRect(bx,by,bw,bh);
-      cx.fillStyle='rgba(255,255,255,0.015)';cx.fillRect(bx,by,bw,1);cx.fillRect(bx,by,1,bh);
-      cx.fillStyle='rgba(0,0,0,0.3)';cx.fillRect(bx,by+bh-1,bw,1);cx.fillRect(bx+bw-1,by,1,bh);
-      if(r()<.55){cx.strokeStyle='rgba(0,0,0,0.22)';cx.lineWidth=.5;var fl=2+(r()*3|0);for(var f=1;f<fl;f++){var fy=by+(bh/fl)*f;cx.beginPath();cx.moveTo(bx+1,fy);cx.lineTo(bx+bw-1,fy);cx.stroke()}}
-      for(var wx=bx+4;wx<bx+bw-4;wx+=5)for(var wy=by+4;wy<by+bh-4;wy+=5)if(r()<.42){var wm=r(),wr,wg,wb;if(wm<.5){wr=175+(r()*65|0);wg=135+(r()*55|0);wb=35+(r()*35|0)}else if(wm<.8){wr=155+(r()*65|0);wg=155+(r()*65|0);wb=145+(r()*65|0)}else{wr=55+(r()*45|0);wg=75+(r()*55|0);wb=135+(r()*85|0)}var al=.14+r()*.42;cx.fillStyle='rgba('+wr+','+wg+','+wb+','+al.toFixed(2)+')';cx.fillRect(wx,wy,2,2);if(al>.34){cx.fillStyle='rgba('+wr+','+wg+','+wb+','+(al*.08).toFixed(3)+')';cx.fillRect(wx-1,wy-1,4,4)}}
-      if(r()<.12&&bw>18&&bh>18){cx.fillStyle='rgba(255,255,255,0.025)';cx.fillRect(bx+4,by+4,bw-8,bh-8)}
-      if(r()<.04){cx.fillStyle='rgba(200,30,30,0.25)';var nw=6+r()*14,nh=3+r()*4;cx.fillRect(bx+(bw-nw)/2,by+2,nw,nh);cx.fillStyle='rgba(200,30,30,0.04)';cx.fillRect(bx+(bw-nw)/2-2,by,nw+4,nh+4)}
+    var cv=document.getElementById('auth-ground'), cx=cv.getContext('2d');
+    function rng(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646}}
+    function draw(seed){
+        var W=cv.parentElement.clientWidth, H=cv.parentElement.clientHeight;
+        cv.width=W; cv.height=H;
+        var r=rng(seed), B=44, R=5, cols=Math.ceil(W/B)+2, rows=Math.ceil(H/B)+2;
+        cx.fillStyle='#0c0c15'; cx.fillRect(0,0,W,H);
+        cx.fillStyle='#14141e';
+        for(var i=0;i<cols;i++) cx.fillRect(i*B-R/2,0,R,H);
+        for(var j=0;j<rows;j++) cx.fillRect(0,j*B-R/2,W,R);
+        cx.strokeStyle='rgba(180,150,50,0.06)'; cx.lineWidth=1; cx.setLineDash([7,12]);
+        for(var i=0;i<cols;i++){cx.beginPath();cx.moveTo(i*B,0);cx.lineTo(i*B,H);cx.stroke()}
+        for(var j=0;j<rows;j++){cx.beginPath();cx.moveTo(0,j*B);cx.lineTo(W,j*B);cx.stroke()}
+        cx.setLineDash([]);
+        for(var i=0;i<cols;i++) for(var j=0;j<rows;j++){
+            var bx=i*B+R/2+2,by=j*B+R/2+2,bw=B-R-4,bh=B-R-4,v=r();
+            if(v<0.02){cx.fillStyle='#080e18';cx.fillRect(bx,by,bw,bh);cx.strokeStyle='rgba(30,60,100,0.1)';cx.lineWidth=.5;for(var w=0;w<3;w++){var wy=by+5+w*9;cx.beginPath();cx.moveTo(bx,wy);for(var px=bx;px<bx+bw;px+=2)cx.lineTo(px,wy+Math.sin((px+w*20)*.3)*2);cx.stroke()}continue}
+            if(v<0.08){cx.fillStyle='#0a140a';cx.fillRect(bx,by,bw,bh);for(var t=0;t<4;t++){cx.fillStyle='rgba('+(20+r()*30|0)+','+(50+r()*40|0)+','+(20+r()*20|0)+',0.45)';cx.beginPath();cx.arc(bx+4+r()*(bw-8),by+4+r()*(bh-8),2+r()*3,0,6.28);cx.fill()}continue}
+            if(v<0.15) continue;
+            var br=10+(r()*14|0),rt=r()<.3?(r()*8|0):0,bt=r()<.2?(r()*6|0):0;
+            cx.fillStyle='rgb('+(br+rt)+','+br+','+(br+bt)+')'; cx.fillRect(bx,by,bw,bh);
+            cx.fillStyle='rgba(255,255,255,0.012)'; cx.fillRect(bx,by,bw,1); cx.fillRect(bx,by,1,bh);
+            cx.fillStyle='rgba(0,0,0,0.3)'; cx.fillRect(bx,by+bh-1,bw,1); cx.fillRect(bx+bw-1,by,1,bh);
+            if(r()<.5){cx.strokeStyle='rgba(0,0,0,0.2)';cx.lineWidth=.5;var fl=2+(r()*3|0);for(var f=1;f<fl;f++){var fy=by+(bh/fl)*f;cx.beginPath();cx.moveTo(bx+1,fy);cx.lineTo(bx+bw-1,fy);cx.stroke()}}
+            for(var wx=bx+3;wx<bx+bw-3;wx+=4) for(var wy=by+3;wy<by+bh-3;wy+=4) if(r()<.4){
+                var wm=r(),wr,wg,wb;
+                if(wm<.5){wr=175+(r()*65|0);wg=135+(r()*55|0);wb=35+(r()*35|0)}
+                else if(wm<.8){wr=155+(r()*65|0);wg=155+(r()*65|0);wb=145+(r()*65|0)}
+                else{wr=55+(r()*45|0);wg=75+(r()*55|0);wb=135+(r()*85|0)}
+                var al=.12+r()*.4;
+                cx.fillStyle='rgba('+wr+','+wg+','+wb+','+al.toFixed(2)+')'; cx.fillRect(wx,wy,2,2);
+                if(al>.32){cx.fillStyle='rgba('+wr+','+wg+','+wb+','+(al*.07).toFixed(3)+')';cx.fillRect(wx-1,wy-1,4,4)}
+            }
+            if(r()<.12&&bw>16&&bh>16){cx.fillStyle='rgba(255,255,255,0.02)';cx.fillRect(bx+3,by+3,bw-6,bh-6)}
+            if(r()<.04){cx.fillStyle='rgba(200,30,30,0.22)';var nw=5+r()*12,nh=2+r()*3;cx.fillRect(bx+(bw-nw)/2,by+2,nw,nh)}
+        }
+        cx.fillStyle='#111119';
+        for(var a=0;a<3;a++){if(r()<.5){var y=(r()*rows|0)*B-4;cx.fillRect(0,y,W,12);cx.strokeStyle='rgba(200,170,50,0.08)';cx.lineWidth=1.5;cx.setLineDash([14,10]);cx.beginPath();cx.moveTo(0,y+6);cx.lineTo(W,y+6);cx.stroke();cx.setLineDash([])}else{var x=(r()*cols|0)*B-4;cx.fillRect(x,0,12,H);cx.strokeStyle='rgba(200,170,50,0.08)';cx.lineWidth=1.5;cx.setLineDash([14,10]);cx.beginPath();cx.moveTo(x+6,0);cx.lineTo(x+6,H);cx.stroke();cx.setLineDash([])}}
+        for(var i=0;i<cols;i++) for(var j=0;j<rows;j++) if(r()<.2){var lx=i*B+(r()<.5?-R/2:R/2),ly=j*B+(r()<.5?-R/2:R/2),g=cx.createRadialGradient(lx,ly,0,lx,ly,16);g.addColorStop(0,'rgba(220,190,100,0.08)');g.addColorStop(1,'rgba(220,190,100,0)');cx.fillStyle=g;cx.beginPath();cx.arc(lx,ly,16,0,6.28);cx.fill()}
+        var id=cx.getImageData(0,0,W,H),p=id.data;for(var k=0;k<p.length;k+=4){var n=(r()-.5)*6;p[k]=Math.max(0,Math.min(255,p[k]+n));p[k+1]=Math.max(0,Math.min(255,p[k+1]+n));p[k+2]=Math.max(0,Math.min(255,p[k+2]+n))}cx.putImageData(id,0,0);
+        var vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.2,W/2,H/2,Math.max(W,H)*.7);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.5)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
     }
-    // Ana caddeler
-    cx.fillStyle='#111119';
-    for(var a=0;a<3;a++){if(r()<.5){var y=(r()*rows|0)*B-5;cx.fillRect(0,y,W,14);cx.strokeStyle='rgba(200,170,50,0.1)';cx.lineWidth=1.5;cx.setLineDash([16,10]);cx.beginPath();cx.moveTo(0,y+7);cx.lineTo(W,y+7);cx.stroke();cx.setLineDash([]}else{var x=(r()*cols|0)*B-5;cx.fillRect(x,0,14,H);cx.strokeStyle='rgba(200,170,50,0.1)';cx.lineWidth=1.5;cx.setLineDash([16,10]);cx.beginPath();cx.moveTo(x+7,0);cx.lineTo(x+7,H);cx.stroke();cx.setLineDash([]}}
-    // Lambalar
-    for(var i=0;i<cols;i++)for(var j=0;j<rows;j++)if(r()<.22){var lx=i*B+(r()<.5?-R/2:R/2),ly=j*B+(r()<.5?-R/2:R/2),g=cx.createRadialGradient(lx,ly,0,lx,ly,20);g.addColorStop(0,'rgba(220,190,100,0.1)');g.addColorStop(1,'rgba(220,190,100,0)');cx.fillStyle=g;cx.beginPath();cx.arc(lx,ly,20,0,6.28);cx.fill()}
-    // Gürültü
-    var id=cx.getImageData(0,0,W,H),p=id.data;for(var k=0;k<p.length;k+=4){var n=(r()-.5)*7;p[k]=Math.max(0,Math.min(255,p[k]+n));p[k+1]=Math.max(0,Math.min(255,p[k+1]+n));p[k+2]=Math.max(0,Math.min(255,p[k+2]+n))}cx.putImageData(id,0,0);
-    // Vignette
-    var vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.22,W/2,H/2,Math.max(W,H)*.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.45)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
-  }
-  draw(Date.now());
-  setInterval(function(){draw(Date.now())},8000);
-  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){draw(Date.now())},200)});
+    draw(Date.now());
+    setInterval(function(){draw(Date.now())},10000);
+    window.addEventListener('resize',function(){draw(Date.now())});
 })();
 
-
-/* =============================================
-   SİSTEM — Kullanıcı, Giriş, Kayıt, Mail Doğrulama,
-   Şifre Sıfırlama (localStorage tabanlı)
-   ============================================= */
-
-// Veri katmanı
-function getDB(){try{return JSON.parse(localStorage.getItem('awDB'))||{users:[],sessions:[]}}catch(e){return{users:[],sessions:[]}}}
-function saveDB(db){localStorage.setItem('awDB',JSON.stringify(db))}
-
-// Toast
-function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},3200)}
-
-// Hata stili temizle
-document.querySelectorAll('.input-group input').forEach(function(inp){inp.addEventListener('focus',function(){inp.classList.remove('input-error')})});
-
-// Sekmeler
-document.querySelectorAll('.tab-btn').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');b.setAttribute('aria-selected','false')});
-    document.querySelectorAll('.form-section').forEach(function(f){f.classList.remove('active')});
-    btn.classList.add('active');btn.setAttribute('aria-selected','true');
-    var target=btn.dataset.tab==='login'?'loginForm':'registerForm';
-    document.getElementById(target).classList.add('active');
-    // Kayıt sekmesine geçince doğrulama ekranını gizle, form alanlarını göster
-    if(btn.dataset.tab==='register'){
-      document.getElementById('registerFields').style.display='';
-      document.getElementById('verifyScreen').classList.remove('active');
-    }
-  });
-});
-
-// Şifre göster/gizle
-document.querySelectorAll('.toggle-pass').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    var inp=btn.parentElement.querySelector('input'),ico=btn.querySelector('i');
-    if(inp.type==='password'){inp.type='text';ico.className='fas fa-eye-slash'}else{inp.type='password';ico.className='fas fa-eye'}
-  });
-});
-
-// Şifre güç barı
-var regPass=document.getElementById('regPass'),pStr=document.getElementById('passStrength'),pBar=document.getElementById('passStrengthBar');
-regPass.addEventListener('input',function(){
-  var v=regPass.value;if(!v.length){pStr.classList.remove('visible');return}
-  pStr.classList.add('visible');var s=0;
-  if(v.length>=6)s++;if(v.length>=10)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
-  pBar.style.width=(s/5*100)+'%';pBar.style.background=s<=1?'#c0392b':s<=3?'#d4a017':'#27ae60';
-});
-
-// Doğrulama kodu inputları — otomatik ilerleme
-var codeInputs=document.querySelectorAll('#codeInputs input');
-codeInputs.forEach(function(inp,idx){
-  inp.addEventListener('input',function(){
-    if(inp.value.length===1&&idx<codeInputs.length-1)codeInputs[idx+1].focus();
-  });
-  inp.addEventListener('keydown',function(e){
-    if(e.key==='Backspace'&&!inp.value&&idx>0)codeInputs[idx-1].focus();
-  });
-  inp.addEventListener('paste',function(e){
-    e.preventDefault();var txt=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
-    for(var i=0;i<txt.length&&i<codeInputs.length;i++)codeInputs[i].value=txt[i];
-    if(txt.length>0)codeInputs[Math.min(txt.length,codeInputs.length)-1].focus();
-  });
-});
-
-// Doğrulama kodu oluştur (6 haneli)
-var pendingVerification=null;
-function generateCode(){return String(Math.floor(100000+Math.random()*900000))}
-
-// GİRİŞ YAP
-document.getElementById('loginBtn').addEventListener('click',function(){
-  var u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value,err=false;
-  if(!u){document.getElementById('loginUser').classList.add('input-error');err=true}
-  if(!p){document.getElementById('loginPass').classList.add('input-error');err=true}
-  if(err){showToast('Tüm alanları doldurun.','error');return}
-  var db=getDB(),found=null;
-  for(var i=0;i<db.users.length;i++){if(db.users[i].username.toLowerCase()===u.toLowerCase()){found=db.users[i];break}}
-  if(!found){showToast('Bu kullanıcı adı kayıtlı değil.','error');return}
-  if(!found.verified){showToast('E-posta adresinizi önce doğrulayın.','error');return}
-  if(found.password!==p){showToast('Şifre hatalı.','error');return}
-  // Giriş başarılı
-  db.sessions.push({username:found.username,loggedAt:Date.now()});
-  saveDB(db);
-  showToast('Başarıyla giriş yaptınız, '+found.username+'.','success');
-  document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';
-});
-
-// KAYIT OL
-document.getElementById('registerBtn').addEventListener('click',function(){
-  var u=document.getElementById('regUser').value.trim(),e=document.getElementById('regEmail').value.trim();
-  var p=document.getElementById('regPass').value,pc=document.getElementById('regPassConfirm').value,err=false;
-  if(!u){document.getElementById('regUser').classList.add('input-error');err=true}
-  if(!e){document.getElementById('regEmail').classList.add('input-error');err=true}
-  if(!p){document.getElementById('regPass').classList.add('input-error');err=true}
-  if(!pc){document.getElementById('regPassConfirm').classList.add('input-error');err=true}
-  if(err){showToast('Tüm alanları doldurun.','error');return}
-  if(u.length<3){showToast('Kullanıcı adı en az 3 karakter olmalı.','error');document.getElementById('regUser').classList.add('input-error');return}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){showToast('Geçerli bir e-posta adresi girin.','error');document.getElementById('regEmail').classList.add('input-error');return}
-  if(p.length<6){showToast('Şifre en az 6 karakter olmalı.','error');document.getElementById('regPass').classList.add('input-error');return}
-  if(p!==pc){showToast('Şifreler eşleşmiyor.','error');document.getElementById('regPassConfirm').classList.add('input-error');return}
-  var db=getDB();
-  for(var i=0;i<db.users.length;i++){
-    if(db.users[i].username.toLowerCase()===u.toLowerCase()){showToast('Bu kullanıcı adı zaten alınmış.','error');return}
-    if(db.users[i].email.toLowerCase()===e.toLowerCase()){showToast('Bu e-posta zaten kayıtlı.','error');return}
-  }
-  // Doğrulama kodu oluştur ve doğrulama ekranına geç
-  var code=generateCode();
-  pendingVerification={username:u,email:e,password:p,code:code};
-  document.getElementById('verifyEmail').textContent=e;
-  document.getElementById('registerFields').style.display='none';
-  document.getElementById('verifyScreen').classList.add('active');
-  // Inputları temizle
-  codeInputs.forEach(function(inp){inp.value=''});
-  codeInputs[0].focus();
-  // Kodu console'a yaz (gerçek projede mail servisine gönderilir)
-  console.log('[AtlasWarfare] Doğrulama kodu for '+e+': '+code);
-  showToast('Doğrulama kodu gönderildi. (Konsolu kontrol edin)','info');
-  // Tekrar gönder butonunu sıfırla
-  startResendCooldown();
-});
-
-// Tekrar gönder sayaçı
-var resendCooldown=0;
-function startResendCooldown(){
-  resendCooldown=60;
-  var btn=document.getElementById('resendBtn');
-  btn.classList.add('disabled');btn.textContent='Tekrar Gönder ('+resendCooldown+'s)';
-  var iv=setInterval(function(){
-    resendCooldown--;
-    if(resendCooldown<=0){clearInterval(iv);btn.classList.remove('disabled');btn.textContent='Tekrar Gönder';return}
-    btn.textContent='Tekrar Gönder ('+resendCooldown+'s)';
-  },1000);
+/* ===== i18n ===== */
+const I18N = {
+    en: { subtitle:'Conquer the World', login:'Login', register:'Register', forgot:'Forgot', username:'Username', password:'Password', email:'Email', passwordConfirm:'Confirm Password', code:'Code', newPassword:'New Password', enter:'Enter', create:'Create Account', verify:'Verify', verifySent:'Enter the code sent to your email:', resend:'Resend', sendCode:'Send Code', resetPassword:'Reset Password', chooseChar:'Choose Your Character', chooseCharSub:'Build your empire', chooseColor:'Pick your empire color', enterWorld:'Enter the World', base:'Base', train:'Train', hospital:'Hospital', invest:'Invest', diner:'Diner', clan:'Clan', heroes:'Heroes', placeBuild:'Click on an empty plot on the map', worldMap:'World Map', tut1_title:'Welcome, Boss', tut1_body:'Your mansion is the heart of your empire. Tap it to view details and upgrade it.', tut2_title:'Raise the Wall', tut2_body:'Your wall must match the mansion level. Build walls around your mansion to protect it.', tut3_title:'Build Resource Hubs', tut3_body:'Construct Cargo Hubs and Counterfeiters to produce Cash and Cargo.', tut4_title:'Train Crew', tut4_body:'Train your crew at the Training Camp. Open Train from the bottom toolbar.', tut5_title:'Investments', tut5_body:'Visit the Investment Center to research economic, military, and resource bonuses.', tut6_title:'World Map', tut6_body:'Open the World Map to attack other players, rob resources, and join Turf Wars.', next:'Next', skip:'Skip', done:'Done' },
+    tr: { subtitle:'Dünyayı Fethet', login:'Giriş', register:'Kayıt', forgot:'Şifremi Unuttum', username:'Kullanıcı Adı', password:'Şifre', email:'E-posta', passwordConfirm:'Şifre (Tekrar)', code:'Kod', newPassword:'Yeni Şifre', enter:'Giriş Yap', create:'Hesap Oluştur', verify:'Doğrula', verifySent:'E-postana gönderilen kodu gir:', resend:'Yeniden Gönder', sendCode:'Kod Gönder', resetPassword:'Şifreyi Sıfırla', chooseChar:'Karakterini Seç', chooseCharSub:'İmparatorluğunu kur', chooseColor:'İmparatorluk Rengini Seç', enterWorld:'Dünyaya Adım At', base:'Üs', train:'Eğit', hospital:'Hastane', invest:'Yatırım', diner:'Lokanta', clan:'Klan', heroes:'Kahraman', placeBuild:'Haritada boş bir alana tıkla', worldMap:'Dünya Haritası', tut1_title:'Hoş geldin, Patron', tut1_body:'Mansion imparatorluğunun kalbidir. Detayları görmek ve yükseltmek için üzerine tıkla.', tut2_title:'Duvarı Yükselt', tut2_body:'Mansion seviyesini geçmek için duvarın da aynı seviyede olmalı. Etrafına duvar inşa et.', tut3_title:'Kaynak Binaları', tut3_body:'Cash ve Cargo üretmek için Cargo Hub ve Counterfeiter inşa et.', tut4_title:'Asker Eğit', tut4_body:'Eğitim Kampları\'nda crew\'unu eğit. Alttaki Eğit butonunu kullan.', tut5_title:'Yatırımlar', tut5_body:'Yatırım Merkezi\'nde ekonomi, askeri ve kaynak bonuslarını araştır.', tut6_title:'Dünya Haritası', tut6_body:'Sağ üstteki Dünya Haritası\'nı aç, diğer oyunculara saldır, kaynak yağmala ve Turf Savaşları\'na katıl.', next:'İleri', skip:'Atla', done:'Tamam' }
+};
+let currentLang = localStorage.getItem('atlas_lang') || ((navigator.language || 'en').toLowerCase().startsWith('tr') ? 'tr' : 'en');
+function setLang(l) {
+    currentLang = l; localStorage.setItem('atlas_lang', l);
+    document.getElementById('lang-en').classList.toggle('active', l === 'en');
+    document.getElementById('lang-tr').classList.toggle('active', l === 'tr');
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (I18N[l][k]) el.textContent = I18N[l][k]; });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => { const k = el.getAttribute('data-i18n-ph'); if (I18N[l][k]) el.setAttribute('placeholder', I18N[l][k]); });
 }
 
-// Tekrar gönder
-document.getElementById('resendBtn').addEventListener('click',function(){
-  if(this.classList.contains('disabled'))return;
-  if(!pendingVerification)return;
-  pendingVerification.code=generateCode();
-  console.log('[AtlasWarfare] Yeni doğrulama kodu for '+pendingVerification.email+': '+pendingVerification.code);
-  showToast('Yeni kod gönderildi. (Konsolu kontrol edin)','info');
-  codeInputs.forEach(function(inp){inp.value=''});codeInputs[0].focus();
-  startResendCooldown();
-});
+/* ===== AUTH (KORUNDU — socket.emit/on aynı) ===== */
+function toggleAuth(t) {
+    ['login-form','register-form','verify-form','forgot-form'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById(t === 'login' ? 'login-form' : t === 'register' ? 'register-form' : t === 'forgot' ? 'forgot-form' : 'verify-form').style.display = 'block';
+    ['login-error','reg-error','verify-error','forgot-error'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('.auth-tab').forEach((el,i) => el.classList.toggle('active', (t==='login'&&i===0)||(t==='register'&&i===1)||(t==='forgot'&&i===2)));
+}
+function login() { socket.emit('login', { username: document.getElementById('login-username').value, password: document.getElementById('login-password').value }); }
+function register() { socket.emit('register', { username: document.getElementById('reg-username').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, passwordConfirm: document.getElementById('reg-password-confirm').value }); }
+function verifyEmail() { socket.emit('verifyEmail', { username: currentRegUsername, code: document.getElementById('verify-code').value }); }
+function resendCode() { socket.emit('resendVerifyCode', { username: currentRegUsername }); }
+function forgotPassword() { socket.emit('forgotPassword', { email: document.getElementById('forgot-email').value }); }
+function resetPassword() { socket.emit('resetPassword', { email: document.getElementById('forgot-email').value, code: document.getElementById('forgot-code').value, newPassword: document.getElementById('forgot-newpass').value }); }
+let currentRegUsername = '';
+socket.on('loginError', (msg) => { ['login-error','reg-error','verify-error','forgot-error'].forEach(id => { const el = document.getElementById(id); if(el) { el.innerText = msg; el.style.display = msg ? 'block' : 'none'; } }); });
+socket.on('registerSuccess', (d) => { currentRegUsername = d.username; toggleAuth('verify'); });
+socket.on('forgotPasswordCodeSent', () => { document.getElementById('forgot-code-area').style.display = 'block'; });
+socket.on('resetPasswordSuccess', () => { toggleAuth('login'); });
+socket.on('verifySuccess', (d) => onLoginSuccess(d));
+socket.on('loginSuccess', (d) => onLoginSuccess(d));
+function onLoginSuccess(d) {
+    localStorage.setItem('atlas_token', d.token);
+    currentPlayer = d;
+    document.getElementById('auth-screen').style.display = 'none';
+    if (!d.character || !d.empireColor) showCharSelect(); else enterGame(d);
+}
 
-// DOĞRULA
-document.getElementById('verifyBtn').addEventListener('click',function(){
-  if(!pendingVerification){showToast('Bekleyen bir doğrulama yok.','error');return}
-  var entered='';
-  codeInputs.forEach(function(inp){entered+=inp.value});
-  if(entered.length!==6){showToast('6 haneli kodu girin.','error');return}
-  if(entered!==pendingVerification.code){showToast('Doğrulama kodu hatalı.','error');codeInputs.forEach(function(inp){inp.classList.add('input-error')});setTimeout(function(){codeInputs.forEach(function(inp){inp.classList.remove('input-error')})},1500);return}
-  // Doğrulama başarılı — kullanıcıyı kaydet
-  var db=getDB();
-  db.users.push({username:pendingVerification.username,email:pendingVerification.email,password:pendingVerification.password,verified:true,createdAt:Date.now()});
-  saveDB(db);
-  showToast('Hesap oluşturuldu! Giriş yapabilirsiniz.','success');
-  pendingVerification=null;
-  // Formu sıfırla, giriş sekmesine geç
-  document.getElementById('regUser').value='';document.getElementById('regEmail').value='';
-  document.getElementById('regPass').value='';document.getElementById('regPassConfirm').value='';
-  pStr.classList.remove('visible');pBar.style.width='0';
-  document.querySelectorAll('.tab-btn')[0].click();
-});
-
-// ŞİFRE SIFIRLAMA MODALI
-document.getElementById('forgotLink').addEventListener('click',function(e){
-  e.preventDefault();document.getElementById('resetModal').classList.add('open');
-  document.getElementById('resetEmail').value='';document.getElementById('resetEmail').focus();
-});
-document.getElementById('resetModalClose').addEventListener('click',function(){
-  document.getElementById('resetModal').classList.remove('open');
-});
-document.getElementById('resetModal').addEventListener('click',function(e){
-  if(e.target===this)this.classList.remove('open');
-});
-document.getElementById('resetSendBtn').addEventListener('click',function(){
-  var e=document.getElementById('resetEmail').value.trim();
-  if(!e){document.getElementById('resetEmail').classList.add('input-error');showToast('E-posta adresi girin.','error');return}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){document.getElementById('resetEmail').classList.add('input-error');showToast('Geçerli bir e-posta adresi girin.','error');return}
-  var db=getDB(),found=null;
-  for(var i=0;i<db.users.length;i++){if(db.users[i].email.toLowerCase()===e.toLowerCase()){found=db.users[i];break}}
-  if(!found){showToast('Bu e-posta ile kayıtlı hesap bulunamadı.','error');return}
-  // Yeni şifre oluştur ve kaydet
-  var newPass='AW'+Math.random().toString(36).slice(2,8)+'!';
-  found.password=newPass;saveDB(db);
-  console.log('[AtlasWarfare] Yeni şifre for '+e+': '+newPass);
-  document.getElementById('resetModal').classList.remove('open');
-  showToast('Yeni şifre e-posta adresinize gönderildi. (Konsolu kontrol edin)','success');
-});
-
-// Sosyal butonlar
-document.querySelectorAll('.social-btns').forEach(function(group){
-  group.querySelectorAll('.social-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      var c=btn.querySelector('i').classList;
-      var n=c.contains('fa-facebook-f')?'Facebook':c.contains('fa-google')?'Google':'Apple';
-      showToast(n+' ile giriş yakında aktif olacak.','info');
+/* ===== CHAR SELECT (KORUNDU) ===== */
+function showCharSelect() { document.getElementById('char-select-screen').style.display = 'flex'; renderCharGrid(); }
+function renderCharGrid() {
+    if (!charactersData) return;
+    const grid = document.getElementById('char-grid'); grid.innerHTML = '';
+    const elemColors = { fire:'#ff4400', water:'#00aaff', lightning:'#ffff00', wind:'#00ff88', earth:'#8B4513' };
+    charactersData.forEach(c => {
+        const card = document.createElement('div'); card.className = 'char-card';
+        card.onclick = () => {
+            document.querySelectorAll('.char-card').forEach(el => el.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedCharacter = c.id;
+            document.getElementById('empire-color-section').style.display = 'block';
+            renderColorGrid();
+        };
+        card.innerHTML = '<div class="char-icon">' + (icons[c.id] || '🧑') + '</div><div class="char-name" style="color:' + (elemColors[c.element] || '#fff') + '">' + c.name + '</div><div style="font-size:0.75rem;color:#aaa;">' + (c.element || '') + '</div>';
+        grid.appendChild(card);
     });
-  });
-});
+}
+function renderColorGrid() {
+    const grid = document.getElementById('color-grid'); grid.innerHTML = '';
+    ['#ff3333','#ff6600','#ffcc00','#33cc33','#3399ff','#9933ff','#ff33cc','#ffffff','#cccccc','#666666'].forEach(c => {
+        const sw = document.createElement('div'); sw.className = 'color-swatch'; sw.style.background = c; sw.style.color = c;
+        sw.onclick = () => {
+            document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+            sw.classList.add('selected');
+            selectedColor = c;
+        };
+        grid.appendChild(sw);
+    });
+}
+function startGame() {
+    if (!selectedCharacter || !selectedColor) { showToast('Karakter ve renk seç!', 'error'); return; }
+    socket.emit('selectCharacter', { character: selectedCharacter, empireColor: selectedColor });
+}
+socket.on('characterSelected', (d) => { currentPlayer = Object.assign(currentPlayer, d); enterGame(currentPlayer); });
 
-// Enter tuşu
-document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click()});
-document.getElementById('loginUser').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click()});
-document.getElementById('regPassConfirm').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('registerBtn').click()});
-document.getElementById('resetEmail').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('resetSendBtn').click()});
-codeInputs[5].addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('verifyBtn').click()});
+/* ===== GAME ENTER (KORUNDU) ===== */
+function enterGame(d) {
+    document.getElementById('char-select-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    if (d.character) document.getElementById('ui-avatar').textContent = icons[d.character] || '🧑';
+    if (d.username) document.getElementById('ui-clan').textContent = d.username;
+    socket.emit('getWorldData');
+    initMapControls();
+    startTutorial();
+}
+
+/* ===== MAP CONTROLS (KORUNDU) ===== */
+let mapOffsetX = 0, mapOffsetY = 0, mapZoom = 1, isDragging = false, dragStartX = 0, dragStartY = 0, dragOffsetX = 0, dragOffsetY = 0;
+function initMapControls() {
+    const container = document.getElementById('map-container');
+    container.addEventListener('pointerdown', (e) => { if (e.target.closest('.iso-obj')) return; isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY; dragOffsetX = mapOffsetX; dragOffsetY = mapOffsetY; container.classList.add('grabbing'); container.setPointerCapture(e.pointerId); });
+    container.addEventListener('pointermove', (e) => { if (!isDragging) return; mapOffsetX = dragOffsetX + (e.clientX - dragStartX); mapOffsetY = dragOffsetY + (e.clientY - dragStartY); updateMapTransform(); updateCoordBadge(); });
+    container.addEventListener('pointerup', () => { isDragging = false; document.getElementById('map-container').classList.remove('grabbing'); });
+    document.getElementById('zoom-in').onclick = () => { mapZoom = Math.min(2.5, mapZoom + 0.15); updateMapTransform(); playSound('click'); };
+    document.getElementById('zoom-out').onclick = () => { mapZoom = Math.max(0.4, mapZoom - 0.15); updateMapTransform(); playSound('click'); };
+    document.getElementById('zoom-home').onclick = () => { mapZoom = 1; mapOffsetX = 0; mapOffsetY = 0; updateMapTransform(); playSound('click'); };
+    container.addEventListener('wheel', (e) => { e.preventDefault(); mapZoom = Math.max(0.4, Math.min(2.5, mapZoom + (e.deltaY > 0 ? -0.1 : 0.1))); updateMapTransform(); }, { passive: false });
+    updateMapTransform();
+}
+function updateMapTransform() {
+    const world = document.getElementById('iso-world');
+    world.style.transform = 'translate(' + mapOffsetX + 'px,' + mapOffsetY + 'px) scale(' + mapZoom + ')';
+}
+function updateCoordBadge() {
+    const ts = 140 * mapZoom;
+    document.getElementById('coord-x').textContent = Math.round(-mapOffsetX / ts);
+    document.getElementById('coord-y').textContent = Math.round(-mapOffsetY / ts);
+}
+
+/* ===== WORLD DATA + MAP RENDER (KORUNDU) ===== */
+socket.on('worldData', (data) => {
+    worldData = data;
+    renderIsometricMap(data);
+    updateResourceUI(data);
+});
+socket.on('charactersData', (data) => { charactersData = data; });
+socket.on('resourceUpdate', (data) => { if (currentPlayer) { Object.assign(currentPlayer, data); updateResourceUI(data); } });
+socket.on('buildingUpdate', (data) => { if (worldData) { worldData.buildings = data; renderIsometricMap(worldData); } });
+socket.on('clansData', (data) => { clansData = data; });
+socket.on('mailCount', (n) => { const b = document.getElementById('badge-mail'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
+socket.on('questCount', (n) => { const b = document.getElementById('badge-quests'); if (n > 0) { b.style.display = 'flex'; b.textContent = n; } else b.style.display = 'none'; });
+socket.on('attackResult', (d) => { showToast(d.win ? 'Zafer!' : 'Mağlubiyet!', d.win ? 'victory' : 'defeat'); playSound(d.win ? 'success' : 'explosion'); });
+
+function updateResourceUI(d) {
+    if (!d) return;
+    const fmt = (n) => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : String(n||0);
+    document.getElementById('ui-cash').textContent = fmt(d.cash);
+    document.getElementById('ui-cargo').textContent = fmt(d.cargo);
+    document.getElementById('ui-arms').textContent = fmt(d.arms);
+    document.getElementById('ui-metal').textContent = fmt(d.metal);
+    document.getElementById('ui-crew').textContent = fmt(d.crew);
+    document.getElementById('ui-power').textContent = fmt(d.power);
+    if (d.vip) document.getElementById('ui-vip').textContent = d.vip;
+}
+
+function renderIsometricMap(data) {
+    const world = document.getElementById('iso-world');
+    world.innerHTML = '';
+    if (!data || !data.tiles) return;
+    const ts = 140, half = ts / 2;
+    data.tiles.forEach((row, gy) => {
+        row.forEach((tile, gx) => {
+            const el = document.createElement('div');
+            el.className = 'iso-tile';
+            el.style.cssText = '--tile-size:' + ts + 'px;left:' + (gx * half) + 'px;top:' + (gy * half) + 'px;z-index:' + (gx + gy);
+            if (tile.type === 'road_h') el.classList.add('t-road-h');
+            else if (tile.type === 'road_v') el.classList.add('t-road-v');
+            else if (tile.type === 'road_int') el.classList.add('t-road-int');
+            else if (tile.type === 'grass') el.classList.add('t-grass');
+            else if (tile.type === 'void') el.classList.add('t-void');
+            else if (tile.type === 'plaza') el.classList.add('t-plaza');
+            else if (tile.type === 'water') el.classList.add('t-water');
+            else el.classList.add('t-grass');
+            // Yol çizgileri
+            if (tile.type === 'road_h' || tile.type === 'road_int') {
+                for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe h'; stripe.style.left = (30 + s * 35) + 'px'; stripe.style.top = '50%'; el.appendChild(stripe); }
+            }
+            if (tile.type === 'road_v' || tile.type === 'road_int') {
+                for (var s = 0; s < 3; s++) { var stripe = document.createElement('div'); stripe.className = 'iso-road-stripe v'; stripe.style.left = '50%'; stripe.style.top = (30 + s * 35) + 'px'; el.appendChild(stripe); }
+            }
+            world.appendChild(el);
+        });
+    });
+    // Binaları çiz
+    if (data.buildings) {
+        data.buildings.forEach((b, idx) => {
+            const obj = document.createElement('div');
+            obj.className = 'iso-obj';
+            obj.style.left = (b.x * half) + 'px';
+            obj.style.top = (b.y * half) + 'px';
+            obj.style.zIndex = (b.x + b.y) * 10 + idx;
+            obj.onclick = (e) => { e.stopPropagation(); showRadialMenu(e, b); playSound('click'); };
+            const bw = b.width || 60, bh = b.height || 80, bd = b.depth || 30;
+            const sprite = document.createElement('div'); sprite.className = 'iso-bld';
+            sprite.style.width = bw + 'px'; sprite.style.height = (bh + bd) + 'px';
+            // Ön yüz
+            const front = document.createElement('div'); front.className = 'bld-front';
+            front.style.width = bw + 'px'; front.style.height = bh + 'px';
+            front.style.setProperty('--wall-fill', b.wallColor || '#c9b890');
+            front.style.setProperty('--wall-fill-dark', b.wallColorDark || '#9a8a6a');
+            sprite.appendChild(front);
+            // Yan yüz
+            const side = document.createElement('div'); side.className = 'bld-side';
+            side.style.width = bd + 'px'; side.style.height = bh + 'px';
+            side.style.setProperty('--wall-fill-dark', b.wallColorDark || '#7a6a4a');
+            sprite.appendChild(side);
+            // Çatı
+            const roof = document.createElement('div'); roof.className = 'bld-roof';
+            roof.style.width = (bw + bd) + 'px'; roof.style.height = bd + 'px';
+            roof.style.clipPath = 'polygon(0 100%, 100% 100%, ' + (100 - (bd/(bw+bd)*100)) + '% 0)'; 
+            roof.style.setProperty('--roof-fill', b.roofColor || '#8a4a2a');
+            roof.style.setProperty('--roof-fill-dark', b.roofColorDark || '#5a2a1a');
+            sprite.appendChild(roof);
+            // Pencereler
+            if (b.windows) {
+                b.windows.forEach(w => {
+                    const win = document.createElement('div'); win.className = 'bld-win';
+                    win.style.left = w.x + 'px'; win.style.top = w.y + 'px'; win.style.width = (w.w || 8) + 'px'; win.style.height = (w.h || 10) + 'px';
+                    front.appendChild(win);
+                });
+            }
+            obj.appendChild(sprite);
+            // Etiket
+            const label = document.createElement('div'); label.className = 'iso-label'; label.textContent = b.name || 'Bina';
+            obj.appendChild(label);
+            // Badge
+            if (b.badge) { const badge = document.createElement('div'); badge.className = 'iso-badge'; badge.textContent = b.badge; obj.appendChild(badge); }
+            // Seçim glow
+            if (b.selected) { const glow = document.createElement('div'); glow.className = 'bld-glow'; glow.style.width = (bw + 40) + 'px'; glow.style.height = '30px'; obj.appendChild(glow); }
+            world.appendChild(obj);
+        });
+    }
+}
+
+/* ===== RADIAL MENU (KORUNDU) ===== */
+function showRadialMenu(e, building) {
+    const menu = document.getElementById('radial-menu');
+    menu.innerHTML = '';
+    const items = [
+        { icon: '🔍', label: 'Detay', action: () => openBaseModal() },
+        { icon: '⬆️', label: 'Yükselt', action: () => { socket.emit('upgradeBuilding', { id: building.id }); showToast('Yükseltme başladı', 'info'); } },
+        { icon: '👥', label: 'Topla', action: () => { socket.emit('collectResources', { id: building.id }); playSound('success'); } },
+        { icon: '⚡', label: 'Hızlandır', action: () => { socket.emit('speedUp', { id: building.id }); showToast('Hızlandırıldı!', 'success'); } }
+    ];
+    items.forEach((item, i) => {
+        const angle = (i / items.length) * Math.PI * 2 - Math.PI / 2;
+        const dist = 60;
+        const btn = document.createElement('div'); btn.className = 'radial-btn';
+        btn.style.left = e.clientX + 'px'; btn.style.top = e.clientY + 'px';
+        btn.style.transform = 'translate(-50%,-50%) scale(0)';
+        btn.style.transitionDelay = (i * 0.04) + 's';
+        btn.innerHTML = item.icon + '<span class="radial-btn-label">' + item.label + '</span>';
+        btn.onclick = () => { hideRadialMenu(); item.action(); };
+        menu.appendChild(btn);
+        requestAnimationFrame(() => { btn.style.left = (e.clientX + Math.cos(angle) * dist) + 'px'; btn.style.top = (e.clientY + Math.sin(angle) * dist) + 'px'; });
+    });
+    menu.classList.add('active');
+    setTimeout(() => { document.addEventListener('click', hideRadialMenu, { once: true }); }, 50);
+}
+function hideRadialMenu() { document.getElementById('radial-menu').classList.remove('active'); }
+
+/* ===== MODALS (KORUNDU) ===== */
+function openModal(type) {
+    const box = document.getElementById('modal-box');
+    let html = '<h2>';
+    if (type === 'profile') html += 'Profil & Görevler';
+    else if (type === 'mail') html += 'Posta Kutusu';
+    else if (type === 'leaderboard') html += 'Sıralama';
+    else if (type === 'train') html += 'Eğitim Kampı';
+    else if (type === 'hospital') html += 'Hastane';
+    else if (type === 'clan') html += 'Klan';
+    else html += type;
+    html += '</h2>';
+    if (type === 'train') {
+        html += '<div class="info-row"><span>Piyade</span><span>💰 500 💎 100</span></div>';
+        html += '<div class="info-row"><span>Müzisyen</span><span>💰 1200 💎 300</span></div>';
+        html += '<div class="info-row"><span>Keskin Nişancı</span><span>💰 3000 💎 800</span></div>';
+        html += '<div class="info-row"><span>Zırhlı Araç</span><span>💰 8000 💎 2000</span></div>';
+        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'trainCrew\',{type:\'infantry\',count:10});closeModal();showToast(\'Eğitim başladı!\',\'success\')">10 Piyade Eğit</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    } else if (type === 'hospital') {
+        html += '<div class="info-row"><span>Mevcut Yaralı</span><span style="color:var(--red);">' + (currentPlayer?.wounded || 0) + '</span></div>';
+        html += '<div class="info-row"><span>İyileştirme Maliyeti</span><span>💰 ' + ((currentPlayer?.wounded || 0) * 50) + '</span></div>';
+        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'healAll\');closeModal();showToast(\'İyileştirme başladı!\',\'success\')">Tümünü İyileştir</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    } else if (type === 'clan') {
+        html += '<div class="input-group"><label>Klan Adı Ara</label><input placeholder="Klan adı..." id="clan-search"></div>';
+        html += '<div id="clan-list" style="margin-top:10px;"></div>';
+        html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'searchClan\',{name:document.getElementById(\'clan-search\').value});">Ara</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    } else if (type === 'leaderboard') {
+        html += '<div class="info-row"><span>1. PatronX</span><span>⚡ 1.2M</span></div><div class="info-row"><span>2. ShadowKing</span><span>⚡ 980K</span></div><div class="info-row"><span>3. DarkLord</span><span>⚡ 750K</span></div><div class="info-row"><span>4. IronFist</span><span>⚡ 620K</span></div><div class="info-row"><span>5. GhostRider</span><span>⚡ 510K</span></div>';
+        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    } else if (type === 'mail') {
+        html += '<div style="color:#aaa;text-align:center;padding:20px;">Posta kutusu boş</div>';
+        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    } else if (type === 'profile') {
+        html += '<div class="info-row"><span>Kullanıcı</span><span>' + (currentPlayer?.username || '-') + '</span></div>';
+        html += '<div class="info-row"><span>Seviye</span><span>' + (currentPlayer?.level || 1) + '</span></div>';
+        html += '<div class="info-row"><span>Güç</span><span>⚡ ' + (currentPlayer?.power || 0) + '</span></div>';
+        html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    }
+    box.innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function openBaseModal() {
+    if (!worldData || !worldData.buildings) return;
+    const base = worldData.buildings.find(b => b.type === 'mansion');
+    if (!base) return;
+    const box = document.getElementById('modal-box');
+    let html = '<h2>' + (base.name || 'Mansion') + ' — Seviye ' + (base.level || 1) + '</h2>';
+    html += '<div class="res-bar-mini"><span class="name">HP</span><div class="progress"><div class="progress-fill" style="width:' + ((base.hp || 100) / (base.maxHp || 100) * 100) + '%"></div></div><span class="value">' + (base.hp || 100) + '/' + (base.maxHp || 100) + '</span></div>';
+    html += '<div class="res-bar-mini"><span class="name">Üretim</span><div class="progress"><div class="progress-fill" style="width:' + (base.prodPct || 0) + '%"></div></div><span class="value">' + (base.prodPct || 0) + '%</span></div>';
+    html += '<div class="info-row"><span>Yükseltme Maliyeti</span><span>💰 ' + (base.upgradeCost || '?') + '</span></div>';
+    html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'upgradeBuilding\',{id:\'' + base.id + '\'});closeModal();showToast(\'Yükseltme başladı!\',\'success\')">Yükselt</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    box.innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function openInvestCenter() {
+    const box = document.getElementById('modal-box');
+    let html = '<h2>Yatırım Merkezi</h2>';
+    html += '<div class="info-row"><span>Ekonomi Bonusu</span><span>Seviye ' + (currentPlayer?.investEcon || 0) + '</span></div>';
+    html += '<div class="info-row"><span>Askeri Bonusu</span><span>Seviye ' + (currentPlayer?.investMilitary || 0) + '</span></div>';
+    html += '<div class="info-row"><span>Kaynak Bonusu</span><span>Seviye ' + (currentPlayer?.investResource || 0) + '</span></div>';
+    html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'invest\',{type:\'econ\'});closeModal();showToast(\'Yatırım yapıldı!\',\'success\')">Ekonomi Yatır</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    box.innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function openDiner() {
+    const box = document.getElementById('modal-box');
+    let html = '<h2>Lokanta</h2>';
+    html += '<div class="info-row"><span>Kahve</span><span>⚡ +50 — 💰 200</span></div>';
+    html += '<div class="info-row"><span>Steak</span><span>⚡ +150 — 💰 500</span></div>';
+    html += '<div class="info-row"><span>Şampanya</span><span>⚡ +500 — 💰 2000</span></div>';
+    html += '<div class="modal-actions"><button class="btn btn-primary" onclick="socket.emit(\'dinerBuy\',{item:\'coffee\'});closeModal();showToast(\'Kahve alındı!\',\'success\')">Kahve Al</button><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    box.innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function openHeroes() {
+    const box = document.getElementById('modal-box');
+    let html = '<h2>Kahramanlar</h2>';
+    if (currentPlayer?.heroes && currentPlayer.heroes.length) {
+        currentPlayer.heroes.forEach(h => {
+            html += '<div class="info-row"><span>' + (icons[h.id] || '🧑') + ' ' + h.name + '</span><span>Seviye ' + h.level + '</span></div>';
+        });
+    } else {
+        html += '<div style="color:#aaa;text-align:center;padding:20px;">Henüz kahraman yok</div>';
+    }
+    html += '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Kapat</button></div>';
+    box.innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+/* ===== WORLD MAP (KORUNDU) ===== */
+function openWorldMap() {
+    document.getElementById('world-map-overlay').classList.add('active');
+    const cv = document.getElementById('world-map-canvas');
+    const cx = cv.getContext('2d');
+    cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight;
+    const W = cv.width, H = cv.height;
+    cx.fillStyle = '#0a1218'; cx.fillRect(0, 0, W, H);
+    // Kıta şekilleri
+    cx.fillStyle = '#1a3020';
+    cx.beginPath(); cx.ellipse(W*0.3, H*0.35, W*0.15, H*0.2, 0.3, 0, Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(W*0.65, H*0.5, W*0.18, H*0.22, -0.2, 0, Math.PI*2); cx.fill();
+    cx.beginPath(); cx.ellipse(W*0.5, H*0.75, W*0.12, H*0.15, 0.1, 0, Math.PI*2); cx.fill();
+    // Oyuncu noktaları
+    if (worldData && worldData.players) {
+        worldData.players.forEach(p => {
+            const px = W * 0.1 + (p.x || 0) * (W * 0.8 / 100);
+            const py = H * 0.1 + (p.y || 0) * (H * 0.8 / 100);
+            cx.fillStyle = p.color || '#ff6b00';
+            cx.beginPath(); cx.arc(px, py, 5, 0, Math.PI*2); cx.fill();
+            cx.fillStyle = 'rgba(255,255,255,0.7)'; cx.font = '10px Rajdhani'; cx.fillText(p.name || '?', px + 8, py + 4);
+        });
+    }
+    // Kendi konum
+    if (currentPlayer && currentPlayer.x != null) {
+        const mx = W * 0.1 + currentPlayer.x * (W * 0.8 / 100);
+        const my = H * 0.1 + currentPlayer.y * (H * 0.8 / 100);
+        cx.fillStyle = '#ffd700'; cx.beginPath(); cx.arc(mx, my, 7, 0, Math.PI*2); cx.fill();
+        cx.strokeStyle = '#ffd700'; cx.lineWidth = 2; cx.beginPath(); cx.arc(mx, my, 12, 0, Math.PI*2); cx.stroke();
+    }
+    playSound('click');
+}
+function closeWorldMap() { document.getElementById('world-map-overlay').classList.remove('active'); }
+
+/* ===== TOAST (KORUNDU) ===== */
+function showToast(msg, type) {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div'); t.className = 'toast ' + (type || 'info'); t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; t.style.transition = '0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+/* ===== TUTORIAL (KORUNDU) ===== */
+let tutorialStep = 0;
+const tutorialSteps = ['tut1_title', 'tut2_title', 'tut3_title', 'tut4_title', 'tut5_title', 'tut6_title'];
+function startTutorial() {
+    if (localStorage.getItem('atlas_tutorial_done')) return;
+    tutorialStep = 0; showTutorialStep();
+}
+function showTutorialStep() {
+    if (tutorialStep >= tutorialSteps.length) { skipTutorial(); return; }
+    const key = tutorialSteps[tutorialStep];
+    document.getElementById('tut-title').textContent = I18N[currentLang][key] || key;
+    document.getElementById('tut-body').textContent = I18N[currentLang][key.replace('_title', '_body')] || '';
+    document.getElementById('tut-next').textContent = I18N[currentLang].next;
+    document.getElementById('tutorial-overlay').classList.add('active');
+}
+function nextTutorial() { tutorialStep++; showTutorialStep(); playSound('click'); }
+function skipTutorial() { document.getElementById('tutorial-overlay').classList.remove('active'); localStorage.setItem('atlas_tutorial_done', '1'); }
+
+/* ===== AUTO-LOGIN CHECK (KORUNDU) ===== */
+socket.on('connect', () => {
+    const token = localStorage.getItem('atlas_token');
+    if (token) socket.emit('autoLogin', { token });
+    else document.getElementById('auth-screen').style.display = 'flex';
+});
+socket.on('autoLoginFailed', () => { document.getElementById('auth-screen').style.display = 'flex'; });
+socket.on('disconnect', () => { showToast('Bağlantı kesildi', 'error'); });
+socket.on('error', (msg) => { showToast(msg || 'Hata oluştu', 'error'); playSound('error'); });
+
+/* ===== INIT ===== */
+setLang(currentLang);
 </script>
 </body>
 </html>
